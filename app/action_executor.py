@@ -1,0 +1,565 @@
+"""
+Action Executor — Propose Action Onay-Uygulama Akışı
+
+Akış:
+1. Koç propose_action çağırır → PendingAction (status=pending)
+2. Kullanıcı 'Onayla' der → execute_pending_action(action_id, db) çalışır
+3. Bu modül payload'ı parse eder, DB'yi günceller, status='executed' yapar
+4. Hata olursa status='failed' + error_message
+
+Aksiyon türleri:
+- update_account_balance     — hesap bakiyesi değişimi
+- add_transaction            — gelir/gider kaydı
+- mark_debt_paid             — kişisel borç ödendi
+- sell_investment            — yatırım satışı (lot azalır + nakit artar)
+- update_fund_price          — manuel fiyat güncelleme
+- add_master_checkpoint      — yeni kırmızı çizgi ekle
+
+KRITIK: MC1 (Emanet) gibi kuralları bu modül ENFORCE eder.
+Emanet hesabı satma aksiyonu DB'ye yazılmaz, hata döner.
+"""
+
+import json
+import logging
+from datetime import datetime, date
+from typing import Dict, Optional
+from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
+
+from app.models import (
+    Account, AccountType, Transaction, TransactionType,
+    PersonalDebt, MasterCheckpoint, CheckpointType,
+    PendingAction, ActionStatus,
+)
+from app.rules_engine import simulate_partial_sale
+
+
+# BUG #025/#026 fix: Kart kategorileri (QUICK_KEYWORDS'deki is_card=True olanlar)
+_CARD_CATEGORIES = {"yemek", "eglence", "sigara", "alisveris", "market"}
+_TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiоsuCGIOSU")  # BUG #026: Türkçe karakter normalize
+
+
+def _cat_normalize(cat: str) -> str:
+    """BUG #026: 'Eğlence' → 'eglence' — büyük harf + Türkçe aksan normalize."""
+    return cat.lower().translate(_TR_NORM)
+
+
+def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> Dict:
+    """BUG #025/#026: Kategori normalize et, kart listesindeyse account_id ve is_card_expense zorla."""
+    raw_category = payload.get("category", "")
+    category = _cat_normalize(raw_category)
+
+    if category not in _CARD_CATEGORIES:
+        return payload
+
+    card = db.query(Account).filter(
+        Account.user_id == user_id,
+        Account.account_type == AccountType.credit_card,
+    ).first()
+    if not card:
+        return payload
+
+    original_account = payload.get("account_id")
+    logger.info(
+        f"BUG #025/#026: kategori='{raw_category}'->'{category}' kart varsayilanina yonlendirildi "
+        f"(account_id {original_account} -> {card.id}, is_card_expense=True)"
+    )
+    # BUG #026: normalize edilmiş category DB'ye yazılır (tutarlılık)
+    return {**payload, "category": category, "account_id": card.id, "is_card_expense": True}
+
+
+# ============================================================
+# 1. PROPOSE — Koç bir aksiyon önerir, DB'ye 'pending' yazılır
+# ============================================================
+
+def propose_action(
+    db: Session,
+    user_id: int,
+    action_type: str,
+    payload: Dict,
+    summary: str,
+) -> PendingAction:
+    """
+    Koçun önerdiği aksiyonu PendingAction tablosuna kaydeder.
+
+    Args:
+        db: SQLAlchemy session
+        user_id: Hangi kullanıcı için
+        action_type: Aksiyon türü (yukarıdaki listeden biri)
+        payload: Aksiyon verisi (dict, JSON serialize edilebilir olmalı)
+        summary: Kullanıcıya gösterilecek tek cümle özet
+
+    Returns:
+        Yeni oluşturulan PendingAction kaydı (status=pending)
+    """
+    valid_types = {
+        "update_account_balance",
+        "add_transaction",
+        "mark_debt_paid",
+        "sell_investment",
+        "update_fund_price",
+        "add_master_checkpoint",
+    }
+    if action_type not in valid_types:
+        raise ValueError(f"Bilinmeyen aksiyon türü: {action_type}")
+
+    warning = None
+    if action_type == "add_transaction":
+        payload = _normalize_transaction_payload(payload, user_id, db)
+        # BUG #027: Kart limit aşımı uyarısı — DB rejection yok, kullanıcı karar verir
+        if payload.get("is_card_expense") and payload.get("account_id"):
+            card = db.query(Account).filter(
+                Account.id == payload["account_id"],
+                Account.user_id == user_id,
+            ).first()
+            if card and card.credit_limit:
+                amount = float(payload.get("amount", 0))
+                projected = card.balance + amount
+                if projected > card.credit_limit:
+                    overage = round(projected - card.credit_limit, 2)
+                    warning = (
+                        f"⚠️ Bu işlem kart limitini {overage:,.2f} TL aşacak "
+                        f"(mevcut borç: {card.balance:,.2f} TL, limit: {card.credit_limit:,.2f} TL)"
+                    )
+                    logger.warning(f"BUG #027: {warning}")
+
+    pending = PendingAction(
+        user_id=user_id,
+        action_type=action_type,
+        payload=json.dumps(payload, ensure_ascii=False, default=str),
+        summary=summary,
+        status=ActionStatus.pending,
+        warning=warning,
+    )
+    db.add(pending)
+    db.commit()
+    db.refresh(pending)
+    # SQLAlchemy expire workaround: instance attribute olarak da sakla
+    pending._warning_text = warning
+    return pending
+
+
+# ============================================================
+# 2. EXECUTE — Onaylanmış aksiyonu DB'ye uygula
+# ============================================================
+
+def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
+    """
+    PendingAction'ı uygular. Onay sonrası çağrılır.
+
+    Returns:
+        {
+            "success": bool,
+            "action_type": str,
+            "result": dict | None,    # her aksiyon kendi sonucunu döner
+            "error": str | None,
+        }
+    """
+    pending = (
+        db.query(PendingAction)
+        .filter(
+            PendingAction.id == action_id,
+            PendingAction.user_id == user_id,
+        )
+        .first()
+    )
+
+    if not pending:
+        return {"success": False, "error": f"Aksiyon bulunamadi: id={action_id}"}
+
+    if pending.status != ActionStatus.pending:
+        return {
+            "success": False,
+            "error": f"Aksiyon zaten '{pending.status.value}' durumunda — tekrar uygulanamaz."
+        }
+
+    try:
+        payload = json.loads(pending.payload)
+    except json.JSONDecodeError as e:
+        _mark_failed(db, pending, f"Payload parse hatasi: {e}")
+        return {"success": False, "error": str(e)}
+
+    # Dispatcher
+    handlers = {
+        "update_account_balance": _execute_update_account_balance,
+        "add_transaction": _execute_add_transaction,
+        "mark_debt_paid": _execute_mark_debt_paid,
+        "sell_investment": _execute_sell_investment,
+        "update_fund_price": _execute_update_fund_price,
+        "add_master_checkpoint": _execute_add_master_checkpoint,
+    }
+    handler = handlers.get(pending.action_type)
+    if not handler:
+        _mark_failed(db, pending, f"Bilinmeyen aksiyon: {pending.action_type}")
+        return {"success": False, "error": f"Handler yok: {pending.action_type}"}
+
+    try:
+        result = handler(db, user_id, payload)
+
+        # Başarısız iş mantığı (örn. emanet ihlali)
+        if not result.get("success", False):
+            _mark_failed(db, pending, result.get("message", "Uygulama basarisiz."))
+            return {
+                "success": False,
+                "action_type": pending.action_type,
+                "error": result.get("message"),
+            }
+
+        # Başarılı — kaydı 'executed' işaretle
+        pending.status = ActionStatus.executed
+        pending.resolved_at = datetime.utcnow()
+        db.commit()
+
+        return {
+            "success": True,
+            "action_type": pending.action_type,
+            "result": result,
+        }
+
+    except Exception as e:
+        db.rollback()
+        _mark_failed(db, pending, f"Beklenmeyen hata: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def reject_pending_action(db: Session, action_id: int, user_id: int, reason: Optional[str] = None) -> Dict:
+    """Kullanıcı 'Reddet' dediğinde aksiyon iptal edilir, DB'ye dokunulmaz."""
+    pending = (
+        db.query(PendingAction)
+        .filter(
+            PendingAction.id == action_id,
+            PendingAction.user_id == user_id,
+        )
+        .first()
+    )
+    if not pending:
+        return {"success": False, "error": "Aksiyon bulunamadi."}
+    if pending.status != ActionStatus.pending:
+        return {"success": False, "error": f"Aksiyon zaten '{pending.status.value}'."}
+
+    pending.status = ActionStatus.rejected
+    pending.resolved_at = datetime.utcnow()
+    if reason:
+        pending.error_message = reason
+    db.commit()
+    return {"success": True, "action_id": action_id, "status": "rejected"}
+
+
+def _mark_failed(db: Session, pending: PendingAction, error_message: str) -> None:
+    """Aksiyonu 'failed' olarak işaretle."""
+    pending.status = ActionStatus.failed
+    pending.error_message = error_message
+    pending.resolved_at = datetime.utcnow()
+    db.commit()
+
+
+# ============================================================
+# 3. HANDLER'LAR — Her aksiyon türü için uygulama mantığı
+# ============================================================
+
+def _execute_update_account_balance(db: Session, user_id: int, payload: Dict) -> Dict:
+    """
+    Hesap bakiyesi güncelle.
+    Payload: {"account_id": int, "new_balance": float, "reason": str?}
+    """
+    account_id = payload.get("account_id")
+    new_balance = payload.get("new_balance")
+    if account_id is None or new_balance is None:
+        return {"success": False, "message": "account_id ve new_balance gerekli."}
+
+    account = db.query(Account).filter(
+        Account.id == account_id,
+        Account.user_id == user_id,
+    ).first()
+    if not account:
+        return {"success": False, "message": f"Hesap bulunamadi: id={account_id}"}
+
+    # MC1 KORUMA — Emanet hesaba dokunma
+    if account.is_emanet:
+        return {
+            "success": False,
+            "message": f"'{account.name}' emanet hesap (MC1). Bakiye degistirilemez.",
+        }
+
+    old_balance = account.balance
+    account.balance = float(new_balance)
+    account.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "success": True,
+        "account_id": account.id,
+        "account_name": account.name,
+        "old_balance": old_balance,
+        "new_balance": account.balance,
+        "diff": round(account.balance - old_balance, 2),
+    }
+
+
+def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
+    """
+    İşlem ekle (gelir/gider).
+    Payload: {
+        "transaction_type": "income"|"expense"|"transfer",
+        "amount": float,
+        "category": str?,
+        "description": str?,
+        "transaction_date": "YYYY-MM-DD"?,
+        "account_id": int?,
+        "is_card_expense": bool?,
+        "auto_update_balance": bool?  # True ise hesap bakiyesi de güncellenir
+    }
+    """
+    txn_type = payload.get("transaction_type")
+    amount = payload.get("amount")
+    if txn_type not in ("income", "expense", "transfer") or amount is None:
+        return {"success": False, "message": "transaction_type ve amount gerekli."}
+
+    txn_date = payload.get("transaction_date")
+    if txn_date:
+        txn_date = date.fromisoformat(txn_date) if isinstance(txn_date, str) else txn_date
+    else:
+        txn_date = date.today()
+
+    account_id = payload.get("account_id")
+    if account_id:
+        account = db.query(Account).filter(
+            Account.id == account_id,
+            Account.user_id == user_id,
+        ).first()
+        if not account:
+            return {"success": False, "message": f"Hesap bulunamadi: id={account_id}"}
+        if account.is_emanet:
+            return {"success": False, "message": f"'{account.name}' emanet hesap (MC1)."}
+
+    txn = Transaction(
+        user_id=user_id,
+        account_id=account_id,
+        transaction_type=TransactionType(txn_type),
+        amount=float(amount),
+        category=payload.get("category"),
+        description=payload.get("description"),
+        transaction_date=txn_date,
+        is_card_expense=bool(payload.get("is_card_expense", False)),
+    )
+    db.add(txn)
+
+    # Bakiye otomatik güncellensin mi?
+    balance_diff = 0.0
+    if payload.get("auto_update_balance") and account_id:
+        if txn_type == "income":
+            account.balance += float(amount)
+            balance_diff = float(amount)
+        elif txn_type == "expense":
+            # Kart harcamasıysa kart borcunu artır, nakitse nakti azalt
+            if account.account_type == AccountType.credit_card:
+                account.balance += float(amount)  # Kart borcu büyür
+                balance_diff = float(amount)
+            else:
+                account.balance -= float(amount)
+                balance_diff = -float(amount)
+        account.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(txn)
+
+    return {
+        "success": True,
+        "transaction_id": txn.id,
+        "transaction_type": txn_type,
+        "amount": txn.amount,
+        "category": txn.category,
+        "balance_diff": balance_diff,
+    }
+
+
+def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
+    """
+    Kişisel borç/alacağı ödendi olarak işaretle.
+    Payload: {"debt_id": int, "paid_date": "YYYY-MM-DD"?}
+    """
+    debt_id = payload.get("debt_id")
+    if debt_id is None:
+        return {"success": False, "message": "debt_id gerekli."}
+
+    debt = db.query(PersonalDebt).filter(
+        PersonalDebt.id == debt_id,
+        PersonalDebt.user_id == user_id,
+    ).first()
+    if not debt:
+        return {"success": False, "message": f"Borc kaydi bulunamadi: id={debt_id}"}
+
+    if debt.is_paid:
+        return {"success": False, "message": "Bu borc zaten odenmiş olarak isaretli."}
+
+    paid_date_str = payload.get("paid_date")
+    debt.paid_date = (
+        date.fromisoformat(paid_date_str) if paid_date_str else date.today()
+    )
+    debt.is_paid = True
+    db.commit()
+
+    return {
+        "success": True,
+        "debt_id": debt.id,
+        "counterparty": debt.counterparty,
+        "amount": debt.amount,
+        "direction": debt.direction.value,
+        "paid_date": debt.paid_date.isoformat(),
+    }
+
+
+def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
+    """
+    Yatırım fonu satışı — lot azalt, nakte ekle.
+    Payload: {
+        "investment_id": int,
+        "lots_to_sell": float,
+        "actual_price": float?,         # gerçekleşme fiyatı; verilmezse current_price
+        "credit_to_account_id": int?,   # nakdin hangi hesaba geçeceği
+    }
+
+    MC1 KORUMA: Emanet hesap satılamaz.
+    """
+    inv_id = payload.get("investment_id")
+    lots = payload.get("lots_to_sell")
+    if inv_id is None or lots is None:
+        return {"success": False, "message": "investment_id ve lots_to_sell gerekli."}
+
+    inv = db.query(Account).filter(
+        Account.id == inv_id,
+        Account.user_id == user_id,
+    ).first()
+    if not inv:
+        return {"success": False, "message": f"Yatirim bulunamadi: id={inv_id}"}
+    if inv.account_type != AccountType.investment:
+        return {"success": False, "message": f"'{inv.name}' yatirim hesabi degil."}
+
+    # MC1 — KIRMIZI ÇİZGİ — EMANET DOKUNULMAZ
+    if inv.is_emanet:
+        return {
+            "success": False,
+            "message": (
+                f"'{inv.name}' emanet hesap (MC1 - Master Checkpoint #1). "
+                f"Hicbir senaryoda satilamaz. Bu aksiyon REDDEDILDI."
+            ),
+        }
+
+    lots = float(lots)
+    if lots <= 0:
+        return {"success": False, "message": "lots_to_sell sifirdan buyuk olmali."}
+    if lots > (inv.lot_count or 0):
+        return {
+            "success": False,
+            "message": f"Yetersiz lot. Mevcut: {inv.lot_count}, satilmak istenen: {lots}",
+        }
+    if inv.cost_per_lot is None or inv.current_price is None:
+        return {
+            "success": False,
+            "message": "cost_per_lot veya current_price eksik — satis simulasyonu yapilamaz.",
+        }
+
+    actual_price = float(payload.get("actual_price") or inv.current_price)
+
+    # Stopaj hesabı (Rules Engine'i kullanıyoruz — LLM hesaplamasın)
+    sim = simulate_partial_sale(
+        lot_count=inv.lot_count,
+        cost_per_lot=inv.cost_per_lot,
+        current_price=actual_price,
+        lots_to_sell=lots,
+    )
+
+    # Yatırım hesabını güncelle: lot azalt, balance yeniden hesapla
+    inv.lot_count = sim["kalan_lot"]
+    inv.balance = sim["kalan_deger"]
+    inv.updated_at = datetime.utcnow()
+
+    # Nakdi hangi hesaba geçirelim?
+    credit_account_id = payload.get("credit_to_account_id")
+    credit_account = None
+    if credit_account_id:
+        credit_account = db.query(Account).filter(
+            Account.id == credit_account_id,
+            Account.user_id == user_id,
+        ).first()
+        if credit_account and not credit_account.is_emanet:
+            credit_account.balance += sim["net_eline_gecen"]
+            credit_account.updated_at = datetime.utcnow()
+
+    db.commit()
+
+    return {
+        "success": True,
+        "investment_id": inv.id,
+        "investment_name": inv.name,
+        "fund_code": inv.fund_code,
+        "satis_simulasyonu": sim,
+        "kalan_lot": inv.lot_count,
+        "kalan_deger": inv.balance,
+        "credit_account": (
+            {"id": credit_account.id, "name": credit_account.name, "yeni_bakiye": credit_account.balance}
+            if credit_account else None
+        ),
+    }
+
+
+def _execute_update_fund_price(db: Session, user_id: int, payload: Dict) -> Dict:
+    """
+    Yatırım fiyatını manuel günceller (fund_tracker'ın propose üzerinden çalışan versiyonu).
+    Payload: {"account_id": int, "new_price": float}
+    """
+    from app.fund_tracker import update_fund_price_manual
+    account_id = payload.get("account_id")
+    new_price = payload.get("new_price")
+    if account_id is None or new_price is None:
+        return {"success": False, "message": "account_id ve new_price gerekli."}
+
+    return update_fund_price_manual(db, account_id, float(new_price))
+
+
+def _execute_add_master_checkpoint(db: Session, user_id: int, payload: Dict) -> Dict:
+    """
+    Yeni Master Checkpoint ekler.
+    Payload: {
+        "title": str,
+        "description": str,
+        "checkpoint_type": "red_line"|"strategy"|"rule"|"context",
+        "priority": int (1-3)
+    }
+    """
+    title = payload.get("title")
+    desc = payload.get("description")
+    cp_type = payload.get("checkpoint_type")
+    priority = payload.get("priority", 2)
+
+    if not title or not desc or not cp_type:
+        return {"success": False, "message": "title, description, checkpoint_type gerekli."}
+
+    try:
+        cp_type_enum = CheckpointType(cp_type)
+    except ValueError:
+        return {
+            "success": False,
+            "message": f"Gecersiz checkpoint_type: {cp_type}. red_line|strategy|rule|context olabilir.",
+        }
+
+    cp = MasterCheckpoint(
+        user_id=user_id,
+        title=title,
+        description=desc,
+        checkpoint_type=cp_type_enum,
+        priority=int(priority),
+        is_active=True,
+    )
+    db.add(cp)
+    db.commit()
+    db.refresh(cp)
+
+    return {
+        "success": True,
+        "checkpoint_id": cp.id,
+        "title": cp.title,
+        "type": cp.checkpoint_type.value,
+        "priority": cp.priority,
+    }

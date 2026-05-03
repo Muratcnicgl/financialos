@@ -1,0 +1,50 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+
+# === Environment ===
+.env
+.env.local
+*.env.bak
+
+# === Database ===
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# === asistan araci ===
+.asistan/settings.local.json
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Frontend ===
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+npm-debug.log*
+
+# === Test/Cache ===
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/

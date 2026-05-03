@@ -1,0 +1,554 @@
+import { useState, useEffect, useRef, useCallback, Component } from 'react';
+import {
+  Send, Loader2, RotateCcw, MessageSquare, AlertTriangle, User, Sparkles, RefreshCw,
+} from 'lucide-react';
+import { coachApi } from '../api.js';
+import { useToast } from '../components/Toast.jsx';
+import PendingActions from '../components/PendingActions.jsx';
+
+/**
+ * Coach — Koc ile sohbet paneli.
+ *
+ * BUG #010 fix (2 May 2026):
+ *   - handleActionResolved try-catch ile saritildi (3 ayri korumali blok)
+ *   - ErrorBoundary ile sayfa kilitlenmesi engellendi
+ *   - onActionResolved callback'i guvenli hale getirildi (parent hatasi Coach'u dusurmez)
+ *   - summary parametresi tipinden bagimsiz hale getirildi
+ *
+ * BUG #018 fix (2 May 2026):
+ *   - Backend artik akilli placeholder donduruyor ("(bos cevap)" yerine
+ *     "Onayinizi bekliyorum" gibi). Frontend fallback'i da nazik metin oldu.
+ *
+ * BUG #017 fix (2 May 2026):
+ *   - PendingActions component'i a.id ?? a.action_id ile iki kaynak destekler.
+ *     Bu dosya bu konuda dogrudan rol almıyor, ama gecmis kayitlardaki
+ *     action.action_id'yi temizleme isleminde dogru aksiyon id'sini bulur.
+ */
+
+// ============================================================
+// ERROR BOUNDARY — siyah ekrani onler
+// ============================================================
+
+class CoachErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    // eslint-disable-next-line no-console
+    console.error('[Coach ErrorBoundary]', error, errorInfo);
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-180px)] min-h-[500px] px-6 animate-fade-in">
+          <div className="w-12 h-12 rounded-xl bg-negative-100 dark:bg-negative-900/30 flex items-center justify-center mb-4">
+            <AlertTriangle className="w-6 h-6 text-negative-600 dark:text-negative-400" />
+          </div>
+          <h3 className="font-semibold text-lg mb-2">Koç paneli geçici bir hata yaşadı</h3>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-md text-center mb-4">
+            Sayfa kilitlendi ama veriniz güvende. Aşağıdaki butona basarak paneli yenileyebilirsiniz.
+          </p>
+          {this.state.error && (
+            <pre className="text-xs text-zinc-400 dark:text-zinc-500 max-w-md text-center mb-4 font-mono break-all">
+              {String(this.state.error?.message || this.state.error)}
+            </pre>
+          )}
+          <button
+            onClick={this.handleReset}
+            className="btn btn-primary"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Paneli yenile
+          </button>
+          <p className="text-xs text-zinc-400 mt-3">
+            Tarayıcıyı F5 ile de yenileyebilirsiniz, veriler kaybolmaz.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+/**
+ * BUG #011 fix: Backend bazen 'created_at', bazen 'timestamp' donduruyordu.
+ * Esnek okuma + gecersiz tarihte null donus (Invalid Date sorununu kokunden cozer).
+ */
+function parseHistoryDate(item) {
+  const raw = item?.created_at ?? item?.timestamp;
+  if (!raw) return null;
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================
+// COACH (icerik) — ErrorBoundary ile saritlanir
+// ============================================================
+
+function CoachInner({ onActionResolved }) {
+  const toast = useToast();
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [usage, setUsage] = useState(null);
+  const [resetting, setResetting] = useState(false);
+  const [error, setError] = useState(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  const scrollRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // ============================================================
+  // GECMISI YUKLE (sayfa acilisi)
+  // ============================================================
+
+  useEffect(() => {
+    let mounted = true;
+    coachApi.history(50)
+      .then((items) => {
+        if (!mounted) return;
+        const msgs = (items || []).map((h) => ({
+          role: h.role === 'user' ? 'user' : 'coach',
+          text: h.content,
+          ts: parseHistoryDate(h),
+          actions: [],
+        }));
+        setMessages(msgs);
+        setHistoryLoaded(true);
+      })
+      .catch(() => {
+        if (mounted) setHistoryLoaded(true);
+      });
+
+    coachApi.usage().then((u) => { if (mounted) setUsage(u); }).catch(() => {});
+
+    return () => { mounted = false; };
+  }, []);
+
+  // ============================================================
+  // OTOMATIK SCROLL
+  // ============================================================
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, sending]);
+
+  // ============================================================
+  // MESAJ GONDER
+  // ============================================================
+
+  const handleSend = useCallback(async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+
+    const userMsg = { role: 'user', text, ts: new Date(), actions: [] };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setSending(true);
+    setError(null);
+
+    try {
+      const res = await coachApi.chat(text);
+      const coachMsg = {
+        role: 'coach',
+        // BUG #018 fix: Backend artik akilli placeholder donduruyor.
+        // Yine de guvenlik icin nazik bir fallback (eski "(bos cevap)" idi).
+        text: res.reply || 'Koç cevap vermedi.',
+        actions: res.proposed_actions || [],
+        ts: new Date(),
+      };
+      setMessages((prev) => [...prev, coachMsg]);
+      if (res.usage) setUsage(res.usage);
+
+      // Aksiyon onerildiyse toast info — koruma altinda
+      if (res.proposed_actions && res.proposed_actions.length > 0) {
+        try {
+          toast.info(
+            `${res.proposed_actions.length} aksiyon önerildi`,
+            { detail: 'Onayınız bekleniyor.' }
+          );
+        } catch (toastErr) {
+          // eslint-disable-next-line no-console
+          console.warn('[Coach] Toast info hatasi (gormezden geliniyor):', toastErr);
+        }
+      }
+    } catch (e) {
+      const msg = e?.message || 'Koç yanıt vermedi';
+      setError(msg);
+      try {
+        toast.error('Koç yanıt vermedi', { detail: msg });
+      } catch (toastErr) {
+        // eslint-disable-next-line no-console
+        console.warn('[Coach] Toast error hatasi (gormezden geliniyor):', toastErr);
+      }
+    } finally {
+      setSending(false);
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [input, sending, toast]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // ============================================================
+  // SOHBETI SIFIRLA
+  // ============================================================
+
+  const handleReset = async () => {
+    const ok = window.confirm('Tüm sohbet geçmişi silinecek. Devam edilsin mi?');
+    if (!ok) return;
+    setResetting(true);
+    try {
+      await coachApi.reset();
+      setMessages([]);
+      setError(null);
+      try {
+        toast.success('Sohbet sıfırlandı');
+      } catch (toastErr) {
+        // eslint-disable-next-line no-console
+        console.warn('[Coach] Toast hatasi (gormezden geliniyor):', toastErr);
+      }
+    } catch (e) {
+      const msg = e?.message || 'Sıfırlama başarısız';
+      setError(msg);
+      try {
+        toast.error('Sıfırlama başarısız', { detail: msg });
+      } catch (toastErr) {
+        // eslint-disable-next-line no-console
+        console.warn('[Coach] Toast hatasi (gormezden geliniyor):', toastErr);
+      }
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  // ============================================================
+  // AKSIYON ONAY/RED — BUG #010 FIX
+  //
+  // 3 katmanli koruma:
+  //   (1) State guncelleme - try-catch
+  //   (2) Toast cagrisi - try-catch
+  //   (3) Parent callback - try-catch
+  //
+  // Herhangi bir katman patlasa diger katmanlar calisir, panel kilitlenmez.
+  // ============================================================
+
+  const handleActionResolved = (actionId, status, summary) => {
+    // (1) State guncelleme: bu action'i mesajlardan temizle
+    // BUG #017 ile uyumlu: hem a.id hem a.action_id kontrolu yapiliyor
+    try {
+      setMessages((prev) => prev.map((m) => ({
+        ...m,
+        actions: (m.actions || []).filter((a) => {
+          const aid = a?.id ?? a?.action_id;
+          return aid !== actionId;
+        }),
+      })));
+    } catch (stateErr) {
+      // eslint-disable-next-line no-console
+      console.error('[Coach] handleActionResolved state guncelleme hatasi:', stateErr);
+    }
+
+    // (2) Toast bildirim — summary tipini stringe normalize et
+    let summaryText = '';
+    try {
+      if (typeof summary === 'string') {
+        summaryText = summary;
+      } else if (summary && typeof summary === 'object') {
+        summaryText = summary.message || summary.detail || JSON.stringify(summary);
+      } else if (summary != null) {
+        summaryText = String(summary);
+      }
+    } catch {
+      summaryText = '';
+    }
+
+    try {
+      if (status === 'approved' || status === 'executed') {
+        toast.success('Aksiyon uygulandı', {
+          detail: summaryText || `Aksiyon #${actionId} onaylandı ve uygulandı.`,
+        });
+      } else if (status === 'rejected') {
+        toast.info('Aksiyon reddedildi', {
+          detail: summaryText || `Aksiyon #${actionId} iptal edildi.`,
+        });
+      } else if (status === 'failed' || status === 'error') {
+        toast.error('Aksiyon başarısız', {
+          detail: summaryText || `Aksiyon #${actionId} uygulanamadı.`,
+        });
+      }
+    } catch (toastErr) {
+      // eslint-disable-next-line no-console
+      console.warn('[Coach] Toast cagri hatasi (gormezden geliniyor):', toastErr);
+    }
+
+    // (3) Parent callback — Cockpit refresh tetikler, hata Coach'u dusurmez
+    try {
+      onActionResolved?.(actionId, status);
+    } catch (parentErr) {
+      // eslint-disable-next-line no-console
+      console.error('[Coach] Parent onActionResolved hatasi (panel acik kaliyor):', parentErr);
+    }
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
+  const usageWarn = usage && usage.percentage >= 80;
+  const usageBlock = usage && usage.block;
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[500px] animate-fade-in">
+      {/* ===== UST: BASLIK + RESET ===== */}
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-semibold">Stratejist Koç</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Cockpit'i biliyor · MC kurallarına saygılı · Saf Türkçe
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleReset}
+          disabled={resetting || messages.length === 0}
+          className="btn btn-ghost !text-xs flex-shrink-0"
+          title="Yeni sohbet (geçmişi sıfırla)"
+        >
+          {resetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">Yeni sohbet</span>
+        </button>
+      </div>
+
+      {/* ===== USAGE UYARI BANTI ===== */}
+      {usageBlock && (
+        <div className="card p-3 mb-3 border-negative-300 dark:border-negative-700/50 bg-negative-50 dark:bg-negative-950/30">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4 text-negative-600 dark:text-negative-400 flex-shrink-0" />
+            <span className="text-negative-700 dark:text-negative-300">
+              Günlük Gemini limiti doldu ({usage.today_count}/{usage.daily_limit}). Yarın tekrar deneyin.
+            </span>
+          </div>
+        </div>
+      )}
+      {usageWarn && !usageBlock && (
+        <div className="card p-3 mb-3 border-warn-300 dark:border-warn-700/50 bg-warn-50 dark:bg-warn-950/30">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4 text-warn-600 dark:text-warn-400 flex-shrink-0" />
+            <span className="text-warn-700 dark:text-warn-300">
+              Günlük limit %{usage.percentage.toFixed(0)} doldu. Bugün dikkatli kullan.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MESAJ LISTESI ===== */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto card p-4 space-y-4"
+      >
+        {!historyLoaded ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+          </div>
+        ) : messages.length === 0 ? (
+          <EmptyState onSuggest={(text) => setInput(text)} />
+        ) : (
+          <>
+            {messages.map((m, i) => (
+              <Message
+                key={i}
+                message={m}
+                onActionResolved={handleActionResolved}
+              />
+            ))}
+            {sending && <CoachTypingIndicator />}
+          </>
+        )}
+      </div>
+
+      {/* ===== HATA BANT ===== */}
+      {error && (
+        <div className="card p-3 mt-3 border-negative-300 dark:border-negative-700/50 bg-negative-50 dark:bg-negative-950/30">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4 text-negative-600 dark:text-negative-400 flex-shrink-0" />
+            <span className="text-negative-700 dark:text-negative-300">{error}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ===== INPUT ===== */}
+      <div className="mt-3 flex items-end gap-2">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Bir şey sor veya bir aksiyon bildir... (Enter: gönder · Shift+Enter: satır)"
+          rows={2}
+          disabled={sending || usageBlock}
+          className="input resize-none font-sans"
+        />
+        <button
+          onClick={handleSend}
+          disabled={!input.trim() || sending || usageBlock}
+          className="btn btn-primary !py-3 flex-shrink-0"
+          title="Gönder (Enter)"
+        >
+          {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ANA EXPORT — ErrorBoundary ile sarit
+// ============================================================
+
+export default function Coach({ onActionResolved }) {
+  return (
+    <CoachErrorBoundary>
+      <CoachInner onActionResolved={onActionResolved} />
+    </CoachErrorBoundary>
+  );
+}
+
+// ============================================================
+// MESSAGE — bir mesaj balonu
+// ============================================================
+
+function Message({ message, onActionResolved }) {
+  const isUser = message.role === 'user';
+  const ts = message.ts;
+  const time = (ts instanceof Date && !isNaN(ts.getTime()))
+    ? ts.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return (
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-slide-up`}>
+      {/* Avatar */}
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+        isUser
+          ? 'bg-zinc-200 dark:bg-zinc-700'
+          : 'bg-brand-100 dark:bg-brand-900/30'
+      }`}>
+        {isUser
+          ? <User className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+          : <Sparkles className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+        }
+      </div>
+
+      {/* Mesaj icerigi */}
+      <div className={`flex-1 min-w-0 ${isUser ? 'flex flex-col items-end' : ''}`}>
+        <div className={`max-w-[90%] rounded-xl px-4 py-3 ${
+          isUser
+            ? 'bg-brand-600 text-white'
+            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+        }`}>
+          <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+            {message.text}
+          </p>
+        </div>
+        {time && (
+          <p className="text-[10px] text-zinc-400 mt-1 px-1">{time}</p>
+        )}
+
+        {/* Propose actions */}
+        {!isUser && message.actions && message.actions.length > 0 && (
+          <div className="mt-3 max-w-[90%]">
+            <PendingActions
+              actions={message.actions}
+              onResolved={onActionResolved}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// COACH TYPING INDICATOR
+// ============================================================
+
+function CoachTypingIndicator() {
+  return (
+    <div className="flex gap-3 animate-fade-in">
+      <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
+        <Sparkles className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+      </div>
+      <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-500 animate-pulse" style={{ animationDelay: '0ms' }} />
+        <span className="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-500 animate-pulse" style={{ animationDelay: '150ms' }} />
+        <span className="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-500 animate-pulse" style={{ animationDelay: '300ms' }} />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// EMPTY STATE
+// ============================================================
+
+function EmptyState({ onSuggest }) {
+  const suggestions = [
+    'Bugün durumumu kapsamlı analiz et',
+    'Kart borcunu nasıl kapatmalıyım?',
+    'Bu ay nakit akışım nasıl gidecek?',
+    'TLY satışım ne kadar getirir?',
+  ];
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center px-4">
+      <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center mb-3">
+        <MessageSquare className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+      </div>
+      <h3 className="font-semibold mb-1">Henüz mesaj yok</h3>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
+        Stratejik bir analiz iste, bir aksiyon bildir veya bir soru sor.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+        {suggestions.map((s) => (
+          <button
+            key={s}
+            onClick={() => onSuggest(s)}
+            className="text-xs text-left p-3 card hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

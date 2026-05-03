@@ -1,0 +1,222 @@
+"""
+Account endpoint'leri (5):
+- GET    /api/accounts         - Tum hesaplari listele
+- POST   /api/accounts         - Yeni hesap
+- GET    /api/accounts/{id}    - Tek hesap
+- PUT    /api/accounts/{id}    - Hesap guncelle (yatirim icin lot/fiyat -> balance otomatik)
+- DELETE /api/accounts/{id}    - Hesap sil
+
+Mukemmellestirici detay: Yatirim hesaplarinda lot_count veya current_price guncellenince
+balance OTOMATIK = lot_count * current_price hesaplaniyor. Frontend tek alan
+guncelliyor, bakiye kendiliginden doruluyor (Improvement Backlog'da konusulmustu).
+"""
+
+from datetime import datetime, date
+from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.dependencies import get_db, get_current_user
+from app.models import User, Account, AccountType
+
+router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+
+
+# ============================================================
+# SCHEMAS
+# ============================================================
+
+class AccountBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    account_type: AccountType
+    balance: float = 0.0
+    notes: Optional[str] = None
+    # Kredi karti
+    credit_limit: Optional[float] = None
+    statement_day: Optional[int] = Field(None, ge=1, le=31)
+    payment_day: Optional[int] = Field(None, ge=1, le=31)
+    # Kredi
+    interest_rate: Optional[float] = None
+    monthly_payment: Optional[float] = None
+    remaining_installments: Optional[int] = Field(None, ge=0)
+    next_payment_date: Optional[date] = None
+    # Yatirim
+    fund_code: Optional[str] = Field(None, max_length=20)
+    lot_count: Optional[float] = None
+    cost_per_lot: Optional[float] = None
+    current_price: Optional[float] = None
+    is_emanet: bool = False
+
+
+class AccountCreate(AccountBase):
+    pass
+
+
+class AccountUpdate(BaseModel):
+    """Sadece gonderilen alanlar guncellenir. None'lar atlanir."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    balance: Optional[float] = None
+    notes: Optional[str] = None
+    credit_limit: Optional[float] = None
+    statement_day: Optional[int] = Field(None, ge=1, le=31)
+    payment_day: Optional[int] = Field(None, ge=1, le=31)
+    interest_rate: Optional[float] = None
+    monthly_payment: Optional[float] = None
+    remaining_installments: Optional[int] = Field(None, ge=0)
+    next_payment_date: Optional[date] = None
+    fund_code: Optional[str] = Field(None, max_length=20)
+    lot_count: Optional[float] = None
+    cost_per_lot: Optional[float] = None
+    current_price: Optional[float] = None
+    is_emanet: Optional[bool] = None
+
+
+class AccountOut(AccountBase):
+    id: int
+    last_price_update: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================
+# ENDPOINT'LER
+# ============================================================
+
+@router.get("", response_model=List[AccountOut])
+def list_accounts(
+    account_type: Optional[AccountType] = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> List[AccountOut]:
+    """
+    Tum hesaplari listele. Opsiyonel filtre: ?account_type=cash|credit_card|loan|investment
+    """
+    q = db.query(Account).filter(Account.user_id == user.id)
+    if account_type:
+        q = q.filter(Account.account_type == account_type)
+    return q.order_by(Account.account_type, Account.id).all()
+
+
+@router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
+def create_account(
+    payload: AccountCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> AccountOut:
+    """Yeni hesap olustur."""
+    data = payload.model_dump()
+
+    # Yatirim hesabinda lot ve fiyat varsa balance'i otomatik hesapla
+    if (data.get("account_type") == AccountType.investment
+            and data.get("lot_count") is not None
+            and data.get("current_price") is not None):
+        data["balance"] = float(data["lot_count"]) * float(data["current_price"])
+
+    acc = Account(user_id=user.id, **data)
+    if data.get("current_price") is not None:
+        acc.last_price_update = datetime.utcnow()
+
+    db.add(acc)
+    db.commit()
+    db.refresh(acc)
+    return acc
+
+
+@router.get("/{account_id}", response_model=AccountOut)
+def get_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> AccountOut:
+    """Tek hesap detayi."""
+    acc = db.query(Account).filter(
+        Account.id == account_id,
+        Account.user_id == user.id,
+    ).first()
+    if not acc:
+        raise HTTPException(status_code=404, detail=f"Hesap bulunamadi (id={account_id})")
+    return acc
+
+
+@router.put("/{account_id}", response_model=AccountOut)
+def update_account(
+    account_id: int,
+    payload: AccountUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> AccountOut:
+    """
+    Hesap guncelle. Sadece None olmayan alanlar yazilir.
+
+    AKILLI BAKIYE GUNCELLEMESI:
+    Eger hesap tipi 'investment' ise ve (lot_count veya current_price) degistirildiyse,
+    balance otomatik = lot_count * current_price seklinde guncellenir.
+    Boylece kullanici lot/fiyat girer, bakiyeyi ayrica girmesi gerekmez.
+
+    Bu kullanicinin acikca 'balance' alanini gondermesi durumunda DEVRE DISI
+    kalir (kullanicinin acik onceligi var).
+    """
+    acc = db.query(Account).filter(
+        Account.id == account_id,
+        Account.user_id == user.id,
+    ).first()
+    if not acc:
+        raise HTTPException(status_code=404, detail=f"Hesap bulunamadi (id={account_id})")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    user_specified_balance = "balance" in update_data
+    price_changed = "current_price" in update_data
+
+    for k, v in update_data.items():
+        setattr(acc, k, v)
+
+    # Akilli bakiye: yatirim + lot/fiyat degisti + kullanici balance acikca vermedi
+    if (acc.account_type == AccountType.investment
+            and not user_specified_balance
+            and acc.lot_count is not None
+            and acc.current_price is not None
+            and ("lot_count" in update_data or "current_price" in update_data)):
+        acc.balance = float(acc.lot_count) * float(acc.current_price)
+
+    # Fiyat degistiyse zaman damgasini guncelle
+    if price_changed:
+        acc.last_price_update = datetime.utcnow()
+
+    db.commit()
+    db.refresh(acc)
+    return acc
+
+
+@router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    """
+    Hesabi sil. EMANET hesaplari korumaliyiz - silmesini engelliyoruz.
+
+    Mukemmellestirici: Bu hesaba bagli transaction varsa kullanici uyarilmali.
+    Su an cascade=None oldugundan transaction varken silmeye calisirsa SQL hatasi
+    doner. Bu davranisi sonra duzenli hata mesajina cevirebiliriz.
+    """
+    acc = db.query(Account).filter(
+        Account.id == account_id,
+        Account.user_id == user.id,
+    ).first()
+    if not acc:
+        raise HTTPException(status_code=404, detail=f"Hesap bulunamadi (id={account_id})")
+
+    if acc.is_emanet:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Emanet hesabi silinemez (MC1 koruma).",
+        )
+
+    db.delete(acc)
+    db.commit()
+    return None

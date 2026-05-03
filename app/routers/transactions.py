@@ -1,0 +1,374 @@
+"""
+Transaction CRUD + hizli giris (quick entry) + auto balance management.
+
+NOTLAR:
+- TransactionType bir str-enum ama Pydantic v2 + Literal kombinasyonu enum
+  objesini stringe otomatik cevirmedigi icin response_model yerine manuel
+  serialization yapiyoruz (dict doneriz). FastAPI bunu JSON yapar.
+- BUG #009 cozumu: DELETE endpoint auto_revert_balance=True ile bakiyeyi
+  geri cevirir.
+"""
+
+from datetime import date
+from typing import Optional, Literal
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.dependencies import get_db, get_current_user
+from app.models import (
+    User, Account, AccountType, Transaction, TransactionType,
+)
+
+router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+
+
+# ============================================================
+# INLINE PYDANTIC SCHEMAS
+# ============================================================
+
+class TransactionCreate(BaseModel):
+    """Quick-entry destekli olusturma."""
+    account_id: Optional[int] = None
+    transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    transaction_date: Optional[date] = None
+    is_card_expense: Optional[bool] = None
+
+    # Quick entry
+    quick_text: Optional[str] = None
+    auto_update_balance: Optional[bool] = True
+
+
+class TransactionUpdate(BaseModel):
+    """PUT icin partial guncelleme."""
+    account_id: Optional[int] = None
+    transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    transaction_date: Optional[date] = None
+    is_card_expense: Optional[bool] = None
+    auto_update_balance: Optional[bool] = True
+
+
+# ============================================================
+# YARDIMCI: Transaction -> dict (manuel serializer)
+# ============================================================
+
+def _txn_to_dict(txn: Transaction) -> dict:
+    """Transaction modelini JSON-uyumlu dict'e cevir (enum'lari string yapar)."""
+    ttype = txn.transaction_type
+    if hasattr(ttype, "value"):
+        ttype = ttype.value
+    return {
+        "id": txn.id,
+        "user_id": txn.user_id,
+        "account_id": txn.account_id,
+        "transaction_type": ttype,
+        "amount": txn.amount,
+        "category": txn.category,
+        "description": txn.description,
+        "transaction_date": txn.transaction_date.isoformat() if txn.transaction_date else None,
+        "is_card_expense": txn.is_card_expense,
+        "created_at": txn.created_at.isoformat() if txn.created_at else None,
+    }
+
+
+# ============================================================
+# YARDIMCI: Hesap bakiyesini transaction'a gore guncelle
+# ============================================================
+
+def _apply_to_balance(account: Account, txn_type, amount: float, reverse: bool = False) -> None:
+    """
+    Transaction tutarini hesabin bakiyesine uygular.
+
+    reverse=False:
+        cash + expense -> balance -= amount
+        cash + income  -> balance += amount
+        credit_card + expense -> balance += amount  (borc artar)
+        credit_card + income  -> balance -= amount  (kart odendi, borc azalir)
+        loan + expense (taksit) -> balance -= amount
+
+    reverse=True: tersi (silme/update icin).
+    """
+    if account is None:
+        return
+
+    sign = -1 if reverse else 1
+
+    # Enum normalization (hem string hem enum gelebilir)
+    atype = account.account_type
+    ttype = txn_type
+    if hasattr(atype, "value"):
+        atype = atype.value
+    if hasattr(ttype, "value"):
+        ttype = ttype.value
+
+    if atype == "cash":
+        if ttype == "expense":
+            account.balance -= sign * amount
+        elif ttype == "income":
+            account.balance += sign * amount
+
+    elif atype == "credit_card":
+        if ttype == "expense":
+            account.balance += sign * amount
+        elif ttype == "income":
+            account.balance -= sign * amount
+
+    elif atype == "loan":
+        if ttype == "expense":
+            account.balance -= sign * amount
+
+
+# ============================================================
+# YARDIMCI: Hizli giris parser
+# ============================================================
+
+QUICK_KEYWORDS = {
+    "yemek":    {"category": "yemek",    "is_card": True},
+    "kahve":    {"category": "yemek",    "is_card": True},
+    "icecek":   {"category": "yemek",    "is_card": True},
+    "kafe":     {"category": "yemek",    "is_card": True},
+    "eglence":  {"category": "eglence",  "is_card": True},
+    "sinema":   {"category": "eglence",  "is_card": True},
+    "sigara":   {"category": "sigara",   "is_card": True},
+    "ulasim":   {"category": "ulasim",   "is_card": False},
+    "yakit":    {"category": "ulasim",   "is_card": False},
+    "tasit":    {"category": "ulasim",   "is_card": False},
+    "metro":    {"category": "ulasim",   "is_card": False},
+    "otobus":   {"category": "ulasim",   "is_card": False},
+    "taksi":    {"category": "ulasim",   "is_card": False},
+    "fatura":   {"category": "fatura",   "is_card": False},
+    "telefon":  {"category": "fatura",   "is_card": False},
+    "internet": {"category": "fatura",   "is_card": False},
+    "elektrik": {"category": "fatura",   "is_card": False},
+    "saglik":   {"category": "saglik",   "is_card": False},
+    "ilac":     {"category": "saglik",   "is_card": False},
+    "doktor":   {"category": "saglik",   "is_card": False},
+    "borc":     {"category": "borc_geri_odeme", "is_card": False},
+    "alisveris":{"category": "alisveris", "is_card": True},
+    "market":   {"category": "alisveris", "is_card": True},
+    "diger":    {"category": "diger",    "is_card": False},
+}
+
+
+def _parse_quick_text(text: str) -> dict:
+    parts = text.strip().lower().split()
+    if not parts:
+        raise ValueError("Bos giris")
+
+    try:
+        amount = float(parts[0].replace(",", "."))
+    except ValueError:
+        raise ValueError(f"Gecerli tutar bulunamadi: '{parts[0]}'")
+    if amount <= 0:
+        raise ValueError("Tutar pozitif olmali")
+
+    rest = " ".join(parts[1:]).strip() if len(parts) > 1 else ""
+    if not rest:
+        return {"amount": amount, "category": "diger", "is_card_expense": False, "description": None}
+
+    for keyword, meta in QUICK_KEYWORDS.items():
+        if keyword in rest:
+            return {
+                "amount": amount,
+                "category": meta["category"],
+                "is_card_expense": meta["is_card"],
+                "description": rest if rest != keyword else None,
+            }
+
+    return {
+        "amount": amount,
+        "category": rest.replace(" ", "_"),
+        "is_card_expense": False,
+        "description": None,
+    }
+
+
+# ============================================================
+# ENDPOINTS — response_model yerine manual dict serialization
+# ============================================================
+
+@router.get("")
+def list_transactions(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 200,
+):
+    """Son N transaction (en yeni once)."""
+    txns = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user.id)
+        .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_txn_to_dict(t) for t in txns]
+
+
+@router.post("", status_code=201)
+def create_transaction(
+    payload: TransactionCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Yeni islem ekle. Iki mod:
+      A) Yapilandirilmis: transaction_type + amount + (opsiyonel digerleri)
+      B) Hizli giris: quick_text='230 yemek'
+    """
+    data = payload.model_dump(exclude_none=True)
+
+    # Hizli giris modu
+    if data.get("quick_text"):
+        try:
+            parsed = _parse_quick_text(data["quick_text"])
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        if not data.get("transaction_type"):
+            data["transaction_type"] = "expense"
+        data["amount"] = parsed["amount"]
+        if not data.get("category"):
+            data["category"] = parsed["category"]
+        if "is_card_expense" not in data:
+            data["is_card_expense"] = parsed["is_card_expense"]
+        if not data.get("description"):
+            data["description"] = parsed["description"] or data["quick_text"]
+
+        # Default hesap secimi
+        if not data.get("account_id"):
+            if data.get("is_card_expense"):
+                acc = (
+                    db.query(Account)
+                    .filter(Account.user_id == user.id,
+                            Account.account_type == AccountType.credit_card)
+                    .first()
+                )
+            else:
+                acc = (
+                    db.query(Account)
+                    .filter(Account.user_id == user.id,
+                            Account.account_type == AccountType.cash)
+                    .first()
+                )
+            if acc:
+                data["account_id"] = acc.id
+
+    # Zorunlu alanlar
+    if not data.get("transaction_type"):
+        raise HTTPException(status_code=400, detail="transaction_type zorunlu")
+    if not data.get("amount") or data["amount"] <= 0:
+        raise HTTPException(status_code=400, detail="amount pozitif olmali")
+
+    auto_update = data.pop("auto_update_balance", True)
+    data.pop("quick_text", None)
+
+    # Account bul
+    account = None
+    if data.get("account_id"):
+        account = (
+            db.query(Account)
+            .filter(Account.id == data["account_id"], Account.user_id == user.id)
+            .first()
+        )
+        if not account:
+            raise HTTPException(status_code=404, detail="Hesap bulunamadi")
+
+    # Transaction kaydi olustur
+    txn = Transaction(user_id=user.id, **data)
+    db.add(txn)
+
+    if auto_update and account:
+        _apply_to_balance(account, txn.transaction_type, txn.amount, reverse=False)
+
+    db.commit()
+    db.refresh(txn)
+    return _txn_to_dict(txn)
+
+
+@router.put("/{txn_id}")
+def update_transaction(
+    txn_id: int,
+    payload: TransactionUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Transaction guncelle. Eski tutarın etkisini geri al, yeniyi uygula."""
+    txn = (
+        db.query(Transaction)
+        .filter(Transaction.id == txn_id, Transaction.user_id == user.id)
+        .first()
+    )
+    if not txn:
+        raise HTTPException(status_code=404, detail="Islem bulunamadi")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    auto_update = update_data.pop("auto_update_balance", True)
+
+    # 1. Eski etki
+    if auto_update and txn.account_id:
+        old_account = (
+            db.query(Account)
+            .filter(Account.id == txn.account_id, Account.user_id == user.id)
+            .first()
+        )
+        if old_account:
+            _apply_to_balance(old_account, txn.transaction_type, txn.amount, reverse=True)
+
+    # 2. Alanlari guncelle
+    for k, v in update_data.items():
+        setattr(txn, k, v)
+
+    # 3. Yeni etki
+    if auto_update and txn.account_id:
+        new_account = (
+            db.query(Account)
+            .filter(Account.id == txn.account_id, Account.user_id == user.id)
+            .first()
+        )
+        if new_account:
+            _apply_to_balance(new_account, txn.transaction_type, txn.amount, reverse=False)
+
+    db.commit()
+    db.refresh(txn)
+    return _txn_to_dict(txn)
+
+
+@router.delete("/{txn_id}", status_code=204)
+def delete_transaction(
+    txn_id: int,
+    auto_revert_balance: bool = True,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Transaction sil. Default: silinen transaction'in bakiyeye olan etkisi
+    geri alinir. False ise sadece kayit silinir.
+    BUG #009 cozumu.
+    """
+    txn = (
+        db.query(Transaction)
+        .filter(Transaction.id == txn_id, Transaction.user_id == user.id)
+        .first()
+    )
+    if not txn:
+        raise HTTPException(status_code=404, detail="Islem bulunamadi")
+
+    # Bakiyeyi geri cevir
+    if auto_revert_balance and txn.account_id:
+        account = (
+            db.query(Account)
+            .filter(Account.id == txn.account_id, Account.user_id == user.id)
+            .first()
+        )
+        if account:
+            _apply_to_balance(account, txn.transaction_type, txn.amount, reverse=True)
+
+    db.delete(txn)
+    db.commit()
+    return None

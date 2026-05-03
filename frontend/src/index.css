@@ -1,0 +1,175 @@
+/* Inter + JetBrains Mono Google Fonts — @import EN USTE olmali (CSS standardi) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================
+   FinancialOS — Global stiller
+   ========================================================== */
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-zinc-50 text-zinc-900 transition-colors duration-200;
+  }
+
+  html.dark body {
+    @apply bg-zinc-950 text-zinc-100;
+  }
+
+  /* Sayilar mono font ile — finansal aplikasyon hizalama hassas */
+  .font-numeric {
+    font-family: 'JetBrains Mono', Menlo, Monaco, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Scrollbar — koyu tema icin disiplinli */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-300 rounded-full;
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-700;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-400;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-600;
+  }
+}
+
+@layer components {
+  /* Kart — uygulama boyunca tekrar eden konteyner */
+  .card {
+    @apply bg-white border border-zinc-200 rounded-xl shadow-sm;
+  }
+  html.dark .card {
+    @apply bg-zinc-900 border-zinc-800 shadow-none;
+  }
+
+  /* Buton temel */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           font-medium text-sm transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-brand-600 text-white hover:bg-brand-700
+           focus:ring-brand-500 focus:ring-offset-white;
+  }
+  html.dark .btn-primary {
+    @apply focus:ring-offset-zinc-900;
+  }
+  .btn-secondary {
+    @apply bg-zinc-100 text-zinc-900 hover:bg-zinc-200
+           focus:ring-zinc-400 focus:ring-offset-white;
+  }
+  html.dark .btn-secondary {
+    @apply bg-zinc-800 text-zinc-100 hover:bg-zinc-700 focus:ring-offset-zinc-900;
+  }
+  .btn-positive {
+    @apply bg-positive-600 text-white hover:bg-positive-700;
+  }
+  .btn-negative {
+    @apply bg-negative-600 text-white hover:bg-negative-700;
+  }
+  .btn-ghost {
+    @apply text-zinc-600 hover:bg-zinc-100;
+  }
+  html.dark .btn-ghost {
+    @apply text-zinc-400 hover:bg-zinc-800;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full px-3 py-2 rounded-lg border bg-white text-zinc-900
+           border-zinc-300 placeholder-zinc-400
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+           transition-colors duration-150;
+  }
+  html.dark .input {
+    @apply bg-zinc-800 text-zinc-100 border-zinc-700 placeholder-zinc-500;
+  }
+
+  /* Etiket / chip */
+  .chip {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md
+           text-xs font-medium;
+  }
+  .chip-positive {
+    @apply bg-positive-100 text-positive-700;
+  }
+  html.dark .chip-positive {
+    @apply bg-positive-700/20 text-positive-400;
+  }
+  .chip-negative {
+    @apply bg-negative-100 text-negative-700;
+  }
+  html.dark .chip-negative {
+    @apply bg-negative-700/20 text-negative-400;
+  }
+  .chip-warn {
+    @apply bg-warn-100 text-warn-700;
+  }
+  html.dark .chip-warn {
+    @apply bg-warn-500/15 text-warn-400;
+  }
+  .chip-neutral {
+    @apply bg-zinc-100 text-zinc-700;
+  }
+  html.dark .chip-neutral {
+    @apply bg-zinc-800 text-zinc-300;
+  }
+}
+
+
+/* ============================================================
+   TOAST ANIMASYONLARI
+   Bu blok mevcut index.css'in EN SONUNA eklenecek.
+   Var olan icerigi silme, sadece bu kismi append et.
+   ============================================================ */
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(8px) scale(0.96);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.2s ease-in both;
+}

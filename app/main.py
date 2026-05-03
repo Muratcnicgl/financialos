@@ -18,6 +18,7 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from sqlalchemy import text
 from app.database import Base, engine
 
 # === Router'lar ===
@@ -83,9 +84,24 @@ app.add_middleware(
 # DB INIT
 # ============================================================
 
+def _run_migrations() -> None:
+    """BUG #036 fix: Mevcut DB'ye yeni kolonlari ekle (idempotent, hata yutulur)."""
+    with engine.connect() as conn:
+        for sql in [
+            "ALTER TABLE coach_memories ADD COLUMN tool_calls_json TEXT",
+            "ALTER TABLE coach_memories ADD COLUMN tool_call_id VARCHAR(64)",
+        ]:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                pass  # Kolon zaten varsa SQLite hata verir — gormezden gel
+
+
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
     logger.info("DB hazir. Tum tablolar mevcut.")
 
 

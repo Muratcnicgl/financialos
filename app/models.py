@@ -250,8 +250,11 @@ class CoachMemory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    role = Column(String(20), nullable=False)  # "user" | "assistant"
+    role = Column(String(20), nullable=False)  # "user" | "assistant" | "tool"
     content = Column(Text, nullable=False)
+    # BUG #036 fix: tool-aware history
+    tool_calls_json = Column(Text, nullable=True)    # assistant turunda propose_action varsa JSON
+    tool_call_id = Column(String(64), nullable=True) # "tool" rolundeki satirlarda eslestirme ID'si
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="memories")

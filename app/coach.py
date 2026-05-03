@@ -34,6 +34,13 @@ GUNCELLEMELER:
 - 2 May 2026 BUG #018 fix: Bos text yerine baglama gore akilli placeholder.
   Tool cagirdi ama text yoksa "Onayinizi bekliyorum" der. Hicbir sey yoksa
   "Tekrar dener misin" der. "(bos cevap)" placeholder'i kalkti.
+- 4 May 2026 BUG #036 fix: CoachMemory tool-aware yapildi. tool_calls_json +
+  tool_call_id kolonlari eklendi. History'de assistant mesajlari artik tool
+  call bilgisini iceriyor; "tool" rolunde eslestirilmis sonuc satiri da
+  ekleniyor. LLM "onceki turda tool cagirdim, basarili oldu" gercegini goruyor
+  — placeholder echo paterni ortadan kalkti.
+  OpenAI-uyumlu (Groq/Cerebras/OpenRouter): tam tool-aware.
+  Gemini: best-effort (tool role satiri atlaniyor).
 - 2 May 2026 BUG #012 fix: V3 prompt'ta [5. EMANET KASA] kurali sertlestirildi.
   Llama 3.3 emanet 0 oldugunda "EMANET KASA: Bu varlik yok" yaziyordu - simdi
   yasakli ornek cumleler + dogru/yanlis cikti karsilastirmasi ile bolumu hic
@@ -281,6 +288,67 @@ PROPOSE_ACTION_SCHEMA = {
         "required": ["action_type", "payload", "summary"],
     },
 }
+
+
+# ============================================================
+# 3. OPENAI-UYUMLU HISTORY ADAPTER (BUG #036 fix)
+# ============================================================
+
+def _to_openai_messages(messages: List[Dict]) -> List[Dict]:
+    """
+    BUG #036 fix: CoachMemory extended format → OpenAI tool_calls mesaj listesi.
+    Groq, Cerebras, OpenRouter tarafindan ortak kullanilir.
+
+    Orphan korumasi: ust mesajda karsilik assistant tool_call olmayan
+    "tool" satiri atlanir (history trim sonrasi olusabilir).
+    """
+    # Gecerli tool_call_id'leri topla
+    valid_tc_ids: set = set()
+    for m in messages:
+        if m.get("role") == "assistant" and m.get("tool_calls_json"):
+            try:
+                for tc in json.loads(m["tool_calls_json"]):
+                    valid_tc_ids.add(tc.get("id", ""))
+            except Exception:
+                pass
+
+    result = []
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+
+        if role == "tool":
+            tc_id = m.get("tool_call_id", "")
+            if tc_id not in valid_tc_ids:
+                continue  # Orphan — atla
+            result.append({"role": "tool", "tool_call_id": tc_id, "content": content})
+
+        elif role == "assistant" and m.get("tool_calls_json"):
+            try:
+                tc_data = json.loads(m["tool_calls_json"])
+            except Exception:
+                tc_data = []
+            openai_calls = [
+                {
+                    "id": tc.get("id", f"call_{i}"),
+                    "type": "function",
+                    "function": {
+                        "name": tc["name"],
+                        "arguments": json.dumps(tc.get("args", {}), ensure_ascii=False),
+                    },
+                }
+                for i, tc in enumerate(tc_data)
+                if tc.get("name")
+            ]
+            msg: Dict = {"role": "assistant", "content": content or ""}
+            if openai_calls:
+                msg["tool_calls"] = openai_calls
+            result.append(msg)
+
+        else:
+            result.append({"role": role, "content": content})
+
+    return result
 
 
 # ============================================================
@@ -582,12 +650,30 @@ class GeminiProvider(LLMProvider):
         types = self.types
 
         contents = []
-        for m in messages:
-            role = "user" if m["role"] == "user" else "model"
+        for idx, m in enumerate(messages):
+            if m.get("role") == "tool":
+                continue  # BUG #036 fix: Gemini tool role desteklemiyor, best-effort olarak atla
+            role = "user" if m.get("role") == "user" else "model"
+            content = m.get("content") or ""
+            # BUG #036 fix (Gemini best-effort): bos content + tool_calls varsa
+            # sonraki tool kaydindaki summary'yi al → jenerik "[aksiyon kaydedildi]"
+            # yerine anlami olan metin gider, echo riski azalir
+            if not content and m.get("tool_calls_json"):
+                next_tool = next(
+                    (n for n in messages[idx + 1:] if n.get("role") == "tool"),
+                    None,
+                )
+                if next_tool:
+                    raw = next_tool.get("content", "")
+                    # "action_id=N, status=pending, summary=X" → "X"
+                    summary_part = raw.split("summary=", 1)[-1].strip() if "summary=" in raw else raw
+                    content = f"[{summary_part}]" if summary_part else "[aksiyon hazirlandi]"
+                else:
+                    content = "[aksiyon hazirlandi]"
             contents.append(
                 types.Content(
                     role=role,
-                    parts=[types.Part.from_text(text=m["content"])],
+                    parts=[types.Part.from_text(text=content or "[aksiyon hazirlandi]")],
                 )
             )
 
@@ -713,12 +799,7 @@ class GroqProvider(LLMProvider):
         ]
 
         groq_messages = [{"role": "system", "content": system_prompt}]
-        for m in messages:
-            role = m["role"]
-            if role == "assistant":
-                groq_messages.append({"role": "assistant", "content": m["content"]})
-            elif role == "user":
-                groq_messages.append({"role": "user", "content": m["content"]})
+        groq_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
 
         response = self.client.chat.completions.create(
             model=self.model,
@@ -768,9 +849,7 @@ class CerebrasProvider(LLMProvider):
             for t in tools
         ]
         oai_messages = [{"role": "system", "content": system_prompt}]
-        for m in messages:
-            if m["role"] in ("user", "assistant"):
-                oai_messages.append({"role": m["role"], "content": m["content"]})
+        oai_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
 
         kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2, "max_tokens": 4096}
         if oai_tools:
@@ -821,9 +900,7 @@ class OpenRouterProvider(LLMProvider):
             for t in tools
         ]
         oai_messages = [{"role": "system", "content": system_prompt}]
-        for m in messages:
-            if m["role"] in ("user", "assistant"):
-                oai_messages.append({"role": m["role"], "content": m["content"]})
+        oai_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
 
         kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2, "max_tokens": 4096}
         if oai_tools:
@@ -1105,14 +1182,30 @@ class CoachEngine:
             {
                 "role": m.role,
                 "content": _truncate_long_message(m.content, m.role),
+                "tool_calls_json": m.tool_calls_json,  # BUG #036 fix
+                "tool_call_id": m.tool_call_id,        # BUG #036 fix
             }
             for m in memories
         ]
         history = _trim_history_to_size(history)
         return history
 
-    def _save_message(self, db: Session, user_id: int, role: str, content: str) -> None:
-        mem = CoachMemory(user_id=user_id, role=role, content=content)
+    def _save_message(
+        self,
+        db: Session,
+        user_id: int,
+        role: str,
+        content: str,
+        tool_calls: Optional[List[Dict]] = None,  # BUG #036 fix
+        tool_call_id: Optional[str] = None,        # BUG #036 fix
+    ) -> None:
+        mem = CoachMemory(
+            user_id=user_id,
+            role=role,
+            content=content or "",
+            tool_calls_json=json.dumps(tool_calls, ensure_ascii=False) if tool_calls else None,
+            tool_call_id=tool_call_id,
+        )
         db.add(mem)
         db.commit()
 
@@ -1183,7 +1276,30 @@ class CoachEngine:
         reply = _build_smart_reply(llm_response.text, proposed_actions)
 
         self._save_message(db, user_id, "user", user_message)
-        self._save_message(db, user_id, "assistant", reply)
+        if proposed_actions:
+            # BUG #036 fix: Tool call bilgisini history'ye yaz — placeholder degil gercek kayit
+            tool_calls_data = [
+                {
+                    "id": f"call_{a.get('action_id', i)}",
+                    "name": "propose_action",
+                    "args": a.get("payload", {}),
+                }
+                for i, a in enumerate(proposed_actions)
+            ]
+            self._save_message(
+                db, user_id, "assistant",
+                content=llm_response.text,
+                tool_calls=tool_calls_data,
+            )
+            for a in proposed_actions:
+                tc_id = f"call_{a.get('action_id', '?')}"
+                self._save_message(
+                    db, user_id, "tool",
+                    content=f"action_id={a.get('action_id')}, status=pending, summary={a.get('summary', '')}",
+                    tool_call_id=tc_id,
+                )
+        else:
+            self._save_message(db, user_id, "assistant", content=reply)
 
         return {
             "reply": reply,

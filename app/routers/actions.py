@@ -160,6 +160,7 @@ def approve_action(
         "action_id": action_id,
         "action_type": pending.action_type,
         "result": result.get("result"),
+        "message": result.get("message"),  # BUG #031 fix: Türkçe özet → toast detail
         "net_worth_before": net_worth_before,
         "net_worth_after": net_worth_after,
         "cash_before": cash_before,

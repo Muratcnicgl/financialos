@@ -17,6 +17,12 @@ Aksiyon türleri:
 
 KRITIK: MC1 (Emanet) gibi kuralları bu modül ENFORCE eder.
 Emanet hesabı satma aksiyonu DB'ye yazılmaz, hata döner.
+
+GÜNCELLEMELER:
+- 4 May 2026 BUG #031 fix: execute_pending_action response'una Türkçe 'message' field eklendi.
+  _fmt() Türkçe sayı formatı yardımcısı + _build_action_message() helper eklendi.
+  _execute_add_transaction return'üne 'account_name' eklendi.
+- 4 May 2026 BUG #032 fix: _fmt_lot() eklendi — lot değerleri tam sayıysa int gösterilir (4.0→4).
 """
 
 import json
@@ -43,6 +49,22 @@ _TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiоsuCGIOSU")  # BUG #02
 def _cat_normalize(cat: str) -> str:
     """BUG #026: 'Eğlence' → 'eglence' — büyük harf + Türkçe aksan normalize."""
     return cat.lower().translate(_TR_NORM)
+
+
+def _fmt(x: float) -> str:
+    """BUG #031 fix: Sayıyı Türkçe format ile döner: 1234.56 → '1.234,56'"""
+    return f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _fmt_lot(x) -> str:
+    """BUG #032 fix: Tam sayıysa int göster (4.0 → 4), kesirliyse virgüllü (2.5 → 2,5)"""
+    try:
+        f = float(x)
+        if f == int(f):
+            return str(int(f))
+        return f"{f:.2f}".replace(".", ",").rstrip("0").rstrip(",")
+    except (ValueError, TypeError):
+        return str(x)
 
 
 def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> Dict:
@@ -140,6 +162,44 @@ def propose_action(
     return pending
 
 
+def _build_action_message(action_type: str, result: Dict) -> str:
+    """BUG #031 fix: Aksiyon sonucunu Türkçe özet mesaja çevirir (Toast için)."""
+    try:
+        if action_type == "sell_investment":
+            sim = result.get("satis_simulasyonu", {})
+            return (
+                f"{_fmt_lot(sim.get('satilan_lot', '?'))} lot {result.get('investment_name', '?')} satıldı. "  # BUG #032 fix
+                f"Elde edilen: {_fmt(sim.get('net_eline_gecen', 0))} TL "
+                f"(stopaj: {_fmt(sim.get('stopaj', 0))} TL). "
+                f"Kalan: {_fmt_lot(result.get('kalan_lot', 0))} lot."  # BUG #032 fix
+            )
+        if action_type == "add_transaction":
+            account_name = result.get("account_name") or ""
+            account_part = f" {account_name} hesabına" if account_name else ""
+            return (
+                f"{_fmt(result.get('amount', 0))} TL {result.get('category', '?')} işlemi"
+                f"{account_part} kaydedildi."
+            )
+        if action_type == "mark_debt_paid":
+            counterparty = result.get("counterparty", "?")
+            amount = result.get("amount", 0)
+            if result.get("direction") == "receivable":
+                return f"{counterparty} alacağı tahsil edildi: {_fmt(amount)} TL."
+            return f"{counterparty}'a borç ödendi: {_fmt(amount)} TL."
+        if action_type == "update_account_balance":
+            return (
+                f"{result.get('account_name', '?')} bakiyesi güncellendi: "
+                f"{_fmt(result.get('old_balance', 0))} → {_fmt(result.get('new_balance', 0))} TL."
+            )
+        if action_type == "update_fund_price":
+            return result.get("message", "Fon fiyatı güncellendi.")
+        if action_type == "add_master_checkpoint":
+            return f"Yeni kural eklendi: '{result.get('title', '?')}'."
+    except Exception:
+        pass
+    return "Aksiyon uygulandı."
+
+
 # ============================================================
 # 2. EXECUTE — Onaylanmış aksiyonu DB'ye uygula
 # ============================================================
@@ -215,6 +275,7 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
             "success": True,
             "action_type": pending.action_type,
             "result": result,
+            "message": _build_action_message(pending.action_type, result),  # BUG #031 fix
         }
 
     except Exception as e:
@@ -323,6 +384,7 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
         txn_date = date.today()
 
     account_id = payload.get("account_id")
+    account_name = None  # BUG #031 fix
     if account_id:
         account = db.query(Account).filter(
             Account.id == account_id,
@@ -332,6 +394,7 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
             return {"success": False, "message": f"Hesap bulunamadi: id={account_id}"}
         if account.is_emanet:
             return {"success": False, "message": f"'{account.name}' emanet hesap (MC1)."}
+        account_name = account.name  # BUG #031 fix
 
     txn = Transaction(
         user_id=user_id,
@@ -370,6 +433,7 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
         "transaction_type": txn_type,
         "amount": txn.amount,
         "category": txn.category,
+        "account_name": account_name,  # BUG #031 fix
         "balance_diff": balance_diff,
     }
 

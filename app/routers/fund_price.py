@@ -143,3 +143,4 @@ def tefas_link(fund_code: str) -> TefasLinkResponse:
         fund_code=fund_code.upper(),
         url=get_tefas_url(fund_code),
     )
+

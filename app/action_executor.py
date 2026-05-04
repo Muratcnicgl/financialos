@@ -23,6 +23,8 @@ GÜNCELLEMELER:
   _fmt() Türkçe sayı formatı yardımcısı + _build_action_message() helper eklendi.
   _execute_add_transaction return'üne 'account_name' eklendi.
 - 4 May 2026 BUG #032 fix: _fmt_lot() eklendi — lot değerleri tam sayıysa int gösterilir (4.0→4).
+- 4 May 2026 BUG #039 fix: _normalize_transaction_payload() LLM açıkça nakit/banka hesabı
+  seçtiyse kart varsayılanına yönlendirmez; account_id varsa ve kredi kartı değilse payload'a dokunulmaz.
 """
 
 import json
@@ -74,6 +76,21 @@ def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> 
 
     if category not in _CARD_CATEGORIES:
         return payload
+
+    # BUG #039: LLM açıkça nakit/banka hesabı seçtiyse override etme.
+    # Sadece account_id yoksa veya zaten kredi kartıysa kart varsayılanına yönlendir.
+    explicit_account_id = payload.get("account_id")
+    if explicit_account_id is not None:
+        explicit_account = db.query(Account).filter(
+            Account.id == explicit_account_id,
+            Account.user_id == user_id,
+        ).first()
+        if explicit_account and explicit_account.account_type != AccountType.credit_card:
+            logger.info(
+                f"BUG #039: kategori='{category}' kart listesinde ama "
+                f"kullanici acikca '{explicit_account.name}' (id={explicit_account_id}) sectisi - dokunulmadi"
+            )
+            return payload
 
     card = db.query(Account).filter(
         Account.user_id == user_id,

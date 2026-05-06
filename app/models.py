@@ -28,7 +28,7 @@ INDEX STRATEJISI:
 from datetime import datetime, date
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, Text,
-    Date, DateTime, ForeignKey, Enum as SQLEnum, Index,
+    Date, DateTime, ForeignKey, Enum as SQLEnum, Index, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -365,20 +365,22 @@ class CoachInsight(Base):
     content = Column(Text, nullable=False)              # Tek cumlelik veya kisa paragraf
     category = Column(String(50), nullable=True)        # 'preference', 'event', 'pattern', 'goal' vb.
     priority = Column(SQLEnum(InsightPriority), default=InsightPriority.normal, nullable=False)
+    dedup_key = Column(String(80), nullable=True)       # CoachInsight aktif: LLM uretilen slug, upsert dedup
 
     # Kaynak izlenebilirlik (opsiyonel)
     source_message_id = Column(Integer, ForeignKey("coach_memories.id"), nullable=True)
 
     # Yasam dongusu
     is_active = Column(Boolean, default=True, nullable=False)
-    expires_at = Column(Date, nullable=True)            # Tarih dolunca otomatik pasif (orn: seyahat tarihi gectikten sonra)
+    expires_at = Column(Date, nullable=True)            # Tarih dolunca otomatik pasif
     created_at = Column(DateTime, default=datetime.utcnow)
-    last_referenced_at = Column(DateTime, nullable=True)  # Sistem prompt'ta en son ne zaman kullanildi
+    last_referenced_at = Column(DateTime, nullable=True)  # Wave-3: aktive edilecek, su an yazilmiyor
 
     user = relationship("User", back_populates="insights")
 
     __table_args__ = (
         Index("ix_insights_user_active_priority", "user_id", "is_active", "priority"),
+        UniqueConstraint("user_id", "dedup_key", name="uq_insights_user_dedup"),
     )
 
 

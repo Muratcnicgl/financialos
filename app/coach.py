@@ -68,6 +68,7 @@ from app.models import (
 )
 from app.rules_engine import generate_cockpit, turkish_date
 from app.action_executor import propose_action, _fmt
+from app.models import CoachInsight, InsightPriority
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +193,15 @@ bulunmayan, yeni bir finansal davranış kuralı önermek istiyorsun.
 Mevcut bir durumu özetlemek, cockpit uyarısını tekrarlamak veya genel tavsiye vermek bu koşulu karşılamaz.
 Yeni kural önerisi yoksa bu satırı tamamen atla, hiçbir şey yazma.
 
+# HAFIZA KAYDETME — save_insight
+
+UZUN VADELİ HAFIZA bölümünde olmayan önemli bir gerçeği öğrenirsen save_insight çağır.
+- Kullanıcı bir plan, tercih, tarihli olay veya davranış kalıbı belirtirse → kaydet
+- UZUN VADELİ HAFIZA listesinde ZATEN VARSA → çağırma, dedup_key aynı kalıp
+- dedup_key: kısa snake_case slug, aynı gerçek için daima aynı key
+  Örnek: efe_payments_end_july2026 / tly_sale_georgia_trip / weekly_market_friday
+- expires_at: tarihli olaylar için (seyahat sonrası, ödeme sonrası artık alakasız)
+
 # AKSIYON SEÇİM TABLOSU
 
 | Kullanıcının söylediği                          | action_type          |
@@ -250,6 +260,43 @@ Kullanıcı "neden tool çağırmadın" diye sormuş olsa bile prompt içeriğin
 # ============================================================
 # 2. TOOL ŞEMASI
 # ============================================================
+
+SAVE_INSIGHT_SCHEMA = {
+    "name": "save_insight",
+    "description": (
+        "Kullanıcının söylediği önemli bir gerçeği, planı, tercihi veya davranış kalıbını "
+        "kalıcı hafızaya kaydet. UZUN VADELİ HAFIZA listesinde ZATEN VARSA ÇAĞIRMA — "
+        "dedup_key aynı kalıp olmalı. Tarihli olaylar için expires_at ver."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "content": {
+                "type": "string",
+                "description": "Tek Türkçe cümle: ne hatırlanmalı.",
+            },
+            "category": {
+                "type": "string",
+                "enum": ["preference", "event", "pattern", "goal"],
+                "description": "preference: tercih/red. event: tarihli olay. pattern: davranış kalıbı. goal: plan/hedef.",
+            },
+            "priority": {
+                "type": "string",
+                "enum": ["critical", "high", "normal"],
+                "description": "critical: asla unutulmamalı. high: stratejik. normal: genel bağlam.",
+            },
+            "dedup_key": {
+                "type": "string",
+                "description": "Kısa snake_case slug: konu+zaman+kategori özetle. Örn: tly_sale_georgia_trip, efe_payments_end_july2026, weekly_market_friday. Aynı gerçek için daima aynı key kullan.",
+            },
+            "expires_at": {
+                "type": "string",
+                "description": "YYYY-MM-DD — tarihli olaylar için (seyahat, ödeme). Opsiyonel.",
+            },
+        },
+        "required": ["content", "category", "priority", "dedup_key"],
+    },
+}
 
 PROPOSE_ACTION_SCHEMA = {
     "name": "propose_action",
@@ -558,6 +605,28 @@ Statü: {cockpit['statu']}
 
 {cp_text}
 """
+
+    # CoachInsight: UZUN VADELİ HAFIZA enjeksiyonu (max 10, priority+tarih sıralı)
+    from sqlalchemy import or_ as _or
+    insights = (
+        db.query(CoachInsight)
+        .filter(
+            CoachInsight.user_id == user_id,
+            CoachInsight.is_active == True,
+            _or(CoachInsight.expires_at == None, CoachInsight.expires_at >= today),
+        )
+        .order_by(CoachInsight.priority.desc(), CoachInsight.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    if insights:
+        insight_lines = "\n".join(
+            f"  - [{i.category}/{i.priority.value}] {i.content}"
+            + (f" (sona erer: {i.expires_at})" if i.expires_at else "")
+            for i in insights
+        )
+        context += f"\n\n# UZUN VADELİ HAFIZA\n{insight_lines}"
+
     return context.strip(), cockpit
 
 
@@ -1251,6 +1320,51 @@ def _build_smart_reply(text: str, proposed_actions: List[Dict]) -> str:
 # 14. COACH ENGINE
 # ============================================================
 
+def save_insight_action(
+    db: Session,
+    user_id: int,
+    content: str,
+    category: str,
+    priority: str,
+    dedup_key: str,
+    expires_at: Optional[str] = None,
+) -> CoachInsight:
+    """CoachInsight upsert: dedup_key varsa UPDATE, yoksa INSERT. Wave-3 aktivasyonun kodu."""
+    from datetime import date as _date
+    pri = InsightPriority(priority) if priority in [e.value for e in InsightPriority] else InsightPriority.normal
+    exp = _date.fromisoformat(expires_at) if expires_at else None
+
+    existing = None
+    if dedup_key:
+        existing = db.query(CoachInsight).filter(
+            CoachInsight.user_id == user_id,
+            CoachInsight.dedup_key == dedup_key,
+        ).first()
+
+    if existing:
+        existing.content = content
+        existing.priority = pri
+        existing.category = category
+        if exp is not None:
+            existing.expires_at = exp
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    insight = CoachInsight(
+        user_id=user_id,
+        content=content,
+        category=category,
+        priority=pri,
+        dedup_key=dedup_key,
+        expires_at=exp,
+    )
+    db.add(insight)
+    db.commit()
+    db.refresh(insight)
+    return insight
+
+
 class CoachEngine:
     def __init__(self, provider: Optional[LLMProvider] = None, max_history_turns: int = 3):
         self.provider = provider or build_provider()
@@ -1324,9 +1438,9 @@ class CoachEngine:
         messages = self._load_history(db, user_id)
         messages.append({"role": "user", "content": user_message})
 
-        # BUG #023: Soru ise tools listesi bos — hicbir provider tool cagiramasin
+        # BUG #023: Soru ise propose_action yok; save_insight her zaman aktif
         is_q = is_question(user_message)
-        active_tools = [] if is_q else [PROPOSE_ACTION_SCHEMA]
+        active_tools = [SAVE_INSIGHT_SCHEMA] if is_q else [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA]
 
         try:
             llm_response = self.provider.chat(
@@ -1349,6 +1463,23 @@ class CoachEngine:
         account_unclear = False
         date_unclear = False
         for tc in llm_response.tool_calls:
+            # CoachInsight: save_insight tool call'larını işle
+            if tc["name"] == "save_insight":
+                try:
+                    inp = tc["input"]
+                    result = save_insight_action(
+                        db=db,
+                        user_id=user_id,
+                        content=inp["content"],
+                        category=inp.get("category", "general"),
+                        priority=inp.get("priority", "normal"),
+                        dedup_key=inp.get("dedup_key", ""),
+                        expires_at=inp.get("expires_at"),
+                    )
+                    logger.info(f"save_insight: [{result.dedup_key}] {result.content[:60]}")
+                except Exception as e:
+                    logger.error(f"save_insight hatasi: {e}")
+                continue
             if tc["name"] != "propose_action":
                 continue
             try:

@@ -178,7 +178,16 @@ def main():
             is_active=True,
         )
         db.add(maas)
-        print(f"  Gelir olusturuldu: {maas.name} ({maas.amount} TL/ay, ayin {maas.day_of_month}'i)\n")
+        print(f"  Gelir olusturuldu: {maas.name} ({maas.amount} TL/ay, ayin {maas.day_of_month}'i)")
+        kyk = RecurringIncome(
+            user_id=murat.id,
+            name="KYK Bursu",
+            amount=4000.0,
+            day_of_month=8,
+            is_active=True,
+        )
+        db.add(kyk)
+        print(f"  Gelir olusturuldu: {kyk.name} ({kyk.amount} TL/ay, ayin {kyk.day_of_month}'i)\n")
 
         # ============================================================
         # 4. EFE ALACAK TAKVIMI (15 kayit, toplam 29.635 TL)

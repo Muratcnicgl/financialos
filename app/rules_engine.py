@@ -25,16 +25,39 @@ GÜNCELLEMELER:
   hesaplanır. apply_shadow_accounting loan_payments_this_month parametresi aldı.
 """
 
+import os
 from datetime import date, datetime, timedelta
 from calendar import monthrange
 from typing import List, Dict, Optional, Tuple
 import re
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.models import (
     Account, AccountType, RecurringIncome, Transaction,
     TransactionType, PersonalDebt, DebtDirection, MasterCheckpoint,
 )
+
+# ============================================================
+# A3 ROLLING PATTERN SABİTLERİ
+# ============================================================
+
+# %40 artış eşiği — .env ANOMALY_THRESHOLD ile override edilebilir
+ANOMALY_THRESHOLD: float = float(os.getenv("ANOMALY_THRESHOLD", "1.4"))
+
+# Minimum transaction sayısı (curr_30d'de) — daha az → gürültü
+PATTERN_MIN_TRANSACTIONS: int = 3
+
+# Hariç tutulan kategoriler (kişisel harcama paterni değil, muhasebe işlemi):
+#   kredi_taksiti : kredi taksit ödeme (loan type action'dan)
+#   borc_odeme    : kişisel borç ödeme (mark_debt_paid'dan)
+#   transfer      : hesaplar arası transfer (add_transaction type=transfer'dan)
+_PATTERN_EXCLUDED_CATEGORIES: set = {
+    "kredi_taksiti", "loan_payment", "debt_payment", "borc_odeme",
+    "borc", "kredi", "transfer",
+}
+# SQL IN cümlesi — sabit set, güvenli string interpolasyon
+_EXCLUDED_SQL: str = ",".join(f"'{c}'" for c in _PATTERN_EXCLUDED_CATEGORIES)
 
 
 # ============================================================
@@ -445,6 +468,65 @@ def _calculate_total_receivables(user_id: int, db: Session) -> float:
     return round(total, 2)
 
 
+def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List[Dict]:
+    """
+    Son 30 gün vs önceki 30 günlük gider kalıplarını hesaplar.
+    Tek GROUP BY sorgusu — N+1 yok. index: ix_transactions_user_date.
+    curr_count >= PATTERN_MIN_TRANSACTIONS olanlar döner (gürültü filtresi).
+    """
+    curr_start = today - timedelta(days=30)
+    prev_start = today - timedelta(days=60)
+
+    rows = db.execute(text(f"""
+        SELECT
+            category,
+            SUM(CASE WHEN transaction_date >= :prev_start
+                          AND transaction_date < :curr_start
+                     THEN amount ELSE 0 END) AS prev_30d,
+            SUM(CASE WHEN transaction_date >= :curr_start
+                     THEN amount ELSE 0 END)          AS curr_30d,
+            COUNT(CASE WHEN transaction_date >= :curr_start
+                       THEN 1 END)                    AS curr_count
+        FROM transactions
+        WHERE user_id       = :user_id
+          AND transaction_type = 'expense'
+          AND transaction_date >= :prev_start
+          AND (category NOT IN ({_EXCLUDED_SQL}) OR category IS NULL)
+        GROUP BY category
+        HAVING COUNT(CASE WHEN transaction_date >= :curr_start THEN 1 END) >= :min_count
+        ORDER BY curr_30d DESC
+    """), {
+        "user_id": user_id,
+        "prev_start": str(prev_start),
+        "curr_start": str(curr_start),
+        "min_count": PATTERN_MIN_TRANSACTIONS,
+    }).fetchall()
+
+    patterns = []
+    for row in rows:
+        category, prev_30d, curr_30d, _ = row
+        prev_30d = float(prev_30d or 0)
+        curr_30d = float(curr_30d or 0)
+        # division-by-zero koruması: prev=0 → yeni kategori, change_pct=None
+        change_pct: Optional[float] = (
+            round((curr_30d - prev_30d) / prev_30d * 100, 1)
+            if prev_30d > 0 else None
+        )
+        anomaly_flag: bool = (
+            curr_30d > prev_30d * ANOMALY_THRESHOLD
+            if prev_30d > 0
+            else curr_30d > 0  # yeni kategori → anomali say
+        )
+        patterns.append({
+            "category": category or "diger",
+            "prev_30d": round(prev_30d, 2),
+            "curr_30d": round(curr_30d, 2),
+            "change_pct": change_pct,
+            "anomaly_flag": anomaly_flag,
+        })
+    return patterns
+
+
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     """
     Tüm cockpit verisini üretir — frontend ve LLM bu çıktıdan beslenir.
@@ -605,6 +687,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "upcoming_receivables": upcoming_receivables,
         "alerts": alerts,
         "investment_pnl": investment_pnl_list,
+        "category_patterns": _calculate_category_patterns(user_id, today, db),
     }
 
 

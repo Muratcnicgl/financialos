@@ -169,6 +169,7 @@ KULLANICIYA SOĞUK GELİR.
 9. MASTER CHECKPOINT ATFI — Öneri veya eleme yaparken ilgili MC kuralını açıkça belirt.
    Örnek: "MC8 (Hayatta Kalma > Yatırım) gereği..." — numarayı cp.title'dan olduğu gibi al.
 10. NET DEĞER İKİ FARKLI METRİK — Görülen vs Tam, soruya göre seç
+11. DAVRANIŞ KALIPLARI — Cockpit'teki "⚠️ ANOMALİ" flag'leri %40 üzeri artış sinyalidir; analiz veya raporda dikkat çek.
 
 # RAPOR FORMATI (Sadece kullanıcı analiz isterse)
 DURUM RAPORU: [TARİH]
@@ -605,6 +606,23 @@ Statü: {cockpit['statu']}
 
 {cp_text}
 """
+
+    # Davranış Kalıpları: rolling 30 gün anomali sinyalleri
+    patterns = cockpit.get("category_patterns", [])
+    if patterns:
+        p_lines = []
+        for p in patterns:
+            cat = p["category"]
+            prev_s = _fmt(p["prev_30d"])
+            curr_s = _fmt(p["curr_30d"])
+            if p["change_pct"] is None:
+                change_s = "(yeni)"
+            else:
+                sign = "+" if p["change_pct"] >= 0 else ""
+                change_s = f"({sign}{p['change_pct']:.0f}%)"
+            anomaly_s = " ⚠️ ANOMALİ" if p["anomaly_flag"] else ""
+            p_lines.append(f"  - {cat}: {prev_s} TL → {curr_s} TL {change_s}{anomaly_s}")
+        context += "\n\n## Davranış Kalıpları (son 30 gün / önceki 30 gün)\n" + "\n".join(p_lines)
 
     # CoachInsight: UZUN VADELİ HAFIZA enjeksiyonu (max 10, priority+tarih sıralı)
     from sqlalchemy import or_ as _or

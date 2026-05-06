@@ -13,8 +13,14 @@ import PendingActions from '../components/PendingActions.jsx';
 function preprocessMarkdown(text) {
   if (!text) return text;
   return text
+    // Köşeli parantez formatları (Llama eski alışkanlığı)
     .replace(/\[(\d+\.\s[^\]]+)\]/g, '## $1')
-    .replace(/\[([A-Z]\.\s[^\]]+)\]/g, '### $1');
+    .replace(/\[([A-Z]\.\s[^\]]+)\]/g, '### $1')
+    // BUG #050: Llama kural 13'ü tam benimsemediğinde fallback regex
+    // "A. Seçenek:" veya "A. Seçenek (" → ### A. Seçenek...
+    .replace(/^([A-Z])\.\s+Seçenek([:\s(])/gm, '### $1. Seçenek$2')
+    // "1. STRATEJİK ANALİZ" gibi tüm büyük harf başlıklar (min 3 büyük harf) → ##
+    .replace(/^(\d+)\.\s+([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]{2,})$/gm, '## $1. $2');
 }
 
 // Tailwind utility tabanlı markdown bileşenleri (@tailwindcss/typography gerektirmez)

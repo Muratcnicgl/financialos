@@ -302,8 +302,6 @@ export default function IncomeDebt() {
             ))}
           </div>
         )}
-        </section>
-
       </section>
       )}
 

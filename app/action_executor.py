@@ -53,6 +53,19 @@ _ACCOUNT_KEYWORD_RE = _re.compile(
     r'\b(kart(?!on\b)\w*|hesap\w*|hesab\w*|nakit\w*|enpara\w*|ziraat\w*|banka\w*)\b',
     _re.IGNORECASE,
 )
+# BUG #044 fix: Summary'de tarih ifadesi var ama payload'da transaction_date yok → tutarsızlık
+_DATE_KEYWORD_RE = _re.compile(
+    r'\b('
+    r'ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık'
+    r'|ocakta|şubatta|martta|nisanda|mayısta|haziranda|temmuzda|ağustosta|eylülde|ekimde|kasımda|aralıkta'
+    r'|d[uü]n|bugün|bugun|geçen\s+hafta|gecen\s+hafta|geçen\s+ay|gecen\s+ay'
+    r'|\d+\s+g[uü]n\s+[oö]nce'
+    r'|\d{1,2}[./]\d{1,2}[./]\d{2,4}'
+    r'|\d{4}-\d{2}-\d{2}'
+    r'|tarihinde|tarihli|\d{1,2}['']\w+nde|\d{1,2}['']\w+da'
+    r')\b',
+    _re.IGNORECASE,
+)
 
 
 def _cat_normalize(cat: str) -> str:
@@ -158,6 +171,11 @@ def propose_action(
                 and user_message
                 and not _ACCOUNT_KEYWORD_RE.search(user_message)):
             raise ValueError("HESAP_BELIRSIZ")
+        # BUG #044 fix: Summary'de tarih var ama payload'da yok → tutarsızlık
+        if (summary
+                and _DATE_KEYWORD_RE.search(summary)
+                and not payload.get("transaction_date")):
+            raise ValueError("TARIH_BELIRSIZ")
         payload = _normalize_transaction_payload(payload, user_id, db)
         # BUG #027: Kart limit aşımı uyarısı — DB rejection yok, kullanıcı karar verir
         if payload.get("is_card_expense") and payload.get("account_id"):

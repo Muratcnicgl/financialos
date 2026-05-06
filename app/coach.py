@@ -137,6 +137,11 @@ sana BİLDİRDİĞİNDE çağrılır. Aşağıdaki tetikleyiciler dışında ASL
    ASLA tahmin yapma — kategori, fatura türü, harcama tipi tahmine gerekçe olamaz.
    Mutlaka SOR: "Hangi hesaptan? Kart, nakit ya da banka belirt."
 
+🔴 TARİH ECHO YASAĞI: Kullanıcının ŞU ANKİ mesajında tarih ifadesi yoksa
+   (mayısta/3'ünde/dün/geçen hafta/YYYY-MM-DD vb.), summary'ye tarih YAZMA.
+   Önceki mesajlardan tarih kopyalama. payload'a da transaction_date EKLEME
+   — tarih belirtilmemişse default bugün olur, summary bunu yansıtmasın.
+
 🔴 MEVCUT BAKİYELERİ TEKRAR YAZMA: Bakiye SADECE kullanıcı "X hesabımın bakiyesi
 şu kadar oldu" diye AÇIKÇA yeni bir değer söylediğinde güncellenir.
 
@@ -1340,6 +1345,7 @@ class CoachEngine:
 
         proposed_actions = []
         account_unclear = False
+        date_unclear = False
         for tc in llm_response.tool_calls:
             if tc["name"] != "propose_action":
                 continue
@@ -1366,6 +1372,8 @@ class CoachEngine:
             except ValueError as e:
                 if "HESAP_BELIRSIZ" in str(e):  # BUG #042 fix
                     account_unclear = True
+                elif "TARIH_BELIRSIZ" in str(e):  # BUG #044 fix
+                    date_unclear = True
                 else:
                     logger.error(f"propose_action hatasi: {e}")
             except Exception as e:
@@ -1427,6 +1435,9 @@ class CoachEngine:
         # BUG #042 fix: Hesap belirsizse propose_action oluşmadı, soru sor
         if account_unclear and not proposed_actions:
             clean_text = "Hangi hesaptan? 'kartla' veya 'nakitten' eklersen hemen kaydederim."
+        # BUG #044 fix: Tarih tutarsızsa propose_action oluşmadı, yönlendir
+        if date_unclear and not proposed_actions:
+            clean_text = "Tarih bilgisi tutarsız. Tarihi açıkça belirt ('3 Mayıs'ta' gibi) veya hiç yazma — tarih yoksa bugün olarak kaydederim."
         # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
         reply = _build_smart_reply(clean_text, proposed_actions)
 

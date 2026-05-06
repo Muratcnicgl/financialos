@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, Component } from 'react';
 import {
   Send, Loader2, RotateCcw, MessageSquare, AlertTriangle, User, Sparkles, RefreshCw,
 } from 'lucide-react';
-import { coachApi } from '../api.js';
+import { coachApi, cockpitApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 
@@ -124,15 +124,16 @@ function CoachInner({ onActionResolved }) {
 
   useEffect(() => {
     let mounted = true;
-    coachApi.history(50)
-      .then((items) => {
+    Promise.all([coachApi.history(50), cockpitApi.get().catch(() => null)])
+      .then(([items, cockpit]) => {
         if (!mounted) return;
+        const accounts = cockpit?.accounts || [];
         const msgs = (items || []).map((h) => ({
           role: h.role === 'user' ? 'user' : 'coach',
           text: h.content,
           ts: parseHistoryDate(h),
           actions: h.actions || [],  // BUG #046: history'deki pending aksiyonlar
-          accounts: [],              // history'de cockpit snapshot yok; kart sadece account_id gösterir
+          accounts,                  // hesap adı çevirisi için
         }));
         setMessages(msgs);
         setHistoryLoaded(true);

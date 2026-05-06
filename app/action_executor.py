@@ -47,6 +47,13 @@ from app.rules_engine import simulate_partial_sale
 _CARD_CATEGORIES = {"yemek", "eglence", "sigara", "alisveris", "market"}
 _TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiоsuCGIOSU")  # BUG #026: Türkçe karakter normalize
 
+# BUG #042 fix: Hesap anahtar kelimesi — word boundary + çekim eki, false-positive'siz
+import re as _re
+_ACCOUNT_KEYWORD_RE = _re.compile(
+    r'\b(kart(?!on\b)\w*|hesap\w*|hesab\w*|nakit\w*|enpara\w*|ziraat\w*|banka\w*)\b',
+    _re.IGNORECASE,
+)
+
 
 def _cat_normalize(cat: str) -> str:
     """BUG #026: 'Eğlence' → 'eglence' — büyük harf + Türkçe aksan normalize."""
@@ -118,6 +125,7 @@ def propose_action(
     action_type: str,
     payload: Dict,
     summary: str,
+    user_message: str = "",
 ) -> PendingAction:
     """
     Koçun önerdiği aksiyonu PendingAction tablosuna kaydeder.
@@ -145,6 +153,11 @@ def propose_action(
 
     warning = None
     if action_type == "add_transaction":
+        # BUG #042 fix: Gider işlemlerinde hesap anahtar kelimesi zorunlu
+        if (payload.get("transaction_type") == "expense"
+                and user_message
+                and not _ACCOUNT_KEYWORD_RE.search(user_message)):
+            raise ValueError("HESAP_BELIRSIZ")
         payload = _normalize_transaction_payload(payload, user_id, db)
         # BUG #027: Kart limit aşımı uyarısı — DB rejection yok, kullanıcı karar verir
         if payload.get("is_card_expense") and payload.get("account_id"):

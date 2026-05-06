@@ -119,11 +119,16 @@ sana BİLDİRDİĞİNDE çağrılır. Aşağıdaki tetikleyiciler dışında ASL
 | "Bugün 320 TL market harcadım"                 | VAR   | propose_action + kısa not |
 | "Efe 9.000 ödedi"                              | VAR   | propose_action + kısa not |
 
-🔴 ŞÜPHEDEYSEN: TOOL ÇAĞIRMA. Sadece METİN yaz.
+🔴 ŞÜPHEDEYSEN: Tool ÇAĞIRMA. Hesap belirsizse ÖNCE SOR, sonra kaydet.
 
 🔴 SAHTE TAMAMLAMA YASAĞI: Tool çağırmadan "kaydedildi", "işlendi", "eklendi",
    "hesaba geçirildi" gibi tamamlama fiilleri YAZMA. DB'ye hiçbir şey gitmemiş
    olur, kullanıcıyı yanıltırsın. Hesap belirsizse (kart mı, nakit mi?) önce SOR.
+
+🔴 HESAP TAHMİNİ YASAĞI: Kullanıcı mesajında hesap belirten açık kelime
+   (kart, kartla, kartım, nakit, nakitten, enpara, ziraat, banka) YOKSA,
+   ASLA tahmin yapma — kategori, fatura türü, harcama tipi tahmine gerekçe olamaz.
+   Mutlaka SOR: "Hangi hesaptan? Kart, nakit ya da banka belirt."
 
 🔴 MEVCUT BAKİYELERİ TEKRAR YAZMA: Bakiye SADECE kullanıcı "X hesabımın bakiyesi
 şu kadar oldu" diye AÇIKÇA yeni bir değer söylediğinde güncellenir.
@@ -1316,6 +1321,7 @@ class CoachEngine:
             }
 
         proposed_actions = []
+        account_unclear = False
         for tc in llm_response.tool_calls:
             if tc["name"] != "propose_action":
                 continue
@@ -1327,6 +1333,7 @@ class CoachEngine:
                     action_type=inp["action_type"],
                     payload=inp["payload"],
                     summary=inp["summary"],
+                    user_message=user_message,
                 )
                 # BUG #017 fix: Hem 'id' hem 'action_id' iceriyor (geriye uyumlu)
                 # BUG #027: _warning_text instance attr → SQLAlchemy expire'dan bağımsız
@@ -1338,11 +1345,19 @@ class CoachEngine:
                     "payload": inp["payload"],
                     "warning": getattr(pending, "_warning_text", None),
                 })
+            except ValueError as e:
+                if "HESAP_BELIRSIZ" in str(e):  # BUG #042 fix
+                    account_unclear = True
+                else:
+                    logger.error(f"propose_action hatasi: {e}")
             except Exception as e:
                 logger.error(f"propose_action hatasi: {e}")
 
         # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
         clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)
+        # BUG #042 fix: Hesap belirsizse propose_action oluşmadı, soru sor
+        if account_unclear and not proposed_actions:
+            clean_text = "Hangi hesaptan? 'kartla' veya 'nakitten' eklersen hemen kaydederim."
         # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
         reply = _build_smart_reply(clean_text, proposed_actions)
 

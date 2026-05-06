@@ -122,7 +122,7 @@ export default function Cockpit() {
           <h3 className="text-sm font-semibold mb-2 text-brand-600 dark:text-brand-400">
             Onay bekleyen aksiyonlar ({pendingActions.length})
           </h3>
-          <PendingActions actions={pendingActions} onResolved={handleActionResolved} />
+          <PendingActions actions={pendingActions} onResolved={handleActionResolved} accounts={data?.accounts} />
         </div>
       )}
 

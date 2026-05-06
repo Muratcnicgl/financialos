@@ -19,6 +19,7 @@ o sirayla cagiriyor. Hata yonetimi: executor exception firlatmaz, dict doner
 ({success: bool, error: str}) — router bu donusu kontrol eder.
 """
 
+import json
 import logging
 from datetime import datetime
 from typing import Optional, List
@@ -30,7 +31,9 @@ from app.dependencies import get_db, get_current_user
 from app.models import (
     User, PendingAction, ActionStatus, ActionHistory, ActionSource,
 )
-from app.action_executor import execute_pending_action, reject_pending_action
+from app.action_executor import (
+    execute_pending_action, reject_pending_action, _normalize_transaction_payload,
+)
 from app.rules_engine import generate_cockpit
 
 router = APIRouter(prefix="/api/actions", tags=["actions"])
@@ -58,6 +61,11 @@ class PendingActionOut(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: Optional[str] = None
+
+
+class EditActionRequest(BaseModel):
+    payload: dict
+    summary: str
 
 
 class ActionHistoryOut(BaseModel):
@@ -183,6 +191,41 @@ def reject_action(
         raise HTTPException(status_code=404, detail=result.get("error", "Aksiyon reddetme basarisiz."))
 
     return result
+
+
+@router.post("/{action_id}/edit", response_model=PendingActionOut)
+def edit_action(
+    action_id: int,
+    body: EditActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Pending aksiyonun payload ve summary'sini guncelle (kullanici duzeltmesi)."""
+    pending = (
+        db.query(PendingAction)
+        .filter(
+            PendingAction.id == action_id,
+            PendingAction.user_id == current_user.id,
+            PendingAction.status == ActionStatus.pending,
+        )
+        .first()
+    )
+    if not pending:
+        raise HTTPException(status_code=404, detail="Aksiyon bulunamadi veya artik duzenlenemez.")
+
+    new_payload = body.payload
+    # add_transaction icin kart normalizasyonunu yeniden calistir
+    if pending.action_type == "add_transaction":
+        try:
+            new_payload = _normalize_transaction_payload(new_payload, current_user.id, db)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Payload gecersiz: {e}")
+
+    pending.payload = json.dumps(new_payload, ensure_ascii=False)
+    pending.summary = body.summary
+    db.commit()
+    db.refresh(pending)
+    return pending
 
 
 @router.get("/history", response_model=List[ActionHistoryOut])

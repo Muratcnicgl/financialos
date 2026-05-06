@@ -177,6 +177,7 @@ function CoachInner({ onActionResolved }) {
         // Yine de guvenlik icin nazik bir fallback (eski "(bos cevap)" idi).
         text: res.reply || 'Koç cevap vermedi.',
         actions: res.proposed_actions || [],
+        accounts: res.cockpit_snapshot?.accounts || [],
         ts: new Date(),
       };
       setMessages((prev) => [...prev, coachMsg]);
@@ -490,6 +491,7 @@ function Message({ message, onActionResolved }) {
             <PendingActions
               actions={message.actions}
               onResolved={onActionResolved}
+              accounts={message.accounts}
             />
           </div>
         )}

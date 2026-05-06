@@ -204,6 +204,10 @@ export const actionsApi = {
     body: reason ? { reason } : null,
   }),
   history: (params) => request('/api/actions/history', { params }),
+  edit: (id, payload, summary) => request(`/api/actions/${id}/edit`, {
+    method: 'POST',
+    body: { payload, summary },
+  }),
 };
 
 // =============================================================

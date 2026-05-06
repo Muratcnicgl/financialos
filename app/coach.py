@@ -1102,21 +1102,29 @@ def _trim_history_to_size(messages: List[Dict]) -> List[Dict]:
 # ============================================================
 
 _EMANET_HEADER_RE = re.compile(r'\[5\.\s*EMANET KASA\]', re.IGNORECASE)
-_YC_HEADER_RE = re.compile(r'\[?YENİ CHECKPOINT', re.IGNORECASE)
+# BUG #033 iter2: \d*\.? ile numaralı varyantları da yakala ([6. YENİ CHECKPOINT] vb.)
+_YC_HEADER_RE = re.compile(r'\[?\d*\.?\s*YENİ CHECKPOINT', re.IGNORECASE)
 _YC_CONDITIONAL_RE = re.compile(
     r'gerekirse|gerektiğinde|önerilir|önerilebilir|olabilir|eklenebilir|gerekiyorsa',
     re.IGNORECASE,
 )
+_YC_USER_INTENT_RE = re.compile(
+    r'kural|checkpoint|kırmızı çizgi|kirmizi cizgi|\bmc\b|ekle|öner|öneri',
+    re.IGNORECASE,
+)
 
 
-def _postprocess_report(text: str, cockpit: Optional[Dict]) -> str:
+def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "") -> str:
     """BUG #033 fix: Halüsinasyon bölümlerini output katmanında temizle.
 
-    EMANET KASA: cockpit'te 0 ise başlık + içerik satırlarını sil (prompt bypass).
-    YENİ CHECKPOINT: koşullu ifade (gerekirse/olabilir vb.) içeriyorsa sil.
+    EMANET KASA: cockpit'te 0 ise başlık + içerik satırlarını sil.
+    YENİ CHECKPOINT: kullanıcı mesajında checkpoint niyeti yoksa her zaman sil;
+                     niyet varsa koşullu kelime içeriyorsa sil.
     """
     if not text:
         return text
+
+    user_wants_checkpoint = bool(_YC_USER_INTENT_RE.search(user_message))
 
     lines = text.splitlines()
     result = []
@@ -1126,7 +1134,6 @@ def _postprocess_report(text: str, cockpit: Optional[Dict]) -> str:
 
         if _EMANET_HEADER_RE.search(line) and cockpit and cockpit.get("emanet_kasa", 0) == 0:
             i += 1
-            # Başlıktan sonraki içerik satırlarını atla; yeni bölüm başlığı veya boş satırda dur
             while i < len(lines):
                 stripped = lines[i].strip()
                 if not stripped or stripped.startswith('[') or _YC_HEADER_RE.search(stripped):
@@ -1135,13 +1142,18 @@ def _postprocess_report(text: str, cockpit: Optional[Dict]) -> str:
             continue
 
         if _YC_HEADER_RE.search(line):
-            # Başlık satırı + ardından gelen non-section satırları bir blok olarak al
             block = [line]
             j = i + 1
             while j < len(lines) and lines[j].strip() and not lines[j].strip().startswith('['):
                 block.append(lines[j])
                 j += 1
-            if _YC_CONDITIONAL_RE.search('\n'.join(block)):
+            # Kullanıcı checkpoint istemiyorsa → her zaman sil
+            # Kullanıcı checkpoint istiyorsa → yalnızca koşullu ifade varsa sil
+            should_remove = (
+                not user_wants_checkpoint
+                or _YC_CONDITIONAL_RE.search('\n'.join(block))
+            )
+            if should_remove:
                 i = j
                 continue
             result.extend(block)
@@ -1311,7 +1323,7 @@ class CoachEngine:
                 logger.error(f"propose_action hatasi: {e}")
 
         # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
-        clean_text = _postprocess_report(llm_response.text, cockpit_dict)
+        clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message)
         # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
         reply = _build_smart_reply(clean_text, proposed_actions)
 

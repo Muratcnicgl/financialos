@@ -34,7 +34,7 @@ import re
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.models import (
-    Account, AccountType, RecurringIncome, Transaction,
+    Account, AccountType, RecurringIncome, RecurringExpense, Transaction,
     TransactionType, PersonalDebt, DebtDirection, MasterCheckpoint,
 )
 
@@ -468,6 +468,101 @@ def _calculate_total_receivables(user_id: int, db: Session) -> float:
     return round(total, 2)
 
 
+def _get_next_due_date(today: date, day_of_month: int) -> date:
+    """Bu ay day_of_month geçtiyse gelecek ayın tarihini döndür."""
+    last_day = monthrange(today.year, today.month)[1]
+    candidate = date(today.year, today.month, min(day_of_month, last_day))
+    if candidate < today:
+        next_month = today.month % 12 + 1
+        next_year = today.year + (1 if today.month == 12 else 0)
+        last_day_next = monthrange(next_year, next_month)[1]
+        candidate = date(next_year, next_month, min(day_of_month, last_day_next))
+    return candidate
+
+
+def _collect_upcoming_reminders(
+    user_id: int, today: date, db: Session,
+    accounts: List, kart_borcu: float,
+) -> List[Dict]:
+    """
+    A1: 0-7 gün içinde vadesi gelen olaylar.
+    - RecurringIncome/Expense: last_triggered_year_month != bu_ay AND day_of_month 0-7 gün
+    - PersonalDebt payable: due_date 0-7 gün, is_paid=False
+    Sıralama: card_risk önce, sonra days_until.
+    """
+    REMINDER_DAYS = 7
+    year_month = f"{today.year}-{today.month:02d}"
+    acc_map = {a.id: a for a in accounts}
+
+    reminders: List[Dict] = []
+
+    # RecurringIncome
+    for inc in db.query(RecurringIncome).filter(
+        RecurringIncome.user_id == user_id,
+        RecurringIncome.is_active == True,
+    ).all():
+        if inc.last_triggered_year_month == year_month:
+            continue
+        target = _get_next_due_date(today, inc.day_of_month)
+        days_until = (target - today).days
+        if 0 <= days_until <= REMINDER_DAYS:
+            reminders.append({
+                "type": "income",
+                "name": inc.name,
+                "amount": inc.amount,
+                "days_until": days_until,
+                "due_date": target.isoformat(),
+                "account_name": "Nakit hesap",
+                "card_risk": False,
+            })
+
+    # RecurringExpense
+    for exp in db.query(RecurringExpense).filter(
+        RecurringExpense.user_id == user_id,
+        RecurringExpense.is_active == True,
+    ).all():
+        if exp.last_triggered_year_month == year_month:
+            continue
+        target = _get_next_due_date(today, exp.day_of_month)
+        days_until = (target - today).days
+        if 0 <= days_until <= REMINDER_DAYS:
+            acc = acc_map.get(exp.account_id)
+            card_risk = False
+            if acc and acc.account_type == AccountType.credit_card and acc.credit_limit:
+                card_risk = (acc.balance + exp.amount) > acc.credit_limit
+            reminders.append({
+                "type": "expense",
+                "name": exp.name,
+                "amount": exp.amount,
+                "days_until": days_until,
+                "due_date": target.isoformat(),
+                "account_name": acc.name if acc else "Bilinmeyen",
+                "card_risk": card_risk,
+            })
+
+    # PersonalDebt (payable, unpaid, due soon)
+    for debt in db.query(PersonalDebt).filter(
+        PersonalDebt.user_id == user_id,
+        PersonalDebt.is_paid == False,
+        PersonalDebt.direction == DebtDirection.payable,
+        PersonalDebt.due_date != None,
+    ).all():
+        days_until = (debt.due_date - today).days
+        if 0 <= days_until <= REMINDER_DAYS:
+            reminders.append({
+                "type": "debt",
+                "name": f"{debt.counterparty} borcu",
+                "amount": debt.amount,
+                "days_until": days_until,
+                "due_date": debt.due_date.isoformat(),
+                "account_name": "",
+                "card_risk": False,
+            })
+
+    reminders.sort(key=lambda x: (not x["card_risk"], x["days_until"]))
+    return reminders
+
+
 def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List[Dict]:
     """
     Son 30 gün vs önceki 30 günlük gider kalıplarını hesaplar.
@@ -688,6 +783,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "alerts": alerts,
         "investment_pnl": investment_pnl_list,
         "category_patterns": _calculate_category_patterns(user_id, today, db),
+        "upcoming_reminders": _collect_upcoming_reminders(
+            user_id, today, db, accounts, kart_borcu
+        ),
     }
 
 

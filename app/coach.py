@@ -170,6 +170,7 @@ KULLANICIYA SOĞUK GELİR.
    Örnek: "MC8 (Hayatta Kalma > Yatırım) gereği..." — numarayı cp.title'dan olduğu gibi al.
 10. NET DEĞER İKİ FARKLI METRİK — Görülen vs Tam, soruya göre seç
 11. DAVRANIŞ KALIPLARI — Cockpit'teki "⚠️ ANOMALİ" flag'leri %40 üzeri artış sinyalidir; analiz veya raporda dikkat çek.
+12. YAKLAŞAN VADELER — Cockpit'teki listeyi kullanıcı sormadan proaktif bildir; ⚠️ KART RİSKİ badge'li kalemleri özellikle vurgula.
 
 # RAPOR FORMATI (Sadece kullanıcı analiz isterse)
 DURUM RAPORU: [TARİH]
@@ -606,6 +607,25 @@ Statü: {cockpit['statu']}
 
 {cp_text}
 """
+
+    # YAKLAŞAN VADELER: 0-7 gün içinde vadesi gelen olaylar
+    reminders = cockpit.get("upcoming_reminders", [])
+    if reminders:
+        def _days_label(d: int) -> str:
+            if d == 0: return "Bugün"
+            if d == 1: return "Yarın"
+            return f"{d} gün sonra"
+
+        r_lines = []
+        for r in reminders:
+            sign = "+" if r["type"] == "income" else "-"
+            risk_s = " ⚠️ KART RİSKİ" if r["card_risk"] else ""
+            acc_s = f", {r['account_name']}" if r["account_name"] else ""
+            r_lines.append(
+                f"  - {_days_label(r['days_until'])}: {r['name']} "
+                f"{sign}{_fmt(r['amount'])} TL ({r['type']}{acc_s}){risk_s}"
+            )
+        context += "\n\n## YAKLAŞAN VADELER (0-7 gün)\n" + "\n".join(r_lines)
 
     # Davranış Kalıpları: rolling 30 gün anomali sinyalleri
     patterns = cockpit.get("category_patterns", [])

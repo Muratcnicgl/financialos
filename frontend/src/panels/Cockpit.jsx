@@ -3,7 +3,7 @@ import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Banknote, Calculator, Scale, ScaleIcon, AlertTriangle,
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
-  Eye, Telescope,
+  Eye, Telescope, Bell,
 } from 'lucide-react';
 import {
   cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
@@ -308,6 +308,49 @@ export default function Cockpit() {
                 {formatPercent(investmentPnl.getiri_yuzde)}
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* A1: Yaklaşan Vadeler (0-7 gün) */}
+      {data.upcoming_reminders?.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+            <h3 className="font-semibold text-sm">Yaklaşan vadeler</h3>
+            <span className="chip chip-neutral text-[10px] ml-auto">
+              {data.upcoming_reminders.length} kalem
+            </span>
+          </div>
+          <div className="space-y-2">
+            {data.upcoming_reminders.map((r, i) => {
+              const dayLabel = r.days_until === 0 ? 'Bugün'
+                : r.days_until === 1 ? 'Yarın'
+                : `${r.days_until} gün sonra`;
+              const sign = r.type === 'income' ? '+' : '−';
+              const colorClass = r.type === 'income'
+                ? 'text-positive-600 dark:text-positive-400'
+                : 'text-negative-600 dark:text-negative-400';
+              return (
+                <div key={i}
+                  className="flex items-center justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium truncate">{r.name}</p>
+                      {r.card_risk && (
+                        <span className="chip chip-negative text-[9px] flex-shrink-0">Kart riski</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {dayLabel} · {r.account_name || r.type}
+                    </p>
+                  </div>
+                  <span className={`font-numeric font-semibold flex-shrink-0 ${colorClass}`}>
+                    {sign}{formatTL(r.amount)} TL
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

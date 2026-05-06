@@ -21,6 +21,9 @@ GUNCELLEMELER:
 - 2 May 2026 BUG #013 fix: DB'deki naive UTC timestamp'leri serialize
   edilmeden once timezone-aware UTC'ye ceviriliyor. Boylece JSON cikti
   '+00:00' suffix'iyle gidiyor, frontend artik 3 saat geri gostermiyor.
+- 4 May 2026 BUG #040 fix: _memory_to_history_item role='tool' satirlarini
+  None donduruyor (frontend'e gonderilmez). role='assistant' + content bos +
+  tool_calls_json dolu ise placeholder set ediliyor. get_history None filtreliyor.
 """
 
 import time
@@ -156,7 +159,7 @@ def _log_api_call(
         db.rollback()
 
 
-def _memory_to_history_item(m: CoachMemory) -> HistoryItem:
+def _memory_to_history_item(m: CoachMemory) -> Optional[HistoryItem]:
     """
     BUG #011 fix: CoachMemory.timestamp'i hem timestamp hem created_at field'i
     olarak donduruyoruz. CoachMemory modelinde sadece 'timestamp' var ama frontend
@@ -166,14 +169,24 @@ def _memory_to_history_item(m: CoachMemory) -> HistoryItem:
     timezone-naive UTC. Suffix'siz serialize edildiginde frontend bunu LOCAL
     olarak yorumluyor ve 3 saat geri gosteriyordu. Burada naive degeri aware
     UTC'ye cevirip Pydantic'in '+00:00' suffix'i ile yayinlamasini sagliyoruz.
+
+    BUG #040 fix: tool satırlari frontend'e gonderilmez (None donus).
+    assistant satiri bos content + dolu tool_calls_json ise placeholder set edilir.
     """
+    if m.role == 'tool':  # BUG #040: tool satırları frontend'e gönderilmez
+        return None
+
+    content = m.content
+    if m.role == 'assistant' and not content and m.tool_calls_json:  # BUG #040
+        content = "Onayınız için bir aksiyon hazırladım. Detayı aşağıdaki kartta görebilirsin."
+
     ts = m.timestamp
     if ts is not None and ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
     return HistoryItem(
         id=m.id,
         role=m.role,
-        content=m.content,
+        content=content,
         timestamp=ts,
         created_at=ts,
     )
@@ -287,7 +300,8 @@ def get_history(
         .all()
     )
     items.reverse()
-    return [_memory_to_history_item(m) for m in items]
+    items_mapped = [_memory_to_history_item(m) for m in items]
+    return [it for it in items_mapped if it is not None]
 
 
 @router.post("/reset", response_model=ResetResponse)

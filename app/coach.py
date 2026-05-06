@@ -121,6 +121,10 @@ sana BİLDİRDİĞİNDE çağrılır. Aşağıdaki tetikleyiciler dışında ASL
 
 🔴 ŞÜPHEDEYSEN: TOOL ÇAĞIRMA. Sadece METİN yaz.
 
+🔴 SAHTE TAMAMLAMA YASAĞI: Tool çağırmadan "kaydedildi", "işlendi", "eklendi",
+   "hesaba geçirildi" gibi tamamlama fiilleri YAZMA. DB'ye hiçbir şey gitmemiş
+   olur, kullanıcıyı yanıltırsın. Hesap belirsizse (kart mı, nakit mi?) önce SOR.
+
 🔴 MEVCUT BAKİYELERİ TEKRAR YAZMA: Bakiye SADECE kullanıcı "X hesabımın bakiyesi
 şu kadar oldu" diye AÇIKÇA yeni bir değer söylediğinde güncellenir.
 
@@ -1112,14 +1116,22 @@ _YC_USER_INTENT_RE = re.compile(
     r'kural|checkpoint|kırmızı çizgi|kirmizi cizgi|\bmc\b|ekle|öner|öneri',
     re.IGNORECASE,
 )
+# BUG #041 fix: Köşeli parantez içinde sahte tamamlama fiilleri
+_FAKE_CONFIRM_RE = re.compile(
+    r'\[[^\]]*(?:kaydedildi|kaydettim|i[sş]lendi|eklendi|hesaba\s*ge[cç]irildi|yap[iı]ld[iı]|al[iı]nd[iı])[^\]]*\]',
+    re.IGNORECASE,
+)
+_CLARIFY_MSG = "Hangi hesaptan harcadın? Yazına 'kartla' veya 'nakitten' eklersen hemen kaydederim."
 
 
-def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "") -> str:
-    """BUG #033 fix: Halüsinasyon bölümlerini output katmanında temizle.
+def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "", proposed_actions: Optional[List] = None) -> str:
+    """BUG #033/#041 fix: Halüsinasyon bölümlerini output katmanında temizle.
 
     EMANET KASA: cockpit'te 0 ise başlık + içerik satırlarını sil.
     YENİ CHECKPOINT: kullanıcı mesajında checkpoint niyeti yoksa her zaman sil;
                      niyet varsa koşullu kelime içeriyorsa sil.
+    SAHTE TAMAMLAMA: proposed_actions boşsa [kaydedildi/işlendi/...] bloklarını sil,
+                     netleştirme sorusu ekle.
     """
     if not text:
         return text
@@ -1163,7 +1175,14 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
         result.append(line)
         i += 1
 
-    return '\n'.join(result).strip()
+    cleaned = '\n'.join(result).strip()
+
+    # BUG #041 fix: proposed_actions boşsa sahte tamamlama cümlelerini sil
+    if not proposed_actions and _FAKE_CONFIRM_RE.search(cleaned):
+        cleaned = _FAKE_CONFIRM_RE.sub('', cleaned).strip()
+        cleaned = (cleaned + '\n\n' + _CLARIFY_MSG).strip()
+
+    return cleaned
 
 
 # ============================================================
@@ -1323,7 +1342,7 @@ class CoachEngine:
                 logger.error(f"propose_action hatasi: {e}")
 
         # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
-        clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message)
+        clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)
         # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
         reply = _build_smart_reply(clean_text, proposed_actions)
 

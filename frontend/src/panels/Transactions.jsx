@@ -39,8 +39,19 @@ export default function Transactions() {
 
   // Filtreler
   const [searchText, setSearchText] = useState('');
-  const [filterType, setFilterType] = useState('all');  // all | income | expense
+  const [filterType, setFilterType] = useState('all');  // all | income | expense | transfer
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterAccount, setFilterAccount] = useState('all');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+
+  const isFiltered = searchText || filterType !== 'all' || filterCategory !== 'all'
+    || filterAccount !== 'all' || filterDateFrom || filterDateTo;
+
+  const resetFilters = () => {
+    setSearchText(''); setFilterType('all'); setFilterCategory('all');
+    setFilterAccount('all'); setFilterDateFrom(''); setFilterDateTo('');
+  };
 
   const load = useCallback(async () => {
     try {
@@ -80,11 +91,21 @@ export default function Transactions() {
     if (filterCategory !== 'all') {
       list = list.filter(t => t.category === filterCategory);
     }
+    if (filterAccount !== 'all') {
+      list = list.filter(t => String(t.account_id) === filterAccount);
+    }
+    if (filterDateFrom) {
+      list = list.filter(t => (t.transaction_date || '') >= filterDateFrom);
+    }
+    if (filterDateTo) {
+      list = list.filter(t => (t.transaction_date || '') <= filterDateTo);
+    }
     if (searchText.trim()) {
       const q = searchText.toLowerCase();
       list = list.filter(t =>
         (t.description || '').toLowerCase().includes(q) ||
-        (t.category || '').toLowerCase().includes(q)
+        (t.category || '').toLowerCase().includes(q) ||
+        (t.notes || '').toLowerCase().includes(q)
       );
     }
     // En yeni once (transaction_date sonra created_at)
@@ -94,7 +115,7 @@ export default function Transactions() {
       if (dA !== dB) return dB.localeCompare(dA);
       return (b.id || 0) - (a.id || 0);
     });
-  }, [transactions, filterType, filterCategory, searchText]);
+  }, [transactions, filterType, filterCategory, filterAccount, filterDateFrom, filterDateTo, searchText]);
 
   // Toplam
   const totals = useMemo(() => {
@@ -182,7 +203,7 @@ export default function Transactions() {
         <div>
           <h2 className="text-lg sm:text-xl font-bold mb-1">İşlemler</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {transactions.length} işlem · Filtre sonrası {filtered.length}
+            Toplam {transactions.length} işlem
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -230,43 +251,55 @@ export default function Transactions() {
 
       {/* Filtreler */}
       <div className="card p-3">
-        <div className="flex items-center gap-2 mb-3">
-          <Filter className="w-4 h-4 text-zinc-500" />
-          <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Filtreler</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-zinc-500" />
+            <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Filtreler</span>
+            {isFiltered && (
+              <span className="chip chip-neutral text-[10px]">
+                {transactions.length} işlemden {filtered.length}'i gösteriliyor
+              </span>
+            )}
+          </div>
+          {isFiltered && (
+            <button onClick={resetFilters} className="btn btn-ghost !text-xs !py-1 !px-2">
+              <X className="w-3 h-3" /> Sıfırla
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {/* Search */}
+          {/* Arama */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Ara..."
-              className="input !pl-8 !text-xs"
-            />
+            <input type="text" value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              placeholder="Açıklama, kategori, not..." className="input !pl-8 !text-xs" />
           </div>
-          {/* Type */}
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="input !text-xs"
-          >
+          {/* Tip */}
+          <select value={filterType} onChange={e => setFilterType(e.target.value)} className="input !text-xs">
             <option value="all">Tüm tipler</option>
             <option value="income">Gelir</option>
             <option value="expense">Gider</option>
+            <option value="transfer">Transfer</option>
           </select>
-          {/* Category */}
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="input !text-xs"
-          >
+          {/* Kategori */}
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="input !text-xs">
             <option value="all">Tüm kategoriler</option>
-            {allCategories.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+            {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          {/* Hesap */}
+          <select value={filterAccount} onChange={e => setFilterAccount(e.target.value)} className="input !text-xs">
+            <option value="all">Tüm hesaplar</option>
+            {accounts.map(a => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+          </select>
+          {/* Tarih başlangıç */}
+          <input type="date" value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+            className="input !text-xs" title="Başlangıç tarihi" />
+          {/* Tarih bitiş */}
+          <input type="date" value={filterDateTo}
+            onChange={e => setFilterDateTo(e.target.value)}
+            className="input !text-xs" title="Bitiş tarihi" />
         </div>
       </div>
 

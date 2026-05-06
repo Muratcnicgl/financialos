@@ -38,6 +38,23 @@ python test_fund_tracker.py
 
 Tek bir test fonksiyonu çalıştırma kavramı yok — her dosya `__main__` gibi başından sonuna akar. Bir senaryoyu izole etmek için ilgili dosyayı düzenleyip alt bölümleri yorumlamak gerekir.
 
+## Yedekleme
+
+SQLite DB'sini elle yedekle (online backup — aktif bağlantıları kesmez):
+
+```powershell
+python -m scripts.backup                  # data/backups/YYYY-MM-DD-HHMM.db
+python -m scripts.backup --keep-days 7    # 7 günden eski yedekleri sil
+```
+
+Otomatik günlük yedek (Windows Görev Zamanlayıcı — tek seferlik kurulum):
+
+```powershell
+schtasks /create /tn "FinancialOS Backup" /tr "powershell -Command 'cd C:\Users\18155\PycharmProjects\financialos; .\venv\Scripts\python.exe -m scripts.backup'" /sc daily /st 03:00
+```
+
+Yedekler `data/backups/` altında, 30 günden eskisi otomatik silinir.
+
 ## .env Şeması
 
 Repo kökünde, `.gitignore`'da:

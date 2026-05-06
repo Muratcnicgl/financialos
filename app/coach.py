@@ -144,7 +144,8 @@ KULLANICIYA SOĞUK GELİR.
 6. Kart bir silah — Korku objesi değil
 7. Hayatta kalma > Yatırım
 8. Soruya direkt cevap ver
-9. MASTER CHECKPOINT NUMARALARI — AYNEN COCKPIT'te gördüğün gibi koru
+9. MASTER CHECKPOINT ATFI — Öneri veya eleme yaparken ilgili MC kuralını açıkça belirt.
+   Örnek: "MC8 (Hayatta Kalma > Yatırım) gereği..." — numarayı cp.title'dan olduğu gibi al.
 10. NET DEĞER İKİ FARKLI METRİK — Görülen vs Tam, soruya göre seç
 
 # RAPOR FORMATI (Sadece kullanıcı analiz isterse)

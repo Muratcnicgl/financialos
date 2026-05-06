@@ -40,6 +40,16 @@ class ExpenseCreate(ExpenseBase):
     pass
 
 
+class ExpenseUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    amount: Optional[float] = Field(None, gt=0)
+    account_id: Optional[int] = None
+    category: Optional[str] = Field(None, max_length=50)
+    day_of_month: Optional[int] = Field(None, ge=1, le=31)
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+
+
 class ExpenseOut(ExpenseBase):
     id: int
     created_at: datetime
@@ -83,6 +93,27 @@ def create_expense(
 
     exp = RecurringExpense(user_id=user.id, **payload.model_dump())
     db.add(exp)
+    db.commit()
+    db.refresh(exp)
+    return exp
+
+
+@router.put("/{expense_id}", response_model=ExpenseOut)
+def update_expense(
+    expense_id: int,
+    payload: ExpenseUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ExpenseOut:
+    """Düzenli gideri güncelle. is_active=False ile pasifleştir, True ile aktive et."""
+    exp = db.query(RecurringExpense).filter(
+        RecurringExpense.id == expense_id,
+        RecurringExpense.user_id == user.id,
+    ).first()
+    if not exp:
+        raise HTTPException(404, f"Gider bulunamadi: id={expense_id}")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(exp, k, v)
     db.commit()
     db.refresh(exp)
     return exp

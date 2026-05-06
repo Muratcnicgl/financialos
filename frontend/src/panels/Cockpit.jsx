@@ -6,7 +6,7 @@ import {
   Eye, Telescope,
 } from 'lucide-react';
 import {
-  cockpitApi, fundPriceApi, actionsApi, incomesApi,
+  cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
   formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
 } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
@@ -36,14 +36,18 @@ export default function Cockpit() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [cockpit, pending, due] = await Promise.all([
+      const [cockpit, pending, dueIncome, dueExpense] = await Promise.all([
         cockpitApi.get(),
         actionsApi.pending(),
-        incomesApi.triggerDue().catch(() => ({ triggered: [] })),  // A2: sessiz fail
+        incomesApi.triggerDue().catch(() => ({ triggered: [] })),   // A2: sessiz fail
+        expensesApi.triggerDue().catch(() => ({ triggered: [] })),  // A3: sessiz fail
       ]);
       setData(cockpit);
-      // A2: vadesi gelen gelirler pending listesine eklenir (dedup backend'de)
-      const dueActions = due?.triggered || [];
+      // A2+A3: vadesi gelen gelir ve giderler pending listesine eklenir (dedup backend'de)
+      const dueActions = [
+        ...(dueIncome?.triggered || []),
+        ...(dueExpense?.triggered || []),
+      ];
       const existingIds = new Set((pending || []).map(a => a.id));
       const merged = [...(pending || []), ...dueActions.filter(a => !existingIds.has(a.id))];
       setPendingActions(merged);

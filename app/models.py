@@ -109,6 +109,7 @@ class User(Base):
 
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")
     incomes = relationship("RecurringIncome", back_populates="user", cascade="all, delete-orphan")
+    expenses = relationship("RecurringExpense", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
     debts = relationship("PersonalDebt", back_populates="user", cascade="all, delete-orphan")
     checkpoints = relationship("MasterCheckpoint", back_populates="user", cascade="all, delete-orphan")
@@ -176,6 +177,25 @@ class RecurringIncome(Base):
     last_triggered_year_month = Column(String(7), nullable=True)  # A2: "2026-05" — dedup
 
     user = relationship("User", back_populates="incomes")
+
+
+class RecurringExpense(Base):
+    """A3: Düzenli giderler — abonelik, fatura, kira vb. Otomatik propose_action üretir."""
+    __tablename__ = "recurring_expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+    amount = Column(Float, nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)  # zorunlu: kart mı nakit mi
+    category = Column(String(50), nullable=True)        # "abonelik", "fatura", "kira" vb.
+    day_of_month = Column(Integer, nullable=False)       # Ayın kaçında ödenir (1-31)
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_triggered_year_month = Column(String(7), nullable=True)  # A3 dedup: "2026-05"
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="expenses")
 
 
 class Transaction(Base):

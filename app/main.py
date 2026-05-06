@@ -25,9 +25,10 @@ from app.database import Base, engine
 # Grup 1: kullanici + hesaplar
 from app.routers import user as user_router
 from app.routers import accounts as accounts_router
-# Grup 2: islemler + gelirler + borclar + kirmizi cizgiler
+# Grup 2: islemler + gelirler + giderler + borclar + kirmizi cizgiler
 from app.routers import transactions as transactions_router
 from app.routers import incomes as incomes_router
+from app.routers import expenses as expenses_router  # A3: RecurringExpense
 from app.routers import debts as debts_router
 from app.routers import checkpoints as checkpoints_router
 # Grup 3: cockpit + coach + actions + fund_price (KOC CANLANIYOR!)
@@ -90,6 +91,20 @@ def _run_migrations() -> None:
         for sql in [
             "ALTER TABLE coach_memories ADD COLUMN tool_calls_json TEXT",
             "ALTER TABLE coach_memories ADD COLUMN tool_call_id VARCHAR(64)",
+            # A3: RecurringExpense tablosu (create_all zaten yapar, bu mevcut DB'ler için)
+            """CREATE TABLE IF NOT EXISTS recurring_expenses (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                name VARCHAR(100) NOT NULL,
+                amount FLOAT NOT NULL,
+                account_id INTEGER NOT NULL REFERENCES accounts(id),
+                category VARCHAR(50),
+                day_of_month INTEGER NOT NULL,
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                last_triggered_year_month VARCHAR(7),
+                notes TEXT,
+                created_at DATETIME
+            )""",
         ]:
             try:
                 conn.execute(text(sql))
@@ -115,6 +130,7 @@ app.include_router(accounts_router.router)
 # Grup 2
 app.include_router(transactions_router.router)
 app.include_router(incomes_router.router)
+app.include_router(expenses_router.router)
 app.include_router(debts_router.router)
 app.include_router(checkpoints_router.router)
 # Grup 3

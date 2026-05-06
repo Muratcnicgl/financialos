@@ -150,6 +150,17 @@ export const incomesApi = {
 };
 
 // =============================================================
+// RECURRING EXPENSES (A3)
+// =============================================================
+
+export const expensesApi = {
+  list:       (activeOnly = false) => request('/api/expenses/recurring', { params: { active_only: activeOnly } }),
+  create:     (data) => request('/api/expenses/recurring', { method: 'POST', body: data }),
+  delete:     (id) => request(`/api/expenses/recurring/${id}`, { method: 'DELETE' }),
+  triggerDue: () => request('/api/expenses/recurring/trigger-due', { method: 'POST' }),  // A3
+};
+
+// =============================================================
 // DEBTS (4)
 // =============================================================
 

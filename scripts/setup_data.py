@@ -25,7 +25,7 @@ from datetime import date, datetime
 from app.database import Base, engine, SessionLocal
 from app.models import (
     User, Account, AccountType,
-    RecurringIncome,
+    RecurringIncome, RecurringExpense,
     PersonalDebt, DebtDirection,
     MasterCheckpoint, CheckpointType,
 )
@@ -188,6 +188,23 @@ def main():
         )
         db.add(kyk)
         print(f"  Gelir olusturuldu: {kyk.name} ({kyk.amount} TL/ay, ayin {kyk.day_of_month}'i)\n")
+
+        # ============================================================
+        # 3b. PERIYODIK GIDER — Abonelikler ve faturalar (A3)
+        # ============================================================
+        print("Periyodik giderler:")
+        recurring_expenses = [
+            RecurringExpense(user_id=murat.id, name="Netflix",    amount=149.0,  account_id=2,
+                             category="abonelik",  day_of_month=1,  is_active=True),
+            RecurringExpense(user_id=murat.id, name="Spotify",    amount=49.0,   account_id=2,
+                             category="abonelik",  day_of_month=1,  is_active=True),
+            RecurringExpense(user_id=murat.id, name="Internet",   amount=299.0,  account_id=2,
+                             category="fatura",    day_of_month=10, is_active=True),
+        ]
+        for exp in recurring_expenses:
+            db.add(exp)
+            print(f"  Gider olusturuldu: {exp.name} ({exp.amount} TL/ay, ayin {exp.day_of_month}'i)")
+        print()
 
         # ============================================================
         # 4. EFE ALACAK TAKVIMI (15 kayit, toplam 29.635 TL)

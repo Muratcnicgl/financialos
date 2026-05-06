@@ -1379,10 +1379,12 @@ class CoachEngine:
             except Exception as e:
                 logger.error(f"propose_action hatasi: {e}")
 
-        # BUG #043 iter2: Sahte niyet tespit edilirse tek retry
-        if (not proposed_actions and not account_unclear
-                and not is_q and _FAKE_NIYET_RE.search(llm_response.text or "")):
-            logger.warning(f"BUG #043 retry tetiklendi: {user_message!r}")
+        # BUG #043/#045: Boş cevap VEYA sahte niyet tespit edilirse tek retry
+        if (not proposed_actions and not account_unclear and not date_unclear
+                and not is_q
+                and (not (llm_response.text or "").strip()
+                     or _FAKE_NIYET_RE.search(llm_response.text or ""))):
+            logger.warning(f"BUG #045/#043 retry tetiklendi: {user_message!r}")
             try:
                 retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
                 retry_response = self.provider.chat(

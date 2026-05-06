@@ -2,9 +2,34 @@ import { useState, useEffect, useRef, useCallback, Component } from 'react';
 import {
   Send, Loader2, RotateCcw, MessageSquare, AlertTriangle, User, Sparkles, RefreshCw,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { coachApi, cockpitApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import PendingActions from '../components/PendingActions.jsx';
+
+// Llama'nın köşeli parantez başlık formatını Markdown'a çevirir
+// [1. STRATEJİK ANALİZ] → ## 1. STRATEJİK ANALİZ
+// [A. Seçenek] → ### A. Seçenek
+function preprocessMarkdown(text) {
+  if (!text) return text;
+  return text
+    .replace(/\[(\d+\.\s[^\]]+)\]/g, '## $1')
+    .replace(/\[([A-Z]\.\s[^\]]+)\]/g, '### $1');
+}
+
+// Tailwind utility tabanlı markdown bileşenleri (@tailwindcss/typography gerektirmez)
+const mdComponents = {
+  h1: ({ children }) => <h1 className="text-base font-bold mt-3 mb-1">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-sm font-semibold mt-3 mb-1 text-brand-700 dark:text-brand-300 border-b border-zinc-200 dark:border-zinc-700 pb-0.5">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-0.5">{children}</h3>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  ul: ({ children }) => <ul className="list-disc pl-4 space-y-0.5 my-1">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-4 space-y-0.5 my-1">{children}</ol>,
+  li: ({ children }) => <li className="text-sm leading-snug">{children}</li>,
+  p: ({ children }) => <p className="text-sm leading-relaxed mb-1 last:mb-0">{children}</p>,
+  code: ({ children }) => <code className="bg-zinc-200 dark:bg-zinc-700 rounded px-1 text-xs font-mono">{children}</code>,
+};
 
 /**
  * Coach — Koc ile sohbet paneli.
@@ -479,9 +504,17 @@ function Message({ message, onActionResolved }) {
             ? 'bg-brand-600 text-white'
             : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
         }`}>
-          <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
-            {message.text}
-          </p>
+          {isUser ? (
+            <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+              {message.text}
+            </p>
+          ) : (
+            <div className="text-sm space-y-0.5 break-words">
+              <ReactMarkdown components={mdComponents}>
+                {preprocessMarkdown(message.text)}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
         {time && (
           <p className="text-[10px] text-zinc-400 mt-1 px-1">{time}</p>

@@ -1293,8 +1293,9 @@ class CoachEngine:
         user_id: int,
         role: str,
         content: str,
-        tool_calls: Optional[List[Dict]] = None,  # BUG #036 fix
-        tool_call_id: Optional[str] = None,        # BUG #036 fix
+        tool_calls: Optional[List[Dict]] = None,       # BUG #036 fix
+        tool_call_id: Optional[str] = None,             # BUG #036 fix
+        pending_action_ids: Optional[List[int]] = None, # BUG #046 fix
     ) -> None:
         mem = CoachMemory(
             user_id=user_id,
@@ -1302,6 +1303,7 @@ class CoachEngine:
             content=content or "",
             tool_calls_json=json.dumps(tool_calls, ensure_ascii=False) if tool_calls else None,
             tool_call_id=tool_call_id,
+            pending_action_ids_json=json.dumps(pending_action_ids) if pending_action_ids else None,
         )
         db.add(mem)
         db.commit()
@@ -1458,6 +1460,7 @@ class CoachEngine:
                 db, user_id, "assistant",
                 content=clean_text,
                 tool_calls=tool_calls_data,
+                pending_action_ids=[a["id"] for a in proposed_actions],  # BUG #046
             )
             for a in proposed_actions:
                 tc_id = f"call_{a.get('action_id', '?')}"

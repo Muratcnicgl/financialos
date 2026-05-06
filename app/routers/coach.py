@@ -26,6 +26,7 @@ GUNCELLEMELER:
   tool_calls_json dolu ise placeholder set ediliyor. get_history None filtreliyor.
 """
 
+import json
 import time
 import logging
 from datetime import datetime, date, timezone
@@ -36,7 +37,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.dependencies import get_db, get_current_user
-from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus
+from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus, PendingAction, ActionStatus
 from app.coach import CoachEngine
 
 router = APIRouter(prefix="/api/coach", tags=["coach"])
@@ -76,6 +77,18 @@ class ChatResponse(BaseModel):
     usage: Optional[UsageInfo] = None
 
 
+class ActionDTO(BaseModel):
+    """BUG #046 fix: History'de inline gosterilecek pending aksiyon ozeti."""
+    id: int
+    action_type: str
+    summary: str
+    payload: str          # JSON string (frontend parse eder)
+    warning: Optional[str] = None
+    status: ActionStatus
+
+    model_config = {"from_attributes": True}
+
+
 class HistoryItem(BaseModel):
     """
     Sohbet gecmis kaydi.
@@ -83,12 +96,14 @@ class HistoryItem(BaseModel):
     BUG #011 fix: Frontend 'created_at' field adiyla okuyor, backend eskiden
     'timestamp' donuyordu, bu yuzden Invalid Date hatasi vardi. Simdi her ikisi
     de doniyor — frontend hangisini okursa okusun calisir.
+    BUG #046 fix: actions field eklendi — history yuklendiginde kart gorunur.
     """
     id: int
     role: str
     content: str
     timestamp: datetime
     created_at: datetime
+    actions: List[ActionDTO] = []  # BUG #046: pending aksiyonlar (history reload)
 
     class Config:
         from_attributes = True
@@ -159,19 +174,10 @@ def _log_api_call(
         db.rollback()
 
 
-def _memory_to_history_item(m: CoachMemory) -> Optional[HistoryItem]:
+def _memory_to_history_item(m: CoachMemory, pa_map: Dict[int, PendingAction] = None) -> Optional[HistoryItem]:
     """
-    BUG #011 fix: CoachMemory.timestamp'i hem timestamp hem created_at field'i
-    olarak donduruyoruz. CoachMemory modelinde sadece 'timestamp' var ama frontend
-    'created_at' bekliyor.
-
-    BUG #013 fix: DB'deki timestamp 'datetime.utcnow()' ile yazildigi icin
-    timezone-naive UTC. Suffix'siz serialize edildiginde frontend bunu LOCAL
-    olarak yorumluyor ve 3 saat geri gosteriyordu. Burada naive degeri aware
-    UTC'ye cevirip Pydantic'in '+00:00' suffix'i ile yayinlamasini sagliyoruz.
-
-    BUG #040 fix: tool satırlari frontend'e gonderilmez (None donus).
-    assistant satiri bos content + dolu tool_calls_json ise placeholder set edilir.
+    BUG #011/#013/#040/#046 fix: CoachMemory kaydini HistoryItem'e cevir.
+    pa_map: pending action ID -> PendingAction; batch lookup icin get_history tarafindan verilir.
     """
     if m.role == 'tool':  # BUG #040: tool satırları frontend'e gönderilmez
         return None
@@ -183,12 +189,26 @@ def _memory_to_history_item(m: CoachMemory) -> Optional[HistoryItem]:
     ts = m.timestamp
     if ts is not None and ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
+
+    # BUG #046: pending aksiyon kartlarini history'ye dahil et
+    actions: List[ActionDTO] = []
+    if pa_map and m.pending_action_ids_json:
+        try:
+            ids = json.loads(m.pending_action_ids_json)
+            for aid in ids:
+                pa = pa_map.get(aid)
+                if pa:
+                    actions.append(ActionDTO.model_validate(pa))
+        except Exception:
+            pass
+
     return HistoryItem(
         id=m.id,
         role=m.role,
         content=content,
         timestamp=ts,
         created_at=ts,
+        actions=actions,
     )
 
 
@@ -300,7 +320,21 @@ def get_history(
         .all()
     )
     items.reverse()
-    items_mapped = [_memory_to_history_item(m) for m in items]
+
+    # BUG #046: Batch pending action lookup — N+1 yok
+    all_pa_ids: List[int] = []
+    for m in items:
+        if m.pending_action_ids_json:
+            try:
+                all_pa_ids.extend(json.loads(m.pending_action_ids_json))
+            except Exception:
+                pass
+    pa_map: Dict[int, PendingAction] = {}
+    if all_pa_ids:
+        pas = db.query(PendingAction).filter(PendingAction.id.in_(all_pa_ids)).all()
+        pa_map = {pa.id: pa for pa in pas}
+
+    items_mapped = [_memory_to_history_item(m, pa_map) for m in items]
     return [it for it in items_mapped if it is not None]
 
 

@@ -131,7 +131,8 @@ function CoachInner({ onActionResolved }) {
           role: h.role === 'user' ? 'user' : 'coach',
           text: h.content,
           ts: parseHistoryDate(h),
-          actions: [],
+          actions: h.actions || [],  // BUG #046: history'deki pending aksiyonlar
+          accounts: [],              // history'de cockpit snapshot yok; kart sadece account_id gösterir
         }));
         setMessages(msgs);
         setHistoryLoaded(true);

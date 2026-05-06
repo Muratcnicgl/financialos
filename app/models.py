@@ -253,8 +253,9 @@ class CoachMemory(Base):
     role = Column(String(20), nullable=False)  # "user" | "assistant" | "tool"
     content = Column(Text, nullable=False)
     # BUG #036 fix: tool-aware history
-    tool_calls_json = Column(Text, nullable=True)    # assistant turunda propose_action varsa JSON
-    tool_call_id = Column(String(64), nullable=True) # "tool" rolundeki satirlarda eslestirme ID'si
+    tool_calls_json = Column(Text, nullable=True)         # assistant turunda propose_action varsa JSON
+    tool_call_id = Column(String(64), nullable=True)      # "tool" rolundeki satirlarda eslestirme ID'si
+    pending_action_ids_json = Column(Text, nullable=True) # BUG #046: propose edilen action ID'leri JSON list
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="memories")

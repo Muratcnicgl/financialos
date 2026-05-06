@@ -1609,6 +1609,22 @@ class CoachEngine:
             except Exception as e:
                 logger.warning(f"BUG #043 retry basarisiz, orijinal cevaba donuluyor: {e}")
 
+        # BUG #049 fix: is_q=True ve boş cevap → soru retry (tools=[], sadece text iste)
+        elif (is_q and not (llm_response.text or "").strip()):
+            logger.warning(f"BUG #049 soru retry tetiklendi: {user_message!r}")
+            try:
+                nudge = {"role": "user", "content": "[RETRY: Kullanıcı bir soru sordu. Lütfen Türkçe kısa bir analiz yaz, tool çağırma.]"}
+                retry_response = self.provider.chat(
+                    system_prompt=system_prompt,
+                    messages=messages + [nudge],
+                    tools=[],  # save_insight dahil hiç tool yok — sadece saf metin
+                )
+                if retry_response.text and retry_response.text.strip():
+                    llm_response.text = retry_response.text
+                    logger.info("BUG #049 soru retry basarili")
+            except Exception as e:
+                logger.warning(f"BUG #049 soru retry basarisiz, orijinal cevaba donuluyor: {e}")
+
         # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
         clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)
         # BUG #042 fix: Hesap belirsizse propose_action oluşmadı, soru sor

@@ -41,6 +41,9 @@ GUNCELLEMELER:
   — placeholder echo paterni ortadan kalkti.
   OpenAI-uyumlu (Groq/Cerebras/OpenRouter): tam tool-aware.
   Gemini: best-effort (tool role satiri atlaniyor).
+- 6 May 2026 BUG #035 fix: _build_context_message() tum float formatlari Turkce
+  formata donusturuldu (31,342.86 -> 31.342,86). _fmt() action_executor'dan
+  import edildi; isaretsiz, tam sayili ve yuzde icin farkli syntax kullanilagdi.
 - 2 May 2026 BUG #012 fix: V3 prompt'ta [5. EMANET KASA] kurali sertlestirildi.
   Llama 3.3 emanet 0 oldugunda "EMANET KASA: Bu varlik yok" yaziyordu - simdi
   yasakli ornek cumleler + dogru/yanlis cikti karsilastirmasi ile bolumu hic
@@ -61,7 +64,7 @@ from app.models import (
     User, MasterCheckpoint, CoachMemory, PendingAction, ActionStatus,
 )
 from app.rules_engine import generate_cockpit, turkish_date
-from app.action_executor import propose_action
+from app.action_executor import propose_action, _fmt
 
 logger = logging.getLogger(__name__)
 
@@ -466,13 +469,14 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
 
     account_lines = []
     for acc in cockpit["accounts"]:
-        line = f"  - id={acc['id']} [{acc['tip']}] {acc['ad']}: {acc['bakiye']:,.2f} TL"
+        line = f"  - id={acc['id']} [{acc['tip']}] {acc['ad']}: {_fmt(acc['bakiye'])} TL"
         if acc.get("is_emanet"):
             line += " 🔒 EMANET (DOKUNULMAZ)"
         if acc.get("limit"):
-            line += f" (limit {acc['limit']:,.0f}, kullanım %{acc.get('kullanim_orani', 0)})"
+            limit_str = f"{int(acc['limit']):,}".replace(",", ".")  # BUG #035: Türkçe tam sayı
+            line += f" (limit {limit_str}, kullanım %{acc.get('kullanim_orani', 0)})"
         if acc.get("aylik_taksit"):
-            line += f" (aylık {acc['aylik_taksit']:,.2f}, kalan {acc.get('kalan_taksit')} taksit, sonraki {acc.get('sonraki_taksit')})"
+            line += f" (aylık {_fmt(acc['aylik_taksit'])}, kalan {acc.get('kalan_taksit')} taksit, sonraki {acc.get('sonraki_taksit')})"
         if acc.get("lot"):
             line += f" (lot {acc['lot']}, fiyat {acc.get('fiyat')}, maliyet/lot {acc.get('maliyet_per_lot')})"
         account_lines.append(line)
@@ -480,20 +484,22 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
 
     pnl_lines = []
     for p in cockpit.get("investment_pnl", []):
+        brut_sign = "+" if p["brut_kar"] >= 0 else ""  # BUG #035
+        getiri_str = f"{p['getiri_yuzde']:+.2f}".replace(".", ",")  # BUG #035
         pnl_lines.append(
             f"  - {p['account_name']} ({p['fund_code']}): "
-            f"maliyet {p['toplam_maliyet']:,.2f} → değer {p['guncel_deger']:,.2f} "
-            f"(brüt kâr {p['brut_kar']:+,.2f}, getiri %{p['getiri_yuzde']:+.2f})"
+            f"maliyet {_fmt(p['toplam_maliyet'])} → değer {_fmt(p['guncel_deger'])} "
+            f"(brüt kâr {brut_sign}{_fmt(p['brut_kar'])}, getiri %{getiri_str})"
         )
     pnl_text = "\n".join(pnl_lines) if pnl_lines else "  (Yatırım yok)"
 
     payments_text = "\n".join([
-        f"  - {turkish_date(date.fromisoformat(p['tarih'])) if p.get('tarih') else '?'}: {p.get('ad', '?')} → {p.get('tutar', 0):,.2f} TL ({p.get('tip', '')}){_day_suffix(p['tarih'], today) if p.get('tarih') else ''}"
+        f"  - {turkish_date(date.fromisoformat(p['tarih'])) if p.get('tarih') else '?'}: {p.get('ad', '?')} → {_fmt(p.get('tutar', 0))} TL ({p.get('tip', '')}){_day_suffix(p['tarih'], today) if p.get('tarih') else ''}"
         for p in cockpit.get("upcoming_payments", [])
     ]) or "  (Yaklaşan ödeme yok)"
 
     receivables_text = "\n".join([
-        f"  - {turkish_date(date.fromisoformat(r['tarih'])) if r.get('tarih') else '?'}: {r.get('kim', '?')} → {r.get('tutar', 0):,.2f} TL ({r.get('aciklama', '')}){_day_suffix(r['tarih'], today) if r.get('tarih') else ''}"
+        f"  - {turkish_date(date.fromisoformat(r['tarih'])) if r.get('tarih') else '?'}: {r.get('kim', '?')} → {_fmt(r.get('tutar', 0))} TL ({r.get('aciklama', '')}){_day_suffix(r['tarih'], today) if r.get('tarih') else ''}"
         for r in cockpit.get("upcoming_receivables", [])
     ]) or "  (Yaklaşan tahsilat yok)"
 
@@ -504,18 +510,18 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
 
     emanet_line = ""
     if cockpit.get("emanet_kasa", 0) > 0:
-        emanet_line = f"\n  - Emanet Kasa       : {cockpit['emanet_kasa']:,.2f} TL (DOKUNULMAZ)"
+        emanet_line = f"\n  - Emanet Kasa       : {_fmt(cockpit['emanet_kasa'])} TL (DOKUNULMAZ)"
 
     net_deger_tam = cockpit.get('net_deger_tam', cockpit['net_deger'])
     alacaklar_toplami = cockpit.get('alacaklar_toplami', 0)
 
     if alacaklar_toplami > 0:
         net_deger_block = (
-            f"  - Görülen Net Değer : {cockpit['net_deger']:,.2f} TL (operasyonel, alacaksız)\n"
-            f"  - Tam Net Değer     : {net_deger_tam:,.2f} TL (stratejik, +{alacaklar_toplami:,.2f} TL alacak dahil)"
+            f"  - Görülen Net Değer : {_fmt(cockpit['net_deger'])} TL (operasyonel, alacaksız)\n"
+            f"  - Tam Net Değer     : {_fmt(net_deger_tam)} TL (stratejik, +{_fmt(alacaklar_toplami)} TL alacak dahil)"
         )
     else:
-        net_deger_block = f"  - Net Değer         : {cockpit['net_deger']:,.2f} TL"
+        net_deger_block = f"  - Net Değer         : {_fmt(cockpit['net_deger'])} TL"
 
     context = f"""
 # COCKPIT — BUGÜNKÜ DURUM
@@ -524,18 +530,18 @@ Tarih: {cockpit['tarih_turkce']}
 Statü: {cockpit['statu']}
 
 ## Ana Göstergeler
-  - Nakit Kasa        : {cockpit['nakit_kasa']:,.2f} TL
-  - Kart Borcu        : {cockpit['kart_borcu']:,.2f} TL
-  - Kredi Borcu       : {cockpit['kredi_borcu']:,.2f} TL
-  - Yatırım Değeri    : {cockpit['yatirim_deger']:,.2f} TL{emanet_line}
-  - Beklenen Gelir    : {cockpit['beklenen_gelir']:,.2f} TL
-  - Reel Bütçe        : {cockpit['reel_butce']:,.2f} TL
+  - Nakit Kasa        : {_fmt(cockpit['nakit_kasa'])} TL
+  - Kart Borcu        : {_fmt(cockpit['kart_borcu'])} TL
+  - Kredi Borcu       : {_fmt(cockpit['kredi_borcu'])} TL
+  - Yatırım Değeri    : {_fmt(cockpit['yatirim_deger'])} TL{emanet_line}
+  - Beklenen Gelir    : {_fmt(cockpit['beklenen_gelir'])} TL
+  - Reel Bütçe        : {_fmt(cockpit['reel_butce'])} TL
 {net_deger_block}
 
 ## Bugünkü Limit
   - Ay sonuna kalan   : {cockpit['days_remaining']} gün
-  - Günlük limit      : {cockpit['daily_limit']:,.2f} TL/gün
-  - Bugünkü hedef     : {cockpit['today_target']:,.2f} TL (devreden {cockpit['carried_forward']:+,.2f})
+  - Günlük limit      : {_fmt(cockpit['daily_limit'])} TL/gün
+  - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
 
 ## Hesaplar
 {accounts_text}

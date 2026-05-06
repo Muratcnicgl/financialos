@@ -6,7 +6,7 @@ import {
   Eye, Telescope,
 } from 'lucide-react';
 import {
-  cockpitApi, fundPriceApi, actionsApi,
+  cockpitApi, fundPriceApi, actionsApi, incomesApi,
   formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
 } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
@@ -36,12 +36,17 @@ export default function Cockpit() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [cockpit, pending] = await Promise.all([
+      const [cockpit, pending, due] = await Promise.all([
         cockpitApi.get(),
         actionsApi.pending(),
+        incomesApi.triggerDue().catch(() => ({ triggered: [] })),  // A2: sessiz fail
       ]);
       setData(cockpit);
-      setPendingActions(pending || []);
+      // A2: vadesi gelen gelirler pending listesine eklenir (dedup backend'de)
+      const dueActions = due?.triggered || [];
+      const existingIds = new Set((pending || []).map(a => a.id));
+      const merged = [...(pending || []), ...dueActions.filter(a => !existingIds.has(a.id))];
+      setPendingActions(merged);
     } catch (e) {
       setError(e.message || 'Cockpit yuklenemedi');
     } finally {

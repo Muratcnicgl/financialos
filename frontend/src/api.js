@@ -142,10 +142,11 @@ export const transactionsApi = {
 // =============================================================
 
 export const incomesApi = {
-  list:   (activeOnly = false) => request('/api/incomes', { params: { active_only: activeOnly } }),
-  create: (data) => request('/api/incomes', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/incomes/${id}`, { method: 'PUT', body: data }),
-  delete: (id) => request(`/api/incomes/${id}`, { method: 'DELETE' }),
+  list:       (activeOnly = false) => request('/api/incomes', { params: { active_only: activeOnly } }),
+  create:     (data) => request('/api/incomes', { method: 'POST', body: data }),
+  update:     (id, data) => request(`/api/incomes/${id}`, { method: 'PUT', body: data }),
+  delete:     (id) => request(`/api/incomes/${id}`, { method: 'DELETE' }),
+  triggerDue: () => request('/api/incomes/trigger-due', { method: 'POST' }),  // A2
 };
 
 // =============================================================

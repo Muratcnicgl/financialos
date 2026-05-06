@@ -173,6 +173,7 @@ class RecurringIncome(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_triggered_year_month = Column(String(7), nullable=True)  # A2: "2026-05" — dedup
 
     user = relationship("User", back_populates="incomes")
 

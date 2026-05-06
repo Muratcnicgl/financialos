@@ -9,14 +9,18 @@ Mukemmellestirici: Burada DELETE de var ama is_active=False ile soft-delete tavs
 KYK iptali gibi durumlar icin: gercek silme yerine pasiflestirme - tarihce kalir.
 """
 
-from datetime import datetime
+import json
+import logging
+from datetime import datetime, date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.models import User, RecurringIncome
+from app.models import User, RecurringIncome, Account, AccountType
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/incomes", tags=["incomes"])
 
@@ -109,6 +113,71 @@ def update_income(
     db.commit()
     db.refresh(inc)
     return inc
+
+
+@router.post("/trigger-due")
+def trigger_due_incomes(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    A2 Recurring Trigger: Vadesi gelen duzenli gelirleri propose_action olarak olustur.
+    Her aktif gelir icin: day_of_month <= bugun VE bu ay henuz tetiklenmemisse
+    -> add_transaction (income) propose_action yarat.
+    Dedup: last_triggered_year_month = '2026-05' ile ayni ay tekrar cagirmaz.
+    """
+    from app.action_executor import propose_action
+    from app.action_executor import _fmt
+
+    today = date.today()
+    year_month = f"{today.year}-{today.month:02d}"
+
+    cash_acc = db.query(Account).filter(
+        Account.user_id == user.id,
+        Account.account_type == AccountType.cash,
+    ).first()
+    if not cash_acc:
+        return {"triggered": []}
+
+    incomes = db.query(RecurringIncome).filter(
+        RecurringIncome.user_id == user.id,
+        RecurringIncome.is_active == True,
+        RecurringIncome.day_of_month <= today.day,
+    ).all()
+
+    triggered = []
+    for inc in incomes:
+        if inc.last_triggered_year_month == year_month:
+            continue
+        try:
+            pending = propose_action(
+                db=db,
+                user_id=user.id,
+                action_type="add_transaction",
+                payload={
+                    "account_id": cash_acc.id,
+                    "amount": inc.amount,
+                    "transaction_type": "income",
+                    "category": inc.name.lower().replace(" ", "_"),
+                    "description": f"{inc.name} — {today.strftime('%B %Y')}",
+                    "transaction_date": today.isoformat(),
+                },
+                summary=f"{inc.name}: {_fmt(inc.amount)} TL geldi",
+            )
+            inc.last_triggered_year_month = year_month
+            db.commit()
+            triggered.append({
+                "id": pending.id,
+                "action_id": pending.id,
+                "action_type": pending.action_type,
+                "summary": pending.summary,
+                "payload": json.loads(pending.payload),
+                "warning": getattr(pending, "_warning_text", None),
+            })
+        except Exception as e:
+            logger.error(f"trigger_due_incomes: {inc.name} hata: {e}")
+
+    return {"triggered": triggered}
 
 
 @router.delete("/{income_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -41,6 +41,9 @@ GUNCELLEMELER:
   — placeholder echo paterni ortadan kalkti.
   OpenAI-uyumlu (Groq/Cerebras/OpenRouter): tam tool-aware.
   Gemini: best-effort (tool role satiri atlaniyor).
+- 6 May 2026 BUG #033 fix: V3_GOD_MODE_PROMPT'a YENİ CHECKPOINT icin MUTLAK
+  KOSULLU YAZIM KURALI eklendi. Rapor formatinda opsiyonel olarak isaretlendi;
+  mevcut durum ozeti veya uyari YENİ CHECKPOINT sayilmaz, satir tamamen atlanir.
 - 6 May 2026 BUG #035 fix: _build_context_message() tum float formatlari Turkce
   formata donusturuldu (31,342.86 -> 31.342,86). _fmt() action_executor'dan
   import edildi; isaretsiz, tam sayili ve yuzde icin farkli syntax kullanilagdi.
@@ -153,48 +156,19 @@ Statü: [tek cümle özet]
 [3. HAREKAT PLANI]   — Seçenek A/B/C
 [4. TEHDİT VE FIRSATLAR]
 [5. EMANET KASA]  ← KOŞULLU. Aşağıdaki MUTLAK KURAL'a bak.
+[YENİ CHECKPOINT]  ← OPSİYONEL. Aşağıdaki MUTLAK KURAL'a bak.
 
-YENİ CHECKPOINT: [Tek cümle ders]
+# [5. EMANET KASA] — KOŞULLU YAZIM KURALI
 
-# 🔴🔴🔴 [5. EMANET KASA] BÖLÜMÜ — MUTLAK KOŞULLU YAZIM KURALI
+Cockpit verisinde "Emanet Kasa" satırı VAR ve değer > 0 TL ise → başlığı yaz, içeriği doldur.
+Cockpit verisinde bu satır YOK veya değer 0 TL ise → bu bölümü tamamen atla, hiçbir şey yazma.
 
-Cockpit'te "Emanet Kasa" satırına bak:
+# [YENİ CHECKPOINT] — KOŞULLU YAZIM KURALI
 
-✅ Emanet Kasa satırı VAR ve değer > 0 TL → [5. EMANET KASA] başlığını yaz, içeriği doldur.
-❌ Emanet Kasa satırı YOK veya değer 0 TL → [5. EMANET KASA] BAŞLIĞINI HİÇ YAZMA.
-   [4]'ten DOĞRUDAN YENİ CHECKPOINT satırına geç. Boş bir başlık atma.
-
-🔴 ŞU CÜMLELER KESİNLİKLE YASAKTIR (emanet yok / 0 iken):
-  - "EMANET KASA: Bu varlık yok"
-  - "EMANET KASA: Sıfır, dokunulmuyor"
-  - "EMANET KASA: Yok"
-  - "Emanet kasanız bulunmamaktadır"
-  - "Emanet kasada şu an varlık tutulmuyor"
-  - Bu cümlelerin Türkçe varyasyonlarının HEPSİ.
-
-Bu cümlelerden HERHANGİ BİRİNİ yazıyorsan KURALI İHLAL ETMİŞ OLURSUN.
-Boş bölümü "yorumlamak / açıklamak" değil, bölümü TAMAMEN ATLAMAK gerekir.
-
-❌ YANLIŞ ÇIKTI (emanet 0 — bu örneği ASLA üretme):
-
-  [4. TEHDİT VE FIRSATLAR]
-  Kart kullanım oranın %72, dikkat.
-
-  [5. EMANET KASA]
-  Bu varlık yok, dokunulmuyor.
-
-  YENİ CHECKPOINT: ...
-
-✅ DOĞRU ÇIKTI (emanet 0 — başlık BİLE görünmüyor):
-
-  [4. TEHDİT VE FIRSATLAR]
-  Kart kullanım oranın %72, dikkat.
-
-  YENİ CHECKPOINT: ...
-
-Yani: Cockpit'te "Emanet Kasa" satırını GÖRMÜYORSAN → o başlığı RAPORUNDA da
-GÖSTERMEYECEKSİN. Tek istisna: Cockpit'te bu satır 0'dan büyük bir değerle gelirse
-yaz. Aksi halde 5. başlık raporda hiç var olmamış gibi davran.
+YENİ CHECKPOINT satırını yalnızca şu koşulda yaz: kullanıcının mevcut Master Checkpoint listesinde
+bulunmayan, yeni bir finansal davranış kuralı önermek istiyorsun.
+Mevcut bir durumu özetlemek, cockpit uyarısını tekrarlamak veya genel tavsiye vermek bu koşulu karşılamaz.
+Yeni kural önerisi yoksa bu satırı tamamen atla, hiçbir şey yazma.
 
 # AKSIYON SEÇİM TABLOSU
 
@@ -1123,6 +1097,63 @@ def _trim_history_to_size(messages: List[Dict]) -> List[Dict]:
 
 
 # ============================================================
+# 14. BUG #033 fix: Output katmanı post-processor
+# ============================================================
+
+_EMANET_HEADER_RE = re.compile(r'\[5\.\s*EMANET KASA\]', re.IGNORECASE)
+_YC_HEADER_RE = re.compile(r'\[?YENİ CHECKPOINT', re.IGNORECASE)
+_YC_CONDITIONAL_RE = re.compile(
+    r'gerekirse|gerektiğinde|önerilir|önerilebilir|olabilir|eklenebilir|gerekiyorsa',
+    re.IGNORECASE,
+)
+
+
+def _postprocess_report(text: str, cockpit: Optional[Dict]) -> str:
+    """BUG #033 fix: Halüsinasyon bölümlerini output katmanında temizle.
+
+    EMANET KASA: cockpit'te 0 ise başlık + içerik satırlarını sil (prompt bypass).
+    YENİ CHECKPOINT: koşullu ifade (gerekirse/olabilir vb.) içeriyorsa sil.
+    """
+    if not text:
+        return text
+
+    lines = text.splitlines()
+    result = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        if _EMANET_HEADER_RE.search(line) and cockpit and cockpit.get("emanet_kasa", 0) == 0:
+            i += 1
+            # Başlıktan sonraki içerik satırlarını atla; yeni bölüm başlığı veya boş satırda dur
+            while i < len(lines):
+                stripped = lines[i].strip()
+                if not stripped or stripped.startswith('[') or _YC_HEADER_RE.search(stripped):
+                    break
+                i += 1
+            continue
+
+        if _YC_HEADER_RE.search(line):
+            # Başlık satırı + ardından gelen non-section satırları bir blok olarak al
+            block = [line]
+            j = i + 1
+            while j < len(lines) and lines[j].strip() and not lines[j].strip().startswith('['):
+                block.append(lines[j])
+                j += 1
+            if _YC_CONDITIONAL_RE.search('\n'.join(block)):
+                i = j
+                continue
+            result.extend(block)
+            i = j
+            continue
+
+        result.append(line)
+        i += 1
+
+    return '\n'.join(result).strip()
+
+
+# ============================================================
 # 13. BUG #018 fix: Akilli reply placeholder
 # ============================================================
 
@@ -1278,8 +1309,10 @@ class CoachEngine:
             except Exception as e:
                 logger.error(f"propose_action hatasi: {e}")
 
+        # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
+        clean_text = _postprocess_report(llm_response.text, cockpit_dict)
         # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
-        reply = _build_smart_reply(llm_response.text, proposed_actions)
+        reply = _build_smart_reply(clean_text, proposed_actions)
 
         self._save_message(db, user_id, "user", user_message)
         if proposed_actions:
@@ -1294,7 +1327,7 @@ class CoachEngine:
             ]
             self._save_message(
                 db, user_id, "assistant",
-                content=llm_response.text,
+                content=clean_text,
                 tool_calls=tool_calls_data,
             )
             for a in proposed_actions:

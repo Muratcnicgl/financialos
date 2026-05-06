@@ -125,10 +125,12 @@ sana BİLDİRDİĞİNDE çağrılır. Aşağıdaki tetikleyiciler dışında ASL
    "hesaba geçirildi" gibi tamamlama fiilleri YAZMA. DB'ye hiçbir şey gitmemiş
    olur, kullanıcıyı yanıltırsın. Hesap belirsizse (kart mı, nakit mi?) önce SOR.
 
-🔴 SAHTE NİYET YASAĞI: Tool çağırmadan "kaydetmek üzereyim", "kaydetmek için
-   hazırım", "aksiyon hazırlanıyor", "onay verirseniz işleme alıyorum" gibi
-   gelecekten bahseden vaat cümleleri YAZMA. Niyet varsa = tool çağrısı var.
-   Yoksa = soru sor veya bilgi ver. Sahte vaat YASAK.
+🔴 SAHTE NİYET YASAĞI: Tool çağırmadan aşağıdaki veya benzeri cümleler YAZMA.
+   Niyet varsa = tool çağrısı var. Yoksa = soru sor veya bilgi ver. Sahte vaat YASAK.
+   - "kaydetmek üzereyim" / "kaydetmek için hazırım" / "aksiyon hazırlanıyor"
+   - "onay verirseniz işleme alıyorum" / "onay bekliyorum" / "onayınızı bekliyorum"
+   - "lütfen onay verin" / "lutfen onay verin"
+   - "kaydetmek için onay" / "kaydetmek icin onay"
 
 🔴 HESAP TAHMİNİ YASAĞI: Kullanıcı mesajında hesap belirten açık kelime
    (kart, kartla, kartım, nakit, nakitten, enpara, ziraat, banka) YOKSA,
@@ -1132,6 +1134,17 @@ _FAKE_CONFIRM_RE = re.compile(
     re.IGNORECASE,
 )
 _CLARIFY_MSG = "Hangi hesaptan harcadın? Yazına 'kartla' veya 'nakitten' eklersen hemen kaydederim."
+# BUG #043 iter2: Gelecek zaman sahte niyet pattern'ları — retry trigger'ı
+_FAKE_NIYET_RE = re.compile(
+    r'(kaydetmek\s+(?:üzereyim|uzereyim|için\s+hazırım|icin\s+hazirim|üzere\b|uzere\b))'
+    r'|(aksiyon\s+haz[ıi]rlan[ıi]yor)'
+    r'|(onay(?:ınızı|inizi|ı)?\s+(?:bekliyorum|verin|veriniz))'
+    r'|(kaydetmeye\s+haz[ıi]r[ıi]m)'
+    r'|(l[uü]tfen\s+onay)'
+    r'|(kaydetmek\s+i[cç]in\s+onay)'
+    r'|(onay\s+bekliyorum)',
+    re.IGNORECASE,
+)
 
 
 def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "", proposed_actions: Optional[List] = None) -> str:
@@ -1357,6 +1370,57 @@ class CoachEngine:
                     logger.error(f"propose_action hatasi: {e}")
             except Exception as e:
                 logger.error(f"propose_action hatasi: {e}")
+
+        # BUG #043 iter2: Sahte niyet tespit edilirse tek retry
+        if (not proposed_actions and not account_unclear
+                and not is_q and _FAKE_NIYET_RE.search(llm_response.text or "")):
+            logger.warning(f"BUG #043 retry tetiklendi: {user_message!r}")
+            try:
+                retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
+                retry_response = self.provider.chat(
+                    system_prompt=retry_prompt,
+                    messages=messages,
+                    tools=active_tools,
+                )
+                retry_actions = []
+                for tc in retry_response.tool_calls:
+                    if tc["name"] != "propose_action":
+                        continue
+                    try:
+                        inp = tc["input"]
+                        pending = propose_action(
+                            db=db,
+                            user_id=user_id,
+                            action_type=inp["action_type"],
+                            payload=inp["payload"],
+                            summary=inp["summary"],
+                            user_message=user_message,
+                        )
+                        retry_actions.append({
+                            "id": pending.id,
+                            "action_id": pending.id,
+                            "action_type": pending.action_type,
+                            "summary": pending.summary,
+                            "payload": inp["payload"],
+                            "warning": getattr(pending, "_warning_text", None),
+                        })
+                    except ValueError as e:
+                        if "HESAP_BELIRSIZ" in str(e):
+                            account_unclear = True
+                        else:
+                            logger.error(f"retry propose_action hatasi: {e}")
+                    except Exception as e:
+                        logger.error(f"retry propose_action hatasi: {e}")
+                if retry_actions:
+                    proposed_actions = retry_actions
+                    llm_response = retry_response
+                elif not account_unclear:
+                    llm_response.text = (
+                        "Aksiyon hazırlanamadı. Mesajını biraz farklı şekilde tekrar gönder, "
+                        "örneğin: '240 TL yemek kart'."
+                    )
+            except Exception as e:
+                logger.warning(f"BUG #043 retry basarisiz, orijinal cevaba donuluyor: {e}")
 
         # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
         clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)

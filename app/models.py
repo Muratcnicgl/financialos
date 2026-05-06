@@ -308,6 +308,9 @@ class PendingAction(Base):
     warning = Column(Text, nullable=True)   # BUG #027: limit aşımı vb. uyarılar
     created_at = Column(DateTime, default=datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
+    # BUG #047: recurring trigger dedup — hangi kayıttan geldi
+    source_recurring_id   = Column(Integer, nullable=True)    # RecurringIncome/Expense id
+    source_recurring_type = Column(String(20), nullable=True) # 'income' | 'expense'
 
     user = relationship("User", back_populates="pending_actions")
 

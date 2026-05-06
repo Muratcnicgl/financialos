@@ -91,6 +91,9 @@ def _run_migrations() -> None:
         for sql in [
             "ALTER TABLE coach_memories ADD COLUMN tool_calls_json TEXT",
             "ALTER TABLE coach_memories ADD COLUMN tool_call_id VARCHAR(64)",
+            # BUG #047: recurring trigger dedup alanları
+            "ALTER TABLE pending_actions ADD COLUMN source_recurring_id INTEGER",
+            "ALTER TABLE pending_actions ADD COLUMN source_recurring_type VARCHAR(20)",
             # A3: RecurringExpense tablosu (create_all zaten yapar, bu mevcut DB'ler için)
             """CREATE TABLE IF NOT EXISTS recurring_expenses (
                 id INTEGER PRIMARY KEY,

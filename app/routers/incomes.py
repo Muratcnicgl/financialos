@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.models import User, RecurringIncome, Account, AccountType
+from app.models import User, RecurringIncome, Account, AccountType, PendingAction, ActionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +147,18 @@ def trigger_due_incomes(
 
     triggered = []
     for inc in incomes:
+        # BUG #047 çift kontrol:
+        # (1) Bu ay henüz tetiklenmemiş mi
         if inc.last_triggered_year_month == year_month:
+            continue
+        # (2) Bu kayıt için zaten pending var mı
+        existing_pending = db.query(PendingAction).filter(
+            PendingAction.user_id == user.id,
+            PendingAction.source_recurring_id == inc.id,
+            PendingAction.source_recurring_type == "income",
+            PendingAction.status == ActionStatus.pending,
+        ).first()
+        if existing_pending:
             continue
         try:
             pending = propose_action(
@@ -164,6 +175,9 @@ def trigger_due_incomes(
                 },
                 summary=f"{inc.name}: {_fmt(inc.amount)} TL geldi",
             )
+            # BUG #047: source fields + last_triggered tek commit'te
+            pending.source_recurring_id = inc.id
+            pending.source_recurring_type = "income"
             inc.last_triggered_year_month = year_month
             db.commit()
             triggered.append({

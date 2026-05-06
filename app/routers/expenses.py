@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.models import User, RecurringExpense, Account
+from app.models import User, RecurringExpense, Account, PendingAction, ActionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,18 @@ def trigger_due_expenses(
 
     triggered = []
     for exp in exps:
+        # BUG #047 çift kontrol:
+        # (1) Bu ay henüz tetiklenmemiş mi
         if exp.last_triggered_year_month == year_month:
+            continue
+        # (2) Bu kayıt için zaten pending var mı
+        existing_pending = db.query(PendingAction).filter(
+            PendingAction.user_id == user.id,
+            PendingAction.source_recurring_id == exp.id,
+            PendingAction.source_recurring_type == "expense",
+            PendingAction.status == ActionStatus.pending,
+        ).first()
+        if existing_pending:
             continue
         try:
             pending = propose_action(
@@ -144,10 +155,13 @@ def trigger_due_expenses(
                     "category": exp.category or exp.name.lower().replace(" ", "_"),
                     "description": f"{exp.name} — {today.strftime('%B %Y')}",
                     "transaction_date": today.isoformat(),
-                    "is_card_expense": False,  # normalize'a bırak ama category kart listesinde değil
+                    "is_card_expense": False,
                 },
                 summary=f"{exp.name}: {_fmt(exp.amount)} TL ödendi",
             )
+            # BUG #047: source fields + last_triggered tek commit'te
+            pending.source_recurring_id = exp.id
+            pending.source_recurring_type = "expense"
             exp.last_triggered_year_month = year_month
             db.commit()
             triggered.append({

@@ -11,10 +11,11 @@ Bu modül:
 1. Fiyatın 'taze' olup olmadığını söyler (24 saat kuralı)
 2. TEFAS sayfasının URL'ini üretir (frontend butonu için)
 3. Manuel fiyat güncellemesini DB'ye yazar (timestamp ile)
-4. V2 placeholder: try_auto_fetch_fund_price (şu an None döner)
+4. TEFAS otomatik fiyat çekme: try_auto_fetch_fund_price (pytefas 0.3.0)
 """
 
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Optional, Dict
 import logging
 from sqlalchemy.orm import Session
@@ -205,17 +206,65 @@ def get_freshness_summary(db: Session, user_id: int) -> Dict:
 # 5. V2 PLACEHOLDER — Otomatik fiyat çekme (yarın denenecek)
 # ============================================================
 
-def try_auto_fetch_fund_price(fund_code: str) -> Optional[Dict]:
-    """
-    V2: borsa-mcp proxy üzerinden TEFAS fonu fiyatı çekme denemesi.
+def try_auto_fetch_fund_price(fund_code: str) -> Optional[Decimal]:
+    """TEFAS'tan fon fiyatı çeker (pytefas resmi API, HTML scraping yok).
 
-    Şu an None döner — manuel sisteme zarar vermesin diye devre dışı.
-    Yarın aktive edilecek, yine başarısızlığa karşı dirençli kalacak.
-
-    Frontend bu fonksiyonu çağırırsa None alır, manuel girişe yönlendirilir.
+    Bugünün verisi TEFAS'ta ~18:00'de yayınlandığından son 5 günü dener
+    (hafta sonu günleri atlanır). YAT başarısız olursa EMK olarak tekrar dener.
+    Tüm hata durumlarında None döner → kullanıcı manuel girişe yönlendirilir.
     """
-    logger.info(f"try_auto_fetch_fund_price({fund_code}): henuz aktif degil (V2)")
-    return None
+    if not fund_code:
+        return None
+    try:
+        from pytefas import Crawler
+        from pytefas import TefasAPIError, TefasRateLimitError, TefasInvalidParameterError
+        from datetime import date
+        import time
+
+        crawler = Crawler()
+        today = date.today()
+
+        for offset in range(0, 5):
+            check_date = today - timedelta(days=offset)
+            if check_date.weekday() >= 5:   # Cumartesi=5, Pazar=6
+                continue
+            try:
+                df = crawler.fetch(
+                    check_date.isoformat(),
+                    kind="YAT",
+                    fund_code=fund_code,
+                    columns="info",
+                )
+                if df is not None and not df.empty:
+                    price = Decimal(str(float(df.iloc[0]["price"]))).quantize(Decimal("0.0001"))
+                    logger.info(f"TEFAS fiyat (YAT): {fund_code} = {price} ({check_date})")
+                    return price
+            except TefasInvalidParameterError:
+                # Emeklilik fonu olabilir, EMK olarak tekrar dene
+                try:
+                    df = crawler.fetch(
+                        check_date.isoformat(),
+                        kind="EMK",
+                        fund_code=fund_code,
+                        columns="info",
+                    )
+                    if df is not None and not df.empty:
+                        price = Decimal(str(float(df.iloc[0]["price"]))).quantize(Decimal("0.0001"))
+                        logger.info(f"TEFAS fiyat (EMK): {fund_code} = {price} ({check_date})")
+                        return price
+                except Exception:
+                    continue
+            except TefasRateLimitError:
+                time.sleep(2)
+                continue
+            except TefasAPIError:
+                continue
+
+        logger.warning(f"TEFAS fiyat bulunamadi: {fund_code} (son 5 gun bos)")
+        return None
+    except Exception as e:
+        logger.error(f"TEFAS fiyat cekme hatasi {fund_code}: {type(e).__name__}: {e}")
+        return None
 
 
 def try_auto_fetch_stock_price(ticker: str) -> Optional[Dict]:

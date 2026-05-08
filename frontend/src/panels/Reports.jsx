@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, AlertTriangle, TrendingUp } from 'lucide-react';
+import {
+  BarChart3, AlertTriangle, TrendingUp,
+  CalendarDays, ArrowDownLeft, ArrowUpRight, Building2, Receipt,
+} from 'lucide-react';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, LabelList,
@@ -109,6 +112,24 @@ export default function Reports() {
   }, [trendDays]);
 
   const trendItems = trendData?.items || [];
+
+  // B3: Alacak-Borç Takvimi
+  const [cashflowDays, setCashflowDays] = useState(30);
+  const [cashflowData, setCashflowData] = useState(null);
+  const [loadingCashflow, setLoadingCashflow] = useState(true);
+  const [errorCashflow, setErrorCashflow] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingCashflow(true);
+    setErrorCashflow(null);
+    reportsApi.upcomingCashflow(cashflowDays)
+      .then((res) => { if (active) { setCashflowData(res); setLoadingCashflow(false); } })
+      .catch((e) => { if (active) { setErrorCashflow(e.message); setLoadingCashflow(false); } });
+    return () => { active = false; };
+  }, [cashflowDays]);
+
+  const cashflowItems = cashflowData?.items || [];
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -315,6 +336,131 @@ export default function Reports() {
           </div>
         )}
       </div>
+
+      {/* ===== B3: ALACAK-BORÇ TAKVİMİ ===== */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-base font-semibold">Alacak-Borç Takvimi</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Gelecek {cashflowDays} günde net akış
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {[30, 60].map(d => (
+              <button key={d} onClick={() => setCashflowDays(d)}
+                className={`btn !text-xs !px-3 ${cashflowDays === d ? 'btn-primary' : 'btn-secondary'}`}>
+                {d} gün
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loadingCashflow ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="card p-4 space-y-2">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-7 w-32" />
+                </div>
+              ))}
+            </div>
+            <div className="card p-4 space-y-2">
+              <Skeleton className="h-12 w-full" />
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+            </div>
+          </div>
+        ) : errorCashflow ? (
+          <div className="card p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-negative-600 flex-shrink-0" />
+              <p className="text-sm text-negative-700 dark:text-negative-300">{errorCashflow}</p>
+            </div>
+          </div>
+        ) : cashflowItems.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="Yaklaşan kalem yok"
+            description={`Sonraki ${cashflowDays} günde vadesi gelen borç veya alacak bulunmuyor.`}
+          />
+        ) : (
+          <>
+            {/* Özet kartları */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-4">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Bekleyen tahsilat</p>
+                <p className="font-numeric text-lg font-bold text-positive-600 dark:text-positive-400">
+                  +{formatTL(cashflowData.summary.total_receivable)} TL
+                </p>
+              </div>
+              <div className="card p-4">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Bekleyen ödeme</p>
+                <p className="font-numeric text-lg font-bold text-negative-600 dark:text-negative-400">
+                  {formatTL(cashflowData.summary.total_payable)} TL
+                </p>
+              </div>
+              <div className="card p-4">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Net beklenen akış</p>
+                <p className={`font-numeric text-lg font-bold ${
+                  cashflowData.summary.net_flow >= 0
+                    ? 'text-positive-600 dark:text-positive-400'
+                    : 'text-negative-600 dark:text-negative-400'
+                }`}>
+                  {cashflowData.summary.net_flow >= 0 ? '+' : ''}{formatTL(cashflowData.summary.net_flow)} TL
+                </p>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="card px-4 py-3">
+              <p className="text-xs text-zinc-400 mb-2">Zaman çizelgesi · bugün → +{cashflowDays} gün</p>
+              <CashflowTimeline items={cashflowItems} days={cashflowDays} today={cashflowData.today} />
+            </div>
+
+            {/* Tarih gruplu liste */}
+            <div className="card divide-y divide-zinc-100 dark:divide-zinc-800">
+              {Object.entries(groupByDate(cashflowItems)).map(([dateStr, dayItems]) => {
+                const dayNet = dayItems.reduce((s, i) => s + i.amount, 0);
+                return (
+                  <div key={dateStr} className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                        {formatLongDate(dateStr)}
+                      </span>
+                      <span className="chip chip-neutral text-[10px]">{relativeDate(dateStr)}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {dayItems.map((item, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          {cfIcon(item)}
+                          <p className="flex-1 text-sm text-zinc-800 dark:text-zinc-200 min-w-0 truncate">
+                            {item.label}
+                          </p>
+                          <p className={`font-numeric text-sm font-semibold flex-shrink-0 ${
+                            item.amount >= 0
+                              ? 'text-positive-600 dark:text-positive-400'
+                              : 'text-negative-600 dark:text-negative-400'
+                          }`}>
+                            {item.amount >= 0 ? '+' : ''}{formatTL(Math.abs(item.amount))} TL
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {dayItems.length > 1 && (
+                      <p className={`text-right text-xs font-numeric mt-1.5 ${
+                        dayNet >= 0 ? 'text-positive-600' : 'text-negative-600'
+                      }`}>
+                        Net: {dayNet >= 0 ? '+' : ''}{formatTL(Math.abs(dayNet))} TL
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -346,6 +492,82 @@ function TrendTooltip({ active, payload, label }) {
           {p.name}: {formatTL(p.value)} TL
         </p>
       ))}
+    </div>
+  );
+}
+
+// ============================================================
+// CASHFLOW YARDIMCILARI
+// ============================================================
+
+const TR_MONTHS_LONG = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
+                        'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const TR_WEEKDAYS = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+
+function relativeDate(dateStr) {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr + 'T00:00:00');
+  const diff = Math.round((d - t) / 86400000);
+  if (diff === 0) return 'bugün';
+  if (diff === 1) return 'yarın';
+  if (diff === -1) return 'dün';
+  if (diff > 0) return `${diff} gün sonra`;
+  return `${-diff} gün önce`;
+}
+
+function formatLongDate(dateStr) {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return dateStr;
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${parseInt(m[3])} ${TR_MONTHS_LONG[parseInt(m[2]) - 1]} ${TR_WEEKDAYS[d.getDay()]}`;
+}
+
+function groupByDate(items) {
+  return items.reduce((acc, item) => {
+    if (!acc[item.date]) acc[item.date] = [];
+    acc[item.date].push(item);
+    return acc;
+  }, {});
+}
+
+function cfIcon(item) {
+  const cls = 'w-4 h-4 flex-shrink-0';
+  if (item.type === 'receivable') {
+    if (item.source === 'income') return <TrendingUp className={`${cls} text-positive-600`} />;
+    return <ArrowDownLeft className={`${cls} text-positive-600`} />;
+  }
+  if (item.source === 'loan') return <Building2 className={`${cls} text-negative-600`} />;
+  if (item.source === 'personal_debt') return <ArrowUpRight className={`${cls} text-negative-600`} />;
+  return <Receipt className={`${cls} text-negative-600`} />;
+}
+
+function CashflowTimeline({ items, days, today: todayStr }) {
+  const todayMs = new Date(todayStr + 'T00:00:00').getTime();
+  const horizonMs = todayMs + days * 86400000;
+  const totalMs = horizonMs - todayMs;
+
+  return (
+    <div className="relative h-12">
+      <div className="absolute top-1/2 left-0 right-0 h-px bg-zinc-200 dark:bg-zinc-700" />
+      <div className="absolute top-0 bottom-0 left-0 w-0.5 bg-brand-400 opacity-70" title="Bugün" />
+      {items.map((item, i) => {
+        const itemMs = new Date(item.date + 'T00:00:00').getTime();
+        const pct = Math.max(0.5, Math.min(99, ((itemMs - todayMs) / totalMs) * 100));
+        const r = Math.min(14, Math.max(6, Math.abs(item.amount) / 600));
+        return (
+          <div
+            key={i}
+            title={`${fmtXDate(item.date)}: ${item.label} — ${item.amount >= 0 ? '+' : ''}${formatTL(item.amount)} TL`}
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white dark:border-zinc-900 hover:scale-125 transition-transform cursor-default"
+            style={{
+              left: `${pct}%`,
+              width: r * 2,
+              height: r * 2,
+              backgroundColor: item.type === 'receivable' ? '#16a34a' : '#e11d48',
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -236,6 +236,8 @@ export const reportsApi = {
     request('/api/reports/category-breakdown', { params: { days, type } }),
   netWorthTrend: (days = 30) =>
     request('/api/reports/net-worth-trend', { params: { days } }),
+  upcomingCashflow: (days = 30) =>
+    request('/api/reports/upcoming-cashflow', { params: { days } }),
 };
 
 export const fundPriceApi = {

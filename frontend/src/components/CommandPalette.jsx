@@ -8,6 +8,7 @@ const COMMANDS = [
   { id: 'transactions', label: 'İşlemler\'e geç',          hint: 'Cmd+4' },
   { id: 'incomedebt',   label: 'Gelir & Borç\'a geç',      hint: 'Cmd+5' },
   { id: 'redlines',     label: 'Kırmızı Çizgiler\'e geç',  hint: 'Cmd+6' },
+  { id: 'reports',      label: 'Raporlar\'a geç',           hint: 'Cmd+7' },
 ];
 
 export default function CommandPalette({ onClose, setActiveTab }) {

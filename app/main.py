@@ -37,8 +37,8 @@ from app.routers import coach as coach_router
 from app.routers import actions as actions_router
 from app.routers import fund_price as fund_price_router
 
-# Grup 4: yazilacak (henuz import etmiyoruz)
-# from app.routers import simulation, reports, alerts, backup
+# Grup 4
+from app.routers import reports as reports_router
 
 
 # ============================================================
@@ -142,11 +142,8 @@ app.include_router(coach_router.router)
 app.include_router(actions_router.router)
 app.include_router(fund_price_router.router)
 
-# Grup 4'te eklenecek:
-# app.include_router(simulation_router.router)
-# app.include_router(reports_router.router)
-# app.include_router(alerts_router.router)
-# app.include_router(backup_router.router)
+# Grup 4
+app.include_router(reports_router.router)
 
 
 # ============================================================

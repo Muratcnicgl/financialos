@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle,
+  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3,
 } from 'lucide-react';
 import { healthApi } from './api.js';
 import { ToastProvider } from './components/Toast.jsx';
@@ -14,6 +14,7 @@ import Accounts from './panels/Accounts.jsx';
 import Transactions from './panels/Transactions.jsx';
 import IncomeDebt from './panels/IncomeDebt.jsx';
 import RedLines from './panels/RedLines.jsx';
+import Reports from './panels/Reports.jsx';
 
 const TABS = [
   { id: 'cockpit',     label: 'Cockpit',         icon: Activity      },
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'transactions',label: 'İşlemler',        icon: Receipt       },
   { id: 'incomedebt',  label: 'Gelir & Borç',    icon: TrendingUp    },
   { id: 'redlines',    label: 'Kırmızı Çizgiler', icon: ShieldAlert  },
+  { id: 'reports',     label: 'Raporlar',         icon: BarChart3    },
 ];
 
 function useTheme() {
@@ -195,6 +197,7 @@ function AppContent() {
           {activeTab === 'transactions' && <Transactions />}
           {activeTab === 'incomedebt' && <IncomeDebt />}
           {activeTab === 'redlines' && <RedLines />}
+          {activeTab === 'reports' && <Reports />}
         </div>
       </main>
 

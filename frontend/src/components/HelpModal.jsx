@@ -9,6 +9,7 @@ const SHORTCUTS = [
   { key: 'Cmd/Ctrl + 4',     label: 'İşlemler' },
   { key: 'Cmd/Ctrl + 5',     label: 'Gelir & Borç' },
   { key: 'Cmd/Ctrl + 6',     label: 'Kırmızı Çizgiler' },
+  { key: 'Cmd/Ctrl + 7',     label: 'Raporlar' },
   { key: '?',                label: 'Bu yardım ekranı' },
   { key: 'Y',                label: 'Bekleyen aksiyonu onayla' },
   { key: 'N',                label: 'Bekleyen aksiyonu reddet' },

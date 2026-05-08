@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const TAB_IDS = ['cockpit', 'coach', 'accounts', 'transactions', 'incomedebt', 'redlines'];
+const TAB_IDS = ['cockpit', 'coach', 'accounts', 'transactions', 'incomedebt', 'redlines', 'reports'];
 
 function isInputFocused() {
   const tag = document.activeElement?.tagName;
@@ -29,7 +29,7 @@ export function useKeyboardShortcuts({ setActiveTab, onHelp, onPalette }) {
       }
 
       // Cmd/Ctrl+1..6 → panel geçişi (input focus'tayken de aktif)
-      if (ctrl && e.key >= '1' && e.key <= '6') {
+      if (ctrl && e.key >= '1' && e.key <= '7') {
         e.preventDefault();
         const idx = parseInt(e.key, 10) - 1;
         if (TAB_IDS[idx]) setActiveTab(TAB_IDS[idx]);

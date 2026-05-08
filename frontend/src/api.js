@@ -227,6 +227,15 @@ export const actionsApi = {
 // FUND PRICE (3)
 // =============================================================
 
+// =============================================================
+// REPORTS (1)
+// =============================================================
+
+export const reportsApi = {
+  categoryBreakdown: (days = 30, type = 'expense') =>
+    request('/api/reports/category-breakdown', { params: { days, type } }),
+};
+
 export const fundPriceApi = {
   update:    (accountId, newPrice) => request('/api/fund-price/update', {
     method: 'POST',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Check, X, AlertCircle, Loader2, Pencil } from 'lucide-react';
 import { actionsApi, formatTLSuffix, formatDate } from '../api.js';
 
@@ -17,11 +17,12 @@ import { actionsApi, formatTLSuffix, formatDate } from '../api.js';
  */
 // BUG #044 fix: add_transaction payload'ını okunabilir tabloya çevir
 // Improvement #027: inline edit modu
-function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: setParentEditing }) {
+function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: setParentEditing, editRequestedAt = 0 }) {
   const p = typeof payload === 'string' ? JSON.parse(payload) : payload;
   const todayISO = new Date().toISOString().split('T')[0];
 
   const [editing, setEditing] = useState(false);
+  const prevEditRequestedAt = useRef(0);
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState(false);
   const [editErr, setEditErr] = useState(null);
@@ -37,6 +38,15 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
 
   const startEdit = () => { setEditing(true); setParentEditing(true); setEditErr(null); };
   const cancelEdit = () => { setEditing(false); setParentEditing(false); setEditErr(null); };
+
+  // E klavye kısayolundan edit tetikleme
+  useEffect(() => {
+    if (editRequestedAt > prevEditRequestedAt.current) {
+      prevEditRequestedAt.current = editRequestedAt;
+      if (!editing) startEdit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editRequestedAt]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -159,6 +169,41 @@ export default function PendingActions({ actions, onResolved, accounts }) {
   const [errorById, setErrorById] = useState({});
   const [editingById, setEditingById] = useState({});  // edit modu aktif aksiyon id'leri
   const [payloadById, setPayloadById] = useState({});  // edit sonrasi guncellenen payload
+  const [editRequestTimes, setEditRequestTimes] = useState({});  // E kısayolu tetikleyici
+
+  // Y/N/E klavye kısayolları — ilk bekleyen aksiyona uygulanır
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+  const busyIdRef = useRef(busyId);
+  busyIdRef.current = busyId;
+
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const acts = actionsRef.current;
+      if (!acts?.length || busyIdRef.current) return;
+
+      const firstId = acts[0]?.id ?? acts[0]?.action_id;
+      if (!firstId) return;
+
+      if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        handleApprove(firstId);
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        handleReject(firstId);
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        setEditRequestTimes(prev => ({ ...prev, [firstId]: (prev[firstId] || 0) + 1 }));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!actions || actions.length === 0) return null;
 
@@ -237,6 +282,7 @@ export default function PendingActions({ actions, onResolved, accounts }) {
                     actionId={aid}
                     payload={currentPayload}
                     accounts={accounts}
+                    editRequestedAt={editRequestTimes[aid] || 0}
                     setEditing={(val) => setEditingById(prev => ({ ...prev, [aid]: val }))}
                     onEdited={(updated) => {
                       const p = typeof updated.payload === 'string'

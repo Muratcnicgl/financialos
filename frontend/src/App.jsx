@@ -5,6 +5,9 @@ import {
 } from 'lucide-react';
 import { healthApi } from './api.js';
 import { ToastProvider } from './components/Toast.jsx';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
+import CommandPalette from './components/CommandPalette.jsx';
+import HelpModal from './components/HelpModal.jsx';
 import Cockpit from './panels/Cockpit.jsx';
 import Coach from './panels/Coach.jsx';
 import Accounts from './panels/Accounts.jsx';
@@ -88,6 +91,14 @@ function AppContent() {
   const [theme, toggleTheme] = useTheme();
   const [activeTab, setActiveTab] = useState('cockpit');
   const { status, usagePct } = useBackendHealth();
+  const [showHelp, setShowHelp] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
+
+  useKeyboardShortcuts({
+    setActiveTab,
+    onHelp: () => setShowHelp(h => !h),
+    onPalette: () => setShowPalette(p => !p),
+  });
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -190,6 +201,13 @@ function AppContent() {
       <footer className="flex-shrink-0 max-w-6xl mx-auto px-4 py-3 text-center text-xs text-zinc-500">
         FinancialOS · 160 IQ stratejist finansal koç · v0.1.0
       </footer>
+
+      {showPalette && (
+        <CommandPalette onClose={() => setShowPalette(false)} setActiveTab={setActiveTab} />
+      )}
+      {showHelp && (
+        <HelpModal onClose={() => setShowHelp(false)} />
+      )}
     </div>
   );
 }

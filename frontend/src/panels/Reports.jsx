@@ -150,67 +150,65 @@ export default function Reports() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Donut */}
+          {/* Donut — wrapper div explicit height + height="100%" pattern */}
           <div className="card p-4">
             <h3 className="text-sm font-semibold mb-3 text-zinc-700 dark:text-zinc-300">Dağılım</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={items}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={65}
-                  outerRadius={95}
-                  dataKey="total"
-                  nameKey="category"
-                  paddingAngle={2}
-                >
-                  {items.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  iconType="circle"
-                  iconSize={8}
-                  formatter={(value) => (
-                    <span style={{ fontSize: 11, color: TICK_COLOR }}>{value}</span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <div style={{ width: '100%', height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={items}
+                    cx="50%"
+                    cy="45%"
+                    innerRadius={65}
+                    outerRadius={95}
+                    dataKey="total"
+                    nameKey="category"
+                    paddingAngle={2}
+                  >
+                    {items.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" iconSize={8} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          {/* Yatay çubuk */}
+          {/* Yatay çubuk — wrapper div explicit height + height="100%" pattern */}
           <div className="card p-4">
             <h3 className="text-sm font-semibold mb-3 text-zinc-700 dark:text-zinc-300">Kategoriler</h3>
-            <ResponsiveContainer width="100%" height={barHeight}>
-              <BarChart
-                layout="vertical"
-                data={items}
-                margin={{ top: 0, right: 56, left: 0, bottom: 0 }}
-              >
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="category"
-                  width={96}
-                  tick={{ fontSize: 11, fill: TICK_COLOR }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="total" radius={[0, 4, 4, 0]}>
-                  {items.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                  <LabelList
-                    dataKey="total"
-                    position="right"
-                    formatter={shortTL}
-                    style={{ fontSize: 11, fill: TICK_COLOR }}
+            <div style={{ width: '100%', height: barHeight }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={items}
+                  margin={{ top: 0, right: 56, left: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="category"
+                    width={96}
+                    tick={{ fontSize: 11, fill: TICK_COLOR }}
                   />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                    {items.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                    <LabelList
+                      dataKey="total"
+                      position="right"
+                      formatter={shortTL}
+                      style={{ fontSize: 11, fill: TICK_COLOR }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}

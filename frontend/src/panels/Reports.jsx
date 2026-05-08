@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, AlertTriangle } from 'lucide-react';
+import { BarChart3, AlertTriangle, TrendingUp } from 'lucide-react';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, LabelList,
+  LineChart, Line, CartesianGrid, ReferenceLine,
 } from 'recharts';
 import { reportsApi, formatTL } from '../api.js';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -90,6 +91,24 @@ export default function Reports() {
   const items = data?.items || [];
   const grandTotal = data?.grand_total || 0;
   const barHeight = Math.max(220, items.length * 38 + 48);
+
+  // B2: Net Değer Trend
+  const [trendDays, setTrendDays] = useState(30);
+  const [trendData, setTrendData] = useState(null);
+  const [loadingTrend, setLoadingTrend] = useState(true);
+  const [errorTrend, setErrorTrend] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingTrend(true);
+    setErrorTrend(null);
+    reportsApi.netWorthTrend(trendDays)
+      .then((res) => { if (active) { setTrendData(res); setLoadingTrend(false); } })
+      .catch((e) => { if (active) { setErrorTrend(e.message); setLoadingTrend(false); } });
+    return () => { active = false; };
+  }, [trendDays]);
+
+  const trendItems = trendData?.items || [];
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -212,6 +231,121 @@ export default function Reports() {
           </div>
         </div>
       )}
+
+      {/* ===== B2: NET DEĞER TRENDİ ===== */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-base font-semibold">Net Değer Trendi</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Görülen (alacaksız) · Tam (alacaklı)
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {[30, 90].map(d => (
+              <button key={d} onClick={() => setTrendDays(d)}
+                className={`btn !text-xs !px-3 ${trendDays === d ? 'btn-primary' : 'btn-secondary'}`}>
+                {d} gün
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loadingTrend ? (
+          <div className="card p-4 space-y-3">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : errorTrend ? (
+          <div className="card p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-negative-600 flex-shrink-0" />
+              <p className="text-sm text-negative-700 dark:text-negative-300">{errorTrend}</p>
+            </div>
+          </div>
+        ) : trendItems.length === 0 ? (
+          <EmptyState
+            icon={TrendingUp}
+            title="Net değer geçmişi henüz yok"
+            description="Cockpit'e her girişte bugünkü değer kaydedilir. Geçmiş veri için: python -m scripts.backfill_net_worth"
+          />
+        ) : (
+          <div className="card p-4">
+            <div style={{ width: '100%', height: 320 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={trendItems}
+                  margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={fmtXDate}
+                    tick={{ fontSize: 11, fill: TICK_COLOR }}
+                  />
+                  <YAxis
+                    tickFormatter={fmtYAxis}
+                    tick={{ fontSize: 11, fill: TICK_COLOR }}
+                    width={52}
+                  />
+                  <Tooltip content={<TrendTooltip />} />
+                  <Legend />
+                  <ReferenceLine y={0} stroke="#71717a" strokeDasharray="4 2" />
+                  <Line
+                    type="monotone"
+                    dataKey="net_worth_seen"
+                    name="Görülen"
+                    stroke="#4f46e5"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="net_worth_full"
+                    name="Tam"
+                    stroke="#16a34a"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// TREND YARDIMCILARI
+// ============================================================
+
+const TR_MONTHS_SHORT = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+
+function fmtXDate(iso) {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  return `${parseInt(m[3])} ${TR_MONTHS_SHORT[parseInt(m[2]) - 1]}`;
+}
+
+function fmtYAxis(v) {
+  if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + 'K';
+  return String(v);
+}
+
+function TrendTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="card px-3 py-2 text-xs shadow-lg border">
+      <p className="font-semibold mb-1">{fmtXDate(label)}</p>
+      {payload.map(p => (
+        <p key={p.dataKey} style={{ color: p.stroke }} className="font-numeric">
+          {p.name}: {formatTL(p.value)} TL
+        </p>
+      ))}
     </div>
   );
 }

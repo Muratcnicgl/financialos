@@ -119,6 +119,8 @@ class User(Base):
     action_history = relationship("ActionHistory", back_populates="user", cascade="all, delete-orphan")
     insights = relationship("CoachInsight", back_populates="user", cascade="all, delete-orphan")
     api_calls = relationship("ApiCallLog", back_populates="user", cascade="all, delete-orphan")
+    # B2: Net değer trend
+    net_worth_snapshots = relationship("NetWorthSnapshot", back_populates="user", cascade="all, delete-orphan")
 
 
 class Account(Base):
@@ -446,4 +448,34 @@ class ApiCallLog(Base):
         Index("ix_api_calls_user_called", "user_id", "called_at"),
         # Provider bazli ayri sayim
         Index("ix_api_calls_user_provider_called", "user_id", "provider", "called_at"),
+    )
+
+
+class NetWorthSnapshot(Base):
+    """
+    Günlük net değer snapshot'ı — B2 Net Değer Trend Grafiği için.
+    Her Cockpit isteğinde bugünkü değer otomatik kaydedilir (ensure_today_snapshot).
+    Geçmiş veriler backfill scripti ile doldurulur.
+    """
+    __tablename__ = "net_worth_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    snapshot_date = Column(Date, nullable=False)
+
+    net_worth_seen = Column(Float, nullable=False)       # Görülen (operasyonel, alacaksız)
+    net_worth_full = Column(Float, nullable=False)       # Tam (stratejik, alacaklı)
+    cash = Column(Float, nullable=False)
+    card_debt = Column(Float, nullable=False)
+    loan_debt = Column(Float, nullable=False)
+    investment_value = Column(Float, nullable=False)
+    receivables = Column(Float, nullable=False, default=0.0)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="net_worth_snapshots")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "snapshot_date", name="uq_nws_user_date"),
+        Index("ix_nws_user_date", "user_id", "snapshot_date"),
     )

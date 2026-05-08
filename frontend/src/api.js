@@ -234,6 +234,8 @@ export const actionsApi = {
 export const reportsApi = {
   categoryBreakdown: (days = 30, type = 'expense') =>
     request('/api/reports/category-breakdown', { params: { days, type } }),
+  netWorthTrend: (days = 30) =>
+    request('/api/reports/net-worth-trend', { params: { days } }),
 };
 
 export const fundPriceApi = {

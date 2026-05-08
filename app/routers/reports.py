@@ -20,7 +20,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.models import Transaction, TransactionType, User
+from app.models import Transaction, TransactionType, User, NetWorthSnapshot
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -90,3 +90,39 @@ def category_breakdown(
         days=days,
         type=type,
     )
+
+
+# ============================================================
+# NET DEGER TREND
+# ============================================================
+
+@router.get("/net-worth-trend")
+def net_worth_trend(
+    days: int = Query(default=30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Son N gündeki günlük net değer snapshot'larını döner.
+    NetWorthSnapshot tablosundan, cockpit her açıldığında yazılan veriler.
+    Geçmiş veriler scripts/backfill_net_worth.py ile doldurulur.
+    """
+    since = date.today() - timedelta(days=days)
+    rows = (
+        db.query(NetWorthSnapshot)
+        .filter(
+            NetWorthSnapshot.user_id == current_user.id,
+            NetWorthSnapshot.snapshot_date >= since,
+        )
+        .order_by(NetWorthSnapshot.snapshot_date.asc())
+        .all()
+    )
+    items = [
+        {
+            "date": r.snapshot_date.isoformat(),
+            "net_worth_seen": round(float(r.net_worth_seen), 2),
+            "net_worth_full": round(float(r.net_worth_full), 2),
+        }
+        for r in rows
+    ]
+    return {"items": items, "days": days}

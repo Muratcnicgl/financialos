@@ -22,11 +22,32 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.models import User
+from app.models import User, NetWorthSnapshot
 from app.rules_engine import generate_cockpit
 from app.fund_tracker import get_freshness_summary
 
 router = APIRouter(prefix="/api/cockpit", tags=["cockpit"])
+
+
+def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict) -> None:
+    """Bugünkü net değer snapshot'ını yaz (idempotent — günde bir kez)."""
+    today = date.today()
+    if db.query(NetWorthSnapshot).filter_by(user_id=user_id, snapshot_date=today).first():
+        return
+    receivables = max(0.0, cockpit.get("net_deger_tam", cockpit["net_deger"]) - cockpit["net_deger"])
+    snap = NetWorthSnapshot(
+        user_id=user_id,
+        snapshot_date=today,
+        net_worth_seen=cockpit["net_deger"],
+        net_worth_full=cockpit.get("net_deger_tam", cockpit["net_deger"]),
+        cash=cockpit["nakit_kasa"],
+        card_debt=cockpit["kart_borcu"],
+        loan_debt=cockpit["kredi_borcu"],
+        investment_value=cockpit["yatirim_deger"],
+        receivables=receivables,
+    )
+    db.add(snap)
+    db.commit()
 
 
 @router.get("")
@@ -65,5 +86,11 @@ def get_cockpit(
             "never_set_count": 0,
             "items": [],
         }
+
+    # B2: bugünkü snapshot'ı kaydet (idempotent)
+    try:
+        _ensure_today_snapshot(db, user.id, cockpit)
+    except Exception:
+        pass  # snapshot hatası cockpit'i durdurmasın
 
     return cockpit

@@ -139,7 +139,7 @@ def main() -> None:
 
         today = date.today()
         n = (today - START_DATE).days + 1
-        print(f"Backfill başlıyor: {START_DATE} → {today} ({n} gün)\n")
+        print(f"Backfill basliyor: {START_DATE} -> {today} ({n} gun)\n")
 
         cur = START_DATE
         written = 0
@@ -153,7 +153,7 @@ def main() -> None:
             cur += timedelta(days=1)
             written += 1
 
-        print(f"\n✓ {written} snapshot yazıldı.")
+        print(f"\nTamam: {written} snapshot yazildi.")
     finally:
         db.close()
 

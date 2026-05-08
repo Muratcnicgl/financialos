@@ -222,7 +222,7 @@ export default function Transactions() {
       <QuickEntry onSubmit={handleQuickSubmit} accounts={accounts} />
 
       {/* Toplam ozet */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div className="card p-3 text-center">
           <div className="flex items-center justify-center gap-1 text-xs text-zinc-500 mb-1">
             <ArrowUp className="w-3 h-3 text-positive-600" />

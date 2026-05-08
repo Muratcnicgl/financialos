@@ -630,11 +630,11 @@ function ConfirmDeleteModal({ account, onClose, onConfirm }) {
 function Modal({ title, children, onClose }) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-2 sm:p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+        className="card p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">

@@ -218,7 +218,7 @@ export default function RedLines() {
           <button
             key={id}
             onClick={() => setFilterActive(id)}
-            className={`chip ${filterActive === id ? 'chip-positive' : ''}`}
+            className={`btn !text-xs !px-3 ${filterActive === id ? 'btn-positive' : 'btn-secondary'}`}
           >
             {label}
           </button>
@@ -328,7 +328,7 @@ function CheckpointCard({ checkpoint, onEdit, onDelete, onToggleActive }) {
           {isLong && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="text-[11px] text-brand-600 dark:text-brand-400 hover:underline mt-1"
+              className="inline-flex items-center py-2 pr-3 text-[11px] text-brand-600 dark:text-brand-400 hover:underline mt-1"
             >
               {expanded ? 'Daha az göster' : 'Devamını oku'}
             </button>

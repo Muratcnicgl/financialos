@@ -225,10 +225,10 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={onEdit} className="btn btn-ghost !p-1.5" title="Düzenle">
+          <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1.5" title="Düzenle">
             <Pencil className="w-3.5 h-3.5" />
           </button>
-          <button onClick={onDelete} className="btn btn-ghost !p-1.5 hover:!text-negative-600" title="Sil">
+          <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1.5 hover:!text-negative-600" title="Sil">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -639,7 +639,7 @@ function Modal({ title, children, onClose }) {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="btn btn-ghost !p-1.5" title="Kapat">
+          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

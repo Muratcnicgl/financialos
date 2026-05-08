@@ -464,13 +464,13 @@ function IncomeRow({ income, onToggle, onEdit, onDelete }) {
             +{formatTL(income.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button onClick={onToggle} className="btn btn-ghost !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
+            <button onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
               <Power className={`w-3 h-3 ${income.is_active ? 'text-positive-500' : 'text-zinc-400'}`} />
             </button>
-            <button onClick={onEdit} className="btn btn-ghost !p-1" title="Düzenle">
+            <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button onClick={onDelete} className="btn btn-ghost !p-1 hover:!text-negative-600" title="Sil">
+            <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -512,13 +512,13 @@ function ExpenseRow({ expense, accounts, onToggle, onEdit, onDelete }) {
             −{formatTL(expense.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button onClick={onToggle} className="btn btn-ghost !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
+            <button onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
               <Power className={`w-3 h-3 ${expense.is_active ? 'text-positive-500' : 'text-zinc-400'}`} />
             </button>
-            <button onClick={onEdit} className="btn btn-ghost !p-1" title="Düzenle">
+            <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button onClick={onDelete} className="btn btn-ghost !p-1 hover:!text-negative-600" title="Sil">
+            <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -603,16 +603,16 @@ function DebtRow({ debt, onEdit, onDelete, onMarkPaid }) {
             {!debt.is_paid && (
               <button
                 onClick={onMarkPaid}
-                className="btn btn-ghost !p-1 hover:!text-positive-600"
+                className="btn btn-ghost btn-icon !p-1 hover:!text-positive-600"
                 title="Ödendi olarak işaretle"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
               </button>
             )}
-            <button onClick={onEdit} className="btn btn-ghost !p-1" title="Düzenle">
+            <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button onClick={onDelete} className="btn btn-ghost !p-1 hover:!text-negative-600" title="Sil">
+            <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -1034,7 +1034,7 @@ function Modal({ title, children, onClose }) {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="btn btn-ghost !p-1.5" title="Kapat">
+          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

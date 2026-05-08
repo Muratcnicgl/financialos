@@ -133,7 +133,7 @@ function AppContent() {
 
             <button
               onClick={toggleTheme}
-              className="btn btn-ghost !p-2"
+              className="btn btn-ghost btn-icon !p-2"
               title={theme === 'dark' ? 'Açık tema' : 'Koyu tema'}
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

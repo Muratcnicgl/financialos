@@ -90,8 +90,8 @@ function AppContent() {
   const { status, usagePct } = useBackendHealth();
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      <header className="sticky top-0 z-30 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/85 dark:bg-zinc-950/85 backdrop-blur-md">
+    <div className="h-dvh flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+      <header className="flex-shrink-0 sticky top-0 z-30 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/85 dark:bg-zinc-950/85 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2 flex-shrink-0">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-bold shadow-glow-brand">
@@ -164,7 +164,7 @@ function AppContent() {
       </header>
 
       {status === 'offline' && (
-        <div className="bg-negative-50 dark:bg-negative-950/30 border-b border-negative-200 dark:border-negative-900">
+        <div className="flex-shrink-0 bg-negative-50 dark:bg-negative-950/30 border-b border-negative-200 dark:border-negative-900">
           <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2 text-sm">
             <AlertTriangle className="w-4 h-4 text-negative-600 dark:text-negative-400 flex-shrink-0" />
             <span className="text-negative-700 dark:text-negative-300">
@@ -174,16 +174,20 @@ function AppContent() {
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        {activeTab === 'cockpit' && <Cockpit />}
-        {activeTab === 'coach' && <Coach />}
-        {activeTab === 'accounts' && <Accounts />}
-        {activeTab === 'transactions' && <Transactions />}
-        {activeTab === 'incomedebt' && <IncomeDebt />}
-        {activeTab === 'redlines' && <RedLines />}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className={`max-w-6xl mx-auto px-4 ${
+          activeTab === 'coach' ? 'h-full flex flex-col pt-4' : 'py-6'
+        }`}>
+          {activeTab === 'cockpit' && <Cockpit />}
+          {activeTab === 'coach' && <Coach />}
+          {activeTab === 'accounts' && <Accounts />}
+          {activeTab === 'transactions' && <Transactions />}
+          {activeTab === 'incomedebt' && <IncomeDebt />}
+          {activeTab === 'redlines' && <RedLines />}
+        </div>
       </main>
 
-      <footer className="max-w-6xl mx-auto px-4 py-6 text-center text-xs text-zinc-500">
+      <footer className="flex-shrink-0 max-w-6xl mx-auto px-4 py-3 text-center text-xs text-zinc-500">
         FinancialOS · 160 IQ stratejist finansal koç · v0.1.0
       </footer>
     </div>

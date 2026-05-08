@@ -82,7 +82,7 @@ class CoachErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-[calc(100vh-180px)] min-h-[500px] px-6 animate-fade-in">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 animate-fade-in">
           <div className="w-12 h-12 rounded-xl bg-negative-100 dark:bg-negative-900/30 flex items-center justify-center mb-4">
             <AlertTriangle className="w-6 h-6 text-negative-600 dark:text-negative-400" />
           </div>
@@ -359,7 +359,7 @@ function CoachInner({ onActionResolved }) {
   const usageBlock = usage && usage.block;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[500px] animate-fade-in">
+    <div className="flex-1 flex flex-col overflow-hidden animate-fade-in">
       {/* ===== UST: BASLIK + RESET ===== */}
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -442,7 +442,7 @@ function CoachInner({ onActionResolved }) {
       )}
 
       {/* ===== INPUT ===== */}
-      <div className="mt-3 flex items-end gap-2">
+      <div className="mt-3 flex items-end gap-2 flex-shrink-0 sticky bottom-0 pb-[env(safe-area-inset-bottom)]">
         <textarea
           ref={textareaRef}
           value={input}
@@ -528,7 +528,7 @@ function Message({ message, onActionResolved }) {
 
         {/* Propose actions */}
         {!isUser && message.actions && message.actions.length > 0 && (
-          <div className="mt-3 max-w-[90%]">
+          <div className="mt-3 w-full sm:max-w-[90%]">
             <PendingActions
               actions={message.actions}
               onResolved={onActionResolved}

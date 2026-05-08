@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import { coachApi, cockpitApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import PendingActions from '../components/PendingActions.jsx';
+import EmptyState from '../components/EmptyState.jsx';
 
 // Llama'nın köşeli parantez başlık formatını Markdown'a çevirir
 // [1. STRATEJİK ANALİZ] → ## 1. STRATEJİK ANALİZ
@@ -416,7 +417,29 @@ function CoachInner({ onActionResolved }) {
             <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
           </div>
         ) : messages.length === 0 ? (
-          <EmptyState onSuggest={(text) => setInput(text)} />
+          <EmptyState
+              fullHeight
+              icon={MessageSquare}
+              title="Henüz mesaj yok"
+              description="Stratejik bir analiz iste, bir aksiyon bildir veya bir soru sor."
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+                {[
+                  'Bugün durumumu kapsamlı analiz et',
+                  'Kart borcunu nasıl kapatmalıyım?',
+                  'Bu ay nakit akışım nasıl gidecek?',
+                  'TLY satışım ne kadar getirir?',
+                ].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setInput(s)}
+                    className="text-xs text-left p-3 card hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </EmptyState>
         ) : (
           <>
             {messages.map((m, i) => (
@@ -560,38 +583,3 @@ function CoachTypingIndicator() {
   );
 }
 
-// ============================================================
-// EMPTY STATE
-// ============================================================
-
-function EmptyState({ onSuggest }) {
-  const suggestions = [
-    'Bugün durumumu kapsamlı analiz et',
-    'Kart borcunu nasıl kapatmalıyım?',
-    'Bu ay nakit akışım nasıl gidecek?',
-    'TLY satışım ne kadar getirir?',
-  ];
-
-  return (
-    <div className="h-full flex flex-col items-center justify-center text-center px-4">
-      <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center mb-3">
-        <MessageSquare className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-      </div>
-      <h3 className="font-semibold mb-1">Henüz mesaj yok</h3>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
-        Stratejik bir analiz iste, bir aksiyon bildir veya bir soru sor.
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
-        {suggestions.map((s) => (
-          <button
-            key={s}
-            onClick={() => onSuggest(s)}
-            className="text-xs text-left p-3 card hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

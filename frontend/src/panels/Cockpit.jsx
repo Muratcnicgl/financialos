@@ -13,6 +13,7 @@ import MetricCard from '../components/MetricCard.jsx';
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
+import EmptyState from '../components/EmptyState.jsx';
 
 /**
  * Cockpit — Ana finansal kontrol paneli.
@@ -263,15 +264,23 @@ export default function Cockpit() {
         <h3 className="text-sm font-semibold mb-3 text-zinc-700 dark:text-zinc-300">
           Hesaplar ({data.accounts?.length || 0})
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {data.accounts?.map((acc) => (
-            <AccountCard
-              key={acc.id}
-              account={acc}
-              onPriceUpdateClick={(a) => setPriceUpdateAccount(a)}
-            />
-          ))}
-        </div>
+        {data.accounts?.length === 0 ? (
+          <EmptyState
+            icon={Wallet}
+            title="Henüz hesap yok"
+            description="Hesaplar panelinden ilk hesabını ekleyerek başla."
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {data.accounts.map((acc) => (
+              <AccountCard
+                key={acc.id}
+                account={acc}
+                onPriceUpdateClick={(a) => setPriceUpdateAccount(a)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Yatırım K/Z */}

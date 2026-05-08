@@ -8,6 +8,7 @@ import {
   accountsApi, fundPriceApi,
   formatTL, formatTLSuffix, formatDate, signClass,
 } from '../api.js';
+import EmptyState from '../components/EmptyState.jsx';
 
 /**
  * Accounts paneli — 8 hesabin tam yonetimi.
@@ -156,16 +157,13 @@ export default function Accounts() {
       })}
 
       {accounts.length === 0 && (
-        <div className="card p-8 text-center">
-          <Wallet className="w-12 h-12 mx-auto text-zinc-400 mb-3" />
-          <h3 className="font-semibold mb-2">Henüz hesap yok</h3>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-            İlk hesabını ekleyerek başla.
-          </p>
-          <button onClick={() => setEditingAccount('new')} className="btn btn-primary !text-xs">
-            <Plus className="w-3.5 h-3.5" /> Yeni hesap
-          </button>
-        </div>
+        <EmptyState
+          icon={Wallet}
+          title="Henüz hesap yok"
+          description="Banka hesabı, kredi kartı veya nakit hesabı ekle."
+          ctaLabel="Yeni Hesap"
+          onCta={() => setEditingAccount('new')}
+        />
       )}
 
       {/* Modallar */}

@@ -8,6 +8,7 @@ import {
   transactionsApi, accountsApi,
   formatTL, formatDate, signClass,
 } from '../api.js';
+import EmptyState from '../components/EmptyState.jsx';
 
 /**
  * Transactions paneli — islem listesi + hizli giris.
@@ -305,17 +306,23 @@ export default function Transactions() {
 
       {/* Liste */}
       {filtered.length === 0 ? (
-        <div className="card p-8 text-center">
-          <Receipt className="w-12 h-12 mx-auto text-zinc-400 mb-3" />
-          <h3 className="font-semibold mb-2">
-            {transactions.length === 0 ? 'Henüz işlem yok' : 'Filtreyle eşleşen işlem yok'}
-          </h3>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-            {transactions.length === 0
-              ? 'Hızlı giriş çubuğu ile veya "Yeni işlem" butonu ile başla.'
-              : 'Filtreleri temizleyip tekrar dene.'}
-          </p>
-        </div>
+        transactions.length === 0 ? (
+          <EmptyState
+            icon={Receipt}
+            title="Henüz işlem yok"
+            description='Hızlı giriş çubuğu ile veya "Yeni işlem" butonu ile başla.'
+            ctaLabel="Yeni İşlem"
+            onCta={() => setEditing('new')}
+          />
+        ) : (
+          <EmptyState
+            icon={Filter}
+            title="Bu filtreyle eşleşen işlem yok"
+            description="Filtreyi temizle veya kriterleri değiştir."
+            ctaLabel="Filtreyi Temizle"
+            onCta={resetFilters}
+          />
+        )
       ) : (
         <div className="space-y-1.5">
           {filtered.map(t => (

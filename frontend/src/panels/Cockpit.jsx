@@ -12,6 +12,7 @@ import {
 import MetricCard from '../components/MetricCard.jsx';
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
+import { Skeleton } from '../components/Skeleton.jsx';
 
 /**
  * Cockpit — Ana finansal kontrol paneli.
@@ -71,13 +72,7 @@ export default function Cockpit() {
     await load();
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
-      </div>
-    );
-  }
+  if (loading) return <CockpitSkeleton />;
 
   if (error) {
     return (
@@ -474,6 +469,75 @@ export default function Cockpit() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// COCKPIT SKELETON — loading state, gerçek layout'u yansıtır
+// ============================================================
+
+function CockpitSkeleton() {
+  return (
+    <div className="space-y-6">
+      {/* Başlık */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2 min-w-0">
+          <Skeleton className="h-7 w-44" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-9 w-20 flex-shrink-0 rounded-lg" />
+      </div>
+
+      {/* Operasyonel — 4 MetricCard */}
+      <div>
+        <Skeleton className="h-3 w-36 mb-3" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="card p-4 space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-7 w-28" />
+              <Skeleton className="h-2 w-20" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Stratejik — 5 MetricCard */}
+      <div>
+        <Skeleton className="h-3 w-32 mb-3" />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="card p-4 space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-2 w-20" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Günlük limit kutusu */}
+      <div className="card p-5 space-y-3">
+        <Skeleton className="h-3 w-36" />
+        <Skeleton className="h-11 w-40" />
+        <Skeleton className="h-3 w-72" />
+      </div>
+
+      {/* Hesaplar grid */}
+      <div>
+        <Skeleton className="h-4 w-28 mb-3" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="card p-4 space-y-3">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-8 w-1/2" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

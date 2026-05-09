@@ -127,6 +127,7 @@ def net_worth_trend(
             "date": r.snapshot_date.isoformat(),
             "net_worth_seen": round(float(r.net_worth_seen), 2),
             "net_worth_full": round(float(r.net_worth_full), 2),
+            "investment_value": round(float(r.investment_value or 0), 2),
         }
         for r in rows
     ]

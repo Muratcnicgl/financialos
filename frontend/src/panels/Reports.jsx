@@ -96,6 +96,12 @@ export default function Reports() {
   const barHeight = Math.max(220, items.length * 38 + 48);
 
   // B2: Net Değer Trend
+  const TREND_RANGES = [
+    { days: 30,  label: "1 Ay"  },
+    { days: 90,  label: "3 Ay"  },
+    { days: 180, label: "6 Ay"  },
+    { days: 365, label: "1 Yil" },
+  ];
   const [trendDays, setTrendDays] = useState(30);
   const [trendData, setTrendData] = useState(null);
   const [loadingTrend, setLoadingTrend] = useState(true);
@@ -262,11 +268,11 @@ export default function Reports() {
               Görülen (alacaksız) · Tam (alacaklı)
             </p>
           </div>
-          <div className="flex gap-2">
-            {[30, 90].map(d => (
-              <button key={d} onClick={() => setTrendDays(d)}
-                className={`btn !text-xs !px-3 ${trendDays === d ? 'btn-primary' : 'btn-secondary'}`}>
-                {d} gün
+          <div className="flex gap-2 flex-wrap">
+            {TREND_RANGES.map(r => (
+              <button key={r.days} onClick={() => setTrendDays(r.days)}
+                className={`btn !text-xs !px-3 ${trendDays === r.days ? 'btn-primary' : 'btn-secondary'}`}>
+                {r.label}
               </button>
             ))}
           </div>
@@ -329,6 +335,15 @@ export default function Reports() {
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="investment_value"
+                    name="Yatirim Degeri"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
                   />
                 </LineChart>
               </ResponsiveContainer>

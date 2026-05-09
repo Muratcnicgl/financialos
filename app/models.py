@@ -25,10 +25,11 @@ INDEX STRATEJISI:
 - coach_insights(user_id, is_active, priority) — aktif notlari oncelige gore
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, Text,
     Date, DateTime, ForeignKey, Enum as SQLEnum, Index, UniqueConstraint,
+    Numeric, PrimaryKeyConstraint, func,
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -405,7 +406,7 @@ class CoachInsight(Base):
 
     __table_args__ = (
         Index("ix_insights_user_active_priority", "user_id", "is_active", "priority"),
-        UniqueConstraint("user_id", "dedup_key", name="uq_insights_user_dedup"),
+        Index("uix_insights_user_dedup", "user_id", "dedup_key", unique=True),
     )
 
 
@@ -479,3 +480,72 @@ class NetWorthSnapshot(Base):
         UniqueConstraint("user_id", "snapshot_date", name="uq_nws_user_date"),
         Index("ix_nws_user_date", "user_id", "snapshot_date"),
     )
+
+
+# ═══════════════════════════════════════════════════════════════
+# Price History (Wave-2 B4 Aşama 2 - ADR-012)
+# ═══════════════════════════════════════════════════════════════
+
+class PriceSource(str, enum.Enum):
+    """Fiyat verisinin nereden geldiğini gösterir.
+
+    Okuma önceliği (app/price_providers/router.py'de):
+    manual > tefas > yfinance > isyatirim
+
+    Yeni kaynak eklemek için ADR güncellenmeli.
+    """
+    TEFAS = "tefas"
+    MANUAL = "manual"
+    YFINANCE = "yfinance"
+    ISYATIRIM = "isyatirim"
+
+
+class PriceHistory(Base):
+    """Fon/hisse fiyat geçmişi - tek doğruluk kaynağı (ADR-012).
+
+    Aynı (fund_code, price_date) için birden fazla kaynaktan fiyat
+    saklanabilir. Okuma sırasında öncelik kod tarafında belirlenir
+    (app/price_providers/router.py).
+
+    Account.current_price denormalize cache olarak kalır - okuma hızı için.
+    Tek doğruluk kaynağı bu tablodur.
+
+    Kompozit PK: (fund_code, price_date, source)
+    Sektör paterni: Quantstart Securities Master + Beancount pedantic mod.
+    """
+    __tablename__ = "price_history"
+
+    fund_code = Column(String(20), nullable=False)
+    price_date = Column(Date, nullable=False)
+    source = Column(
+        SQLEnum(
+            PriceSource,
+            name="pricesource",
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=False,
+    )
+    close_price = Column(Numeric(19, 4), nullable=False)
+    fetched_at = Column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "fund_code", "price_date", "source",
+            name="pk_price_history",
+        ),
+        Index("ix_price_history_fund_date", "fund_code", "price_date"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<PriceHistory("
+            f"fund_code={self.fund_code!r}, "
+            f"date={self.price_date}, "
+            f"source={self.source}, "
+            f"price={self.close_price})>"
+        )

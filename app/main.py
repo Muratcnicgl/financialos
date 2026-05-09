@@ -18,7 +18,6 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import text
 from app.database import Base, engine
 
 # === Router'lar ===
@@ -85,42 +84,14 @@ app.add_middleware(
 # DB INIT
 # ============================================================
 
-def _run_migrations() -> None:
-    """BUG #036 fix: Mevcut DB'ye yeni kolonlari ekle (idempotent, hata yutulur)."""
-    with engine.connect() as conn:
-        for sql in [
-            "ALTER TABLE coach_memories ADD COLUMN tool_calls_json TEXT",
-            "ALTER TABLE coach_memories ADD COLUMN tool_call_id VARCHAR(64)",
-            # BUG #047: recurring trigger dedup alanları
-            "ALTER TABLE pending_actions ADD COLUMN source_recurring_id INTEGER",
-            "ALTER TABLE pending_actions ADD COLUMN source_recurring_type VARCHAR(20)",
-            # A3: RecurringExpense tablosu (create_all zaten yapar, bu mevcut DB'ler için)
-            """CREATE TABLE IF NOT EXISTS recurring_expenses (
-                id INTEGER PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES users(id),
-                name VARCHAR(100) NOT NULL,
-                amount FLOAT NOT NULL,
-                account_id INTEGER NOT NULL REFERENCES accounts(id),
-                category VARCHAR(50),
-                day_of_month INTEGER NOT NULL,
-                is_active BOOLEAN NOT NULL DEFAULT 1,
-                last_triggered_year_month VARCHAR(7),
-                notes TEXT,
-                created_at DATETIME
-            )""",
-        ]:
-            try:
-                conn.execute(text(sql))
-                conn.commit()
-            except Exception:
-                pass  # Kolon zaten varsa SQLite hata verir — gormezden gel
-
 
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
-    _run_migrations()
-    logger.info("DB hazir. Tum tablolar mevcut.")
+    # ADR-013: Schema yönetimi tek doğruluk kaynağı Alembic.
+    # Yeni kurulumda: alembic upgrade head (baseline + tüm migration'lar uygulanır)
+    # Mevcut kurulumda: alembic upgrade head (yeni migration varsa uygular)
+    # Base.metadata.create_all() KALDIRILDI - Alembic ile çakışıyor (9 May 2026 öğrendik).
+    logger.info("Backend baslatildi. Schema yonetimi: alembic upgrade head ile yapilir.")
 
 
 # ============================================================

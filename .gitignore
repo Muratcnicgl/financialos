@@ -21,6 +21,9 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Geçici DB yedekleri
+data/*.backup_*
+
 # === asistan araci ===
 .asistan/settings.local.json
 

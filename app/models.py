@@ -29,7 +29,7 @@ from datetime import datetime, date, timezone
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, Text,
     Date, DateTime, ForeignKey, Enum as SQLEnum, Index, UniqueConstraint,
-    Numeric, PrimaryKeyConstraint, func,
+    Numeric, PrimaryKeyConstraint, func, text,
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -122,6 +122,10 @@ class User(Base):
     api_calls = relationship("ApiCallLog", back_populates="user", cascade="all, delete-orphan")
     # B2: Net değer trend
     net_worth_snapshots = relationship("NetWorthSnapshot", back_populates="user", cascade="all, delete-orphan")
+    # Wave-2 H1G1: Decision Journal
+    decision_journal_entries = relationship(
+        "DecisionJournal", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Account(Base):
@@ -548,4 +552,84 @@ class PriceHistory(Base):
             f"date={self.price_date}, "
             f"source={self.source}, "
             f"price={self.close_price})>"
+        )
+
+
+# ============================================================
+# Decision Journal (Wave-2 Hafta 1 - Bridgewater + Munger paterni)
+# ============================================================
+
+
+class DecisionJournal(Base):
+    """
+    Bridgewater Decision Journal + Munger Premortem entegrasyonu.
+
+    Pain + Reflection = Progress dongusu:
+    - Karar verilirken: predicted_outcome + confidence + mc_rules + cockpit_hash
+    - Karar verilirken (opsiyonel): premortem_scenarios (Hafta 2 Gun 3'te dolar)
+    - Ay sonu: actual_outcome + outcome_score + lessons_learned
+
+    cockpit_snapshot_hash Hafta 1 Gun 4 Replayable Trajectory ile eslesir.
+    """
+
+    __tablename__ = "decision_journal"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    # KARAR
+    decision_text = Column(Text, nullable=False)
+    decision_type = Column(String(40), nullable=True)
+    related_action_id = Column(
+        Integer,
+        ForeignKey("action_history.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # ONCESI (karar verilirken)
+    predicted_outcome = Column(Text, nullable=True)
+    confidence_at_decision = Column(Integer, nullable=True)
+    mc_rules_applied = Column(Text, nullable=True)  # JSON list
+    cockpit_snapshot_hash = Column(String(64), nullable=True)  # SHA256
+
+    # PREMORTEM (Hafta 2 Gun 3'te dolar)
+    premortem_scenarios = Column(Text, nullable=True)  # JSON list
+    premortem_run_at = Column(DateTime(timezone=True), nullable=True)
+
+    # SONRASI (ay sonu retro)
+    actual_outcome = Column(Text, nullable=True)
+    outcome_evaluated_at = Column(DateTime(timezone=True), nullable=True)
+    outcome_score = Column(Integer, nullable=True)
+
+    # DERS
+    lessons_learned = Column(Text, nullable=True)
+
+    # ZAMAN
+    decided_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # PARA KATEGORI (Tiago Forte CODE)
+    para_category = Column(
+        String(20), nullable=False, default="project", server_default="project"
+    )
+
+    # ILISKILER
+    user = relationship("User", back_populates="decision_journal_entries")
+    related_action = relationship("ActionHistory")
+
+    __table_args__ = (
+        Index("idx_decision_journal_user_time", "user_id", "decided_at"),
+        Index(
+            "idx_decision_journal_pending_eval",
+            "user_id",
+            sqlite_where=text("outcome_evaluated_at IS NULL"),
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<DecisionJournal(id={self.id}, type={self.decision_type}, "
+            f"decided_at={self.decided_at}, "
+            f"evaluated={self.outcome_evaluated_at is not None})>"
         )

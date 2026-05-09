@@ -14,11 +14,14 @@ Saglik kontrolu:
 """
 
 import logging
-from datetime import datetime
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
 
-from app.database import Base, engine
+from app.database import SessionLocal
+from app.models import NetWorthSnapshot, User
 
 # === Router'lar ===
 # Grup 1: kullanici + hesaplar
@@ -52,6 +55,66 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
+# STARTUP CATCH-UP
+# ============================================================
+
+def _catch_up_snapshots() -> None:
+    """App acilisinda eksik NetWorthSnapshot gunlerini doldur.
+
+    Mantik: last_snapshot_date < bugun ise araligi doldur.
+    Idempotent (backfill upsert kullanir, ayni tarih yazilirsa eskisini ezer).
+    Hata olursa app acilmasi engellenmemeli - cagiran try/except ile sarar.
+    """
+    from scripts.backfill_net_worth import run_backfill
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).order_by(User.id.asc()).first()
+        if not user:
+            logger.info("Catch-up: Kullanici yok, atlandi")
+            return
+
+        last_date = (
+            db.query(func.max(NetWorthSnapshot.snapshot_date))
+            .filter(NetWorthSnapshot.user_id == user.id)
+            .scalar()
+        )
+        if last_date is None:
+            logger.info("Catch-up: Hic snapshot yok, manuel backfill gerekli "
+                        "(python -m scripts.backfill_net_worth)")
+            return
+
+        today = date.today()
+        start = last_date + timedelta(days=1)
+        if start > today:
+            logger.info(f"Catch-up: Snapshot guncel ({last_date}), atlandi")
+            return
+
+        n_days = (today - start).days + 1
+        logger.info(f"Catch-up: Eksik {n_days} gun bulundu ({start} -> {today}), "
+                    f"backfill calistiriliyor...")
+        written = run_backfill(start, today, verbose=False)
+        logger.info(f"Catch-up: {written} snapshot yazildi")
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: catch-up backfill (eksik gunleri doldur)
+    # ADR-013: Schema yonetimi alembic ile, burada sadece runtime is mantigi.
+    logger.info("Backend baslatildi. Schema: alembic upgrade head ile.")
+    try:
+        _catch_up_snapshots()
+    except Exception as e:
+        # App acilmasi engellenmemeli, sessizce log'la
+        logger.warning(f"Catch-up backfill hatasi: {type(e).__name__}: {e}")
+
+    yield
+    # Shutdown: ozel temizlik gerekmez
+
+
+# ============================================================
 # APP YARATIMI
 # ============================================================
 
@@ -59,6 +122,7 @@ app = FastAPI(
     title="FinancialOS API",
     description="160 IQ stratejik finansal koc — backend.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -78,20 +142,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ============================================================
-# DB INIT
-# ============================================================
-
-
-@app.on_event("startup")
-def on_startup():
-    # ADR-013: Schema yönetimi tek doğruluk kaynağı Alembic.
-    # Yeni kurulumda: alembic upgrade head (baseline + tüm migration'lar uygulanır)
-    # Mevcut kurulumda: alembic upgrade head (yeni migration varsa uygular)
-    # Base.metadata.create_all() KALDIRILDI - Alembic ile çakışıyor (9 May 2026 öğrendik).
-    logger.info("Backend baslatildi. Schema yonetimi: alembic upgrade head ile yapilir.")
 
 
 # ============================================================
@@ -126,7 +176,7 @@ def _health_payload() -> dict:
         "status": "ok",
         "service": "FinancialOS",
         "version": "0.1.0",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

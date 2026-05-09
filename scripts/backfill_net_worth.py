@@ -197,6 +197,53 @@ def upsert(db: Session, user_id: int, snap: dict) -> None:
     db.commit()
 
 
+def run_backfill(start_date: date, end_date: date, verbose: bool = True) -> int:
+    """NetWorthSnapshot'lari start_date -> end_date araliginda yazar.
+
+    Idempotent (upsert pattern). Kullanim:
+    - CLI: python -m scripts.backfill_net_worth (main() bunu cagirir)
+    - Programatic: from scripts.backfill_net_worth import run_backfill
+
+    Returns: yazilan snapshot sayisi.
+    """
+    if start_date > end_date:
+        if verbose:
+            print(f"HATA: start ({start_date}) > end ({end_date})")
+        return 0
+
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).order_by(User.id.asc()).first()
+        if not user:
+            if verbose:
+                print("HATA: Kullanici yok. python -m scripts.setup_data calistirin.")
+            return 0
+
+        n = (end_date - start_date).days + 1
+        if verbose:
+            print(f"Backfill basliyor: {start_date} -> {end_date} ({n} gun)\n")
+
+        cur = start_date
+        written = 0
+        while cur <= end_date:
+            snap = snapshot_for(db, user, cur)
+            upsert(db, user.id, snap)
+            if verbose:
+                print(
+                    f"  {cur}  Gorulen={snap['net_worth_seen']:>12,.2f} TL  "
+                    f"Tam={snap['net_worth_full']:>12,.2f} TL  "
+                    f"Yatirim={snap['investment_value']:>10,.2f}"
+                )
+            cur += timedelta(days=1)
+            written += 1
+
+        if verbose:
+            print(f"\nTamam: {written} snapshot yazildi.")
+        return written
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="NetWorthSnapshot backfill")
     parser.add_argument("--start", type=str, default=None,
@@ -205,40 +252,13 @@ def main() -> None:
                         help="YYYY-MM-DD (default: bugun)")
     args = parser.parse_args()
 
-    start_date = date.fromisoformat(args.start) if args.start else START_DATE
     today = date.today()
+    start_date = date.fromisoformat(args.start) if args.start else START_DATE
     end_date = date.fromisoformat(args.end) if args.end else today
 
-    if start_date > end_date:
-        print(f"HATA: start ({start_date}) > end ({end_date})")
+    n = run_backfill(start_date, end_date, verbose=True)
+    if n == 0 and start_date > end_date:
         sys.exit(1)
-
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).order_by(User.id.asc()).first()
-        if not user:
-            print("HATA: Kullanici yok. python -m scripts.setup_data calistirin.")
-            sys.exit(1)
-
-        n = (end_date - start_date).days + 1
-        print(f"Backfill basliyor: {start_date} -> {end_date} ({n} gun)\n")
-
-        cur = start_date
-        written = 0
-        while cur <= end_date:
-            snap = snapshot_for(db, user, cur)
-            upsert(db, user.id, snap)
-            print(
-                f"  {cur}  Gorulen={snap['net_worth_seen']:>12,.2f} TL  "
-                f"Tam={snap['net_worth_full']:>12,.2f} TL  "
-                f"Yatirim={snap['investment_value']:>10,.2f}"
-            )
-            cur += timedelta(days=1)
-            written += 1
-
-        print(f"\nTamam: {written} snapshot yazildi.")
-    finally:
-        db.close()
 
 
 if __name__ == "__main__":

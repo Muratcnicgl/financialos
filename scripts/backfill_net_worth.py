@@ -8,7 +8,7 @@ Yöntem:
     - Bugün için generate_cockpit() (en doğru değer)
     - Geçmiş günler için: Account.balance'tan başla,
       target_date'ten sonraki transaction'ları ters uygula.
-    - Investment: lot * güncel_fiyat (geçmiş fiyat kaydı yok → sabit yaklaşım)
+    - Investment: lot * gecmis_fiyat (price_history forward-fill, ADR-015)
     - Alacaklar: is_paid=False veya paid_date > target_date olanlar
 
 NetWorthSnapshot tablosu create_all() ile oluşur.
@@ -21,17 +21,85 @@ import os
 # Repo kökü Python path'ine ekle
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import argparse
 from datetime import date, timedelta
+from decimal import Decimal
+from typing import Optional
+from sqlalchemy import desc, case
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType,
     PersonalDebt, DebtDirection, NetWorthSnapshot,
+    PriceHistory, PriceSource,
 )
 from app.rules_engine import generate_cockpit
 
 START_DATE = date(2026, 5, 1)
+
+
+def _get_price_at(db: Session, fund_code: str, target_date: date) -> Optional[Decimal]:
+    """Forward-fill: target_date'te veya oncesinde en yakin fiyat.
+    Source priority: manual > tefas > yfinance > isyatirim.
+    Hafta sonu/tatil icin en yakin onceki is gunu fiyati doner.
+    Hic fiyat yoksa None."""
+    if not fund_code:
+        return None
+
+    source_order = case(
+        (PriceHistory.source == PriceSource.MANUAL, 1),
+        (PriceHistory.source == PriceSource.TEFAS, 2),
+        (PriceHistory.source == PriceSource.YFINANCE, 3),
+        (PriceHistory.source == PriceSource.ISYATIRIM, 4),
+        else_=99,
+    )
+
+    row = (
+        db.query(PriceHistory)
+        .filter(PriceHistory.fund_code == fund_code)
+        .filter(PriceHistory.price_date <= target_date)
+        .order_by(desc(PriceHistory.price_date), source_order)
+        .first()
+    )
+
+    return row.close_price if row else None
+
+
+def _account_inception_at(account) -> Optional[date]:
+    """Account inception proxy. Su an account.created_at.date() -
+    Account.purchased_date alani yok. Wave-3'te InvestmentTransaction.first()
+    tarihi kullanilacak (ADR-015)."""
+    if not account.created_at:
+        return None
+    return account.created_at.date()
+
+
+def _investment_value_at(db: Session, account, target_date: date) -> float:
+    """target_date icin yatirim hesabi degeri.
+
+    Mantik (ADR-015):
+    1. Account o tarihte var miydi? (inception kontrolu)
+    2. Gecmis fiyat? (price_history forward-fill)
+    3. Yoksa cost_per_lot fallback
+    4. lot_count: bugunku deger (Wave-2 sabit varsayim)
+    """
+    inception = _account_inception_at(account)
+    if inception and target_date < inception:
+        return 0.0
+
+    lot = account.lot_count or 0
+    if lot == 0:
+        return 0.0
+
+    price = _get_price_at(db, account.fund_code, target_date)
+
+    if price is None:
+        if account.cost_per_lot:
+            return float(lot) * float(account.cost_per_lot)
+        return 0.0
+
+    return float(lot) * float(price)
 
 
 def _balance_at(db: Session, account: Account, target_date: date) -> float:
@@ -97,7 +165,7 @@ def snapshot_for(db: Session, user: User, target_date: date) -> dict:
         elif acc.account_type == AccountType.loan:
             loan_debt += bal
         elif acc.account_type == AccountType.investment and not acc.is_emanet:
-            investment_value += (acc.lot_count or 0) * (acc.current_price or 0)
+            investment_value += _investment_value_at(db, acc, target_date)
 
     receivables = _receivables_at(db, user.id, target_date)
     seen = round(cash + investment_value - card_debt - loan_debt, 2)
@@ -130,25 +198,40 @@ def upsert(db: Session, user_id: int, snap: dict) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="NetWorthSnapshot backfill")
+    parser.add_argument("--start", type=str, default=None,
+                        help=f"YYYY-MM-DD (default: {START_DATE})")
+    parser.add_argument("--end", type=str, default=None,
+                        help="YYYY-MM-DD (default: bugun)")
+    args = parser.parse_args()
+
+    start_date = date.fromisoformat(args.start) if args.start else START_DATE
+    today = date.today()
+    end_date = date.fromisoformat(args.end) if args.end else today
+
+    if start_date > end_date:
+        print(f"HATA: start ({start_date}) > end ({end_date})")
+        sys.exit(1)
+
     db: Session = SessionLocal()
     try:
         user = db.query(User).order_by(User.id.asc()).first()
         if not user:
-            print("HATA: Kullanıcı yok. python -m scripts.setup_data çalıştırın.")
+            print("HATA: Kullanici yok. python -m scripts.setup_data calistirin.")
             sys.exit(1)
 
-        today = date.today()
-        n = (today - START_DATE).days + 1
-        print(f"Backfill basliyor: {START_DATE} -> {today} ({n} gun)\n")
+        n = (end_date - start_date).days + 1
+        print(f"Backfill basliyor: {start_date} -> {end_date} ({n} gun)\n")
 
-        cur = START_DATE
+        cur = start_date
         written = 0
-        while cur <= today:
+        while cur <= end_date:
             snap = snapshot_for(db, user, cur)
             upsert(db, user.id, snap)
             print(
-                f"  {cur}  Görülen={snap['net_worth_seen']:>12,.2f} TL  "
-                f"Tam={snap['net_worth_full']:>12,.2f} TL"
+                f"  {cur}  Gorulen={snap['net_worth_seen']:>12,.2f} TL  "
+                f"Tam={snap['net_worth_full']:>12,.2f} TL  "
+                f"Yatirim={snap['investment_value']:>10,.2f}"
             )
             cur += timedelta(days=1)
             written += 1

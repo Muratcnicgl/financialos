@@ -110,8 +110,20 @@ async def lifespan(app: FastAPI):
         # App acilmasi engellenmemeli, sessizce log'la
         logger.warning(f"Catch-up backfill hatasi: {type(e).__name__}: {e}")
 
+    # Davranissal hafiza scheduler'i baslat
+    from app.scheduler import start_scheduler, shutdown_scheduler
+    try:
+        start_scheduler()
+    except Exception as e:
+        logger.warning(f"Scheduler baslatilamadi: {type(e).__name__}: {e}")
+
     yield
-    # Shutdown: ozel temizlik gerekmez
+
+    # Shutdown: scheduler'i durdur
+    try:
+        shutdown_scheduler()
+    except Exception as e:
+        logger.warning(f"Scheduler durdurma hatasi: {type(e).__name__}: {e}")
 
 
 # ============================================================

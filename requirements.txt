@@ -22,3 +22,4 @@ python-dateutil==2.9.0
 groq>=0.11.0
 pytefas==0.3.0
 alembic==1.14.0
+apscheduler>=3.10

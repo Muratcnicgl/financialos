@@ -406,11 +406,30 @@ class CoachInsight(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_referenced_at = Column(DateTime, nullable=True)  # Wave-3: aktive edilecek, su an yazilmiyor
 
+    # Wave-2 H1G2: Davranissal Hafiza alanlari (ADR-016 Saf Karma A)
+    insight_type = Column(String(50), nullable=True)            # 'decision_rhythm', 'mc_reference_frequency' vb.
+    title = Column(String(200), nullable=True)                  # UNIQUE(user_id, insight_type, title) icin
+    confidence_basis = Column(String(30), nullable=True)        # 'data_grounded' | 'mc_rule' | 'pattern_grounded'
+    source_refs = Column(Text, nullable=True)                   # JSON list: ["action_history:42", ...]
+    evidence_count = Column(Integer, default=0, nullable=False, server_default="0")
+    counter_evidence_count = Column(Integer, default=0, nullable=False, server_default="0")
+    last_evidence_at = Column(DateTime, nullable=True)
+    last_counter_at = Column(DateTime, nullable=True)
+    status = Column(String(20), default="active", nullable=True)  # 'active' | 'invalidated' | 'dormant'
+    activated_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    para_category = Column(String(20), nullable=True)
+    archived_at = Column(DateTime, nullable=True)
+    archived_reason = Column(String(50), nullable=True)
+    sort_priority = Column(Integer, default=5, nullable=False, server_default="5")
+
     user = relationship("User", back_populates="insights")
 
     __table_args__ = (
         Index("ix_insights_user_active_priority", "user_id", "is_active", "priority"),
         Index("uix_insights_user_dedup", "user_id", "dedup_key", unique=True),
+        # Wave-2 H1G2: davranissal hafiza UPSERT kilidi
+        UniqueConstraint("user_id", "insight_type", "title", name="uq_insights_type_title"),
     )
 
 

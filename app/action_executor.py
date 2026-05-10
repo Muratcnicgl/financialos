@@ -318,6 +318,9 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
         pending.status = ActionStatus.executed
         pending.resolved_at = datetime.utcnow()
         db.commit()
+        # Wave-2 H1G2: olay-tetikli action_rejection_pattern
+        from app.scheduler import trigger_after_action_resolution
+        trigger_after_action_resolution(db, user_id)
 
         return {
             "success": True,
@@ -352,6 +355,9 @@ def reject_pending_action(db: Session, action_id: int, user_id: int, reason: Opt
     if reason:
         pending.error_message = reason
     db.commit()
+    # Wave-2 H1G2: olay-tetikli action_rejection_pattern
+    from app.scheduler import trigger_after_action_resolution
+    trigger_after_action_resolution(db, user_id)
     return {"success": True, "action_id": action_id, "status": "rejected"}
 
 

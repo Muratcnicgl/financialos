@@ -1637,6 +1637,9 @@ class CoachEngine:
         reply = _build_smart_reply(clean_text, proposed_actions)
 
         self._save_message(db, user_id, "user", user_message)
+        # Wave-2 H1G2: olay-tetikli davranissal hafiza extractor'lari
+        from app.scheduler import trigger_after_user_message
+        trigger_after_user_message(db, user_id)
         if proposed_actions:
             # BUG #036 fix: Tool call bilgisini history'ye yaz — placeholder degil gercek kayit
             tool_calls_data = [

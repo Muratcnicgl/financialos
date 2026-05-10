@@ -583,3 +583,231 @@ def extract_mc_reference_frequency(db: Session, user_id: int) -> dict:
             "mc_counts": mc_counts,
         }
 
+
+# ============================================================
+# EXTRACTOR 3/9: question_typology (MITI 4 / OARS)
+# ============================================================
+# Sektor standardi: Motivational Interviewing Treatment Integrity 4.2.1
+# (Moyers et al.) - kocun MI uyumunu olcen mimari. Stanford GPTCoach
+# (Jorke et al. CHI 2025) bunu LLM koclugu icin uyarladi.
+#
+# Olculer:
+# - Open vs Closed Question orani (pct_open hedef >= %40, MITI %70)
+# - Reflection-to-Question Ratio (R:Q hedef >= 0.5, MITI 1)
+#   * Esikleri MITI'den dusurduk cunku Turkce + LLM baglaminda
+#     baslangic seviyesi yeterli; ilerde kalibre edilir.
+#
+# Veri kaynagi: coach_memories role='assistant' son 30 gun.
+# Tetikleme: Periyodik (lifespan startup hook + APScheduler).
+# Helper: _upsert_insight_absolute (full-state UPSERT - durum
+#         degisirse eski insight 'dormant'a duser).
+
+# Open question pattern - "ne/nasil/hangi" ile baslar veya icerir
+QT_OPEN_PATTERN = re.compile(
+    r"\b(ne|nasil|hangi|niye|neden|nerede|nereye|nereden|kim|kac|ne kadar|"
+    r"anlat|tarif et|aciklayabilir misin|ne dusunuyorsun|nelerdir)\b",
+    re.IGNORECASE,
+)
+# Closed question - "mi/mu" partikul sorusu
+QT_CLOSED_PATTERN = re.compile(
+    r"\b(mi|mu|mı|mü|misin|musun|misiniz|musunuz|var mi|var mı|olur mu|"
+    r"degil mi|değil mi|olmuyor mu|oldu mu|yapar misin|yapar mısın|dogru mu|doğru mu)\b\??$",
+    re.IGNORECASE | re.MULTILINE,
+)
+# Reflection - soru degil ama anlama/yansitma cumlesi
+QT_REFLECTION_PATTERN = re.compile(
+    r"\b(gibi gorunuyor|gibi görünüyor|sanki|demek ki|anliyorum|anlıyorum|"
+    r"hissediyorsun|hissediyorsunuz|fark ediyorum|sezdigi[mn]|sezdiğim|"
+    r"yani sen|yani siz|ozetle|özetle|genel olarak)\b",
+    re.IGNORECASE,
+)
+
+QT_PERIOD_DAYS = 30
+QT_MIN_QUESTIONS = 30  # MITI 4 minimum bantla uyumlu
+QT_PCT_OPEN_THRESHOLD = 0.40  # %40 alti = MI uyumsuz
+QT_RQ_THRESHOLD = 0.50        # 0.5 alti = direktif tarz
+QT_HEALTHY_PRIORITY = 5
+QT_WARNING_PRIORITY = 10
+
+
+def _split_into_sentences(text: str) -> list:
+    """Cumle ayraci - noktalama isaretini cumlede birakir (lookbehind split).
+    Boylece '?' bitisli cumleler endswith kontrolundan dogru gecer."""
+    if not text:
+        return []
+    # Lookahead degil lookbehind: bolme noktasi noktalamadan SONRA gelir,
+    # '?' cumlede kalir -> sentence.endswith("?") dogru calisiyor.
+    parts = re.split(r"(?<=[.!?;])\s+", text)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _classify_sentence(sentence: str) -> str:
+    """
+    Bir cumleyi siniflandir: 'open_q', 'closed_q', 'reflection', 'other'.
+
+    Mantik:
+    - '?' ile bitiyor veya closed pattern eslesiyor -> soru
+    - Open pattern oncelikli -> open_q
+    - Closed pattern -> closed_q
+    - Reflection pattern -> reflection
+    - Hicbiri -> other
+    """
+    is_question = sentence.endswith("?") or QT_CLOSED_PATTERN.search(sentence)
+
+    if is_question:
+        if QT_OPEN_PATTERN.search(sentence):
+            return "open_q"
+        return "closed_q"
+
+    if QT_REFLECTION_PATTERN.search(sentence):
+        return "reflection"
+
+    return "other"
+
+
+def extract_question_typology(db: Session, user_id: int) -> dict:
+    """
+    Son 30 gun assistant mesajlarinda OARS metriklerini olcer.
+    Full-state UPSERT: her insight tipi her cagrida update edilir,
+    aktif kosul yoksa dormant'a duser.
+    """
+    with extractor_telemetry("question_typology", user_id=user_id):
+        cutoff = datetime.utcnow() - timedelta(days=QT_PERIOD_DAYS)
+
+        messages = (
+            db.query(CoachMemory)
+            .filter(
+                CoachMemory.user_id == user_id,
+                CoachMemory.role == "assistant",
+                CoachMemory.timestamp >= cutoff,
+            )
+            .all()
+        )
+
+        open_count = 0
+        closed_count = 0
+        reflection_count = 0
+
+        for msg in messages:
+            for sentence in _split_into_sentences(msg.content or ""):
+                cls = _classify_sentence(sentence)
+                if cls == "open_q":
+                    open_count += 1
+                elif cls == "closed_q":
+                    closed_count += 1
+                elif cls == "reflection":
+                    reflection_count += 1
+
+        total_q = open_count + closed_count
+        pct_open = (open_count / total_q) if total_q > 0 else 0.0
+        rq_ratio = (reflection_count / total_q) if total_q > 0 else 0.0
+
+        base_refs = {
+            "period_days": QT_PERIOD_DAYS,
+            "total_messages": len(messages),
+            "open_count": open_count,
+            "closed_count": closed_count,
+            "reflection_count": reflection_count,
+            "total_questions": total_q,
+            "pct_open": round(pct_open, 3),
+            "rq_ratio": round(rq_ratio, 3),
+        }
+
+        created = 0
+        updated = 0
+
+        # Insufficient data durumu - 4 insight'i full-state yaz
+        if total_q < QT_MIN_QUESTIONS:
+            for title, content, status, evidence, prio in [
+                (
+                    "Yetersiz veri - OARS metrikleri",
+                    f"Son {QT_PERIOD_DAYS} gunde sadece {total_q} soru tespit edildi "
+                    f"(min {QT_MIN_QUESTIONS}). MI uyum analizi icin yetersiz.",
+                    "active", total_q, 1,
+                ),
+                ("Dusuk acik soru orani", "Yetersiz veri", "dormant", 0, 1),
+                ("Dusuk reflection-soru orani", "Yetersiz veri", "dormant", 0, 1),
+                ("OARS dengesi saglikli", "Yetersiz veri", "dormant", 0, 1),
+            ]:
+                r = _upsert_insight_absolute(
+                    db=db, user_id=user_id,
+                    insight_type="question_typology",
+                    title=title, content=content,
+                    confidence_basis="data_grounded",
+                    source_refs=base_refs,
+                    evidence_count=evidence,
+                    sort_priority=prio,
+                    status=status,
+                )
+                if r == "created":
+                    created += 1
+                elif r == "updated":
+                    updated += 1
+
+            return {
+                "created": created, "updated": updated,
+                "skipped_reason": f"insufficient_questions ({total_q} < {QT_MIN_QUESTIONS})",
+                "metrics": base_refs,
+            }
+
+        # Yeterli veri - 4 insight'i full-state UPSERT
+        low_open = pct_open < QT_PCT_OPEN_THRESHOLD
+        low_rq = rq_ratio < QT_RQ_THRESHOLD
+        healthy = (not low_open) and (not low_rq)
+
+        insights_state = [
+            (
+                "Yetersiz veri - OARS metrikleri",
+                "Yeterli soru tespit edildi, bu uyari aktif degil.",
+                "dormant", 0, 1,
+            ),
+            (
+                "Dusuk acik soru orani",
+                f"Acik soru orani %{pct_open*100:.1f} (hedef >=%{QT_PCT_OPEN_THRESHOLD*100:.0f}). "
+                f"Koc cok kapali soru soruyor, MI uyumu dusuk. "
+                f"Open: {open_count}, Closed: {closed_count}.",
+                "active" if low_open else "dormant",
+                closed_count if low_open else 0,
+                QT_WARNING_PRIORITY,
+            ),
+            (
+                "Dusuk reflection-soru orani",
+                f"R:Q orani {rq_ratio:.2f} (hedef >={QT_RQ_THRESHOLD}). "
+                f"Koc cok soru soruyor, az yansitma yapiyor - direktif tarz baskin. "
+                f"Reflections: {reflection_count}, Questions: {total_q}.",
+                "active" if low_rq else "dormant",
+                total_q if low_rq else 0,
+                QT_WARNING_PRIORITY,
+            ),
+            (
+                "OARS dengesi saglikli",
+                f"MITI metrikleri yeterlilik bandinda: pct_open=%{pct_open*100:.1f}, "
+                f"R:Q={rq_ratio:.2f}. Koc MI uyumlu sorular soruyor.",
+                "active" if healthy else "dormant",
+                total_q if healthy else 0,
+                QT_HEALTHY_PRIORITY,
+            ),
+        ]
+
+        for title, content, status, evidence, prio in insights_state:
+            r = _upsert_insight_absolute(
+                db=db, user_id=user_id,
+                insight_type="question_typology",
+                title=title, content=content,
+                confidence_basis="data_grounded",
+                source_refs=base_refs,
+                evidence_count=evidence,
+                sort_priority=prio,
+                status=status,
+            )
+            if r == "created":
+                created += 1
+            elif r == "updated":
+                updated += 1
+
+        return {
+            "created": created, "updated": updated,
+            "skipped_reason": None,
+            "metrics": base_refs,
+        }
+

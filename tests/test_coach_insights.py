@@ -18,6 +18,11 @@ from app.coach_insights import (
     extract_decision_rhythm,
     DECISION_RHYTHM_MIN_ACTIONS,
     DECISION_RHYTHM_DOMINANT_RATIO,
+    extract_question_typology,
+    QT_PCT_OPEN_THRESHOLD,
+    QT_RQ_THRESHOLD,
+    QT_HEALTHY_PRIORITY,
+    QT_WARNING_PRIORITY,
 )
 from app.models import CoachInsight, ActionHistory, CoachMemory
 
@@ -374,4 +379,168 @@ def test_mc_freq_idempotent_rerun(db_session, test_user):
     assert mc8_first.evidence_count == 8
 
     assert mc8_first.last_seen_at > last_seen_first
+
+
+# ============================================================
+# TESTS: question_typology
+# ============================================================
+
+def _qt_msg(db_session, user_id, content, hours_ago=1):
+    msg = CoachMemory(
+        user_id=user_id, role="assistant",
+        content=content,
+        timestamp=datetime.utcnow() - timedelta(hours=hours_ago),
+    )
+    db_session.add(msg)
+    db_session.commit()
+    return msg
+
+
+def test_qt_insufficient_questions(db_session, test_user):
+    """5 soru < 30 esigi -> insufficient_data active, digerleri dormant."""
+    for i in range(5):
+        _qt_msg(db_session, test_user.id, f"Ne dusunuyorsun bu konuda? Ekstra not {i}.", hours_ago=i+1)
+
+    result = extract_question_typology(db_session, test_user.id)
+
+    assert result["skipped_reason"] is not None
+    assert "insufficient_questions" in result["skipped_reason"]
+
+    insuf = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="question_typology",
+        title="Yetersiz veri - OARS metrikleri",
+    ).first()
+    assert insuf is not None
+    assert insuf.status == "active"
+
+    dormant = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="question_typology",
+        status="dormant",
+    ).count()
+    assert dormant == 3
+
+
+def test_qt_low_open_ratio_warning(db_session, test_user):
+    """40 closed soru, 5 open -> pct_open=%11 < %40 -> low_open active.
+    Reflection 0 -> rq_ratio=0 < 0.5 -> low_rq da active."""
+    closed_block = " ".join(["Bu dogru mu?" for _ in range(40)])
+    _qt_msg(db_session, test_user.id, closed_block, hours_ago=1)
+    open_block = " ".join(["Ne dusunuyorsun?" for _ in range(5)])
+    _qt_msg(db_session, test_user.id, open_block, hours_ago=2)
+
+    result = extract_question_typology(db_session, test_user.id)
+
+    assert result["skipped_reason"] is None
+    metrics = result["metrics"]
+    assert metrics["total_questions"] >= 30
+    assert metrics["pct_open"] < QT_PCT_OPEN_THRESHOLD
+    assert metrics["rq_ratio"] < QT_RQ_THRESHOLD
+
+    low_open = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Dusuk acik soru orani",
+    ).first()
+    assert low_open.status == "active"
+    assert low_open.sort_priority == QT_WARNING_PRIORITY
+
+    low_rq = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Dusuk reflection-soru orani",
+    ).first()
+    assert low_rq.status == "active"
+
+    healthy = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="OARS dengesi saglikli",
+    ).first()
+    assert healthy.status == "dormant"
+
+
+def test_qt_healthy_oars(db_session, test_user):
+    """20 open + 10 closed (pct_open=%66) + 20 reflection (R:Q=0.66)
+    -> healthy active, uyari insight'lar dormant."""
+    open_block = " ".join(["Ne dusunuyorsun konu hakkinda?" for _ in range(20)])
+    _qt_msg(db_session, test_user.id, open_block, hours_ago=1)
+    closed_block = " ".join(["Bu yeterli mi?" for _ in range(10)])
+    _qt_msg(db_session, test_user.id, closed_block, hours_ago=2)
+    refl_block = " ".join(["Anliyorum, sanki kararsizsin." for _ in range(20)])
+    _qt_msg(db_session, test_user.id, refl_block, hours_ago=3)
+
+    result = extract_question_typology(db_session, test_user.id)
+
+    assert result["skipped_reason"] is None
+    metrics = result["metrics"]
+    assert metrics["pct_open"] >= QT_PCT_OPEN_THRESHOLD
+    assert metrics["rq_ratio"] >= QT_RQ_THRESHOLD
+
+    healthy = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="OARS dengesi saglikli",
+    ).first()
+    assert healthy.status == "active"
+    assert healthy.sort_priority == QT_HEALTHY_PRIORITY
+
+    low_open = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Dusuk acik soru orani",
+    ).first()
+    assert low_open.status == "dormant"
+
+
+def test_qt_state_transition_active_to_dormant(db_session, test_user):
+    """1. calistir: low_open active. Sonra veriyi degistir, 2. calistir:
+    low_open dormant'a inmeli (full-state UPSERT calistigini kanitlar)."""
+    closed_block = " ".join(["Dogru mu?" for _ in range(40)])
+    msg1 = _qt_msg(db_session, test_user.id, closed_block, hours_ago=10)
+
+    extract_question_typology(db_session, test_user.id)
+    low_open_first = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id, title="Dusuk acik soru orani",
+    ).first()
+    assert low_open_first.status == "active"
+
+    db_session.delete(msg1)
+    db_session.commit()
+
+    open_block = " ".join(["Ne dusunuyorsun?" for _ in range(20)])
+    _qt_msg(db_session, test_user.id, open_block, hours_ago=5)
+    closed_block2 = " ".join(["Bu mu?" for _ in range(10)])
+    _qt_msg(db_session, test_user.id, closed_block2, hours_ago=6)
+    refl_block = " ".join(["Anliyorum, demek ki kararsizsin." for _ in range(20)])
+    _qt_msg(db_session, test_user.id, refl_block, hours_ago=7)
+
+    extract_question_typology(db_session, test_user.id)
+    db_session.refresh(low_open_first)
+    assert low_open_first.status == "dormant"  # KRITIK: full-state UPSERT
+
+    healthy = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id, title="OARS dengesi saglikli",
+    ).first()
+    assert healthy.status == "active"
+
+
+def test_qt_idempotent_rerun(db_session, test_user):
+    """Ayni veri 2 kez -> created sayisi 0, insight sayisi 4 sabit."""
+    open_block = " ".join(["Ne dusunuyorsun?" for _ in range(20)])
+    _qt_msg(db_session, test_user.id, open_block, hours_ago=1)
+    closed_block = " ".join(["Mi?" for _ in range(10)])
+    _qt_msg(db_session, test_user.id, closed_block, hours_ago=2)
+    refl_block = " ".join(["Anliyorum sanki." for _ in range(20)])
+    _qt_msg(db_session, test_user.id, refl_block, hours_ago=3)
+
+    result1 = extract_question_typology(db_session, test_user.id)
+    count1 = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id, insight_type="question_typology",
+    ).count()
+
+    result2 = extract_question_typology(db_session, test_user.id)
+    count2 = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id, insight_type="question_typology",
+    ).count()
+
+    assert count1 == count2 == 4
+    assert result2["created"] == 0
+    assert result2["updated"] == 4
 

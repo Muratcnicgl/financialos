@@ -34,7 +34,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 from typing import Iterator, Literal, Optional
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
@@ -1829,5 +1829,288 @@ def extract_explicit_red_line_k1(db: Session, user_id: int) -> dict:
             "updated_insights": updated_insights,
             "skipped_dedup": skipped_dedup,
             "scanned_messages": len(messages),
+        }
+
+
+# ============================================================
+# EXTRACTOR 9/9: explicit_red_line K2 (Honcho Dream Layer 2 - LLM)
+# ============================================================
+# Sektor temeli (Plan v3 H1G1 karari):
+# - Honcho Dream paterni - K1 (regex %0 false positive) + K2 (LLM nuance)
+# - Mem0 fact-extraction implicit preference %30-45 vs Honcho %77-90 - LLM
+#   nuance gerektiren ima edilen patern tespiti icin sart
+# - Mustafa mimarisi - LLM uretici, sistem tuketici. Pydantic-benzeri schema
+#   validation cikti dogrulamasi yapar, false output reddedilir.
+#
+# Kritik tasarim kisitlari (sema kesfi 10 May 2026):
+# - FallbackProvider structured JSON output desteklemiyor
+# - Tool-call trick MALFORMED_FUNCTION_CALL riski (Groq/Gemini)
+# - Cozum: markdown code fence JSON + esnek manuel parse + Pydantic-style validation
+#
+# Mantik: K1 insight'larini topla, LLM'e batch gonder, ima edilen kirmizi
+# cizgi paternleri cikar, JSON parse, insight olarak yaz (pattern_grounded).
+# K1 yoksa erken cik (gereksiz LLM cagirisi yapma).
+#
+# Veri kaynagi: CoachInsight (insight_type='explicit_red_line', K1 yazimlari).
+# Tetikleme: Periyodik gece batch (APScheduler 03:00 Istanbul) - Plan v3 D Hibrit.
+# Helper: _save_or_update_insight (Wave-1 incremental, K1 ile ayni tip).
+# Confidence: 'pattern_grounded' (K1 farki: K1=data_grounded direkt soz, K2=LLM cikarim).
+
+ERL_K2_LOOKBACK_HOURS = 24
+ERL_K2_MIN_K1_INSIGHTS = 1  # En az 1 K1 insight olmali (LLM'e besleme)
+ERL_K2_PRIORITY = 12          # K1=15'ten az, pattern_grounded zayif kanit
+ERL_K2_LLM_TIMEOUT_SEC = 60
+ERL_K2_PROMPT_VERSION = "v1"
+
+ERL_K2_SYSTEM_PROMPT = """Sen FinancialOS'un davranissal hafiza analiz motorusun.
+Kullanicinin ACIK kirmizi cizgi ifadelerine bakarak IMA EDILEN (implicit) bir
+kirmizi cizgi paterni cikarmaya calisiyorsun.
+
+KURALLAR:
+1. SADECE veride olan paterni yakala. Kullanicinin SOYLEMEDIGI seyi UYDURMA.
+2. Tek bir explicit ifadeden patern cikarma - en az 2 farkli ifade ayni yonu gostermeli.
+3. Belirsiz/yetersiz veri varsa "patterns": [] dondur. Hayalden patern uretme.
+4. Anti-sycophancy: "kullanici kararliydi" gibi yorumdan kacin, sadece veriyi raporla.
+
+CIKTI FORMATI: SADECE asagidaki JSON, kod blok icinde, hicbir ek metin yok:
+
+```json
+{
+  "patterns": [
+    {
+      "category": "kisa_snake_case_isim",
+      "description": "1-2 cumle Turkce aciklama",
+      "evidence_quotes": ["alintilanan ifade 1", "alintilanan ifade 2"],
+      "confidence": "medium"
+    }
+  ],
+  "reasoning": "neden bu paterni cikardin, kisa"
+}
+```
+
+confidence DEGERLERI: "medium" veya "high". "low" YASAK - implicit en az medium.
+Hicbir patern bulamazsan: {"patterns": [], "reasoning": "yetersiz veri"}.
+"""
+
+
+def _erl_k2_parse_llm_json(text: str) -> dict | None:
+    """LLM cevabindan markdown code fence icindeki JSON'i cikar ve parse et.
+    Pydantic-style validation ile false output reddet."""
+    if not text:
+        return None
+
+    # 1) Markdown code fence icinden JSON cikar
+    fence_match = re.search(
+        r"```(?:json)?\s*(\{.*?\})\s*```",
+        text,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if fence_match:
+        json_str = fence_match.group(1)
+    else:
+        # Fallback: ilk { ile son } arasini al
+        first = text.find("{")
+        last = text.rfind("}")
+        if first == -1 or last == -1 or last <= first:
+            return None
+        json_str = text[first:last+1]
+
+    try:
+        data = json.loads(json_str)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+    # 2) Manuel schema validation
+    if not isinstance(data, dict):
+        return None
+    if "patterns" not in data or not isinstance(data["patterns"], list):
+        return None
+
+    valid_patterns = []
+    for p in data["patterns"]:
+        if not isinstance(p, dict):
+            continue
+        category = p.get("category")
+        description = p.get("description")
+        evidence = p.get("evidence_quotes")
+        confidence = p.get("confidence")
+
+        if not isinstance(category, str) or not category.strip():
+            continue
+        if not isinstance(description, str) or not description.strip():
+            continue
+        if not isinstance(evidence, list) or len(evidence) < 1:
+            continue
+        if confidence not in ("medium", "high"):
+            continue
+
+        evidence_clean = [e for e in evidence if isinstance(e, str) and e.strip()]
+        if not evidence_clean:
+            continue
+
+        valid_patterns.append({
+            "category": category.strip()[:50],
+            "description": description.strip()[:300],
+            "evidence_quotes": evidence_clean[:5],
+            "confidence": confidence,
+        })
+
+    return {
+        "patterns": valid_patterns,
+        "reasoning": str(data.get("reasoning", ""))[:500],
+    }
+
+
+def extract_explicit_red_line_k2(
+    db: Session,
+    user_id: int,
+    provider=None,  # None ise build_provider() cagirilir; test fixture mock gecer
+) -> dict:
+    """
+    Honcho Dream Layer 2: K1'in yazdigi explicit_red_line insight'lari
+    LLM'e gonder, ima edilen patern cikarmaya calis, insight olarak yaz.
+
+    Donus: {"k1_insights_fed": int, "patterns_detected": int, "new_insights": int,
+            "skipped_reason": str | None, "batch_run_id": str}
+    """
+    with extractor_telemetry("explicit_red_line_k2", user_id=user_id):
+        batch_run_id = f"k2_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+        # 1) K1 insight'larini topla (active, son 24 saat icinde olusmus/guncellenmis)
+        cutoff = datetime.utcnow() - timedelta(hours=ERL_K2_LOOKBACK_HOURS)
+        k1_insights = (
+            db.query(CoachInsight)
+            .filter(
+                CoachInsight.user_id == user_id,
+                CoachInsight.insight_type == "explicit_red_line",
+                CoachInsight.confidence_basis == "data_grounded",  # K1 yazimi
+                CoachInsight.status == "active",
+                or_(
+                    CoachInsight.last_seen_at >= cutoff,
+                    CoachInsight.activated_at >= cutoff,
+                ),
+            )
+            .all()
+        )
+
+        if len(k1_insights) < ERL_K2_MIN_K1_INSIGHTS:
+            return {
+                "k1_insights_fed": len(k1_insights),
+                "patterns_detected": 0,
+                "new_insights": 0,
+                "skipped_reason": f"insufficient_k1_insights ({len(k1_insights)} < {ERL_K2_MIN_K1_INSIGHTS})",
+                "batch_run_id": batch_run_id,
+            }
+
+        # 2) LLM input hazirla
+        k1_summary_lines = []
+        for ins in k1_insights:
+            k1_summary_lines.append(f"- [{ins.title}] -> {ins.content[:200]}")
+        user_message = (
+            "Asagida kullanicinin son 24 saatte ifade ettigi ACIK kirmizi cizgiler:\n\n"
+            + "\n".join(k1_summary_lines)
+            + "\n\nBu acik ifadelere bakarak IMA EDILEN (implicit) bir kirmizi cizgi "
+            "paterni var mi? Sema talimatina gore JSON dondur."
+        )
+
+        # 3) LLM provider hazirla (test fixture inject edebilir)
+        if provider is None:
+            try:
+                from app.coach import build_provider  # build_provider app.coach'ta
+                provider = build_provider()
+            except Exception:
+                return {
+                    "k1_insights_fed": len(k1_insights),
+                    "patterns_detected": 0,
+                    "new_insights": 0,
+                    "skipped_reason": "provider_unavailable",
+                    "batch_run_id": batch_run_id,
+                }
+
+        # 4) LLM cagri - hata izolasyonu
+        try:
+            llm_response = provider.chat(
+                system_prompt=ERL_K2_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}],
+                tools=[],
+            )
+            response_text = getattr(llm_response, "text", None) or str(llm_response)
+        except Exception as e:
+            return {
+                "k1_insights_fed": len(k1_insights),
+                "patterns_detected": 0,
+                "new_insights": 0,
+                "skipped_reason": f"llm_error: {str(e)[:100]}",
+                "batch_run_id": batch_run_id,
+            }
+
+        # 5) JSON parse + schema validation
+        parsed = _erl_k2_parse_llm_json(response_text)
+        if parsed is None:
+            return {
+                "k1_insights_fed": len(k1_insights),
+                "patterns_detected": 0,
+                "new_insights": 0,
+                "skipped_reason": "llm_output_invalid_json",
+                "batch_run_id": batch_run_id,
+            }
+
+        patterns = parsed["patterns"]
+        if not patterns:
+            return {
+                "k1_insights_fed": len(k1_insights),
+                "patterns_detected": 0,
+                "new_insights": 0,
+                "skipped_reason": "no_patterns_detected",
+                "batch_run_id": batch_run_id,
+            }
+
+        # 6) Insight olarak yaz
+        new_insights = 0
+        for p in patterns:
+            category = p["category"]
+            description = p["description"]
+            evidence = p["evidence_quotes"]
+            confidence = p["confidence"]
+
+            first_quote = (evidence[0] if evidence else "")[:60]
+            title = f"Ima edilen kirmizi cizgi [{category}]: {first_quote}"
+            if len(title) > 200:
+                title = title[:197] + "..."
+
+            content_text = (
+                f"LLM batch consolidation: {description}\n\n"
+                f"Kanit alintilari ({len(evidence)} adet):\n"
+                + "\n".join(f"  - \"{e}\"" for e in evidence)
+                + f"\n\nLLM confidence: {confidence}. "
+                f"Reasoning: {parsed['reasoning'][:200]}"
+            )
+
+            source_refs_list = [
+                f"k2_batch:{batch_run_id}",
+                f"k2_category:{category}",
+                f"k2_confidence:{confidence}",
+            ]
+
+            _save_or_update_insight(
+                db=db,
+                user_id=user_id,
+                insight_type="explicit_red_line",
+                title=title,
+                content=content_text,
+                confidence_basis="pattern_grounded",  # K1 farki
+                source_refs=source_refs_list,
+                is_supporting_evidence=True,
+                para_category="area",
+                priority=ERL_K2_PRIORITY,
+            )
+            new_insights += 1
+
+        return {
+            "k1_insights_fed": len(k1_insights),
+            "patterns_detected": len(patterns),
+            "new_insights": new_insights,
+            "skipped_reason": None,
+            "batch_run_id": batch_run_id,
         }
 

@@ -48,6 +48,9 @@ from app.coach_insights import (
     extract_explicit_red_line_k1,
     ERL_DOMINANT_PRIORITY,
     ERL_MAX_MESSAGE_LEN,
+    extract_explicit_red_line_k2,
+    _erl_k2_parse_llm_json,
+    ERL_K2_PRIORITY,
 )
 from app.models import (
     CoachInsight, ActionHistory, CoachMemory,
@@ -1277,4 +1280,178 @@ def test_erl_multiple_patterns_same_message(db_session, test_user):
     has_niyet = any("niyet_beyani" in t for t in titles)
     assert has_mutlak
     assert has_niyet
+
+
+# ============================================================
+# TESTS: explicit_red_line K2 (LLM batch)
+# ============================================================
+
+class _MockLLMResponse:
+    """Mock LLMResponse - text alani var."""
+    def __init__(self, text):
+        self.text = text
+
+
+class _MockProvider:
+    """Mock LLM provider - chat cagrisini deterministik yapar."""
+    def __init__(self, response_text=""):
+        self.response_text = response_text
+        self.last_call = None
+        self.call_count = 0
+
+    def chat(self, system_prompt, messages, tools=None):
+        self.last_call = {"system": system_prompt, "messages": messages}
+        self.call_count += 1
+        return _MockLLMResponse(self.response_text)
+
+
+def _erl_k2_seed_k1_insight(db_session, user_id, title_suffix="test"):
+    """Test fixture: K1-style insight olustur (data_grounded, active)."""
+    insight = CoachInsight(
+        user_id=user_id,
+        insight_type="explicit_red_line",
+        title=f"Kirmizi cizgi [mutlak_red]: {title_suffix}",
+        content=f"K1 test insight: asla {title_suffix} yapmam.",
+        confidence_basis="data_grounded",
+        source_refs=json.dumps([f"coach_memory:{user_id}_{title_suffix}"]),
+        evidence_count=1,
+        counter_evidence_count=0,
+        status="active",
+        activated_at=datetime.utcnow(),
+        last_seen_at=datetime.utcnow(),
+        para_category="area",
+        sort_priority=15,
+    )
+    db_session.add(insight)
+    db_session.commit()
+    return insight
+
+
+def test_erl_k2_no_k1_insights_skipped(db_session, test_user):
+    """K1 insight'i yoksa erken cikis, LLM cagirisi yapilmaz."""
+    provider = _MockProvider("")
+
+    result = extract_explicit_red_line_k2(db_session, test_user.id, provider=provider)
+
+    assert result["skipped_reason"] is not None
+    assert "insufficient_k1_insights" in result["skipped_reason"]
+    assert result["new_insights"] == 0
+    assert provider.call_count == 0
+
+
+def test_erl_k2_llm_detects_pattern(db_session, test_user):
+    """LLM gecerli JSON donerse insight uretilir."""
+    _erl_k2_seed_k1_insight(db_session, test_user.id, "kart_acmamak")
+    _erl_k2_seed_k1_insight(db_session, test_user.id, "kredi_cekmemek")
+
+    valid_response = '```json\n{"patterns":[{"category":"kredi_kart_yorgunlugu","description":"Kullanici hem kart hem kredi tarafinda yeni borc almama egilimi gosteriyor.","evidence_quotes":["asla kart acmam","kredi cekmem"],"confidence":"high"}],"reasoning":"iki ayri ifade ayni yonu gosteriyor"}\n```'
+    provider = _MockProvider(valid_response)
+
+    result = extract_explicit_red_line_k2(db_session, test_user.id, provider=provider)
+
+    assert result["skipped_reason"] is None
+    assert result["patterns_detected"] == 1
+    assert result["new_insights"] == 1
+    assert provider.call_count == 1
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        confidence_basis="pattern_grounded",
+    ).all()
+    assert len(insights) == 1
+
+    insight = insights[0]
+    assert "Ima edilen" in insight.title
+    assert "kredi_kart_yorgunlugu" in insight.title
+    assert insight.sort_priority == ERL_K2_PRIORITY
+    assert insight.confidence_basis == "pattern_grounded"
+
+
+def test_erl_k2_no_patterns_in_llm_response(db_session, test_user):
+    """LLM 'yetersiz veri' derse hicbir insight uretilmez."""
+    _erl_k2_seed_k1_insight(db_session, test_user.id, "tek_ifade")
+
+    empty_response = '```json\n{"patterns": [], "reasoning": "yetersiz veri"}\n```'
+    provider = _MockProvider(empty_response)
+
+    result = extract_explicit_red_line_k2(db_session, test_user.id, provider=provider)
+
+    assert result["new_insights"] == 0
+    assert "no_patterns_detected" in result["skipped_reason"]
+
+    pattern_grounded = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        confidence_basis="pattern_grounded",
+    ).all()
+    assert len(pattern_grounded) == 0
+
+
+def test_erl_k2_invalid_json_graceful_skip(db_session, test_user):
+    """LLM bozuk JSON donerse extractor cokmemeli, sessizce skip."""
+    _erl_k2_seed_k1_insight(db_session, test_user.id, "test_invalid")
+
+    bad_response = "Bu yetersiz veri, patern yok."
+    provider = _MockProvider(bad_response)
+
+    result = extract_explicit_red_line_k2(db_session, test_user.id, provider=provider)
+
+    assert result["new_insights"] == 0
+    assert "invalid_json" in result["skipped_reason"]
+
+    pg = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        confidence_basis="pattern_grounded",
+    ).all()
+    assert len(pg) == 0
+
+
+def test_erl_k2_parser_unit():
+    """_erl_k2_parse_llm_json birim testi - dogru/yanlis senaryolar."""
+    valid = '```json\n{"patterns":[{"category":"x","description":"y","evidence_quotes":["a"],"confidence":"high"}],"reasoning":"r"}\n```'
+    parsed = _erl_k2_parse_llm_json(valid)
+    assert parsed is not None
+    assert len(parsed["patterns"]) == 1
+
+    empty = '```json\n{"patterns":[],"reasoning":"yok"}\n```'
+    parsed_empty = _erl_k2_parse_llm_json(empty)
+    assert parsed_empty is not None
+    assert parsed_empty["patterns"] == []
+
+    assert _erl_k2_parse_llm_json("not json") is None
+    assert _erl_k2_parse_llm_json("") is None
+    assert _erl_k2_parse_llm_json(None) is None
+
+    bad_conf = '```json\n{"patterns":[{"category":"x","description":"y","evidence_quotes":["a"],"confidence":"low"}],"reasoning":""}\n```'
+    parsed_bc = _erl_k2_parse_llm_json(bad_conf)
+    assert parsed_bc is not None
+    assert len(parsed_bc["patterns"]) == 0
+
+    missing = '```json\n{"patterns":[{"category":"x","evidence_quotes":["a"],"confidence":"high"}],"reasoning":""}\n```'
+    parsed_m = _erl_k2_parse_llm_json(missing)
+    assert parsed_m is not None
+    assert len(parsed_m["patterns"]) == 0
+
+
+def test_erl_k2_llm_exception_graceful_skip(db_session, test_user):
+    """Provider exception firlatirsa extractor cokmemeli."""
+    _erl_k2_seed_k1_insight(db_session, test_user.id, "test_exc")
+
+    class _FailingProvider:
+        call_count = 0
+        def chat(self, system_prompt, messages, tools=None):
+            _FailingProvider.call_count += 1
+            raise RuntimeError("Simulated LLM timeout")
+
+    provider = _FailingProvider()
+    result = extract_explicit_red_line_k2(db_session, test_user.id, provider=provider)
+
+    assert result["new_insights"] == 0
+    assert "llm_error" in result["skipped_reason"]
+    assert provider.call_count == 1
+
+    pg = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        confidence_basis="pattern_grounded",
+    ).all()
+    assert len(pg) == 0
 

@@ -121,3 +121,36 @@ def test_chat_backfills_coach_memory_id(mem_db):
         f"Trace'ler farkli coach_memory_id'e isaret ediyor: "
         f"{set(t.coach_memory_id for t in traces)} != {assistant_mem.id}"
     )
+
+
+def test_chat_records_confidence_score(mem_db):
+    """FakeProvider confidence iceren yanit donsun, FINAL_ANSWER step'inde
+    confidence_score dogru kaydedilmis olmali."""
+
+    class ConfidenceProvider:
+        NAME = "Conf"
+        last_used_provider = "conf"
+        model = "conf-model"
+
+        def chat(self, system_prompt, messages, tools=None):
+            return LLMResponse(
+                text="Yanit metni.\n\n[CONFIDENCE: 0.75]",
+                tool_calls=[],
+                usage=None,
+                provider_used="conf",
+                model_name="conf-model",
+            )
+
+    db, user = mem_db
+    engine = CoachEngine(provider=ConfidenceProvider())
+    engine.chat(db, user.id, "Test sorusu", include_cockpit=False)
+
+    db.expire_all()
+    final = (
+        db.query(ReasoningTrace)
+        .filter_by(user_id=user.id, operation_name=OperationName.FINAL_ANSWER)
+        .first()
+    )
+
+    assert final is not None
+    assert final.confidence_score == 0.75

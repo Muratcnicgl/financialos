@@ -264,6 +264,29 @@ Sınıflandırmayı KAFANIN İÇİNDE yap. Kullanıcı sadece NİHAİ ÇIKTIYI g
 
 Kullanıcı "neden tool çağırmadın" diye sormuş olsa bile prompt içeriğine atıf yapma —
 "Bu bir bilgi talebi olduğu için işlem kaydetmedim" gibi DOĞAL bir cümle yeterli.
+
+[GUVEN SKORU - YANITIN SONUNA EKLE]
+Yanitin SONUNA, ayri bir satirda, bu yanitla ilgili guven skorunu ekle.
+Format tam olarak su sekilde olmali:
+
+[CONFIDENCE: 0.XX]
+
+Skor 0.0 (hic emin degilim, veriler eksik veya celiskili) ile 1.0
+(tamamen eminim, kanit net) arasinda bir ondalikli sayi olmali.
+
+Olceklendirme:
+- 0.9-1.0: Veriler net, MC kurali tetiklendi, somut sayilar var, alternatif yorum yok.
+- 0.7-0.9: Veriler genel olarak tutarli, mantik saglam, kucuk belirsizlikler kabul edilebilir.
+- 0.5-0.7: Veriler eksik, varsayim yapildi, alternatif yorumlar mumkun.
+- 0.0-0.5: Veriler celiskili, soru anlasilmadi, tahmine dayali yanit.
+
+Ornekler:
+- Murat 'kart bakiyem ne' dedi ve cockpit kart bakiyesi gosteriyor -> [CONFIDENCE: 0.95]
+- Murat 'borsa nasil olur' dedi (bilgi disi soru) -> [CONFIDENCE: 0.40]
+- Murat '240 yemek nakitten' dedi propose_action net -> [CONFIDENCE: 0.90]
+
+ONEMLI: Bu skoru SADECE en sona koy, yanit metninde tekrar etme.
+Kullanici bu satiri gormeyecek (sistem tarafindan ayri parse edilir).
 """
 
 
@@ -674,6 +697,53 @@ Statü: {cockpit['statu']}
         context += f"\n\n# UZUN VADELİ HAFIZA\n{insight_lines}"
 
     return context.strip(), cockpit
+
+
+# ============================================================
+# 5b. CONFIDENCE PARSER
+# ============================================================
+
+_CONFIDENCE_RE = re.compile(
+    r"\[?\s*[Cc]onfidence\s*[:=]\s*([0-9]*\.?[0-9]+)\s*\]?",
+    re.IGNORECASE,
+)
+
+
+def _parse_confidence(text: str) -> Optional[float]:
+    """
+    LLM yanitindan [CONFIDENCE: 0.XX] degerini ayikla.
+
+    Supports: [CONFIDENCE: 0.85], [Confidence: 85],
+              CONFIDENCE: 0.5, confidence=0.7, etc.
+
+    Returns: 0.0-1.0 arasi float, parse edilemezse None.
+    Edge cases: 0-100 -> normalize, >100 / <0 / non-numeric -> None.
+    Birden fazla match: SON match (yanitin sonundaki guven skoru).
+    """
+    if not text:
+        return None
+    matches = _CONFIDENCE_RE.findall(text)
+    if not matches:
+        return None
+    raw = matches[-1]  # son match = yanit sonu
+    try:
+        value = float(raw)
+    except (ValueError, TypeError):
+        return None
+    if 2.0 <= value <= 100.0:  # 85 -> 0.85; 1.5 invalid (ambiguous), 200 invalid
+        value = value / 100.0
+    if value < 0.0 or value > 1.0:
+        return None
+    return value
+
+
+def _strip_confidence_marker(text: str) -> str:
+    """Reply metninden [CONFIDENCE: X.XX] satirini sil. Kullaniciya gozukmesin."""
+    if not text:
+        return text
+    cleaned = _CONFIDENCE_RE.sub("", text)
+    lines = [l for l in cleaned.split("\n") if l.strip()]
+    return "\n".join(lines).strip()
 
 
 # ============================================================
@@ -1722,12 +1792,19 @@ class CoachEngine:
 
             # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
             clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)
+
+            # Confidence parse + strip (kullaniciya gozukmesin)
+            confidence = _parse_confidence(clean_text)
+            clean_text = _strip_confidence_marker(clean_text)
+
             # BUG #042 fix: Hesap belirsizse propose_action oluşmadı, soru sor
             if account_unclear and not proposed_actions:
                 clean_text = "Hangi hesaptan? 'kartla' veya 'nakitten' eklersen hemen kaydederim."
+                confidence = None  # override, orijinal guven gecersiz
             # BUG #044 fix: Tarih tutarsızsa propose_action oluşmadı, yönlendir
             if date_unclear and not proposed_actions:
                 clean_text = "Tarih bilgisi tutarsız. Tarihi açıkça belirt ('3 Mayıs'ta' gibi) veya hiç yazma — tarih yoksa bugün olarak kaydederim."
+                confidence = None  # override, orijinal guven gecersiz
             # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
             reply = _build_smart_reply(clean_text, proposed_actions)
 
@@ -1736,6 +1813,8 @@ class CoachEngine:
             # --------------------------------------------------------
             with recorder.step(OperationName.FINAL_ANSWER, intent="Yanit kullaniciya hazir") as s:
                 s.observation = f"reply_len={len(reply)}, action_count={len(proposed_actions)}"
+                if confidence is not None:
+                    s.confidence_score = confidence
                 if account_unclear:
                     s.inference = "account_unclear override"
                 elif date_unclear:

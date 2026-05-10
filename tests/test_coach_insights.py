@@ -14,11 +14,12 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 
 from app.coach_insights import (
+    extract_mc_reference_frequency,
     extract_decision_rhythm,
     DECISION_RHYTHM_MIN_ACTIONS,
     DECISION_RHYTHM_DOMINANT_RATIO,
 )
-from app.models import CoachInsight, ActionHistory
+from app.models import CoachInsight, ActionHistory, CoachMemory
 
 
 class TestDecisionRhythm:
@@ -219,3 +220,158 @@ class TestDecisionRhythm:
 
         assert len(insights) == 1
         assert insights[0].evidence_count == 2
+
+
+# ============================================================
+# TESTS: mc_reference_frequency
+# ============================================================
+
+def _make_assistant_msg(db_session, user_id, content, hours_ago=1):
+    """Helper: belirli zamanda role=assistant CoachMemory satiri."""
+    msg = CoachMemory(
+        user_id=user_id,
+        role="assistant",
+        content=content,
+        timestamp=datetime.utcnow() - timedelta(hours=hours_ago),
+    )
+    db_session.add(msg)
+    db_session.commit()
+    return msg
+
+
+def test_mc_freq_insufficient_sample(db_session, test_user):
+    """5 mesaj < 10 esigi -> hicbir insight uretilmemeli."""
+    for i in range(5):
+        _make_assistant_msg(db_session, test_user.id, f"MC8 kurali ile {i}", hours_ago=i+1)
+
+    result = extract_mc_reference_frequency(db_session, test_user.id)
+
+    assert result["skipped_reason"] is not None
+    assert "insufficient_sample" in result["skipped_reason"]
+    assert result["created"] == 0
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+    ).all()
+    assert len(insights) == 0
+
+
+def test_mc_freq_dominant_mc(db_session, test_user):
+    """10 mesajdan 8'i MC8 iceriyor -> MC8 rank 1, sort_priority=10, status=active.
+    MC1 ve MC3 birer kez -> top 3'e girerler. MC2/4/5/6/7 dormant."""
+    for i in range(8):
+        _make_assistant_msg(db_session, test_user.id, f"MC8 (Hayatta Kalma) gerekli {i}", hours_ago=i+1)
+    _make_assistant_msg(db_session, test_user.id, "MC1 nakit oncelik", hours_ago=9)
+    _make_assistant_msg(db_session, test_user.id, "MC3 borc disiplini", hours_ago=10)
+
+    result = extract_mc_reference_frequency(db_session, test_user.id)
+
+    assert result["skipped_reason"] is None
+    assert result["total_messages"] == 10
+    assert result["mc_counts"]["8"] == 8
+    assert result["mc_counts"]["1"] == 1
+    assert result["mc_counts"]["3"] == 1
+
+    mc8_active = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+        title="MC8 sik referans verilen kural",
+    ).first()
+    assert mc8_active is not None
+    assert mc8_active.status == "active"
+    assert mc8_active.sort_priority == 10
+    assert mc8_active.evidence_count == 8
+    assert mc8_active.confidence_basis == "pattern_grounded"
+
+    dormant = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+        status="dormant",
+    ).all()
+    dormant_titles = {ins.title for ins in dormant}
+    assert "MC2 hic kullanilmayan kural" in dormant_titles
+    assert "MC4 hic kullanilmayan kural" in dormant_titles
+    assert len(dormant) == 5  # MC2, MC4, MC5, MC6, MC7
+
+
+def test_mc_freq_balanced_tiebreak(db_session, test_user):
+    """4 MC esit dagilmis (3'er kez). Tie-break: MC numarasi kucuk olan oncelikli.
+    MC1, MC2, MC3 top 3 -> active. MC4 ne aktif ne dormant (orta seviye yok sayilir).
+    MC5, MC6, MC7, MC8 dormant."""
+    for mc_num in [1, 2, 3, 4]:
+        for i in range(3):
+            _make_assistant_msg(
+                db_session, test_user.id,
+                f"MC{mc_num} aciklama {i}",
+                hours_ago=mc_num*5 + i,
+            )
+
+    result = extract_mc_reference_frequency(db_session, test_user.id)
+    assert result["total_messages"] == 12
+
+    active = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+        status="active",
+    ).all()
+    active_titles = {ins.title for ins in active}
+    assert active_titles == {
+        "MC1 sik referans verilen kural",
+        "MC2 sik referans verilen kural",
+        "MC3 sik referans verilen kural",
+    }
+
+    mc4_any = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+    ).filter(CoachInsight.title.like("MC4%")).all()
+    assert len(mc4_any) == 0
+
+    dormant = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+        status="dormant",
+    ).all()
+    assert len(dormant) == 4
+
+
+def test_mc_freq_idempotent_rerun(db_session, test_user):
+    """Ayni veriyle 2 kez calistir -> insight sayisi degismez,
+    last_seen_at her seferinde guncellenir, evidence_count tutarli."""
+    import time as _time
+
+    for i in range(8):
+        _make_assistant_msg(db_session, test_user.id, f"MC8 mesaj {i}", hours_ago=i+1)
+    for i in range(2):
+        _make_assistant_msg(db_session, test_user.id, f"MC1 mesaj {i}", hours_ago=20+i)
+
+    result1 = extract_mc_reference_frequency(db_session, test_user.id)
+    count_after_first = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+    ).count()
+
+    mc8_first = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="MC8 sik referans verilen kural",
+    ).first()
+    last_seen_first = mc8_first.last_seen_at
+
+    _time.sleep(0.05)
+
+    result2 = extract_mc_reference_frequency(db_session, test_user.id)
+    count_after_second = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="mc_reference_frequency",
+    ).count()
+
+    assert count_after_first == count_after_second
+    assert result2["created"] == 0
+    assert result2["updated"] == result1["created"]
+
+    db_session.refresh(mc8_first)
+    assert mc8_first.evidence_count == 8
+
+    assert mc8_first.last_seen_at > last_seen_first
+

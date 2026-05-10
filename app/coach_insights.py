@@ -38,6 +38,9 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
+import re
+from collections import Counter
+
 from app.models import (
     CoachInsight,
     Transaction,
@@ -368,3 +371,215 @@ def extract_decision_rhythm(db: Session, user_id: int) -> None:
         )
 
         log.info(f"insight saved/updated: '{title}'")
+
+
+# ============================================================
+# EXTRACTOR 2/9: mc_reference_frequency
+# ============================================================
+# Mantik: Son 30 gun coach yanitlarinda (CoachMemory role='assistant')
+# hangi MC numarasi kac kez gecti. En sik 3 MC -> aktif insight + sort_priority=10.
+# Hic gecmemis MC'ler -> dormant insight (pattern_grounded, kanit eksikligi).
+#
+# Tetikleme: Periyodik (lifespan startup hook + APScheduler gece 03:00).
+# Kategori: D Hibrit'te "Periyodik (6,7,8) gunde 1" gurubuyla ayni patern.
+#
+# Veri kaynagi notu: MC referanslari kodda yapilandirilmamis (mc_rules_applied
+# JSON kolonu YOK). LLM yanit metninde "MC1".."MC8" formatinda gecer. Bu yuzden
+# regex ile content alanini tarariz - prompt sablonu MC{n} formatini garantiler.
+
+MC_REFERENCE_PATTERN = re.compile(r"\bMC([1-8])\b")
+MC_REFERENCE_PERIOD_DAYS = 30
+MC_REFERENCE_MIN_SAMPLE = 10  # En az 10 assistant mesaji olmali
+MC_REFERENCE_TOP_K = 3        # En sik 3 MC dominant
+MC_REFERENCE_DOMINANT_PRIORITY = 10  # sort_priority degeri
+
+
+def _upsert_insight_absolute(
+    db: Session,
+    user_id: int,
+    insight_type: str,
+    title: str,
+    content: str,
+    confidence_basis: str,
+    source_refs: dict,
+    evidence_count: int,
+    sort_priority: int,
+    status: str,
+) -> str:
+    """
+    Periyodik extractor'lar icin UPSERT. evidence_count direkt set edilir
+    (inkremental degil). "created" veya "updated" doner.
+    _save_or_update_insight'in inkremental mantigi bu use-case'e uymadigi icin ayri helper.
+    """
+    now = datetime.utcnow()
+    source_refs_json = json.dumps(source_refs, ensure_ascii=False)
+
+    existing = db.execute(
+        select(CoachInsight).where(
+            CoachInsight.user_id == user_id,
+            CoachInsight.insight_type == insight_type,
+            CoachInsight.title == title,
+        )
+    ).scalar_one_or_none()
+
+    if existing is None:
+        db.add(CoachInsight(
+            user_id=user_id,
+            insight_type=insight_type,
+            title=title,
+            content=content,
+            confidence_basis=confidence_basis,
+            source_refs=source_refs_json,
+            evidence_count=evidence_count,
+            counter_evidence_count=0,
+            last_evidence_at=now if evidence_count > 0 else None,
+            status=status,
+            activated_at=now,
+            last_seen_at=now,
+            para_category="area",
+            sort_priority=sort_priority,
+        ))
+        db.commit()
+        return "created"
+
+    existing.content = content
+    existing.evidence_count = evidence_count
+    existing.source_refs = source_refs_json
+    existing.last_seen_at = now
+    existing.sort_priority = sort_priority
+    existing.status = status
+    db.commit()
+    return "updated"
+
+
+def extract_mc_reference_frequency(db: Session, user_id: int) -> dict:
+    """
+    Son 30 gun coach yanitlarinda MC1..MC8 referans frekansini cikarir.
+
+    Donus: {"created": int, "updated": int, "skipped_reason": str | None,
+            "total_messages": int, "mc_counts": dict}
+    """
+    with extractor_telemetry("mc_reference_frequency", user_id=user_id):
+        cutoff = datetime.utcnow() - timedelta(days=MC_REFERENCE_PERIOD_DAYS)
+
+        assistant_messages = (
+            db.query(CoachMemory)
+            .filter(
+                CoachMemory.user_id == user_id,
+                CoachMemory.role == "assistant",
+                CoachMemory.timestamp >= cutoff,
+            )
+            .all()
+        )
+
+        total = len(assistant_messages)
+
+        if total < MC_REFERENCE_MIN_SAMPLE:
+            return {
+                "created": 0,
+                "updated": 0,
+                "skipped_reason": f"insufficient_sample ({total} < {MC_REFERENCE_MIN_SAMPLE})",
+                "total_messages": total,
+                "mc_counts": {},
+            }
+
+        # Regex ile MC numaralarini topla. Bir mesajda 3 kez MC8 gectiyse 3 say -
+        # cunku LLM gercekten o kurali agir kullaniyor demek.
+        counter: Counter = Counter()
+        for msg in assistant_messages:
+            if not msg.content:
+                continue
+            for match in MC_REFERENCE_PATTERN.findall(msg.content):
+                counter[match] += 1
+
+        # Tum MC'leri normalize et (1..8)
+        mc_counts = {str(i): counter.get(str(i), 0) for i in range(1, 9)}
+
+        # Top-K secimi - frekans azalan, esitlikte MC numarasi kucuk oncelikli
+        ranked = sorted(
+            mc_counts.items(),
+            key=lambda kv: (-kv[1], int(kv[0])),
+        )
+
+        created = 0
+        updated = 0
+
+        # Dominant insight'lar (top 3, count > 0)
+        for rank, (mc_num, count) in enumerate(ranked[:MC_REFERENCE_TOP_K], start=1):
+            if count == 0:
+                continue
+
+            title = f"MC{mc_num} sik referans verilen kural"
+            content = (
+                f"Son {MC_REFERENCE_PERIOD_DAYS} gunde MC{mc_num} kurali "
+                f"toplam {count} kez referans verildi (rank {rank}/{MC_REFERENCE_TOP_K}). "
+                f"Bu kural su an aktif kullanimda."
+            )
+            source_refs = {
+                "period_days": MC_REFERENCE_PERIOD_DAYS,
+                "total_assistant_messages": total,
+                "mc_counts": mc_counts,
+                "rank": rank,
+                "mc_number": int(mc_num),
+            }
+
+            result = _upsert_insight_absolute(
+                db=db,
+                user_id=user_id,
+                insight_type="mc_reference_frequency",
+                title=title,
+                content=content,
+                confidence_basis="pattern_grounded",
+                source_refs=source_refs,
+                evidence_count=count,
+                sort_priority=MC_REFERENCE_DOMINANT_PRIORITY,
+                status="active",
+            )
+            if result == "created":
+                created += 1
+            elif result == "updated":
+                updated += 1
+
+        # Dormant insight'lar (count == 0 olan MC'ler)
+        for mc_num, count in mc_counts.items():
+            if count > 0:
+                continue
+
+            title = f"MC{mc_num} hic kullanilmayan kural"
+            content = (
+                f"Son {MC_REFERENCE_PERIOD_DAYS} gunde MC{mc_num} kurali "
+                f"hic referans verilmedi. Bu kural ya gereksiz ya da koc tarafindan "
+                f"hatirlanmiyor - gozden gecirilmesi onerilir."
+            )
+            source_refs = {
+                "period_days": MC_REFERENCE_PERIOD_DAYS,
+                "total_assistant_messages": total,
+                "mc_counts": mc_counts,
+                "mc_number": int(mc_num),
+            }
+
+            result = _upsert_insight_absolute(
+                db=db,
+                user_id=user_id,
+                insight_type="mc_reference_frequency",
+                title=title,
+                content=content,
+                confidence_basis="pattern_grounded",
+                source_refs=source_refs,
+                evidence_count=0,
+                sort_priority=1,
+                status="dormant",
+            )
+            if result == "created":
+                created += 1
+            elif result == "updated":
+                updated += 1
+
+        return {
+            "created": created,
+            "updated": updated,
+            "skipped_reason": None,
+            "total_messages": total,
+            "mc_counts": mc_counts,
+        }
+

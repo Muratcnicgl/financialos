@@ -69,6 +69,8 @@ from app.models import (
 from app.rules_engine import generate_cockpit, turkish_date
 from app.action_executor import propose_action, _fmt
 from app.models import CoachInsight, InsightPriority
+from app.reasoning_trace import TraceRecorder
+from app.models import OperationName
 
 logger = logging.getLogger(__name__)
 
@@ -679,9 +681,19 @@ Statü: {cockpit['statu']}
 # ============================================================
 
 class LLMResponse:
-    def __init__(self, text: str, tool_calls: List[Dict]):
+    def __init__(
+        self,
+        text: str,
+        tool_calls: List[Dict],
+        usage: Optional[Dict] = None,
+        provider_used: Optional[str] = None,
+        model_name: Optional[str] = None,
+    ):
         self.text = text
         self.tool_calls = tool_calls
+        self.usage = usage            # {"input_tokens": int, "output_tokens": int} veya None
+        self.provider_used = provider_used  # "groq" / "gemini" / vs. veya None
+        self.model_name = model_name  # "llama-3.3-70b-versatile" / "claude-..." / vs.
 
 
 class LLMProvider(ABC):
@@ -939,7 +951,16 @@ class GroqProvider(LLMProvider):
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
 
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls)
+        usage = None
+        if response.usage:
+            usage = {
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
+            }
+
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=usage, provider_used="groq",
+                           model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1065,6 +1086,8 @@ class FallbackProvider(LLMProvider):
                 logger.info(f"FallbackProvider deniyor [{i+1}/{len(self.providers)}]: {provider.NAME}")
                 result = provider.chat(system_prompt, messages, tools)
                 self.last_used_provider = provider.NAME
+                # provider_used backfill: alt provider set etmediyse FallbackProvider doldurur
+                result.provider_used = provider.NAME.lower()
                 if i > 0:
                     self.fallback_count += 1
                     logger.warning(
@@ -1473,108 +1496,106 @@ class CoachEngine:
         user_message: str,
         include_cockpit: bool = True,
     ) -> Dict:
-        system_prompt = V3_GOD_MODE_PROMPT
-        cockpit_dict = None
-        if include_cockpit:
-            context_text, cockpit_dict = _build_context_message(db, user_id)
-            system_prompt = f"{V3_GOD_MODE_PROMPT}\n\n{context_text}"
-
-        messages = self._load_history(db, user_id)
-        messages.append({"role": "user", "content": user_message})
-
-        # BUG #023: Soru ise propose_action yok; save_insight her zaman aktif
-        is_q = is_question(user_message)
-        active_tools = [SAVE_INSIGHT_SCHEMA] if is_q else [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA]
-
+        recorder = TraceRecorder(db, user_id=user_id)
+        first_llm_step_db_id = None
         try:
-            llm_response = self.provider.chat(
-                system_prompt=system_prompt,
-                messages=messages,
-                tools=active_tools,
-            )
-        except Exception as e:
-            logger.error(f"{self.provider_name} hatasi (tum provider'lar denendi): {e}")
-            return {
-                "reply": (
-                    f"Koç şu an cevap veremiyor ({self.provider_name} hatası): {e}\n"
-                    f"Birkaç saniye sonra tekrar deneyebilirsin."
-                ),
-                "proposed_actions": [],
-                "cockpit_snapshot": cockpit_dict,
-            }
+            # --------------------------------------------------------
+            # STEP A: Cockpit + kural durumu
+            # --------------------------------------------------------
+            system_prompt = V3_GOD_MODE_PROMPT
+            cockpit_dict = None
+            if include_cockpit:
+                context_text, cockpit_dict = _build_context_message(db, user_id)
+                system_prompt = f"{V3_GOD_MODE_PROMPT}\n\n{context_text}"
 
-        proposed_actions = []
-        account_unclear = False
-        date_unclear = False
-        for tc in llm_response.tool_calls:
-            # CoachInsight: save_insight tool call'larını işle
-            if tc["name"] == "save_insight":
-                try:
-                    inp = tc["input"]
-                    result = save_insight_action(
-                        db=db,
-                        user_id=user_id,
-                        content=inp["content"],
-                        category=inp.get("category", "general"),
-                        priority=inp.get("priority", "normal"),
-                        dedup_key=inp.get("dedup_key", ""),
-                        expires_at=inp.get("expires_at"),
-                    )
-                    logger.info(f"save_insight: [{result.dedup_key}] {result.content[:60]}")
-                except Exception as e:
-                    logger.error(f"save_insight hatasi: {e}")
-                continue
-            if tc["name"] != "propose_action":
-                continue
-            try:
-                inp = tc["input"]
-                pending = propose_action(
-                    db=db,
-                    user_id=user_id,
-                    action_type=inp["action_type"],
-                    payload=inp["payload"],
-                    summary=inp["summary"],
-                    user_message=user_message,
-                )
-                # BUG #017 fix: Hem 'id' hem 'action_id' iceriyor (geriye uyumlu)
-                # BUG #027: _warning_text instance attr → SQLAlchemy expire'dan bağımsız
-                proposed_actions.append({
-                    "id": pending.id,
-                    "action_id": pending.id,
-                    "action_type": pending.action_type,
-                    "summary": pending.summary,
-                    "payload": inp["payload"],
-                    "warning": getattr(pending, "_warning_text", None),
-                })
-            except ValueError as e:
-                if "HESAP_BELIRSIZ" in str(e):  # BUG #042 fix
-                    account_unclear = True
-                elif "TARIH_BELIRSIZ" in str(e):  # BUG #044 fix
-                    date_unclear = True
-                else:
-                    logger.error(f"propose_action hatasi: {e}")
-            except Exception as e:
-                logger.error(f"propose_action hatasi: {e}")
+            with recorder.step(OperationName.RULE_CHECK, intent="Cockpit + kural durumu") as s:
+                uyarilar = cockpit_dict.get("uyarilar", []) if cockpit_dict else []
+                s.observation = f"Cockpit hazir. Aktif uyari: {len(uyarilar)}"
+                s.set_action_input({"include_cockpit": include_cockpit})
+                if uyarilar:
+                    kodlar = [u.get("kod", "?") for u in uyarilar[:3]]
+                    s.inference = f"Uyarilar: {kodlar}"
 
-        # BUG #043/#045: Boş cevap VEYA sahte niyet tespit edilirse tek retry
-        if (not proposed_actions and not account_unclear and not date_unclear
-                and not is_q
-                and (not (llm_response.text or "").strip()
-                     or _FAKE_NIYET_RE.search(llm_response.text or ""))):
-            logger.warning(f"BUG #045/#043 retry tetiklendi: {user_message!r}")
+            messages = self._load_history(db, user_id)
+            messages.append({"role": "user", "content": user_message})
+
+            # --------------------------------------------------------
+            # STEP B: Soru-bildirim siniflandirma
+            # --------------------------------------------------------
+            # BUG #023: Soru ise propose_action yok; save_insight her zaman aktif
+            is_q = is_question(user_message)
+            active_tools = [SAVE_INSIGHT_SCHEMA] if is_q else [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA]
+
+            with recorder.step(OperationName.OBSERVATION, intent="Soru-bildirim siniflandirma") as s:
+                s.observation = f"is_question={is_q}, tool_count={len(active_tools)}"
+                tool_names = [t.get("name", "?") for t in active_tools]
+                s.inference = f"active_tools: {tool_names}"
+
+            # --------------------------------------------------------
+            # STEP C: Ana LLM cagrisi
+            # --------------------------------------------------------
             try:
-                retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
-                retry_response = self.provider.chat(
-                    system_prompt=retry_prompt,
-                    messages=messages,
-                    tools=active_tools,
-                )
-                retry_actions = []
-                for tc in retry_response.tool_calls:
-                    if tc["name"] != "propose_action":
-                        continue
+                with recorder.step(OperationName.LLM_CALL, intent="Ana yanit uretimi") as llm_step:
                     try:
+                        llm_response = self.provider.chat(
+                            system_prompt=system_prompt,
+                            messages=messages,
+                            tools=active_tools,
+                        )
+                    except Exception as e:
+                        llm_step.observation = f"Tum providerlar basarisiz: {type(e).__name__}"
+                        raise
+                    llm_step.observation = (llm_response.text or "")[:500]
+                    llm_step.provider_system = llm_response.provider_used
+                    llm_step.model_name = llm_response.model_name
+                    if llm_response.usage:
+                        llm_step.usage_input_tokens = llm_response.usage.get("input_tokens")
+                        llm_step.usage_output_tokens = llm_response.usage.get("output_tokens")
+                first_llm_step_db_id = llm_step.step_db_id
+            except Exception as e:
+                logger.error(f"{self.provider_name} hatasi (tum provider'lar denendi): {e}")
+                return {
+                    "reply": (
+                        f"Koç şu an cevap veremiyor ({self.provider_name} hatası): {e}\n"
+                        f"Birkaç saniye sonra tekrar deneyebilirsin."
+                    ),
+                    "proposed_actions": [],
+                    "cockpit_snapshot": cockpit_dict,
+                }
+
+            # --------------------------------------------------------
+            # STEP D: Tool call isleme
+            # --------------------------------------------------------
+            proposed_actions = []
+            account_unclear = False
+            date_unclear = False
+            for tc in llm_response.tool_calls:
+                if tc["name"] == "save_insight":
+                    with recorder.step(OperationName.EXECUTE_TOOL, intent="save_insight") as s:
                         inp = tc["input"]
+                        s.set_action_input(inp)
+                        try:
+                            result = save_insight_action(
+                                db=db,
+                                user_id=user_id,
+                                content=inp["content"],
+                                category=inp.get("category", "general"),
+                                priority=inp.get("priority", "normal"),
+                                dedup_key=inp.get("dedup_key", ""),
+                                expires_at=inp.get("expires_at"),
+                            )
+                            logger.info(f"save_insight: [{result.dedup_key}] {result.content[:60]}")
+                            s.observation = "Insight kaydedildi"
+                        except Exception as e:
+                            s.observation = f"Hata: {str(e)[:200]}"
+                            logger.error(f"save_insight hatasi: {e}")
+                    continue
+                if tc["name"] != "propose_action":
+                    continue
+                with recorder.step(OperationName.EXECUTE_TOOL, intent="propose_action") as s:
+                    inp = tc["input"]
+                    s.set_action_input(inp)
+                    try:
                         pending = propose_action(
                             db=db,
                             user_id=user_id,
@@ -1583,7 +1604,9 @@ class CoachEngine:
                             summary=inp["summary"],
                             user_message=user_message,
                         )
-                        retry_actions.append({
+                        # BUG #017 fix: Hem 'id' hem 'action_id' iceriyor (geriye uyumlu)
+                        # BUG #027: _warning_text instance attr → SQLAlchemy expire'dan bağımsız
+                        proposed_actions.append({
                             "id": pending.id,
                             "action_id": pending.id,
                             "action_type": pending.action_type,
@@ -1591,86 +1614,183 @@ class CoachEngine:
                             "payload": inp["payload"],
                             "warning": getattr(pending, "_warning_text", None),
                         })
+                        s.observation = f"Aksiyon: action_id={pending.id}"
                     except ValueError as e:
-                        if "HESAP_BELIRSIZ" in str(e):
+                        s.observation = f"Belirsizlik: {str(e)[:200]}"
+                        if "HESAP_BELIRSIZ" in str(e):  # BUG #042 fix
                             account_unclear = True
+                        elif "TARIH_BELIRSIZ" in str(e):  # BUG #044 fix
+                            date_unclear = True
                         else:
-                            logger.error(f"retry propose_action hatasi: {e}")
+                            logger.error(f"propose_action hatasi: {e}")
                     except Exception as e:
-                        logger.error(f"retry propose_action hatasi: {e}")
-                if retry_actions:
-                    proposed_actions = retry_actions
-                    llm_response = retry_response
-                elif not account_unclear:
-                    llm_response.text = (
-                        "Aksiyon hazırlanamadı. Mesajını biraz farklı şekilde tekrar gönder, "
-                        "örneğin: '240 TL yemek kart'."
-                    )
-            except Exception as e:
-                logger.warning(f"BUG #043 retry basarisiz, orijinal cevaba donuluyor: {e}")
+                        s.observation = f"Hata: {str(e)[:200]}"
+                        logger.error(f"propose_action hatasi: {e}")
 
-        # BUG #049 fix: is_q=True ve boş cevap → soru retry (tools=[], sadece text iste)
-        elif (is_q and not (llm_response.text or "").strip()):
-            logger.warning(f"BUG #049 soru retry tetiklendi: {user_message!r}")
-            try:
-                nudge = {"role": "user", "content": "[RETRY: Kullanıcı bir soru sordu. Lütfen Türkçe kısa bir analiz yaz, tool çağırma.]"}
-                retry_response = self.provider.chat(
-                    system_prompt=system_prompt,
-                    messages=messages + [nudge],
-                    tools=[],  # save_insight dahil hiç tool yok — sadece saf metin
-                )
-                if retry_response.text and retry_response.text.strip():
-                    llm_response.text = retry_response.text
-                    logger.info("BUG #049 soru retry basarili")
-            except Exception as e:
-                logger.warning(f"BUG #049 soru retry basarisiz, orijinal cevaba donuluyor: {e}")
+            # --------------------------------------------------------
+            # STEP E: Retry (BUG #043/#045 ve BUG #049)
+            # --------------------------------------------------------
+            # BUG #043/#045: Boş cevap VEYA sahte niyet tespit edilirse tek retry
+            if (not proposed_actions and not account_unclear and not date_unclear
+                    and not is_q
+                    and (not (llm_response.text or "").strip()
+                         or _FAKE_NIYET_RE.search(llm_response.text or ""))):
+                logger.warning(f"BUG #045/#043 retry tetiklendi: {user_message!r}")
+                try:
+                    retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
+                    with recorder.step(OperationName.LLM_CALL, intent="Retry: propose_action zorla",
+                                       parent_step_id=first_llm_step_db_id) as s:
+                        try:
+                            retry_response = self.provider.chat(
+                                system_prompt=retry_prompt,
+                                messages=messages,
+                                tools=active_tools,
+                            )
+                            s.observation = (retry_response.text or "")[:500]
+                            s.provider_system = retry_response.provider_used
+                            s.model_name = retry_response.model_name
+                            if retry_response.usage:
+                                s.usage_input_tokens = retry_response.usage.get("input_tokens")
+                                s.usage_output_tokens = retry_response.usage.get("output_tokens")
+                        except Exception as exc:
+                            s.observation = f"Retry basarisiz: {type(exc).__name__}"
+                            raise
+                    retry_actions = []
+                    for tc in retry_response.tool_calls:
+                        if tc["name"] != "propose_action":
+                            continue
+                        try:
+                            inp = tc["input"]
+                            pending = propose_action(
+                                db=db,
+                                user_id=user_id,
+                                action_type=inp["action_type"],
+                                payload=inp["payload"],
+                                summary=inp["summary"],
+                                user_message=user_message,
+                            )
+                            retry_actions.append({
+                                "id": pending.id,
+                                "action_id": pending.id,
+                                "action_type": pending.action_type,
+                                "summary": pending.summary,
+                                "payload": inp["payload"],
+                                "warning": getattr(pending, "_warning_text", None),
+                            })
+                        except ValueError as e:
+                            if "HESAP_BELIRSIZ" in str(e):
+                                account_unclear = True
+                            else:
+                                logger.error(f"retry propose_action hatasi: {e}")
+                        except Exception as e:
+                            logger.error(f"retry propose_action hatasi: {e}")
+                    if retry_actions:
+                        proposed_actions = retry_actions
+                        llm_response = retry_response
+                    elif not account_unclear:
+                        llm_response.text = (
+                            "Aksiyon hazırlanamadı. Mesajını biraz farklı şekilde tekrar gönder, "
+                            "örneğin: '240 TL yemek kart'."
+                        )
+                except Exception as e:
+                    logger.warning(f"BUG #043 retry basarisiz, orijinal cevaba donuluyor: {e}")
 
-        # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
-        clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)
-        # BUG #042 fix: Hesap belirsizse propose_action oluşmadı, soru sor
-        if account_unclear and not proposed_actions:
-            clean_text = "Hangi hesaptan? 'kartla' veya 'nakitten' eklersen hemen kaydederim."
-        # BUG #044 fix: Tarih tutarsızsa propose_action oluşmadı, yönlendir
-        if date_unclear and not proposed_actions:
-            clean_text = "Tarih bilgisi tutarsız. Tarihi açıkça belirt ('3 Mayıs'ta' gibi) veya hiç yazma — tarih yoksa bugün olarak kaydederim."
-        # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
-        reply = _build_smart_reply(clean_text, proposed_actions)
+            # BUG #049 fix: is_q=True ve boş cevap → soru retry (tools=[], sadece text iste)
+            elif (is_q and not (llm_response.text or "").strip()):
+                logger.warning(f"BUG #049 soru retry tetiklendi: {user_message!r}")
+                try:
+                    nudge = {"role": "user", "content": "[RETRY: Kullanıcı bir soru sordu. Lütfen Türkçe kısa bir analiz yaz, tool çağırma.]"}
+                    with recorder.step(OperationName.LLM_CALL, intent="Retry: soru yaniti",
+                                       parent_step_id=first_llm_step_db_id) as s:
+                        try:
+                            retry_response = self.provider.chat(
+                                system_prompt=system_prompt,
+                                messages=messages + [nudge],
+                                tools=[],  # save_insight dahil hiç tool yok — sadece saf metin
+                            )
+                            s.observation = (retry_response.text or "")[:500]
+                            s.provider_system = retry_response.provider_used
+                            s.model_name = retry_response.model_name
+                        except Exception as exc:
+                            s.observation = f"Retry basarisiz: {type(exc).__name__}"
+                            raise
+                    if retry_response.text and retry_response.text.strip():
+                        llm_response.text = retry_response.text
+                        logger.info("BUG #049 soru retry basarili")
+                except Exception as e:
+                    logger.warning(f"BUG #049 soru retry basarisiz, orijinal cevaba donuluyor: {e}")
 
-        self._save_message(db, user_id, "user", user_message)
-        # Wave-2 H1G2: olay-tetikli davranissal hafiza extractor'lari
-        from app.scheduler import trigger_after_user_message
-        trigger_after_user_message(db, user_id)
-        if proposed_actions:
-            # BUG #036 fix: Tool call bilgisini history'ye yaz — placeholder degil gercek kayit
-            tool_calls_data = [
-                {
-                    "id": f"call_{a.get('action_id', i)}",
-                    "name": "propose_action",
-                    "args": a.get("payload", {}),
-                }
-                for i, a in enumerate(proposed_actions)
-            ]
-            self._save_message(
-                db, user_id, "assistant",
-                content=clean_text,
-                tool_calls=tool_calls_data,
-                pending_action_ids=[a["id"] for a in proposed_actions],  # BUG #046
-            )
-            for a in proposed_actions:
-                tc_id = f"call_{a.get('action_id', '?')}"
+            # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
+            clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)
+            # BUG #042 fix: Hesap belirsizse propose_action oluşmadı, soru sor
+            if account_unclear and not proposed_actions:
+                clean_text = "Hangi hesaptan? 'kartla' veya 'nakitten' eklersen hemen kaydederim."
+            # BUG #044 fix: Tarih tutarsızsa propose_action oluşmadı, yönlendir
+            if date_unclear and not proposed_actions:
+                clean_text = "Tarih bilgisi tutarsız. Tarihi açıkça belirt ('3 Mayıs'ta' gibi) veya hiç yazma — tarih yoksa bugün olarak kaydederim."
+            # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
+            reply = _build_smart_reply(clean_text, proposed_actions)
+
+            # --------------------------------------------------------
+            # STEP F: Final answer
+            # --------------------------------------------------------
+            with recorder.step(OperationName.FINAL_ANSWER, intent="Yanit kullaniciya hazir") as s:
+                s.observation = f"reply_len={len(reply)}, action_count={len(proposed_actions)}"
+                if account_unclear:
+                    s.inference = "account_unclear override"
+                elif date_unclear:
+                    s.inference = "date_unclear override"
+
+            # --------------------------------------------------------
+            # STEP 6: DB yazimi (CoachMemory)
+            # --------------------------------------------------------
+            self._save_message(db, user_id, "user", user_message)
+            # Wave-2 H1G2: olay-tetikli davranissal hafiza extractor'lari
+            from app.scheduler import trigger_after_user_message
+            trigger_after_user_message(db, user_id)
+            if proposed_actions:
+                # BUG #036 fix: Tool call bilgisini history'ye yaz — placeholder degil gercek kayit
+                tool_calls_data = [
+                    {
+                        "id": f"call_{a.get('action_id', i)}",
+                        "name": "propose_action",
+                        "args": a.get("payload", {}),
+                    }
+                    for i, a in enumerate(proposed_actions)
+                ]
                 self._save_message(
-                    db, user_id, "tool",
-                    content=f"action_id={a.get('action_id')}, status=pending, summary={a.get('summary', '')}",
-                    tool_call_id=tc_id,
+                    db, user_id, "assistant",
+                    content=clean_text,
+                    tool_calls=tool_calls_data,
+                    pending_action_ids=[a["id"] for a in proposed_actions],  # BUG #046
                 )
-        else:
-            self._save_message(db, user_id, "assistant", content=reply)
+                for a in proposed_actions:
+                    tc_id = f"call_{a.get('action_id', '?')}"
+                    self._save_message(
+                        db, user_id, "tool",
+                        content=f"action_id={a.get('action_id')}, status=pending, summary={a.get('summary', '')}",
+                        tool_call_id=tc_id,
+                    )
+            else:
+                self._save_message(db, user_id, "assistant", content=reply)
 
-        return {
-            "reply": reply,
-            "proposed_actions": proposed_actions,
-            "cockpit_snapshot": cockpit_dict,
-        }
+            # Backfill: assistant CoachMemory satiri ile trace'leri bagla
+            last_assistant = (
+                db.query(CoachMemory)
+                .filter_by(user_id=user_id, role="assistant")
+                .order_by(CoachMemory.timestamp.desc())
+                .first()
+            )
+            if last_assistant:
+                recorder.set_coach_memory_id(last_assistant.id)
+
+            return {
+                "reply": reply,
+                "proposed_actions": proposed_actions,
+                "cockpit_snapshot": cockpit_dict,
+            }
+        finally:
+            recorder.close()
 
     def reset_history(self, db: Session, user_id: int) -> int:
         deleted = db.query(CoachMemory).filter(CoachMemory.user_id == user_id).delete()

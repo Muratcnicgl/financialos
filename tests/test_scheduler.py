@@ -2,6 +2,7 @@
 
 import pytest
 from unittest.mock import patch
+from app.coach import LLMResponse
 from app.scheduler import (
     run_extractor,
     run_periodic_batch_for_user,
@@ -95,11 +96,10 @@ def test_coach_chat_triggers_user_message_hook(db_session, test_user, monkeypatc
     monkeypatch.setattr(scheduler_module, "trigger_after_user_message", fake_trigger)
 
     class _MockLLM:
+        NAME = "Mock"
+        model = "mock-model"
         def chat(self, system_prompt, messages, tools=None):
-            class R:
-                text = "Anlasilan."
-                tool_calls = []
-            return R()
+            return LLMResponse(text="Anlasilan.", tool_calls=[])
 
     engine = CoachEngine(provider=_MockLLM())
     try:

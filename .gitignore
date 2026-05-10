@@ -17,6 +17,8 @@ ENV/
 !.env.example
 
 # === Database ===
+# Local user data directory (runtime DB, snapshots, exports)
+data/
 data/*.db
 data/*.db-journal
 data/*.db-wal

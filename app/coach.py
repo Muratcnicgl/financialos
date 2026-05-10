@@ -1867,6 +1867,7 @@ class CoachEngine:
                 "reply": reply,
                 "proposed_actions": proposed_actions,
                 "cockpit_snapshot": cockpit_dict,
+                "coach_memory_id": last_assistant.id if last_assistant else None,
             }
         finally:
             recorder.close()

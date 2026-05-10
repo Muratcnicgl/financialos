@@ -75,6 +75,7 @@ class ChatResponse(BaseModel):
     proposed_actions: List[ProposedActionOut]
     cockpit_snapshot: Optional[Dict[str, Any]] = None
     usage: Optional[UsageInfo] = None
+    coach_memory_id: Optional[int] = None
 
 
 class ActionDTO(BaseModel):
@@ -297,6 +298,7 @@ def chat(
         ],
         cockpit_snapshot=result.get("cockpit_snapshot"),
         usage=post_usage,
+        coach_memory_id=result.get("coach_memory_id"),
     )
 
 

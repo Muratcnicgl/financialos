@@ -45,6 +45,9 @@ from app.coach_insights import (
     ST_INVESTMENT_LOSS_THRESHOLD_TL,
     ST_COMPOUND_PRIORITY,
     ST_DOMINANT_PRIORITY,
+    extract_explicit_red_line_k1,
+    ERL_DOMINANT_PRIORITY,
+    ERL_MAX_MESSAGE_LEN,
 )
 from app.models import (
     CoachInsight, ActionHistory, CoachMemory,
@@ -1129,4 +1132,149 @@ def test_st_dormant_sweep_on_recovery(db_session, test_user):
     db_session.refresh(card_first)
     assert card_first.status == "dormant"
     assert result2["dormant_swept"] >= 1
+
+
+# ============================================================
+# TESTS: explicit_red_line K1 (regex)
+# ============================================================
+
+def _erl_msg(db_session, user_id, content, days_ago=1):
+    """Test fixture: role='user' CoachMemory."""
+    msg = CoachMemory(
+        user_id=user_id, role="user",
+        content=content,
+        timestamp=datetime.utcnow() - timedelta(days=days_ago),
+    )
+    db_session.add(msg)
+    db_session.commit()
+    return msg
+
+
+def test_erl_no_match_no_insight(db_session, test_user):
+    """Net kirmizi cizgi yoksa hicbir insight uretilmez."""
+    _erl_msg(db_session, test_user.id, "TLY 3 lot satayim mi?")
+    _erl_msg(db_session, test_user.id, "Bu ay butcem nasil")
+    _erl_msg(db_session, test_user.id, "Kart borcunu odemeyi dusunuyorum")
+
+    result = extract_explicit_red_line_k1(db_session, test_user.id)
+
+    assert result["matched_messages"] == 0
+    assert result["new_insights"] == 0
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="explicit_red_line",
+    ).all()
+    assert len(insights) == 0
+
+
+def test_erl_absolute_refusal_match(db_session, test_user):
+    """'asla X yapmam' kalibi -> mutlak_red kategori, active insight."""
+    _erl_msg(db_session, test_user.id, "Asla yeni kredi kart acmam.")
+
+    result = extract_explicit_red_line_k1(db_session, test_user.id)
+
+    assert result["matched_messages"] == 1
+    assert result["new_insights"] == 1
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="explicit_red_line",
+    ).first()
+    assert insight is not None
+    assert "mutlak_red" in insight.title
+    assert insight.sort_priority == ERL_DOMINANT_PRIORITY  # sort_priority=15
+    assert insight.confidence_basis == "data_grounded"
+
+    refs = json.loads(insight.source_refs)
+    assert len(refs) == 1
+    assert refs[0].startswith("coach_memory:")
+
+
+def test_erl_intent_statement_match(db_session, test_user):
+    """'X istemiyorum' kalibi -> niyet_beyani kategori."""
+    _erl_msg(db_session, test_user.id, "Kart kapatmak istemiyorum.")
+
+    result = extract_explicit_red_line_k1(db_session, test_user.id)
+
+    assert result["matched_messages"] == 1
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="explicit_red_line",
+    ).first()
+    assert insight is not None
+    assert "niyet_beyani" in insight.title
+
+
+def test_erl_question_excluded(db_session, test_user):
+    """Soru cumlesi (?) - belirsiz, K2'ye gider, K1 atlamali."""
+    _erl_msg(db_session, test_user.id, "Asla kart acmamali miyim?")
+
+    result = extract_explicit_red_line_k1(db_session, test_user.id)
+
+    assert result["matched_messages"] == 0
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="explicit_red_line",
+    ).all()
+    assert len(insights) == 0
+
+
+def test_erl_long_message_excluded(db_session, test_user):
+    """Cok uzun mesaj (>200 char) K2'ye gider."""
+    long_text = "Asla yapmam " + ("xx " * 100) + "bunu kesinlikle istemem."
+    assert len(long_text) > ERL_MAX_MESSAGE_LEN
+    _erl_msg(db_session, test_user.id, long_text)
+
+    result = extract_explicit_red_line_k1(db_session, test_user.id)
+
+    assert result["matched_messages"] == 0
+
+
+def test_erl_dedup_idempotent(db_session, test_user):
+    """Ayni mesaj 2 kez extract calistirildiginda evidence_count sismez,
+    skipped_dedup artar."""
+    _erl_msg(db_session, test_user.id, "Asla yeni kredi cekmem.")
+
+    result1 = extract_explicit_red_line_k1(db_session, test_user.id)
+    assert result1["new_insights"] == 1
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="explicit_red_line",
+    ).first()
+    refs1 = json.loads(insight.source_refs)
+    assert len(refs1) == 1
+    evidence_after_first = insight.evidence_count
+
+    result2 = extract_explicit_red_line_k1(db_session, test_user.id)
+
+    assert result2["new_insights"] == 0
+    assert result2["skipped_dedup"] >= 1
+
+    db_session.refresh(insight)
+    refs2 = json.loads(insight.source_refs)
+    assert len(refs2) == 1
+    assert insight.evidence_count == evidence_after_first
+
+
+def test_erl_multiple_patterns_same_message(db_session, test_user):
+    """Bir mesajda 2 pattern eslesirse 2 ayri insight uretilir."""
+    _erl_msg(db_session, test_user.id, "Asla kredi cekmem ve kart kapatmak istemiyorum.")
+
+    result = extract_explicit_red_line_k1(db_session, test_user.id)
+
+    assert result["new_insights"] >= 2
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="explicit_red_line",
+    ).all()
+    titles = {ins.title for ins in insights}
+    has_mutlak = any("mutlak_red" in t for t in titles)
+    has_niyet = any("niyet_beyani" in t for t in titles)
+    assert has_mutlak
+    assert has_niyet
 

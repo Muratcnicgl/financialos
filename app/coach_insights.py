@@ -1610,3 +1610,224 @@ def extract_setback(db: Session, user_id: int) -> dict:
             "skipped_reason": None,
         }
 
+
+# ============================================================
+# EXTRACTOR 8/9: explicit_red_line K1 (Honcho Dream Layer 1)
+# ============================================================
+# Sektor temeli:
+# - Honcho Dream paterni (Plan v3 H1G1 karari) - iki katmanli kirmizi cizgi
+#   tespiti. K1 = anlik regex, K2 = gece batch LLM consolidation.
+# - Mem0 fact-extraction limitations (Atlan benchmarks) - implicit preference
+#   detection %30-45, K1 sadece EXPLICIT statement'a bakar.
+# - Turkish negative concord (Springer Linguistic Theory 2022) - Turkce strict
+#   NC dili. "asla", "hic", "kesinlikle" + olumsuz fiil mutlak red ifadesi.
+#
+# Mantik: coach_memories role='user' son 90 gun mesajlari taranir, NET kirmizi
+# cizgi ifadeleri regex ile yakalanir. Her tespit insight olarak yazilir.
+# Aynı message_id 2 kez sayilmaz (deduplication source_refs uzerinden).
+#
+# Sektor felsefesi: K1 SADECE EXPLICIT statement'lari yakalar, implicit
+# preference yok. False positive %0 olmasi sart - bu sebeple cok spesifik
+# regex'ler. Belirsiz ifadeler ("istemem aslinda", "olur mu acaba") K2'ye
+# birakilir (LLM nuance anlar).
+#
+# Veri kaynagi: coach_memories tablosu (role='user').
+# Tetikleme: Periyodik (lifespan startup hook) - olay-tetikli de calisabilir
+#           coach.py icinde mesaj kaydedildikten sonra cagirilir.
+# Helper: _save_or_update_insight (Wave-1 incremental helper).
+# Confidence: 'data_grounded' - kullanicinin kendi sozu, ham veri.
+
+# Turkce explicit red line regex desenleri - 5 kategori
+ERL_PATTERNS = [
+    # 1. Mutlak red: "asla X'mam"
+    {
+        "category": "mutlak_red",
+        "pattern": re.compile(
+            r"\basla\s+(?:[a-zçğıöşüA-ZÇĞIİÖŞÜ\s]{1,40}?)(?:mam|mem|mayacagim|meyecegim|mayacağım|meyeceğim|maz|mez)\b",
+            re.IGNORECASE | re.UNICODE,
+        ),
+    },
+    # 2. Niyet beyani: "X istemiyorum / istemem"
+    {
+        "category": "niyet_beyani",
+        "pattern": re.compile(
+            r"\b(?:[a-zçğıöşüA-ZÇĞIİÖŞÜ\s]{2,50}?)\s+(?:istemiyorum|istemem|istemiyrum)\b",
+            re.IGNORECASE | re.UNICODE,
+        ),
+    },
+    # 3. Vaat: "bir daha X cekmem/almam/yapmam/acmam/kapatmam"
+    {
+        "category": "vaat",
+        "pattern": re.compile(
+            r"\bbir\s+daha\s+(?:[a-zçğıöşüA-ZÇĞIİÖŞÜ\s]{1,40}?)\s+(?:çekmem|cekmem|almam|yapmam|açmam|acmam|kapatmam|odemem|ödemem|harcamam)\b",
+            re.IGNORECASE | re.UNICODE,
+        ),
+    },
+    # 4. Kesin reddetme: "kesinlikle X-maz/mez/mam/mem"
+    {
+        "category": "kesin_red",
+        "pattern": re.compile(
+            r"\bkesinlikle\s+(?:[a-zçğıöşüA-ZÇĞIİÖŞÜ\s]{1,40}?)(?:maz|mez|mam|mem|miyorum|miyrum)\b",
+            re.IGNORECASE | re.UNICODE,
+        ),
+    },
+    # 5. Acik sinir: "kirmizi cizgi(m)"
+    {
+        "category": "acik_sinir",
+        "pattern": re.compile(
+            r"\bkırmızı\s+çizgi(?:m|mdir)?\b|\bkirmizi\s+cizgi(?:m|mdir)?\b",
+            re.IGNORECASE | re.UNICODE,
+        ),
+    },
+]
+
+ERL_PERIOD_DAYS = 90
+ERL_MAX_MESSAGE_LEN = 200      # Cok uzun mesajlar K2'ye birakilir
+ERL_DOMINANT_PRIORITY = 15     # EN YUKSEK - kirmizi cizgi en kritik sinyal
+
+
+def _erl_extract_match_text(match, full_text: str, max_len: int = 80) -> str:
+    """Match etrafindaki kisa baglami cikar (insight title icin)."""
+    start = max(0, match.start() - 10)
+    end = min(len(full_text), match.end() + 20)
+    excerpt = full_text[start:end].strip()
+    if len(excerpt) > max_len:
+        excerpt = excerpt[:max_len].rstrip() + "..."
+    return excerpt
+
+
+def _erl_already_processed(memory_id: int, source_refs_json: str | None) -> bool:
+    """Bu memory_id daha once islenmis mi (deduplication)."""
+    if not source_refs_json:
+        return False
+    try:
+        refs = json.loads(source_refs_json)
+        if isinstance(refs, list):
+            return f"coach_memory:{memory_id}" in refs
+        return False
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+
+def extract_explicit_red_line_k1(db: Session, user_id: int) -> dict:
+    """
+    Son 90 gun user mesajlarinda explicit kirmizi cizgi ifadelerini regex ile yakala.
+    Honcho Dream Layer 1 - %0 false positive hedefli, sadece NET ifadeler.
+
+    Donus: {"matched_messages": int, "new_insights": int, "updated_insights": int,
+            "skipped_dedup": int, "scanned_messages": int}
+    """
+    with extractor_telemetry("explicit_red_line_k1", user_id=user_id):
+        cutoff = datetime.utcnow() - timedelta(days=ERL_PERIOD_DAYS)
+
+        messages = (
+            db.query(CoachMemory)
+            .filter(
+                CoachMemory.user_id == user_id,
+                CoachMemory.role == "user",
+                CoachMemory.timestamp >= cutoff,
+            )
+            .order_by(CoachMemory.timestamp.asc())
+            .all()
+        )
+
+        existing_insights = (
+            db.query(CoachInsight)
+            .filter(
+                CoachInsight.user_id == user_id,
+                CoachInsight.insight_type == "explicit_red_line",
+            )
+            .all()
+        )
+        existing_refs_map = {ins.title: ins.source_refs for ins in existing_insights}
+        existing_titles = {ins.title for ins in existing_insights}
+
+        matched_messages = 0
+        new_insights = 0
+        updated_insights = 0
+        skipped_dedup = 0
+        seen_titles_this_run: set = set()
+
+        for msg in messages:
+            content = (msg.content or "").strip()
+            if not content or len(content) > ERL_MAX_MESSAGE_LEN:
+                continue
+            if content.endswith("?"):
+                continue
+
+            msg_matched = False
+
+            for pat_def in ERL_PATTERNS:
+                category = pat_def["category"]
+                pattern = pat_def["pattern"]
+
+                match = pattern.search(content)
+                if not match:
+                    continue
+
+                excerpt = _erl_extract_match_text(match, content)
+                title = f"Kirmizi cizgi [{category}]: {excerpt}"
+                if len(title) > 200:
+                    title = title[:197] + "..."
+
+                existing_refs_json = existing_refs_map.get(title)
+                if _erl_already_processed(msg.id, existing_refs_json):
+                    skipped_dedup += 1
+                    continue
+
+                if existing_refs_json:
+                    try:
+                        refs_list = json.loads(existing_refs_json)
+                        if not isinstance(refs_list, list):
+                            refs_list = []
+                    except (json.JSONDecodeError, TypeError):
+                        refs_list = []
+                else:
+                    refs_list = []
+
+                refs_list.append(f"coach_memory:{msg.id}")
+                if len(refs_list) > 50:
+                    refs_list = refs_list[-50:]
+
+                content_text = (
+                    f"Kullanici acikca '{category}' kategorisinde bir kirmizi cizgi "
+                    f"ifade etti. Tetikleyici metin: \"{excerpt}\". Bu ifade kullanicinin "
+                    f"kendi sozune dayanir, kanit dogrudan."
+                )
+
+                _save_or_update_insight(
+                    db=db,
+                    user_id=user_id,
+                    insight_type="explicit_red_line",
+                    title=title,
+                    content=content_text,
+                    confidence_basis="data_grounded",
+                    source_refs=refs_list,
+                    is_supporting_evidence=True,
+                    para_category="area",
+                    priority=ERL_DOMINANT_PRIORITY,
+                )
+
+                existing_refs_map[title] = json.dumps(refs_list)
+
+                if title not in seen_titles_this_run:
+                    seen_titles_this_run.add(title)
+                    if title in existing_titles:
+                        updated_insights += 1
+                    else:
+                        new_insights += 1
+                        existing_titles.add(title)
+
+                msg_matched = True
+
+            if msg_matched:
+                matched_messages += 1
+
+        return {
+            "matched_messages": matched_messages,
+            "new_insights": new_insights,
+            "updated_insights": updated_insights,
+            "skipped_dedup": skipped_dedup,
+            "scanned_messages": len(messages),
+        }
+

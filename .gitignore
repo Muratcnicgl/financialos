@@ -12,6 +12,7 @@ ENV/
 # === Environment ===
 .env
 .env.local
+.env.*
 *.env.bak
 !.env.example
 
@@ -25,7 +26,7 @@ data/*.db-shm
 data/*.backup_*
 
 # === asistan araci ===
-.asistan/settings.local.json
+.asistan/
 
 # === IDE ===
 .idea/

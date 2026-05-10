@@ -23,8 +23,12 @@ from app.coach_insights import (
     QT_RQ_THRESHOLD,
     QT_HEALTHY_PRIORITY,
     QT_WARNING_PRIORITY,
+    extract_category_account_preference,
+    CAP_DOMINANT_THRESHOLD,
+    CAP_MIN_TRANSACTIONS,
+    CAP_DOMINANT_PRIORITY,
 )
-from app.models import CoachInsight, ActionHistory, CoachMemory
+from app.models import CoachInsight, ActionHistory, CoachMemory, Transaction, TransactionType, Account
 
 
 class TestDecisionRhythm:
@@ -543,4 +547,168 @@ def test_qt_idempotent_rerun(db_session, test_user):
     assert count1 == count2 == 4
     assert result2["created"] == 0
     assert result2["updated"] == 4
+
+
+# ============================================================
+# TESTS: category_account_preference
+# ============================================================
+
+def _make_account(db_session, user_id, name, account_type="cash"):
+    """Test fixture: hesap olustur."""
+    from app.models import AccountType
+    acct = Account(
+        user_id=user_id,
+        name=name,
+        account_type=AccountType(account_type) if isinstance(account_type, str) else account_type,
+        balance=0.0,
+    )
+    db_session.add(acct)
+    db_session.commit()
+    return acct
+
+
+def _make_expense(db_session, user_id, account_id, category, amount=50.0, days_ago=1):
+    """Test fixture: expense transaction."""
+    tx = Transaction(
+        user_id=user_id,
+        account_id=account_id,
+        transaction_type=TransactionType.expense,
+        amount=amount,
+        category=category,
+        transaction_date=(datetime.utcnow() - timedelta(days=days_ago)).date(),
+        description=f"test {category}",
+    )
+    db_session.add(tx)
+    db_session.commit()
+    return tx
+
+
+def test_cap_insufficient_transactions(db_session, test_user):
+    """3 islem < 5 esigi -> hicbir insight uretilmemeli."""
+    acct = _make_account(db_session, test_user.id, "Nakit", "cash")
+    for i in range(3):
+        _make_expense(db_session, test_user.id, acct.id, "yiyecek", days_ago=i+1)
+
+    result = extract_category_account_preference(db_session, test_user.id)
+
+    assert result["dominant_count"] == 0
+    assert result["created"] == 0
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="category_account_preference",
+    ).all()
+    assert len(insights) == 0
+
+
+def test_cap_dominant_pattern_active(db_session, test_user):
+    """yiyecek kategorisinde 8/10 (%80) Garanti Kart -> active insight."""
+    cash = _make_account(db_session, test_user.id, "Nakit Kasa", "cash")
+    card = _make_account(db_session, test_user.id, "Garanti Kart", "credit_card")
+
+    for i in range(8):
+        _make_expense(db_session, test_user.id, card.id, "yiyecek", days_ago=i+1)
+    for i in range(2):
+        _make_expense(db_session, test_user.id, cash.id, "yiyecek", days_ago=10+i)
+
+    result = extract_category_account_preference(db_session, test_user.id)
+
+    assert result["created"] == 1
+    assert result["dominant_count"] == 1
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Kategori tercihi: yiyecek",
+    ).first()
+    assert insight is not None
+    assert insight.status == "active"
+    assert insight.evidence_count == 8
+    assert insight.sort_priority == CAP_DOMINANT_PRIORITY
+    assert insight.confidence_basis == "data_grounded"
+    assert "Garanti Kart" in insight.content
+    assert "80%" in insight.content
+
+
+def test_cap_no_dominant_below_threshold(db_session, test_user):
+    """6/10 (%60) - %70 esiginin altinda -> insight YOK."""
+    cash = _make_account(db_session, test_user.id, "Nakit", "cash")
+    card = _make_account(db_session, test_user.id, "Kart", "credit_card")
+
+    for i in range(6):
+        _make_expense(db_session, test_user.id, card.id, "ulasim", days_ago=i+1)
+    for i in range(4):
+        _make_expense(db_session, test_user.id, cash.id, "ulasim", days_ago=7+i)
+
+    result = extract_category_account_preference(db_session, test_user.id)
+
+    assert result["dominant_count"] == 0
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="category_account_preference",
+    ).all()
+    assert len(insights) == 0
+
+
+def test_cap_multiple_categories_dormant_sweep(db_session, test_user):
+    """1. cagri: yiyecek + ulasim dominant (2 active insight).
+    2. cagri: ulasim'da yeni hesap dominant olur, yiyecek dominant kaybeder.
+    Eski yiyecek insight 'dormant' olmali (full-state sweep)."""
+    cash = _make_account(db_session, test_user.id, "Nakit", "cash")
+    card1 = _make_account(db_session, test_user.id, "Kart1", "credit_card")
+    card2 = _make_account(db_session, test_user.id, "Kart2", "credit_card")
+
+    # Asama 1: yiyecek -> Kart1 dominant (8/10), ulasim -> Nakit dominant (7/8)
+    for i in range(8):
+        _make_expense(db_session, test_user.id, card1.id, "yiyecek", days_ago=i+1)
+    for i in range(2):
+        _make_expense(db_session, test_user.id, cash.id, "yiyecek", days_ago=10+i)
+    for i in range(7):
+        _make_expense(db_session, test_user.id, cash.id, "ulasim", days_ago=i+1)
+    _make_expense(db_session, test_user.id, card1.id, "ulasim", days_ago=15)
+
+    result1 = extract_category_account_preference(db_session, test_user.id)
+    assert result1["dominant_count"] == 2
+    assert result1["created"] == 2
+
+    yiyecek_first = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id, title="Kategori tercihi: yiyecek",
+    ).first()
+    assert yiyecek_first.status == "active"
+
+    # Asama 2: yiyecek'e cok Nakit ekle (Kart1 artik dominant degil)
+    for i in range(10):
+        _make_expense(db_session, test_user.id, cash.id, "yiyecek", days_ago=20+i)
+
+    result2 = extract_category_account_preference(db_session, test_user.id)
+
+    db_session.refresh(yiyecek_first)
+    assert yiyecek_first.status == "dormant", \
+        f"yiyecek dormant olmaliydi ama {yiyecek_first.status}"
+    assert result2["dormant_swept"] >= 1
+
+
+def test_cap_idempotent_rerun(db_session, test_user):
+    """Ayni veri 2 kez -> insight sayisi sabit, created=0."""
+    card = _make_account(db_session, test_user.id, "Kart", "credit_card")
+    cash = _make_account(db_session, test_user.id, "Nakit", "cash")
+    for i in range(8):
+        _make_expense(db_session, test_user.id, card.id, "yiyecek", days_ago=i+1)
+    for i in range(2):
+        _make_expense(db_session, test_user.id, cash.id, "yiyecek", days_ago=10+i)
+
+    result1 = extract_category_account_preference(db_session, test_user.id)
+    count1 = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id, insight_type="category_account_preference",
+    ).count()
+
+    result2 = extract_category_account_preference(db_session, test_user.id)
+    count2 = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id, insight_type="category_account_preference",
+    ).count()
+
+    assert count1 == count2 == 1
+    assert result2["created"] == 0
+    assert result2["updated"] == 1
+    assert result2["dormant_swept"] == 0
 

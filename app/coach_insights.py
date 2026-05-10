@@ -44,6 +44,7 @@ from collections import Counter
 from app.models import (
     CoachInsight,
     Transaction,
+    TransactionType,
     ActionHistory,
     CoachMemory,
     PendingAction,
@@ -809,5 +810,150 @@ def extract_question_typology(db: Session, user_id: int) -> dict:
             "created": created, "updated": updated,
             "skipped_reason": None,
             "metrics": base_refs,
+        }
+
+
+# ============================================================
+# EXTRACTOR 4/9: category_account_preference
+# ============================================================
+# Sektor temeli: Mental accounting (Thaler 1985) + NBER 2023 (Agarwal et al.)
+# "individuals use the same card for the same purpose" - kategori bazli hesap
+# tercihi davranissal olarak olculmus istatistiki anlamli patern.
+#
+# Mantik: Son 90 gun expense transaction'lar, kategori-hesap esleşmesi.
+# Bir kategori icin dominant hesap (count >= 5 AND share >= %70) -> active insight.
+# Pattern bozulursa (yeni hesap tercihi vs) -> dormant'a duser.
+#
+# Veri kaynagi: transactions tablosu (transaction_type='expense', category NOT NULL,
+# account_id NOT NULL).
+# Tetikleme: Periyodik (lifespan startup hook + APScheduler).
+# Helper: _upsert_insight_absolute + ek dormant cleanup pass.
+
+CAP_PERIOD_DAYS = 90
+CAP_MIN_TRANSACTIONS = 5      # Min anlamli sample
+CAP_DOMINANT_THRESHOLD = 0.70  # %70 dominant esik
+CAP_DOMINANT_PRIORITY = 8
+
+
+def extract_category_account_preference(db: Session, user_id: int) -> dict:
+    """
+    Son 90 gun expense transaction'larinda kategori basina dominant hesabi tespit eder.
+    Full-state UPSERT: her cagrida hem yeni dominant'lari yazar/gunceller, hem de
+    eski dominant olup artik olmayan insight'lari dormant'a indirir.
+
+    Donus: {"created": int, "updated": int, "dormant_swept": int,
+            "dominant_count": int, "categories_analyzed": int}
+    """
+    with extractor_telemetry("category_account_preference", user_id=user_id):
+        cutoff = datetime.utcnow() - timedelta(days=CAP_PERIOD_DAYS)
+
+        # 1) Account isimlerini bir defa cek (label icin)
+        accounts = db.query(Account).filter(Account.user_id == user_id).all()
+        account_name_map = {a.id: a.name for a in accounts}
+
+        # 2) Son 90 gun expense + category NOT NULL + account NOT NULL
+        rows = (
+            db.query(Transaction.category, Transaction.account_id, func.count(Transaction.id))
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.transaction_type == TransactionType.expense,
+                Transaction.category.isnot(None),
+                Transaction.account_id.isnot(None),
+                Transaction.transaction_date >= cutoff.date(),
+            )
+            .group_by(Transaction.category, Transaction.account_id)
+            .all()
+        )
+
+        # 3) Kategori bazinda toplam ve hesap bazinda count cikar
+        per_category: dict = {}  # category -> {account_id: count}
+        for category, account_id, cnt in rows:
+            per_category.setdefault(category, {})[account_id] = cnt
+
+        created = 0
+        updated = 0
+        active_titles_now: set = set()
+
+        # 4) Her kategori icin dominant hesap kontrolu
+        for category, acct_counts in per_category.items():
+            total = sum(acct_counts.values())
+            if total < CAP_MIN_TRANSACTIONS:
+                continue
+
+            top_account_id, top_count = max(acct_counts.items(), key=lambda kv: kv[1])
+            share = top_count / total
+
+            if share < CAP_DOMINANT_THRESHOLD:
+                continue
+
+            account_label = account_name_map.get(top_account_id, f"Hesap #{top_account_id}")
+            title = f"Kategori tercihi: {category}"
+            content = (
+                f"Son {CAP_PERIOD_DAYS} gunde '{category}' kategorisinde "
+                f"{total} expense islemi yapildi, bunlarin {top_count}/{total} "
+                f"({share*100:.0f}%) tanesi '{account_label}' hesabindan. "
+                f"Bu kategori icin dominant odeme tercihi tespit edildi."
+            )
+            source_refs = {
+                "period_days": CAP_PERIOD_DAYS,
+                "category": category,
+                "dominant_account_id": top_account_id,
+                "dominant_account_name": account_label,
+                "dominant_count": top_count,
+                "total_transactions": total,
+                "share": round(share, 3),
+                "all_accounts_distribution": {
+                    str(aid): cnt for aid, cnt in acct_counts.items()
+                },
+            }
+
+            r = _upsert_insight_absolute(
+                db=db, user_id=user_id,
+                insight_type="category_account_preference",
+                title=title, content=content,
+                confidence_basis="data_grounded",
+                source_refs=source_refs,
+                evidence_count=top_count,
+                sort_priority=CAP_DOMINANT_PRIORITY,
+                status="active",
+            )
+            if r == "created":
+                created += 1
+            elif r == "updated":
+                updated += 1
+
+            active_titles_now.add(title)
+
+        # 5) DORMANT SWEEP: Eski category_account_preference insight'lari arasinda
+        #    su an dominant olmayanlari dormant'a indir.
+        existing = (
+            db.query(CoachInsight)
+            .filter(
+                CoachInsight.user_id == user_id,
+                CoachInsight.insight_type == "category_account_preference",
+                CoachInsight.status == "active",
+            )
+            .all()
+        )
+
+        dormant_swept = 0
+        now = datetime.utcnow()
+        for ins in existing:
+            if ins.title in active_titles_now:
+                continue
+            ins.status = "dormant"
+            ins.last_seen_at = now
+            ins.sort_priority = 1
+            dormant_swept += 1
+
+        if dormant_swept > 0:
+            db.commit()
+
+        return {
+            "created": created,
+            "updated": updated,
+            "dormant_swept": dormant_swept,
+            "dominant_count": len(active_titles_now),
+            "categories_analyzed": len(per_category),
         }
 

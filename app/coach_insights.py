@@ -1353,3 +1353,260 @@ def extract_breakthrough(db: Session, user_id: int) -> dict:
             "skipped_reason": None,
         }
 
+
+# ============================================================
+# EXTRACTOR 7/9: setback
+# ============================================================
+# Sektor temeli:
+# - Loss Aversion (Tversky & Kahneman 1979) - kayiplar 2x agirlikli, esikleri
+#   breakthrough'tan daha siki tutuyoruz (~%50 daha hassas)
+# - Loss Aversion Online (arxiv 2601.14423, 2026) - crash duygusal tepki boom'dan
+#   daha guclu, false positive psikolojik zarar verir, kalibrasyon onemli
+# - FPA Behavioral Coaching (Kay) - "thoughtful framing activates loss aversion
+#   to move clients forward" - setback'i panik degil eylem motivasyonu olarak kur
+# - Risk Aversion design pattern - "fear-based marketing alienates users"
+#   insight content'i veri+oneri, dilekce degil
+#
+# Mantik: breakthrough'un ayna goruntusu - ayni altyapi, ters yon.
+#   1. Net worth kotulesmesi (-3K esik, breakthrough'tan %40 hassas)
+#   2. Kart borcu artisi (+1.5K esik)
+#   3. Kredi borcu artisi (+1.5K esik)
+#   4. Yatirim degeri kaybi (-2.5K esik)
+# YENI: Birden cok kotulesme bilesimi compound signal - sort_priority 9 (yuksek)
+#       tek bilesen - sort_priority 7 (orta)
+#
+# Veri kaynagi: net_worth_snapshot tablosu.
+# Tetikleme: Periyodik (lifespan startup hook + APScheduler).
+# Helper: Manuel SWEEP pass.
+
+ST_RECENT_WINDOW_DAYS = 30
+ST_BASELINE_WINDOW_DAYS = 90
+ST_MIN_SNAPSHOTS_RECENT = 20
+ST_MIN_SNAPSHOTS_BASELINE = 60
+ST_NET_WORTH_THRESHOLD_TL = 3000.0     # Breakthrough'un %60'i (loss aversion)
+ST_DEBT_INCREASE_THRESHOLD_TL = 1500.0
+ST_INVESTMENT_LOSS_THRESHOLD_TL = 2500.0
+ST_COMPOUND_PRIORITY = 9   # Birden fazla bilesen kotulesti
+ST_DOMINANT_PRIORITY = 7   # Tek bilesen kotulesti
+
+
+def extract_setback(db: Session, user_id: int) -> dict:
+    """
+    Net worth snapshot'larinda 30 gun vs 90 gun karsilastirmasi yaparak
+    finansal kotulesme sinyallerini insight olarak yazar (setback).
+
+    Donus: {"created": int, "updated": int, "dormant_swept": int,
+            "active_count": int, "compound_setback": bool, "skipped_reason": str | None}
+    """
+    with extractor_telemetry("setback", user_id=user_id):
+        from app.models import NetWorthSnapshot
+
+        now = datetime.utcnow()
+        recent_cutoff = (now - timedelta(days=ST_RECENT_WINDOW_DAYS)).date()
+        baseline_cutoff = (now - timedelta(days=ST_RECENT_WINDOW_DAYS + ST_BASELINE_WINDOW_DAYS)).date()
+
+        recent_snaps = (
+            db.query(NetWorthSnapshot)
+            .filter(
+                NetWorthSnapshot.user_id == user_id,
+                NetWorthSnapshot.snapshot_date >= recent_cutoff,
+            )
+            .all()
+        )
+        baseline_snaps = (
+            db.query(NetWorthSnapshot)
+            .filter(
+                NetWorthSnapshot.user_id == user_id,
+                NetWorthSnapshot.snapshot_date >= baseline_cutoff,
+                NetWorthSnapshot.snapshot_date < recent_cutoff,
+            )
+            .all()
+        )
+
+        if len(recent_snaps) < ST_MIN_SNAPSHOTS_RECENT or len(baseline_snaps) < ST_MIN_SNAPSHOTS_BASELINE:
+            existing = (
+                db.query(CoachInsight)
+                .filter(
+                    CoachInsight.user_id == user_id,
+                    CoachInsight.insight_type == "setback",
+                    CoachInsight.status == "active",
+                )
+                .all()
+            )
+            for ins in existing:
+                ins.status = "dormant"
+                ins.last_seen_at = now
+                ins.sort_priority = 1
+            if existing:
+                db.commit()
+
+            return {
+                "created": 0, "updated": 0,
+                "dormant_swept": len(existing),
+                "active_count": 0,
+                "compound_setback": False,
+                "skipped_reason": (
+                    f"insufficient_snapshots "
+                    f"(recent={len(recent_snaps)}<{ST_MIN_SNAPSHOTS_RECENT} or "
+                    f"baseline={len(baseline_snaps)}<{ST_MIN_SNAPSHOTS_BASELINE})"
+                ),
+            }
+
+        def avg(snaps, attr):
+            vals = [getattr(s, attr) or 0.0 for s in snaps]
+            return sum(vals) / len(vals) if vals else 0.0
+
+        metrics = {
+            "net_worth_full": (avg(recent_snaps, "net_worth_full"), avg(baseline_snaps, "net_worth_full")),
+            "card_debt": (avg(recent_snaps, "card_debt"), avg(baseline_snaps, "card_debt")),
+            "loan_debt": (avg(recent_snaps, "loan_debt"), avg(baseline_snaps, "loan_debt")),
+            "investment_value": (avg(recent_snaps, "investment_value"), avg(baseline_snaps, "investment_value")),
+        }
+
+        setbacks = []
+
+        # Net worth kotulesmesi
+        nw_recent, nw_base = metrics["net_worth_full"]
+        nw_drop = nw_base - nw_recent
+        if nw_drop >= ST_NET_WORTH_THRESHOLD_TL:
+            setbacks.append((
+                "Dikkat: Net deger kotulesmesi",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama net deger {nw_recent:,.0f} TL, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {nw_base:,.0f} TL idi. "
+                f"Dusus: -{nw_drop:,.0f} TL. Harcama-gelir dengesi gozden gecirilmeli.",
+                {
+                    "component": "net_worth_full",
+                    "recent_avg": round(nw_recent, 2),
+                    "baseline_avg": round(nw_base, 2),
+                    "drop": round(nw_drop, 2),
+                    "threshold": ST_NET_WORTH_THRESHOLD_TL,
+                    "recent_window_days": ST_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": ST_BASELINE_WINDOW_DAYS,
+                },
+                int(nw_drop / 1000),
+            ))
+
+        # Kart borcu artisi
+        cd_recent, cd_base = metrics["card_debt"]
+        cd_increase = cd_recent - cd_base
+        if cd_increase >= ST_DEBT_INCREASE_THRESHOLD_TL:
+            setbacks.append((
+                "Dikkat: Kart borcu artisi",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama kart borcu {cd_recent:,.0f} TL, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {cd_base:,.0f} TL idi. "
+                f"Artis: +{cd_increase:,.0f} TL. Kart kullanim disiplini onerilir.",
+                {
+                    "component": "card_debt",
+                    "recent_avg": round(cd_recent, 2),
+                    "baseline_avg": round(cd_base, 2),
+                    "increase": round(cd_increase, 2),
+                    "threshold": ST_DEBT_INCREASE_THRESHOLD_TL,
+                    "recent_window_days": ST_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": ST_BASELINE_WINDOW_DAYS,
+                },
+                int(cd_increase / 1000),
+            ))
+
+        # Kredi borcu artisi
+        ld_recent, ld_base = metrics["loan_debt"]
+        ld_increase = ld_recent - ld_base
+        if ld_increase >= ST_DEBT_INCREASE_THRESHOLD_TL:
+            setbacks.append((
+                "Dikkat: Kredi borcu artisi",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama kredi borcu {ld_recent:,.0f} TL, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {ld_base:,.0f} TL idi. "
+                f"Artis: +{ld_increase:,.0f} TL. Yeni kredi/refinansman kararlari gozden gecirilmeli.",
+                {
+                    "component": "loan_debt",
+                    "recent_avg": round(ld_recent, 2),
+                    "baseline_avg": round(ld_base, 2),
+                    "increase": round(ld_increase, 2),
+                    "threshold": ST_DEBT_INCREASE_THRESHOLD_TL,
+                    "recent_window_days": ST_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": ST_BASELINE_WINDOW_DAYS,
+                },
+                int(ld_increase / 1000),
+            ))
+
+        # Yatirim kaybi
+        iv_recent, iv_base = metrics["investment_value"]
+        iv_loss = iv_base - iv_recent
+        if iv_loss >= ST_INVESTMENT_LOSS_THRESHOLD_TL:
+            setbacks.append((
+                "Dikkat: Yatirim deger kaybi",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama yatirim degeri {iv_recent:,.0f} TL, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {iv_base:,.0f} TL idi. "
+                f"Kayip: -{iv_loss:,.0f} TL. Piyasa hareketi mi davranissal mi - ayrimi onemli.",
+                {
+                    "component": "investment_value",
+                    "recent_avg": round(iv_recent, 2),
+                    "baseline_avg": round(iv_base, 2),
+                    "loss": round(iv_loss, 2),
+                    "threshold": ST_INVESTMENT_LOSS_THRESHOLD_TL,
+                    "recent_window_days": ST_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": ST_BASELINE_WINDOW_DAYS,
+                },
+                int(iv_loss / 1000),
+            ))
+
+        is_compound = len(setbacks) >= 2
+        priority = ST_COMPOUND_PRIORITY if is_compound else ST_DOMINANT_PRIORITY
+
+        created = 0
+        updated = 0
+        active_titles_now: set = set()
+
+        for title, content, refs, evidence in setbacks:
+            if is_compound:
+                content += f" [Compound setback: {len(setbacks)} bilesen es zamanli kotulesti]"
+                refs["compound_setback"] = True
+                refs["compound_components"] = len(setbacks)
+
+            r = _upsert_insight_absolute(
+                db=db, user_id=user_id,
+                insight_type="setback",
+                title=title, content=content,
+                confidence_basis="data_grounded",
+                source_refs=refs,
+                evidence_count=max(1, evidence),
+                sort_priority=priority,
+                status="active",
+            )
+            if r == "created":
+                created += 1
+            elif r == "updated":
+                updated += 1
+            active_titles_now.add(title)
+
+        # DORMANT SWEEP
+        existing = (
+            db.query(CoachInsight)
+            .filter(
+                CoachInsight.user_id == user_id,
+                CoachInsight.insight_type == "setback",
+                CoachInsight.status == "active",
+            )
+            .all()
+        )
+
+        dormant_swept = 0
+        for ins in existing:
+            if ins.title in active_titles_now:
+                continue
+            ins.status = "dormant"
+            ins.last_seen_at = now
+            ins.sort_priority = 1
+            dormant_swept += 1
+
+        if dormant_swept > 0:
+            db.commit()
+
+        return {
+            "created": created,
+            "updated": updated,
+            "dormant_swept": dormant_swept,
+            "active_count": len(active_titles_now),
+            "compound_setback": is_compound,
+            "skipped_reason": None,
+        }
+

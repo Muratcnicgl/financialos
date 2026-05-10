@@ -39,6 +39,12 @@ from app.coach_insights import (
     BT_DOMINANT_PRIORITY,
     BT_MIN_SNAPSHOTS_RECENT,
     BT_MIN_SNAPSHOTS_BASELINE,
+    extract_setback,
+    ST_NET_WORTH_THRESHOLD_TL,
+    ST_DEBT_INCREASE_THRESHOLD_TL,
+    ST_INVESTMENT_LOSS_THRESHOLD_TL,
+    ST_COMPOUND_PRIORITY,
+    ST_DOMINANT_PRIORITY,
 )
 from app.models import (
     CoachInsight, ActionHistory, CoachMemory,
@@ -1008,5 +1014,119 @@ def test_bt_dormant_sweep_on_regression(db_session, test_user):
 
     db_session.refresh(inv_first)
     assert inv_first.status == "dormant"
+    assert result2["dormant_swept"] >= 1
+
+
+# ============================================================
+# TESTS: setback
+# ============================================================
+
+def test_st_insufficient_snapshots(db_session, test_user):
+    """Yetersiz veri -> insufficient."""
+    for i in range(10):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=1000)
+
+    result = extract_setback(db_session, test_user.id)
+
+    assert result["skipped_reason"] is not None
+    assert "insufficient_snapshots" in result["skipped_reason"]
+    assert result["active_count"] == 0
+
+
+def test_st_net_worth_drop_active(db_session, test_user):
+    """Recent ort -25K, baseline -20K -> 5K dusus, esik 3K -> active."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-25000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-20000.0)
+
+    result = extract_setback(db_session, test_user.id)
+
+    assert result["skipped_reason"] is None
+    assert result["active_count"] == 1
+    assert result["compound_setback"] is False
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Dikkat: Net deger kotulesmesi",
+    ).first()
+    assert insight is not None
+    assert insight.status == "active"
+    assert insight.sort_priority == ST_DOMINANT_PRIORITY
+    assert insight.confidence_basis == "data_grounded"
+
+
+def test_st_below_threshold_no_insight(db_session, test_user):
+    """1K dusus - 3K esiginin altinda -> insight YOK."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-21000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-20000.0)
+
+    result = extract_setback(db_session, test_user.id)
+
+    assert result["skipped_reason"] is None
+    assert result["active_count"] == 0
+
+
+def test_st_compound_setback_high_priority(db_session, test_user):
+    """Hem kart borcu artti hem yatirim azaldi -> 2 bilesen, COMPOUND, priority=9."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i,
+                       card_debt=8000.0, investment_value=12000.0,
+                       net_worth_full=4000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i,
+                       card_debt=2000.0, investment_value=20000.0,
+                       net_worth_full=18000.0)
+
+    result = extract_setback(db_session, test_user.id)
+
+    assert result["compound_setback"] is True
+    assert result["active_count"] >= 2
+
+    card = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Dikkat: Kart borcu artisi",
+    ).first()
+    assert card.status == "active"
+    assert card.sort_priority == ST_COMPOUND_PRIORITY
+    assert "[Compound setback:" in card.content
+
+    inv = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Dikkat: Yatirim deger kaybi",
+    ).first()
+    assert inv.status == "active"
+    assert inv.sort_priority == ST_COMPOUND_PRIORITY
+
+
+def test_st_dormant_sweep_on_recovery(db_session, test_user):
+    """1. cagri: kart borcu artmis -> active. 2. cagri: normalize -> dormant."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, card_debt=8000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i, card_debt=2000.0)
+
+    extract_setback(db_session, test_user.id)
+    card_first = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Dikkat: Kart borcu artisi",
+    ).first()
+    assert card_first is not None
+    assert card_first.status == "active"
+
+    db_session.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == test_user.id,
+        NetWorthSnapshot.snapshot_date >= (datetime.utcnow() - timedelta(days=30)).date(),
+    ).delete(synchronize_session=False)
+    db_session.commit()
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, card_debt=2000.0)
+
+    result2 = extract_setback(db_session, test_user.id)
+
+    db_session.refresh(card_first)
+    assert card_first.status == "dormant"
     assert result2["dormant_swept"] >= 1
 

@@ -9,6 +9,7 @@ Adaptasyon notu:
 - User modeli email alani icermez
 """
 
+import json
 import pytest
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
@@ -27,8 +28,16 @@ from app.coach_insights import (
     CAP_DOMINANT_THRESHOLD,
     CAP_MIN_TRANSACTIONS,
     CAP_DOMINANT_PRIORITY,
+    extract_action_rejection_pattern,
+    ARP_REJECTION_THRESHOLD,
+    ARP_MIN_RESOLVED,
+    ARP_DOMINANT_PRIORITY,
 )
-from app.models import CoachInsight, ActionHistory, CoachMemory, Transaction, TransactionType, Account
+from app.models import (
+    CoachInsight, ActionHistory, CoachMemory,
+    Transaction, TransactionType, Account,
+    PendingAction, ActionStatus,
+)
 
 
 class TestDecisionRhythm:
@@ -711,4 +720,151 @@ def test_cap_idempotent_rerun(db_session, test_user):
     assert result2["created"] == 0
     assert result2["updated"] == 1
     assert result2["dormant_swept"] == 0
+
+
+# ============================================================
+# TESTS: action_rejection_pattern
+# ============================================================
+
+def _make_pending(db_session, user_id, action_type, status, days_ago=1):
+    """Test fixture: PendingAction satiri olustur."""
+    pa = PendingAction(
+        user_id=user_id,
+        action_type=action_type,
+        payload="{}",
+        summary=f"test {action_type}",
+        status=status,
+        created_at=datetime.utcnow() - timedelta(days=days_ago),
+        resolved_at=(
+            datetime.utcnow() - timedelta(days=days_ago)
+            if status != ActionStatus.pending else None
+        ),
+    )
+    db_session.add(pa)
+    db_session.commit()
+    return pa
+
+
+def test_arp_insufficient_sample(db_session, test_user):
+    """3 resolved < 5 esigi -> hicbir insight uretilmemeli."""
+    for i in range(2):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.rejected, days_ago=i+1)
+    _make_pending(db_session, test_user.id, "add_transaction",
+                  ActionStatus.executed, days_ago=3)
+
+    result = extract_action_rejection_pattern(db_session, test_user.id)
+
+    assert result["active_count"] == 0
+    assert result["created"] == 0
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="action_rejection_pattern",
+    ).all()
+    assert len(insights) == 0
+
+
+def test_arp_dominant_rejection_active(db_session, test_user):
+    """add_transaction icin 7 rejected / 3 executed = %70 -> active insight."""
+    for i in range(7):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.rejected, days_ago=i+1)
+    for i in range(3):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.executed, days_ago=10+i)
+
+    result = extract_action_rejection_pattern(db_session, test_user.id)
+
+    assert result["created"] == 1
+    assert result["active_count"] == 1
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Aksiyon ret pateni: add_transaction",
+    ).first()
+    assert insight is not None
+    assert insight.status == "active"
+    assert insight.evidence_count == 7
+    assert insight.sort_priority == ARP_DOMINANT_PRIORITY
+    assert insight.confidence_basis == "data_grounded"
+    assert "70%" in insight.content
+
+
+def test_arp_below_threshold_no_insight(db_session, test_user):
+    """4 rejected / 6 executed = %40 -> %50 esigin altinda, insight YOK."""
+    for i in range(4):
+        _make_pending(db_session, test_user.id, "update_balance",
+                      ActionStatus.rejected, days_ago=i+1)
+    for i in range(6):
+        _make_pending(db_session, test_user.id, "update_balance",
+                      ActionStatus.executed, days_ago=5+i)
+
+    result = extract_action_rejection_pattern(db_session, test_user.id)
+
+    assert result["active_count"] == 0
+
+    insights = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        insight_type="action_rejection_pattern",
+    ).all()
+    assert len(insights) == 0
+
+
+def test_arp_pending_excluded_from_calculation(db_session, test_user):
+    """Pending statulu kayitlar ne payda ne paya dahil olmamali.
+    Test: 5 rejected + 2 executed (=%71 ret) + 50 pending varsa,
+    pending'leri saymadan rate dogru hesaplanmali."""
+    for i in range(5):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.rejected, days_ago=i+1)
+    for i in range(2):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.executed, days_ago=6+i)
+    for i in range(50):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.pending, days_ago=8+i)
+
+    result = extract_action_rejection_pattern(db_session, test_user.id)
+
+    assert result["active_count"] == 1
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Aksiyon ret pateni: add_transaction",
+    ).first()
+    refs = json.loads(insight.source_refs)
+    assert refs["total_resolved"] == 7
+    assert refs["rejected_count"] == 5
+    assert refs["executed_count"] == 2
+
+
+def test_arp_dormant_sweep_on_behavior_change(db_session, test_user):
+    """1. cagri: add_transaction reddediliyor (%80) -> active.
+    2. cagri: kullanici kabul etmeye basladi -> dormant'a dusmeli."""
+    for i in range(8):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.rejected, days_ago=20+i)
+    for i in range(2):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.executed, days_ago=30+i)
+
+    extract_action_rejection_pattern(db_session, test_user.id)
+    insight_first = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Aksiyon ret pateni: add_transaction",
+    ).first()
+    assert insight_first.status == "active"
+
+    # 15 yeni executed: 8 rejected / 17 executed = %32 -> esigin alti
+    for i in range(15):
+        _make_pending(db_session, test_user.id, "add_transaction",
+                      ActionStatus.executed, days_ago=i+1)
+
+    result2 = extract_action_rejection_pattern(db_session, test_user.id)
+
+    db_session.refresh(insight_first)
+    assert insight_first.status == "dormant", \
+        f"Beklenen dormant, gercek {insight_first.status}"
+    assert result2["dormant_swept"] >= 1
 

@@ -957,3 +957,152 @@ def extract_category_account_preference(db: Session, user_id: int) -> dict:
             "categories_analyzed": len(per_category),
         }
 
+
+# ============================================================
+# EXTRACTOR 5/9: action_rejection_pattern
+# ============================================================
+# Sektor temeli:
+# - PITCH paper (Abbas et al. CHI 2026) - 14 gun longitudinal coaching study
+#   "diverse interaction patterns: accepted / negotiated / resisted / disengaged"
+# - Algorithmic aversion (Dietvorst, Simmons, Massey 2015) - kullanicilar AI
+#   onerilerini sistematik olarak reddedebilir, bu davranissal sinyaldir
+# - Bertrand et al. - "experts more likely to reject AI recommendations"
+#
+# Mantik: Son 90 gun PendingAction'lar arasinda her action_type icin
+# rejection rate hesapla. >= %50 ve >= 5 resolved sample varsa active insight.
+# Pending statu hesaba katilmaz (henuz karar verilmedi). Failed statu da
+# hesaba katilmaz (executor hatasi, kullanici karari degil).
+#
+# Veri kaynagi: pending_actions tablosu (status='rejected' veya 'executed').
+# Tetikleme: Periyodik (lifespan startup hook + APScheduler).
+# Helper: Manuel SWEEP pass - dinamik action_type setleri.
+
+ARP_PERIOD_DAYS = 90
+ARP_MIN_RESOLVED = 5
+ARP_REJECTION_THRESHOLD = 0.50
+ARP_DOMINANT_PRIORITY = 9
+
+
+def extract_action_rejection_pattern(db: Session, user_id: int) -> dict:
+    """
+    Son 90 gun pending action'larinda action_type basina rejection rate hesapla.
+    >= %50 rejection AND >= 5 resolved sample -> active insight.
+    Pattern bozulursa (kullanici kabul etmeye basladiysa) -> dormant.
+
+    Donus: {"created": int, "updated": int, "dormant_swept": int,
+            "active_count": int, "action_types_analyzed": int}
+    """
+    with extractor_telemetry("action_rejection_pattern", user_id=user_id):
+        from app.models import PendingAction, ActionStatus
+
+        cutoff = datetime.utcnow() - timedelta(days=ARP_PERIOD_DAYS)
+
+        # 1) Action type basinda rejected ve executed sayisi
+        rows = (
+            db.query(
+                PendingAction.action_type,
+                PendingAction.status,
+                func.count(PendingAction.id),
+            )
+            .filter(
+                PendingAction.user_id == user_id,
+                PendingAction.created_at >= cutoff,
+                PendingAction.status.in_([ActionStatus.rejected, ActionStatus.executed]),
+            )
+            .group_by(PendingAction.action_type, PendingAction.status)
+            .all()
+        )
+
+        # 2) Action type bazinda dictionary olustur
+        per_type: dict = {}  # action_type -> {"rejected": N, "executed": M}
+        for action_type, status, cnt in rows:
+            d = per_type.setdefault(action_type, {"rejected": 0, "executed": 0})
+            if status == ActionStatus.rejected:
+                d["rejected"] = cnt
+            elif status == ActionStatus.executed:
+                d["executed"] = cnt
+
+        created = 0
+        updated = 0
+        active_titles_now: set = set()
+
+        # 3) Her action_type icin rejection rate kontrolu
+        for action_type, counts in per_type.items():
+            rejected = counts["rejected"]
+            executed = counts["executed"]
+            total = rejected + executed
+
+            if total < ARP_MIN_RESOLVED:
+                continue
+
+            rejection_rate = rejected / total
+
+            if rejection_rate < ARP_REJECTION_THRESHOLD:
+                continue
+
+            title = f"Aksiyon ret pateni: {action_type}"
+            content = (
+                f"Son {ARP_PERIOD_DAYS} gunde '{action_type}' tipinde {total} "
+                f"oneri yapildi, bunlarin {rejected}/{total} "
+                f"({rejection_rate*100:.0f}%) tanesi reddedildi. "
+                f"Bu action tipi icin kullanicinin red egilimi yuksek - "
+                f"koc onerilerini gozden gecirmek gerekebilir."
+            )
+            source_refs = {
+                "period_days": ARP_PERIOD_DAYS,
+                "action_type": action_type,
+                "rejected_count": rejected,
+                "executed_count": executed,
+                "total_resolved": total,
+                "rejection_rate": round(rejection_rate, 3),
+            }
+
+            r = _upsert_insight_absolute(
+                db=db, user_id=user_id,
+                insight_type="action_rejection_pattern",
+                title=title, content=content,
+                confidence_basis="data_grounded",
+                source_refs=source_refs,
+                evidence_count=rejected,
+                sort_priority=ARP_DOMINANT_PRIORITY,
+                status="active",
+            )
+            if r == "created":
+                created += 1
+            elif r == "updated":
+                updated += 1
+
+            active_titles_now.add(title)
+
+        # 4) DORMANT SWEEP: Dinamik action_type set, manuel sweep
+        existing = (
+            db.query(CoachInsight)
+            .filter(
+                CoachInsight.user_id == user_id,
+                CoachInsight.insight_type == "action_rejection_pattern",
+                CoachInsight.status == "active",
+            )
+            .all()
+        )
+
+        dormant_swept = 0
+        now = datetime.utcnow()
+        for ins in existing:
+            if ins.title in active_titles_now:
+                continue
+            ins.status = "dormant"
+            ins.last_seen_at = now
+            ins.sort_priority = 1
+            dormant_swept += 1
+
+        if dormant_swept > 0:
+            db.commit()
+
+        return {
+            "created": created,
+            "updated": updated,
+            "dormant_swept": dormant_swept,
+            "active_count": len(active_titles_now),
+            "action_types_analyzed": len(per_type),
+        }
+

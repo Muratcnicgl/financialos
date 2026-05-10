@@ -97,6 +97,15 @@ class ApiCallStatus(str, enum.Enum):
     rate_limited = "rate_limited"
 
 
+class OperationName(str, enum.Enum):
+    """ReasoningTrace: hangi operasyon tipi kaydediliyor."""
+    RULE_CHECK = "rule_check"
+    LLM_CALL = "llm_call"
+    EXECUTE_TOOL = "execute_tool"
+    OBSERVATION = "observation"
+    FINAL_ANSWER = "final_answer"
+
+
 # ============================================================
 # ANA TABLOLAR (8)
 # ============================================================
@@ -652,3 +661,42 @@ class DecisionJournal(Base):
             f"decided_at={self.decided_at}, "
             f"evaluated={self.outcome_evaluated_at is not None})>"
         )
+
+
+class ReasoningTrace(Base):
+    __tablename__ = "reasoning_traces"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    trace_id = Column(String(36), nullable=False)
+    step_index = Column(Integer, nullable=False)
+    parent_step_id = Column(Integer, ForeignKey("reasoning_traces.id"), nullable=True)
+    coach_memory_id = Column(Integer, ForeignKey("coach_memories.id"), nullable=True)
+
+    operation_name = Column(SQLEnum(OperationName), nullable=False)
+    intent = Column(Text, nullable=True)
+    action_input_json = Column(Text, nullable=True)
+    observation = Column(Text, nullable=True)
+    inference = Column(Text, nullable=True)
+
+    confidence_score = Column(Float, nullable=True)
+
+    provider_system = Column(String(50), nullable=True)
+    model_name = Column(String(100), nullable=True)
+    usage_input_tokens = Column(Integer, nullable=True)
+    usage_output_tokens = Column(Integer, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+
+    error = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    coach_memory = relationship("CoachMemory", backref="reasoning_traces")
+    parent = relationship("ReasoningTrace", remote_side=[id], backref="children")
+
+    __table_args__ = (
+        Index("ix_reasoning_traces_trace_id_step_index", "trace_id", "step_index"),
+        Index("ix_reasoning_traces_coach_memory_id", "coach_memory_id"),
+        Index("ix_reasoning_traces_created_at", "created_at"),
+        Index("ix_reasoning_traces_user_id", "user_id"),
+    )

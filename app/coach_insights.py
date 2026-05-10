@@ -1106,3 +1106,250 @@ def extract_action_rejection_pattern(db: Session, user_id: int) -> dict:
             "action_types_analyzed": len(per_type),
         }
 
+
+# ============================================================
+# EXTRACTOR 6/9: breakthrough
+# ============================================================
+# Sektor temeli:
+# - VEDAR (arxiv 2019) - Accountable Behavioral Change Detection
+#   rolling baseline + recent window comparison patterni
+# - NBER Saving Behavior (Fagereng et al.) - net saving vs capital gains ayrimi
+# - Net worth growth benchmark - %5-10 yillik (aylik ~%0.4-0.8) saglikli
+# - Bridgewater Decision Journal "pain + reflection = progress" patterni
+#
+# Mantik: Son 30 gun ortalamasi vs onceki 90 gun ortalamasi karsilastirmasi.
+# 4 bilesen ayri ayri olculur:
+#   1. Net worth iyilesmesi (genel)
+#   2. Kart borcu azalmasi
+#   3. Kredi borcu azalmasi
+#   4. Yatirim buyumesi
+# Her biri ayri "Kutlanacak ilerleme" insight'i - milestone celebration engine.
+#
+# Veri kaynagi: net_worth_snapshot tablosu.
+# Tetikleme: Periyodik (lifespan startup hook + APScheduler).
+# Helper: Manuel SWEEP pass.
+#
+# Negatif net worth durumu: yuzde mantigi kirilir (-30K'dan -28K'ya = +%6.6 mi
+# yoksa +2K mi?). Bu yuzden net worth icin MUTLAK ESIK kullaniyoruz.
+# Kart/kredi borcu pozitif tutuluyor (kalan borc miktari) - azalma iyilesme.
+
+BT_RECENT_WINDOW_DAYS = 30
+BT_BASELINE_WINDOW_DAYS = 90
+BT_MIN_SNAPSHOTS_RECENT = 20    # 30 gunluk pencere icin min 20 snapshot
+BT_MIN_SNAPSHOTS_BASELINE = 60  # 90 gunluk pencere icin min 60 snapshot
+BT_NET_WORTH_THRESHOLD_TL = 5000.0  # Mutlak iyilesme esigi
+BT_DEBT_REDUCTION_THRESHOLD_TL = 2000.0  # Borc azalma esigi
+BT_INVESTMENT_GROWTH_THRESHOLD_TL = 3000.0  # Yatirim buyume esigi
+BT_DOMINANT_PRIORITY = 7
+
+
+def extract_breakthrough(db: Session, user_id: int) -> dict:
+    """
+    Net worth snapshot'larinda 30 gun vs 90 gun karsilastirmasi yaparak
+    finansal iyilesme sinyallerini insight olarak yazar.
+
+    Donus: {"created": int, "updated": int, "dormant_swept": int,
+            "active_count": int, "skipped_reason": str | None}
+    """
+    with extractor_telemetry("breakthrough", user_id=user_id):
+        from app.models import NetWorthSnapshot
+
+        now = datetime.utcnow()
+        recent_cutoff = (now - timedelta(days=BT_RECENT_WINDOW_DAYS)).date()
+        baseline_cutoff = (now - timedelta(days=BT_RECENT_WINDOW_DAYS + BT_BASELINE_WINDOW_DAYS)).date()
+
+        recent_snaps = (
+            db.query(NetWorthSnapshot)
+            .filter(
+                NetWorthSnapshot.user_id == user_id,
+                NetWorthSnapshot.snapshot_date >= recent_cutoff,
+            )
+            .all()
+        )
+        baseline_snaps = (
+            db.query(NetWorthSnapshot)
+            .filter(
+                NetWorthSnapshot.user_id == user_id,
+                NetWorthSnapshot.snapshot_date >= baseline_cutoff,
+                NetWorthSnapshot.snapshot_date < recent_cutoff,
+            )
+            .all()
+        )
+
+        if len(recent_snaps) < BT_MIN_SNAPSHOTS_RECENT or len(baseline_snaps) < BT_MIN_SNAPSHOTS_BASELINE:
+            existing = (
+                db.query(CoachInsight)
+                .filter(
+                    CoachInsight.user_id == user_id,
+                    CoachInsight.insight_type == "breakthrough",
+                    CoachInsight.status == "active",
+                )
+                .all()
+            )
+            for ins in existing:
+                ins.status = "dormant"
+                ins.last_seen_at = now
+                ins.sort_priority = 1
+            if existing:
+                db.commit()
+
+            return {
+                "created": 0, "updated": 0,
+                "dormant_swept": len(existing),
+                "active_count": 0,
+                "skipped_reason": (
+                    f"insufficient_snapshots "
+                    f"(recent={len(recent_snaps)}<{BT_MIN_SNAPSHOTS_RECENT} or "
+                    f"baseline={len(baseline_snaps)}<{BT_MIN_SNAPSHOTS_BASELINE})"
+                ),
+            }
+
+        def avg(snaps, attr):
+            vals = [getattr(s, attr) or 0.0 for s in snaps]
+            return sum(vals) / len(vals) if vals else 0.0
+
+        metrics = {
+            "net_worth_full": (avg(recent_snaps, "net_worth_full"), avg(baseline_snaps, "net_worth_full")),
+            "card_debt": (avg(recent_snaps, "card_debt"), avg(baseline_snaps, "card_debt")),
+            "loan_debt": (avg(recent_snaps, "loan_debt"), avg(baseline_snaps, "loan_debt")),
+            "investment_value": (avg(recent_snaps, "investment_value"), avg(baseline_snaps, "investment_value")),
+        }
+
+        breakthroughs = []
+
+        # Net worth iyilesmesi
+        nw_recent, nw_base = metrics["net_worth_full"]
+        nw_delta = nw_recent - nw_base
+        if nw_delta >= BT_NET_WORTH_THRESHOLD_TL:
+            breakthroughs.append((
+                "Kutlanacak ilerleme: Net deger iyilesmesi",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama net deger {nw_recent:,.0f} TL, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {nw_base:,.0f} TL idi. "
+                f"Net iyilesme: +{nw_delta:,.0f} TL. Bu finansal durumda anlamli bir ilerleme.",
+                {
+                    "component": "net_worth_full",
+                    "recent_avg": round(nw_recent, 2),
+                    "baseline_avg": round(nw_base, 2),
+                    "delta": round(nw_delta, 2),
+                    "threshold": BT_NET_WORTH_THRESHOLD_TL,
+                    "recent_window_days": BT_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": BT_BASELINE_WINDOW_DAYS,
+                },
+                int(nw_delta / 1000),
+            ))
+
+        # Kart borcu azalmasi
+        cd_recent, cd_base = metrics["card_debt"]
+        cd_delta = cd_base - cd_recent  # azalma pozitif
+        if cd_delta >= BT_DEBT_REDUCTION_THRESHOLD_TL:
+            breakthroughs.append((
+                "Kutlanacak ilerleme: Kart borcu azalmasi",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama kart borcu {cd_recent:,.0f} TL, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {cd_base:,.0f} TL idi. "
+                f"Azalma: -{cd_delta:,.0f} TL. Borc disiplini calisiyor.",
+                {
+                    "component": "card_debt",
+                    "recent_avg": round(cd_recent, 2),
+                    "baseline_avg": round(cd_base, 2),
+                    "delta_reduction": round(cd_delta, 2),
+                    "threshold": BT_DEBT_REDUCTION_THRESHOLD_TL,
+                    "recent_window_days": BT_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": BT_BASELINE_WINDOW_DAYS,
+                },
+                int(cd_delta / 1000),
+            ))
+
+        # Kredi borcu azalmasi
+        ld_recent, ld_base = metrics["loan_debt"]
+        ld_delta = ld_base - ld_recent
+        if ld_delta >= BT_DEBT_REDUCTION_THRESHOLD_TL:
+            breakthroughs.append((
+                "Kutlanacak ilerleme: Kredi borcu azalmasi",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama kredi borcu {ld_recent:,.0f} TL, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {ld_base:,.0f} TL idi. "
+                f"Azalma: -{ld_delta:,.0f} TL. Kredi odemeleri ilerliyor.",
+                {
+                    "component": "loan_debt",
+                    "recent_avg": round(ld_recent, 2),
+                    "baseline_avg": round(ld_base, 2),
+                    "delta_reduction": round(ld_delta, 2),
+                    "threshold": BT_DEBT_REDUCTION_THRESHOLD_TL,
+                    "recent_window_days": BT_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": BT_BASELINE_WINDOW_DAYS,
+                },
+                int(ld_delta / 1000),
+            ))
+
+        # Yatirim buyumesi
+        iv_recent, iv_base = metrics["investment_value"]
+        iv_delta = iv_recent - iv_base
+        if iv_delta >= BT_INVESTMENT_GROWTH_THRESHOLD_TL:
+            breakthroughs.append((
+                "Kutlanacak ilerleme: Yatirim buyumesi",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama yatirim degeri {iv_recent:,.0f} TL, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {iv_base:,.0f} TL idi. "
+                f"Buyume: +{iv_delta:,.0f} TL.",
+                {
+                    "component": "investment_value",
+                    "recent_avg": round(iv_recent, 2),
+                    "baseline_avg": round(iv_base, 2),
+                    "delta_growth": round(iv_delta, 2),
+                    "threshold": BT_INVESTMENT_GROWTH_THRESHOLD_TL,
+                    "recent_window_days": BT_RECENT_WINDOW_DAYS,
+                    "baseline_window_days": BT_BASELINE_WINDOW_DAYS,
+                },
+                int(iv_delta / 1000),
+            ))
+
+        created = 0
+        updated = 0
+        active_titles_now: set = set()
+
+        for title, content, refs, evidence in breakthroughs:
+            r = _upsert_insight_absolute(
+                db=db, user_id=user_id,
+                insight_type="breakthrough",
+                title=title, content=content,
+                confidence_basis="data_grounded",
+                source_refs=refs,
+                evidence_count=max(1, evidence),
+                sort_priority=BT_DOMINANT_PRIORITY,
+                status="active",
+            )
+            if r == "created":
+                created += 1
+            elif r == "updated":
+                updated += 1
+            active_titles_now.add(title)
+
+        # DORMANT SWEEP
+        existing = (
+            db.query(CoachInsight)
+            .filter(
+                CoachInsight.user_id == user_id,
+                CoachInsight.insight_type == "breakthrough",
+                CoachInsight.status == "active",
+            )
+            .all()
+        )
+
+        dormant_swept = 0
+        for ins in existing:
+            if ins.title in active_titles_now:
+                continue
+            ins.status = "dormant"
+            ins.last_seen_at = now
+            ins.sort_priority = 1
+            dormant_swept += 1
+
+        if dormant_swept > 0:
+            db.commit()
+
+        return {
+            "created": created,
+            "updated": updated,
+            "dormant_swept": dormant_swept,
+            "active_count": len(active_titles_now),
+            "skipped_reason": None,
+        }
+

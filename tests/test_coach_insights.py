@@ -32,11 +32,18 @@ from app.coach_insights import (
     ARP_REJECTION_THRESHOLD,
     ARP_MIN_RESOLVED,
     ARP_DOMINANT_PRIORITY,
+    extract_breakthrough,
+    BT_NET_WORTH_THRESHOLD_TL,
+    BT_DEBT_REDUCTION_THRESHOLD_TL,
+    BT_INVESTMENT_GROWTH_THRESHOLD_TL,
+    BT_DOMINANT_PRIORITY,
+    BT_MIN_SNAPSHOTS_RECENT,
+    BT_MIN_SNAPSHOTS_BASELINE,
 )
 from app.models import (
     CoachInsight, ActionHistory, CoachMemory,
     Transaction, TransactionType, Account,
-    PendingAction, ActionStatus,
+    PendingAction, ActionStatus, NetWorthSnapshot,
 )
 
 
@@ -866,5 +873,140 @@ def test_arp_dormant_sweep_on_behavior_change(db_session, test_user):
     db_session.refresh(insight_first)
     assert insight_first.status == "dormant", \
         f"Beklenen dormant, gercek {insight_first.status}"
+    assert result2["dormant_swept"] >= 1
+
+
+# ============================================================
+# TESTS: breakthrough
+# ============================================================
+
+def _make_snapshot(db_session, user_id, days_ago, net_worth_full=0.0,
+                   card_debt=0.0, loan_debt=0.0, investment_value=0.0,
+                   cash=0.0, net_worth_seen=None, receivables=0.0):
+    """Test fixture: NetWorthSnapshot satiri."""
+    snap = NetWorthSnapshot(
+        user_id=user_id,
+        snapshot_date=(datetime.utcnow() - timedelta(days=days_ago)).date(),
+        net_worth_full=net_worth_full,
+        net_worth_seen=net_worth_seen if net_worth_seen is not None else net_worth_full,
+        cash=cash,
+        card_debt=card_debt,
+        loan_debt=loan_debt,
+        investment_value=investment_value,
+        receivables=receivables,
+    )
+    db_session.add(snap)
+    db_session.commit()
+    return snap
+
+
+def test_bt_insufficient_snapshots(db_session, test_user):
+    """10 snapshot var, esik 20+60 -> insufficient."""
+    for i in range(10):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=1000)
+
+    result = extract_breakthrough(db_session, test_user.id)
+
+    assert result["skipped_reason"] is not None
+    assert "insufficient_snapshots" in result["skipped_reason"]
+    assert result["active_count"] == 0
+
+
+def test_bt_net_worth_improvement_active(db_session, test_user):
+    """30 gun ort -10K, onceki 90 gun ort -20K -> +10K iyilesme -> active."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-10000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-20000.0)
+
+    result = extract_breakthrough(db_session, test_user.id)
+
+    assert result["skipped_reason"] is None
+    assert result["active_count"] >= 1
+
+    insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Kutlanacak ilerleme: Net deger iyilesmesi",
+    ).first()
+    assert insight is not None
+    assert insight.status == "active"
+    assert insight.sort_priority == BT_DOMINANT_PRIORITY
+    assert insight.confidence_basis == "data_grounded"
+
+
+def test_bt_below_threshold_no_insight(db_session, test_user):
+    """+1000 TL iyilesme - 5000 esiginin altinda -> insight YOK."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-19000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i, net_worth_full=-20000.0)
+
+    result = extract_breakthrough(db_session, test_user.id)
+
+    assert result["skipped_reason"] is None
+
+    nw_insight = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Kutlanacak ilerleme: Net deger iyilesmesi",
+    ).first()
+    assert nw_insight is None
+
+
+def test_bt_multi_component_breakthroughs(db_session, test_user):
+    """Hem kart borcu azaldi hem yatirim buyudu -> 2+ ayri active insight."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i,
+                       card_debt=2000.0, investment_value=20000.0,
+                       net_worth_full=18000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i,
+                       card_debt=8000.0, investment_value=15000.0,
+                       net_worth_full=7000.0)
+
+    result = extract_breakthrough(db_session, test_user.id)
+
+    assert result["active_count"] >= 2
+
+    card = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Kutlanacak ilerleme: Kart borcu azalmasi",
+    ).first()
+    assert card.status == "active"
+
+    inv = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Kutlanacak ilerleme: Yatirim buyumesi",
+    ).first()
+    assert inv.status == "active"
+
+
+def test_bt_dormant_sweep_on_regression(db_session, test_user):
+    """1. cagri: yatirim buyumesi var. 2. cagri: yatirim tersine dondu -> dormant."""
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, investment_value=20000.0)
+    for i in range(30, 120):
+        _make_snapshot(db_session, test_user.id, days_ago=i, investment_value=15000.0)
+
+    extract_breakthrough(db_session, test_user.id)
+    inv_first = db_session.query(CoachInsight).filter_by(
+        user_id=test_user.id,
+        title="Kutlanacak ilerleme: Yatirim buyumesi",
+    ).first()
+    assert inv_first is not None
+    assert inv_first.status == "active"
+
+    # Recent snapshot'lari sil, baseline ile ayni degere dondur
+    db_session.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == test_user.id,
+        NetWorthSnapshot.snapshot_date >= (datetime.utcnow() - timedelta(days=30)).date(),
+    ).delete(synchronize_session=False)
+    db_session.commit()
+    for i in range(30):
+        _make_snapshot(db_session, test_user.id, days_ago=i, investment_value=15000.0)
+
+    result2 = extract_breakthrough(db_session, test_user.id)
+
+    db_session.refresh(inv_first)
+    assert inv_first.status == "dormant"
     assert result2["dormant_swept"] >= 1
 

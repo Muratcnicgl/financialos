@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Iterator
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -34,7 +34,8 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import User
+from sqlalchemy import delete
+from app.models import User, ReasoningTrace
 from app.coach_insights import (
     extract_breakthrough,
     extract_setback,
@@ -168,6 +169,40 @@ async def k2_batch_job():
     logger.info(f"K2 batch job completed at {datetime.utcnow().isoformat()}")
 
 
+async def nightly_trace_cleanup_job() -> None:
+    """
+    Reasoning trace retention job.
+
+    Deletes ReasoningTrace rows older than 90 days. Runs at 04:00
+    Istanbul daily (after nightly_batch and k2_batch). 90-day
+    retention follows the warm-tier convention used by Langfuse
+    and similar LLM observability stacks — long enough for audit
+    and debugging, short enough to keep the single-file SQLite
+    database lean. Idempotent: re-running has no effect if the
+    table is already trimmed.
+    """
+    db = SessionLocal()
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+        stmt = delete(ReasoningTrace).where(
+            ReasoningTrace.created_at < cutoff
+        )
+        result = db.execute(stmt)
+        db.commit()
+        deleted = result.rowcount or 0
+        logger.info(
+            "[trace_cleanup] removed %d reasoning_trace rows older than %s",
+            deleted,
+            cutoff.isoformat(),
+        )
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        logger.exception("[trace_cleanup] failed; rolled back transaction")
+        raise
+    finally:
+        db.close()
+
+
 def start_scheduler() -> AsyncIOScheduler:
     """Lifespan startup'tan cagirilir."""
     global _scheduler
@@ -190,9 +225,16 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
         misfire_grace_time=3600,
     )
+    _scheduler.add_job(
+        nightly_trace_cleanup_job,
+        CronTrigger(hour=4, minute=0),
+        id="nightly_trace_cleanup",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
 
     _scheduler.start()
-    logger.info("FinancialOS scheduler started: nightly_batch 03:00, k2_batch 03:30 Istanbul")
+    logger.info("FinancialOS scheduler started: nightly_batch 03:00, k2_batch 03:30, trace_cleanup 04:00 Istanbul")
     return _scheduler
 
 

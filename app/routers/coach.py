@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.dependencies import get_db, get_current_user
-from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus, PendingAction, ActionStatus
+from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus, PendingAction, ActionStatus, ReasoningTrace
 from app.coach import CoachEngine
 
 router = APIRouter(prefix="/api/coach", tags=["coach"])
@@ -76,6 +76,37 @@ class ChatResponse(BaseModel):
     cockpit_snapshot: Optional[Dict[str, Any]] = None
     usage: Optional[UsageInfo] = None
     coach_memory_id: Optional[int] = None
+
+
+class TraceStepOut(BaseModel):
+    """Single ReasoningTrace step serialized for the trace panel."""
+
+    id: int
+    step_index: int
+    parent_step_id: Optional[int] = None
+    operation_name: str
+    intent: Optional[str] = None
+    action_input_json: Optional[str] = None
+    observation: Optional[str] = None
+    inference: Optional[str] = None
+    confidence_score: Optional[float] = None
+    provider_system: Optional[str] = None
+    model_name: Optional[str] = None
+    usage_input_tokens: Optional[int] = None
+    usage_output_tokens: Optional[int] = None
+    latency_ms: Optional[int] = None
+    error: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TraceResponse(BaseModel):
+    """Top-level response for GET /api/coach/trace/{memory_id}."""
+
+    coach_memory_id: int
+    trace_id: str
+    steps: List[TraceStepOut]
 
 
 class ActionDTO(BaseModel):
@@ -338,6 +369,57 @@ def get_history(
 
     items_mapped = [_memory_to_history_item(m, pa_map) for m in items]
     return [it for it in items_mapped if it is not None]
+
+
+@router.get("/trace/{memory_id}", response_model=TraceResponse)
+def get_trace(
+    memory_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> TraceResponse:
+    """Return the reasoning trace for one of the current user's CoachMemory rows.
+
+    Industry-standard resource-hiding: an unauthorized memory_id and a
+    memory_id without a recorded trace are both 404 (OWASP/REST best
+    practice — never disclose existence of another user's resource).
+    """
+    steps = (
+        db.query(ReasoningTrace)
+        .filter(
+            ReasoningTrace.coach_memory_id == memory_id,
+            ReasoningTrace.user_id == user.id,
+        )
+        .order_by(ReasoningTrace.step_index.asc())
+        .all()
+    )
+    if not steps:
+        raise HTTPException(status_code=404, detail="Trace bulunamadi")
+
+    return TraceResponse(
+        coach_memory_id=memory_id,
+        trace_id=steps[0].trace_id,
+        steps=[
+            TraceStepOut(
+                id=s.id,
+                step_index=s.step_index,
+                parent_step_id=s.parent_step_id,
+                operation_name=s.operation_name.value,
+                intent=s.intent,
+                action_input_json=s.action_input_json,
+                observation=s.observation,
+                inference=s.inference,
+                confidence_score=s.confidence_score,
+                provider_system=s.provider_system,
+                model_name=s.model_name,
+                usage_input_tokens=s.usage_input_tokens,
+                usage_output_tokens=s.usage_output_tokens,
+                latency_ms=s.latency_ms,
+                error=s.error,
+                created_at=s.created_at,
+            )
+            for s in steps
+        ],
+    )
 
 
 @router.post("/reset", response_model=ResetResponse)

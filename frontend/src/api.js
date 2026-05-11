@@ -203,6 +203,7 @@ export const coachApi = {
   history: (limit = 50) => request('/api/coach/history', { params: { limit } }),
   reset:   () => request('/api/coach/reset', { method: 'POST' }),
   usage:   () => request('/api/coach/usage'),
+  trace:   (memoryId) => request(`/api/coach/trace/${memoryId}`),
 };
 
 // =============================================================

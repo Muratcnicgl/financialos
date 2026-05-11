@@ -7,6 +7,7 @@ import { coachApi, cockpitApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import TracePanel from '../components/TracePanel.jsx';
 
 // Llama'nın köşeli parantez başlık formatını Markdown'a çevirir
 // [1. STRATEJİK ANALİZ] → ## 1. STRATEJİK ANALİZ
@@ -166,6 +167,7 @@ function CoachInner({ onActionResolved }) {
           ts: parseHistoryDate(h),
           actions: h.actions || [],  // BUG #046: history'deki pending aksiyonlar
           accounts,                  // hesap adı çevirisi için
+          coachMemoryId: h.id ?? null,
         }));
         setMessages(msgs);
         setHistoryLoaded(true);
@@ -213,6 +215,7 @@ function CoachInner({ onActionResolved }) {
         actions: res.proposed_actions || [],
         accounts: res.cockpit_snapshot?.accounts || [],
         ts: new Date(),
+        coachMemoryId: res.coach_memory_id ?? null,
       };
       setMessages((prev) => [...prev, coachMsg]);
       if (res.usage) setUsage(res.usage);
@@ -558,6 +561,14 @@ function Message({ message, onActionResolved }) {
               accounts={message.accounts}
             />
           </div>
+        )}
+
+        {/* Reasoning trace — lazy, collapsed by default */}
+        {!isUser && message.coachMemoryId != null && (
+          <TracePanel
+            memoryId={message.coachMemoryId}
+            fetchTrace={coachApi.trace}
+          />
         )}
       </div>
     </div>

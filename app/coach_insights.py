@@ -2114,3 +2114,95 @@ def extract_explicit_red_line_k2(
             "batch_run_id": batch_run_id,
         }
 
+
+# ============================================================================
+# BOLUM 5 / PROMPT ENJEKSIYONU (Wave-2 H1G3+ tasarim)
+# Sektor referansi: Mem0 selective retrieval + Letta core memory + OpenAI Realtime
+# Karar: drop > truncate, verbatim icerik, top-5 by (sort_priority, last_evidence_at)
+# ============================================================================
+
+def format_insights_for_prompt(
+    db: Session,
+    user_id: int,
+    max_tokens: int = 1500,
+) -> str:
+    """
+    Wave-2 zengin yapili insight'lari V3_GOD_MODE_PROMPT context'i icin formatlar.
+
+    Filtre: status='active' (dormant/invalidated/user_invalidated DAHIL DEGIL)
+    Siralama: sort_priority DESC NULLS LAST, last_evidence_at DESC NULLS LAST
+    Limit: Top 5 + 1500 token hard cap
+    Strateji: Drop (truncate degil) - sektor 2026 standardi
+
+    Returns:
+        Bos string eger aktif insight yoksa.
+        Aksi takdirde "## UZUN VADELI HAFIZA\\n..." formatinda metin.
+    """
+    from sqlalchemy import desc
+
+    insights = (
+        db.query(CoachInsight)
+        .filter(
+            CoachInsight.user_id == user_id,
+            CoachInsight.status == "active",
+        )
+        .order_by(
+            CoachInsight.sort_priority.desc().nullslast(),
+            CoachInsight.last_evidence_at.desc().nullslast(),
+        )
+        .limit(5)
+        .all()
+    )
+
+    if not insights:
+        return ""
+
+    # Token sayimi - tiktoken cl100k_base (Mem0/OpenAI standardi)
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        def count_tokens(s: str) -> int:
+            return len(enc.encode(s))
+    except ImportError:
+        # Fallback: yaklasik 4 karakter = 1 token (TR icin ~%15 underestimate)
+        def count_tokens(s: str) -> int:
+            return max(1, len(s) // 4)
+
+    header = (
+        "## UZUN VADELI HAFIZA\n"
+        "Bu kullanici hakkinda gecmis etkilesimlerden ogrenilen gerceklerdir.\n"
+        "Sabit kurallar DEGIL, gozlemlerdir. Yeni kanit geldikce guncellenir.\n"
+        "Her insight basliginda [TIP | GUVEN] etiketi vardir.\n"
+    )
+
+    used_tokens = count_tokens(header)
+    shown_blocks = []
+    dropped_count = 0
+
+    for ins in insights:
+        insight_type_label = (ins.insight_type or "GENEL").upper()
+        confidence_label = ins.confidence_basis or "unknown"
+        title_text = ins.title or "(baslik yok)"
+        content_text = ins.content or "(icerik yok)"
+
+        block = (
+            f"\n[{insight_type_label} | GUVEN: {confidence_label}]\n"
+            f"{title_text}\n"
+            f"{content_text}\n"
+        )
+        block_tokens = count_tokens(block)
+
+        if used_tokens + block_tokens > max_tokens:
+            dropped_count = len(insights) - len(shown_blocks)
+            break
+
+        shown_blocks.append(block)
+        used_tokens += block_tokens
+
+    result = header + "".join(shown_blocks)
+
+    if dropped_count > 0:
+        result += f"\n(... {dropped_count} insight token butcesi sebebiyle gosterilmedi - DB'de mevcut)\n"
+
+    return result
+

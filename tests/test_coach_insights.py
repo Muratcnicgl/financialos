@@ -1455,3 +1455,142 @@ def test_erl_k2_llm_exception_graceful_skip(db_session, test_user):
     ).all()
     assert len(pg) == 0
 
+
+# ============================================================================
+# WAVE-2 H1G3+ : format_insights_for_prompt testleri
+# ============================================================================
+
+from app.coach_insights import format_insights_for_prompt
+
+
+def _make_insight(db, user, insight_type, title, content, status="active",
+                  sort_priority=50, confidence_basis="data_grounded",
+                  last_evidence_at=None):
+    """Test helper: tam alan setiyle CoachInsight olustur."""
+    from datetime import datetime
+    ins = CoachInsight(
+        user_id=user.id,
+        insight_type=insight_type,
+        title=title,
+        content=content,
+        status=status,
+        sort_priority=sort_priority,
+        confidence_basis=confidence_basis,
+        evidence_count=1,
+        counter_evidence_count=0,
+        last_evidence_at=last_evidence_at or datetime.utcnow(),
+        activated_at=datetime.utcnow(),
+        last_seen_at=datetime.utcnow(),
+        is_active=(status == "active"),
+        category="legacy",
+    )
+    db.add(ins)
+    db.commit()
+    db.refresh(ins)
+    return ins
+
+
+def test_format_insights_empty_returns_empty_string(db_session, test_user):
+    """Hicbir insight yoksa bos string doner."""
+    result = format_insights_for_prompt(db_session, test_user.id)
+    assert result == ""
+
+
+def test_format_insights_filters_only_active_status(db_session, test_user):
+    """status='active' DISINDA hicbir insight prompt'a girmemeli."""
+    _make_insight(db_session, test_user, "decision_rhythm", "Aktif", "Aktif icerik", status="active")
+    _make_insight(db_session, test_user, "setback", "Dormant", "Dormant icerik", status="dormant")
+    _make_insight(db_session, test_user, "breakthrough", "Invalidated", "Inv. icerik", status="invalidated")
+    _make_insight(db_session, test_user, "category_account_preference", "UserInv", "UI icerik", status="user_invalidated")
+
+    result = format_insights_for_prompt(db_session, test_user.id)
+
+    assert "Aktif icerik" in result
+    assert "Dormant icerik" not in result
+    assert "Inv. icerik" not in result
+    assert "UI icerik" not in result
+
+
+def test_format_insights_top_5_by_sort_priority(db_session, test_user):
+    """En yuksek sort_priority'li 5 insight gelir, 6.+ gelmez."""
+    for i in range(7):
+        _make_insight(
+            db_session, test_user,
+            insight_type=f"type_{i}",
+            title=f"Baslik {i}",
+            content=f"Icerik {i}",
+            sort_priority=10 + i,  # 6. en yuksek (16), 0. en dusuk (10)
+        )
+
+    result = format_insights_for_prompt(db_session, test_user.id)
+
+    # En yuksek 5: priority 16, 15, 14, 13, 12 (yani i=6,5,4,3,2)
+    assert "Icerik 6" in result
+    assert "Icerik 5" in result
+    assert "Icerik 4" in result
+    assert "Icerik 3" in result
+    assert "Icerik 2" in result
+    # En dusuk 2 (i=0,1) prompt'a girmemeli
+    assert "Icerik 0" not in result
+    assert "Icerik 1" not in result
+
+
+def test_format_insights_includes_structured_tags(db_session, test_user):
+    """[TIP | GUVEN: basis] etiketi her insight'in basinda olmali."""
+    _make_insight(
+        db_session, test_user,
+        insight_type="explicit_red_line",
+        title="Kart kapatma redi",
+        content="Kullanici 2 ayri konusmada kart kapatmak istemedigini soyledi.",
+        confidence_basis="pattern_grounded",
+    )
+
+    result = format_insights_for_prompt(db_session, test_user.id)
+
+    assert "[EXPLICIT_RED_LINE | GUVEN: pattern_grounded]" in result
+    assert "Kart kapatma redi" in result
+    assert "Kullanici 2 ayri konusmada" in result
+
+
+def test_format_insights_respects_token_budget(db_session, test_user):
+    """Token budget asilinca son insight'lar DROP edilir, truncate edilmez."""
+    # Cok uzun icerikli 5 insight olustur - toplam 1500 token'i asacak
+    long_content = "Bu cok uzun bir icerik. " * 100  # ~2400 karakter, ~600 token
+
+    for i in range(5):
+        _make_insight(
+            db_session, test_user,
+            insight_type=f"type_{i}",
+            title=f"Baslik {i}",
+            content=long_content + f" [{i}]",
+            sort_priority=100 - i,  # i=0 en yuksek priority
+        )
+
+    result = format_insights_for_prompt(db_session, test_user.id, max_tokens=1500)
+
+    # En yuksek priority'li (i=0) muhakkak girmeli
+    assert "[0]" in result
+    # En dusuk priority'li (i=4) DROP edilmeli (1500 token < 5x600 = 3000)
+    assert "[4]" not in result
+    # Drop notice olmali
+    assert "gosterilmedi" in result
+
+
+def test_format_insights_orders_by_last_evidence_when_priority_tied(db_session, test_user):
+    """sort_priority esit ise last_evidence_at DESC ile siralama yapilir."""
+    from datetime import datetime, timedelta
+    old = datetime.utcnow() - timedelta(days=10)
+    new = datetime.utcnow() - timedelta(days=1)
+
+    _make_insight(db_session, test_user, "type_a", "Eski", "Eski kanit",
+                  sort_priority=50, last_evidence_at=old)
+    _make_insight(db_session, test_user, "type_b", "Yeni", "Yeni kanit",
+                  sort_priority=50, last_evidence_at=new)
+
+    result = format_insights_for_prompt(db_session, test_user.id)
+
+    # Yeni kanit, eski kanit'tan once gozukmeli
+    yeni_idx = result.index("Yeni kanit")
+    eski_idx = result.index("Eski kanit")
+    assert yeni_idx < eski_idx
+

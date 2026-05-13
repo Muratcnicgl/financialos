@@ -675,26 +675,13 @@ Statü: {cockpit['statu']}
             p_lines.append(f"  - {cat}: {prev_s} TL → {curr_s} TL {change_s}{anomaly_s}")
         context += "\n\n## Davranış Kalıpları (son 30 gün / önceki 30 gün)\n" + "\n".join(p_lines)
 
-    # CoachInsight: UZUN VADELİ HAFIZA enjeksiyonu (max 10, priority+tarih sıralı)
-    from sqlalchemy import or_ as _or
-    insights = (
-        db.query(CoachInsight)
-        .filter(
-            CoachInsight.user_id == user_id,
-            CoachInsight.is_active == True,
-            _or(CoachInsight.expires_at == None, CoachInsight.expires_at >= today),
-        )
-        .order_by(CoachInsight.priority.desc(), CoachInsight.created_at.desc())
-        .limit(10)
-        .all()
-    )
-    if insights:
-        insight_lines = "\n".join(
-            f"  - [{i.category}/{i.priority.value}] {i.content}"
-            + (f" (sona erer: {i.expires_at})" if i.expires_at else "")
-            for i in insights
-        )
-        context += f"\n\n# UZUN VADELİ HAFIZA\n{insight_lines}"
+    # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
+    # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
+    # Wave-1 enjeksiyonu (is_active + priority enum + created_at) deprecated.
+    from app.coach_insights import format_insights_for_prompt
+    insight_block = format_insights_for_prompt(db, user_id, max_tokens=1500)
+    if insight_block:
+        context += "\n\n" + insight_block
 
     return context.strip(), cockpit
 

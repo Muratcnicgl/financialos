@@ -9,12 +9,31 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.cashflow import generate_forecast, _month_occurrences
+from app.cashflow import generate_forecast, _month_occurrences, _expand_loan_payments
 from app.models import (
     Account, AccountType,
     PersonalDebt, DebtDirection,
     RecurringIncome, RecurringExpense,
 )
+
+
+# ============================================================
+# LOAN FACTORY
+# ============================================================
+
+def _loan_account(db, user_id, monthly_payment, next_payment_date,
+                  remaining_installments, name="Test Kredi"):
+    acc = Account(
+        user_id=user_id, name=name,
+        account_type=AccountType.loan,
+        balance=monthly_payment * remaining_installments,
+        monthly_payment=monthly_payment,
+        next_payment_date=next_payment_date,
+        remaining_installments=remaining_installments,
+    )
+    db.add(acc)
+    db.flush()
+    return acc
 
 
 # ============================================================
@@ -25,17 +44,6 @@ def _cash_account(db, user_id, balance=1000.0, name="Test Nakit"):
     acc = Account(
         user_id=user_id, name=name,
         account_type=AccountType.cash, balance=balance,
-    )
-    db.add(acc)
-    db.flush()
-    return acc
-
-
-def _loan_account(db, user_id, monthly_payment, next_payment_date, name="Test Kredi"):
-    acc = Account(
-        user_id=user_id, name=name,
-        account_type=AccountType.loan, balance=monthly_payment * 3,
-        monthly_payment=monthly_payment, next_payment_date=next_payment_date,
     )
     db.add(acc)
     db.flush()
@@ -372,3 +380,84 @@ def test_month_occurrences_day_clamped_to_month_end():
     end = date(2026, 2, 28)
     results = _month_occurrences(start, end, day_of_month=31)
     assert results == [date(2026, 2, 28)]
+
+
+# ============================================================
+# BUG #058 — Loan taksit testleri
+# ============================================================
+
+def test_loan_payments_included_in_forecast(db_session, test_user):
+    """BUG #058: Loan taksitleri 'expenses' chip açıkken forecast'a dahil edilir."""
+    today = date.today()
+    _cash_account(db_session, test_user.id, balance=20000.0)
+
+    # next_payment_date 5 gün sonra, 2 taksit kalmış
+    first_payment = today + timedelta(days=5)
+    _loan_account(db_session, test_user.id,
+                  monthly_payment=4000.0,
+                  next_payment_date=first_payment,
+                  remaining_installments=2,
+                  name="Test Kredi")
+
+    result = generate_forecast(db_session, test_user.id, horizon_days=60,
+                               include={"expenses"})
+
+    # İki taksit: T+5 ve ~T+35 (bir ay sonra)
+    total_outflow = abs(result["summary"]["total_payable"])
+    assert total_outflow == pytest.approx(8000.0), f"Beklenen 8000 TL, alınan {total_outflow}"
+    assert result["summary"]["crunch_count"] == 0  # 20000 - 8000 > 0
+
+    # İlk ödeme günü outflow içermeli
+    first_day = next(d for d in result["days"] if d.date == first_payment)
+    assert first_day.outflows == pytest.approx(-4000.0)
+    event = first_day.events[0]
+    assert event.source_type == "loan_payment"
+    assert "Test Kredi" in event.label
+
+
+def test_loan_payments_respect_filter_chip(db_session, test_user):
+    """BUG #058: 'incomes' only → loan dahil edilmez; 'expenses' → dahil edilir."""
+    today = date.today()
+    _cash_account(db_session, test_user.id, balance=5000.0)
+
+    first_payment = today + timedelta(days=3)
+    _loan_account(db_session, test_user.id,
+                  monthly_payment=2000.0,
+                  next_payment_date=first_payment,
+                  remaining_installments=3)
+
+    # Sadece incomes filtresi
+    r_income_only = generate_forecast(db_session, test_user.id, horizon_days=30,
+                                      include={"incomes"})
+    assert r_income_only["summary"]["total_payable"] == 0.0
+
+    # expenses filtresi dahil
+    r_with_expenses = generate_forecast(db_session, test_user.id, horizon_days=30,
+                                        include={"expenses"})
+    # 30 gün içinde 1 veya 2 taksit olabilir (3 gün + ~33 gün)
+    assert r_with_expenses["summary"]["total_payable"] < 0.0
+
+
+def test_loan_payments_stop_at_remaining_installments(db_session, test_user):
+    """BUG #058: remaining_installments=3 ise horizon=180 günde tam 3 occurrence."""
+    today = date.today()
+    _cash_account(db_session, test_user.id, balance=50000.0)
+
+    first_payment = today + timedelta(days=2)
+    _loan_account(db_session, test_user.id,
+                  monthly_payment=1500.0,
+                  next_payment_date=first_payment,
+                  remaining_installments=3)
+
+    result = generate_forecast(db_session, test_user.id, horizon_days=180,
+                               include={"expenses"})
+
+    # Tam 3 loan_payment eventi olmalı
+    loan_events = [
+        ev
+        for day in result["days"]
+        for ev in day.events
+        if ev.source_type == "loan_payment"
+    ]
+    assert len(loan_events) == 3, f"Beklenen 3 taksit, alınan {len(loan_events)}"
+    assert abs(result["summary"]["total_payable"]) == pytest.approx(4500.0)

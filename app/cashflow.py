@@ -8,8 +8,12 @@ Para birimi: TL (float), mevcut model şemasıyla tutarlı.
 Timezone: date.today() — lokal sistem saati (UTC+3 Istanbul).
 Kapsam dışı (Wave-3):
   - Yatırım hesapları (multi-asset ayrı design)
-  - Kredi kartı taksit döngüsü (MC3 cycle ayrı design)
+  - Kredi kartı taksit döngüsü (MC3 Ziraat cycle ayrı design)
   - One-off scheduled tx (Transaction.due_date yok)
+
+BUG #058 fix: Kredi taksitleri artık "expenses" chip altında tam olarak genişletiliyor.
+  Eski _loan_payments_in_range sadece next_payment_date'e bakıyordu (tek occurrence).
+  Yeni _expand_loan_payments remaining_installments kadar aylık ileri gider.
 """
 
 from __future__ import annotations
@@ -125,31 +129,45 @@ def _personal_debts_in_range(
     return events
 
 
-def _loan_payments_in_range(
-    db: Session, user_id: int, start: date, end: date
+def _advance_month(d: date) -> date:
+    """Bir ay ilerlet; ay sonu durumlarını monthrange ile kenetler."""
+    next_month = d.month % 12 + 1
+    next_year = d.year + (d.month // 12)
+    last = monthrange(next_year, next_month)[1]
+    return d.replace(year=next_year, month=next_month, day=min(d.day, last))
+
+
+def _expand_loan_payments(
+    account: Account, start: date, end: date
 ) -> list[ForecastEvent]:
-    """next_payment_date'i [start, end] aralığında olan kredi hesapları."""
-    rows = (
-        db.query(Account)
-        .filter(
-            Account.user_id == user_id,
-            Account.account_type == AccountType.loan,
-            Account.next_payment_date.isnot(None),
-            Account.next_payment_date >= start,
-            Account.next_payment_date <= end,
-        )
-        .all()
-    )
-    return [
-        ForecastEvent(
-            acc.next_payment_date,
-            -(acc.monthly_payment or 0.0),
-            acc.name,
-            "loan",
-            acc.id,
-        )
-        for acc in rows
-    ]
+    """BUG #058 fix: Kredi hesabının horizon içindeki tüm taksit occurrence'larını üretir.
+
+    Account.next_payment_date'ten başlar, remaining_installments kadar aylık ilerler.
+    Yalnızca [start, end] aralığındaki tarihler olay listesine eklenir.
+    """
+    if account.account_type != AccountType.loan:
+        return []
+    if not account.next_payment_date or not account.monthly_payment:
+        return []
+    remaining = account.remaining_installments or 0
+    if remaining == 0:
+        return []
+
+    events: list[ForecastEvent] = []
+    current = account.next_payment_date
+    idx = 0
+    while current <= end and idx < remaining:
+        if current >= start:
+            events.append(ForecastEvent(
+                current,
+                -(account.monthly_payment),
+                f"{account.name} taksiti",
+                "loan_payment",
+                account.id,
+            ))
+        current = _advance_month(current)
+        idx += 1
+    return events
 
 
 # ============================================================
@@ -267,6 +285,12 @@ def generate_forecast(
             exp_q = exp_q.filter(RecurringExpense.account_id == account_id)
         for exp in exp_q.all():
             all_events.extend(_expand_recurring_expense(exp, today, end))
+        # BUG #058 fix: kredi taksitleri sabit gider sınıfında, "expenses" chip'i ile dahil edilir
+        for loan in db.query(Account).filter(
+            Account.user_id == user_id,
+            Account.account_type == AccountType.loan,
+        ).all():
+            all_events.extend(_expand_loan_payments(loan, today, end))
 
     if "receivables" in include:
         all_events.extend(
@@ -277,7 +301,6 @@ def generate_forecast(
         all_events.extend(
             _personal_debts_in_range(db, user_id, today, end, DebtDirection.payable)
         )
-        all_events.extend(_loan_payments_in_range(db, user_id, today, end))
 
     # --- Tarihe göre grupla ---
     events_by_date: dict[date, list[ForecastEvent]] = {}

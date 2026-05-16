@@ -1,31 +1,63 @@
+/**
+ * Loss Aversion Framing: Kullanici 'Kazanc' veya 'Kayip' bakisi secer.
+ * Ayni veri, iki perspektif (Kahneman/Tversky 1979 prospect theory).
+ * Default 'gain' (Kahneman gain frame norm) - loss frame opsiyonel, kullanici secer.
+ * AI birini dogru diye dayatmaz, iki bakis acisi gosterir (ADR-001).
+ */
 import { useState, useEffect } from 'react';
 import { TrendingUp, X, Calendar, Clock, ArrowRight, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { simulationApi, actionsApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 
-const fmtTL = (v) =>
+// ============================================================
+// YARDIMCI FORMATLAYICILAR
+// ============================================================
+
+const fmt = (v) =>
   (v ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const fmtDelta = (v) => {
+const fmtDelta = (v, frame = 'gain') => {
   if (v === undefined || v === null || v === 0) return null;
-  const sign = v > 0 ? '+' : '';
-  return `${sign}${fmtTL(v)} TL`;
+  const absVal = Math.abs(v);
+  const fmtVal = fmt(absVal);
+  if (frame === 'gain') {
+    return v > 0 ? `+${fmtVal} TL kazanç` : `−${fmtVal} TL kayıp`;
+  } else {
+    return v > 0 ? `+${fmtVal} TL fırsat` : `−${fmtVal} TL risk`;
+  }
 };
 
+const summaryText = (val, frame, metric) => {
+  if (val === null || val === undefined || val === 0) return null;
+  const absStr = fmt(Math.abs(val));
+  const sign = val > 0 ? '+' : '−';
+  if (frame === 'gain') {
+    const verb = val > 0 ? 'kazanırsın' : 'kaybedersin';
+    return `30g sonra ${metric}: ${sign}${absStr} TL ${verb}`;
+  } else {
+    const verb = val > 0 ? 'fırsatını kaçırırsın' : 'risk azaltma fırsatını kaçırırsın';
+    return `Bu aksiyonu yapmazsan 30g'de ${metric}: ${sign}${absStr} TL ${verb}`;
+  }
+};
+
+// ============================================================
+// HORIZON KARTI
+// ============================================================
+
 const HORIZON_META = [
-  { label: 'T+0',  title: 'Bugün',       icon: Clock,     border: 'border-brand-500'   },
-  { label: 'T+30', title: '1 Ay Sonra',  icon: Calendar,  border: 'border-warn-500'    },
-  { label: 'T+90', title: '3 Ay Sonra',  icon: ArrowRight, border: 'border-positive-500' },
+  { label: 'T+0',  sublabel: 'Bugün',       icon: Clock,      border: 'border-brand-500'    },
+  { label: 'T+30', sublabel: '1 Ay Sonra',  icon: Calendar,   border: 'border-warn-500'     },
+  { label: 'T+90', sublabel: '3 Ay Sonra',  icon: ArrowRight, border: 'border-positive-500' },
 ];
 
-function HorizonCard({ snap, meta }) {
+function HorizonCard({ snap, meta, frame }) {
   const delta = snap.delta_vs_baseline || {};
   const Icon = meta.icon;
 
   const rows = [
-    { label: 'Net Değer',  value: snap.net_deger,    deltaKey: 'net_deger'    },
-    { label: 'Nakit',      value: snap.nakit_kasa,   deltaKey: 'nakit_kasa'   },
-    { label: 'Kart Borcu', value: snap.kart_borcu,   deltaKey: 'kart_borcu'   },
+    { label: 'Net Değer',  value: snap.net_deger,     deltaKey: 'net_deger'     },
+    { label: 'Nakit',      value: snap.nakit_kasa,    deltaKey: 'nakit_kasa'    },
+    { label: 'Kart Borcu', value: snap.kart_borcu,    deltaKey: 'kart_borcu'    },
     { label: 'Yatırım',    value: snap.yatirim_deger, deltaKey: 'yatirim_deger' },
   ];
 
@@ -35,25 +67,31 @@ function HorizonCard({ snap, meta }) {
         <Icon className="w-4 h-4 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
         <div>
           <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{snap.label}</p>
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{meta.title}</p>
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{meta.sublabel}</p>
         </div>
       </div>
 
       <div className="space-y-1.5">
         {rows.map(({ label, value, deltaKey }) => {
-          const d = fmtDelta(delta[deltaKey]);
+          const dText = fmtDelta(delta[deltaKey], frame);
           const isNet = label === 'Net Değer';
           const dVal = delta[deltaKey];
           return (
             <div key={label} className="flex items-start justify-between gap-2">
               <span className="text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">{label}</span>
               <div className="text-right">
-                <span className={`text-xs font-numeric font-medium ${isNet && value < 0 ? 'text-negative-600 dark:text-negative-400' : isNet && value > 0 ? 'text-positive-600 dark:text-positive-400' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                  {fmtTL(value)} TL
+                <span className={`text-xs font-numeric font-medium ${
+                  isNet && value < 0
+                    ? 'text-negative-600 dark:text-negative-400'
+                    : isNet && value > 0
+                    ? 'text-positive-600 dark:text-positive-400'
+                    : 'text-zinc-700 dark:text-zinc-300'
+                }`}>
+                  {fmt(value)} TL
                 </span>
-                {d && (
+                {dText && (
                   <p className={`text-[10px] font-numeric ${dVal < 0 ? 'text-negative-500' : 'text-positive-500'}`}>
-                    Δ {d}
+                    Δ {dText}
                   </p>
                 )}
               </div>
@@ -65,11 +103,16 @@ function HorizonCard({ snap, meta }) {
   );
 }
 
+// ============================================================
+// ANA MODAL
+// ============================================================
+
 export default function HorizonsModal({ isOpen, onClose, actionId, onApproved }) {
   const toast = useToast();
   const [phase, setPhase]   = useState('idle');
   const [result, setResult] = useState(null);
   const [error, setError]   = useState(null);
+  const [frame, setFrame]   = useState('gain');  // 'gain' | 'loss' — default gain (Kahneman norm)
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -82,6 +125,7 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
       setPhase('idle');
       setResult(null);
       setError(null);
+      setFrame('gain');
       return;
     }
     runSimulation();
@@ -150,9 +194,44 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1.5 flex-shrink-0" title="Kapat">
-            <X className="w-4 h-4" />
-          </button>
+
+          {/* Sag: frame toggle + kapat */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div
+              className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden text-xs"
+              title="Bakış açısını değiştir — aynı veri, iki perspektif"
+            >
+              <button
+                onClick={() => setFrame('gain')}
+                aria-pressed={frame === 'gain'}
+                className={`px-3 py-1.5 font-medium transition-colors ${
+                  frame === 'gain'
+                    ? 'bg-positive-500 text-white'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Kazanç
+              </button>
+              <button
+                onClick={() => setFrame('loss')}
+                aria-pressed={frame === 'loss'}
+                className={`px-3 py-1.5 font-medium transition-colors ${
+                  frame === 'loss'
+                    ? 'bg-negative-500 text-white'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Kayıp
+              </button>
+            </div>
+            <button
+              onClick={onClose}
+              className="btn btn-ghost btn-icon !p-1.5"
+              aria-label="Kapat"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* BODY — loading */}
@@ -187,33 +266,38 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {result.horizons?.map((snap) => {
                 const meta = HORIZON_META.find(m => m.label === snap.label) || HORIZON_META[0];
-                return <HorizonCard key={snap.label} snap={snap} meta={meta} />;
+                return (
+                  <HorizonCard key={snap.label} snap={snap} meta={meta} frame={frame} />
+                );
               })}
             </div>
 
             {/* Summary karti */}
-            {result.summary && Object.keys(result.summary).length > 0 && (
-              <div className="card p-4 bg-brand-50/50 dark:bg-brand-950/20 border-brand-200 dark:border-brand-800/50">
-                <div className="flex flex-wrap gap-4 text-sm">
-                  {result.summary.net_worth_change_30d !== undefined && (
-                    <span>
-                      <span className="text-zinc-500 dark:text-zinc-400">30g net değer Δ:</span>{' '}
-                      <span className={`font-numeric font-semibold ${result.summary.net_worth_change_30d < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-positive-600 dark:text-positive-400'}`}>
-                        {result.summary.net_worth_change_30d > 0 ? '+' : ''}{fmtTL(result.summary.net_worth_change_30d)} TL
+            {result.summary && Object.keys(result.summary).length > 0 && (() => {
+              const nwText = summaryText(result.summary.net_worth_change_30d, frame, 'net değer');
+              const cashText = summaryText(result.summary.cash_change_30d, frame, 'nakit');
+              if (!nwText && !cashText) return null;
+              return (
+                <div className="card p-4 bg-brand-50/50 dark:bg-brand-950/20 border-brand-200 dark:border-brand-800/50">
+                  <div className="flex flex-col gap-1.5 text-sm">
+                    {nwText && (
+                      <span>
+                        <span className={`font-numeric font-semibold ${(result.summary.net_worth_change_30d ?? 0) < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-positive-600 dark:text-positive-400'}`}>
+                          {nwText}
+                        </span>
                       </span>
-                    </span>
-                  )}
-                  {result.summary.cash_change_30d !== undefined && (
-                    <span>
-                      <span className="text-zinc-500 dark:text-zinc-400">30g nakit Δ:</span>{' '}
-                      <span className={`font-numeric font-semibold ${result.summary.cash_change_30d < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-positive-600 dark:text-positive-400'}`}>
-                        {result.summary.cash_change_30d > 0 ? '+' : ''}{fmtTL(result.summary.cash_change_30d)} TL
+                    )}
+                    {cashText && (
+                      <span>
+                        <span className={`font-numeric font-semibold ${(result.summary.cash_change_30d ?? 0) < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-positive-600 dark:text-positive-400'}`}>
+                          {cashText}
+                        </span>
                       </span>
-                    </span>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Event log */}
             {result.event_log?.length > 0 && (

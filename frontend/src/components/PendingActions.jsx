@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, X, AlertCircle, Loader2, Pencil } from 'lucide-react';
+import { Check, X, AlertCircle, Loader2, Pencil, Brain } from 'lucide-react';
 import { actionsApi, formatTLSuffix, formatDate } from '../api.js';
+import PremortemModal from './PremortemModal.jsx';
 
 /**
  * PendingActions — Onay bekleyen aksiyonlari listeler.
@@ -170,6 +171,7 @@ export default function PendingActions({ actions, onResolved, accounts }) {
   const [editingById, setEditingById] = useState({});  // edit modu aktif aksiyon id'leri
   const [payloadById, setPayloadById] = useState({});  // edit sonrasi guncellenen payload
   const [editRequestTimes, setEditRequestTimes] = useState({});  // E kısayolu tetikleyici
+  const [premortemActionId, setPremortemActionId] = useState(null);
 
   // Y/N/E klavye kısayolları — ilk bekleyen aksiyona uygulanır
   const actionsRef = useRef(actions);
@@ -247,6 +249,7 @@ export default function PendingActions({ actions, onResolved, accounts }) {
   };
 
   return (
+    <>
     <div className="space-y-2 animate-slide-up">
       {actions.map((a) => {
         const aid = getActionId(a);
@@ -314,7 +317,16 @@ export default function PendingActions({ actions, onResolved, accounts }) {
                   </div>
                 )}
 
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  <button
+                    onClick={() => setPremortemActionId(aid)}
+                    disabled={busy || isEditing}
+                    className="btn btn-warn !py-1.5 !text-xs flex items-center gap-1"
+                    title="6 ay sonra başarısızlık senaryolarını gör"
+                  >
+                    <Brain className="w-3.5 h-3.5" />
+                    Premortem
+                  </button>
                   <button
                     onClick={() => handleApprove(aid)}
                     disabled={busy || isEditing}
@@ -342,5 +354,17 @@ export default function PendingActions({ actions, onResolved, accounts }) {
         );
       })}
     </div>
+
+    {premortemActionId !== null && (
+      <PremortemModal
+        isOpen={premortemActionId !== null}
+        onClose={() => setPremortemActionId(null)}
+        actionId={premortemActionId}
+        onApproved={(actionId, result) => {
+          onResolved?.(actionId, 'approved', result);
+        }}
+      />
+    )}
+  </>
   );
 }

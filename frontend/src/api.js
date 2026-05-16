@@ -278,6 +278,13 @@ export const cashflowApi = {
     }),
 };
 
+export const debtStrategyApi = {
+  compare: ({ extraMonthly = 0 } = {}) =>
+    request('/api/debt-strategy/compare', {
+      params: { extra_monthly: extraMonthly },
+    }),
+};
+
 // =============================================================
 // HEALTH (1)
 // Vite proxy sadece /api/* yonlendirdigi icin /api/health kullaniyoruz.

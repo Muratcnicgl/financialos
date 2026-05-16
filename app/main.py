@@ -42,6 +42,7 @@ from app.routers import fund_price as fund_price_router
 # Grup 4
 from app.routers import reports as reports_router
 from app.routers import cashflow as cashflow_router
+from app.routers import premortem as premortem_router
 
 
 # ============================================================
@@ -179,6 +180,7 @@ app.include_router(fund_price_router.router)
 # Grup 4
 app.include_router(reports_router.router)
 app.include_router(cashflow_router.router)
+app.include_router(premortem_router.router)
 
 
 # ============================================================

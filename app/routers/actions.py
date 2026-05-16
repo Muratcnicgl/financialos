@@ -35,6 +35,7 @@ from app.models import (
 from app.action_executor import (
     execute_pending_action, reject_pending_action, _normalize_transaction_payload,
 )
+from app.premortem import link_premortem_outcome
 from app.rules_engine import generate_cockpit
 
 router = APIRouter(prefix="/api/actions", tags=["actions"])
@@ -280,6 +281,16 @@ def approve_action(
     )
     db.add(history_entry)
     db.commit()
+
+    # Premortem outcome linki — premortem cagirilmamissa sessiz gec (None doner)
+    link_premortem_outcome(
+        session=db,
+        pending_action_id=pending.id,
+        action_history_id=history_entry.id,
+        success=result.get("success", False),
+        message=result.get("message", ""),
+        net_worth_delta=float(net_worth_after or 0.0) - float(net_worth_before or 0.0),
+    )
 
     # Reflection hook: commit sonrası background — rollback güvenliği garanti
     try:

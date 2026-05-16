@@ -312,3 +312,45 @@ def persist_premortem(
     session.commit()
     session.refresh(dj)
     return dj
+
+
+def link_premortem_outcome(
+    session: Session,
+    pending_action_id: int,
+    action_history_id: int,
+    success: bool,
+    message: str,
+    net_worth_delta: Optional[float] = None,
+) -> Optional[DecisionJournal]:
+    """
+    Aksiyon yurutuldukten sonra premortem DJ kaydina outcome yazar.
+
+    Args:
+        pending_action_id : Yurutulen PendingAction.id
+        action_history_id : Yeni olusan ActionHistory.id — DJ.related_action_id'ye yazilir
+        success           : execute_pending_action sonucu
+        message           : Handler'in dondurdugu Turkce ozet
+        net_worth_delta   : Karar oncesi/sonrasi net deger farki (opsiyonel)
+
+    Returns:
+        Guncellenen DJ; premortem cagirilmamis aksiyon icin None.
+
+    Sessiz gec — premortem zorunlu degil (kullanici karar verir, AI aciklar).
+    """
+    sentinel = f"PendingAction#{pending_action_id}"
+    dj = session.execute(
+        select(DecisionJournal).where(DecisionJournal.decision_text == sentinel)
+    ).scalar_one_or_none()
+
+    if dj is None:
+        return None
+
+    now = datetime.now(timezone.utc)
+    dj.related_action_id = action_history_id
+    dj.actual_outcome = message
+    dj.outcome_evaluated_at = now
+    dj.outcome_score = 1 if success else -1
+
+    session.commit()
+    session.refresh(dj)
+    return dj

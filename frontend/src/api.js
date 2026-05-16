@@ -258,6 +258,10 @@ export const premortemApi = {
   run: (actionId) => request(`/api/premortem/${actionId}`, { method: 'POST' }),
 };
 
+export const simulationApi = {
+  run: (actionId) => request(`/api/simulate/${actionId}`, { method: 'POST' }),
+};
+
 // =============================================================
 // CASHFLOW (1)
 // =============================================================

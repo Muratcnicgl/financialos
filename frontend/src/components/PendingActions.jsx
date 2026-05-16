@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, X, AlertCircle, Loader2, Pencil, Brain } from 'lucide-react';
+import { Check, X, AlertCircle, Loader2, Pencil, Brain, TrendingUp } from 'lucide-react';
 import { actionsApi, formatTLSuffix, formatDate } from '../api.js';
 import PremortemModal from './PremortemModal.jsx';
+import HorizonsModal from './HorizonsModal.jsx';
 
 /**
  * PendingActions — Onay bekleyen aksiyonlari listeler.
@@ -172,6 +173,7 @@ export default function PendingActions({ actions, onResolved, accounts }) {
   const [payloadById, setPayloadById] = useState({});  // edit sonrasi guncellenen payload
   const [editRequestTimes, setEditRequestTimes] = useState({});  // E kısayolu tetikleyici
   const [premortemActionId, setPremortemActionId] = useState(null);
+  const [horizonsActionId, setHorizonsActionId] = useState(null);
 
   // Y/N/E klavye kısayolları — ilk bekleyen aksiyona uygulanır
   const actionsRef = useRef(actions);
@@ -328,6 +330,15 @@ export default function PendingActions({ actions, onResolved, accounts }) {
                     Premortem
                   </button>
                   <button
+                    onClick={() => setHorizonsActionId(aid)}
+                    disabled={busy || isEditing}
+                    className="btn btn-primary !py-1.5 !text-xs flex items-center gap-1"
+                    title="Bugün / 1 ay / 3 ay sonrasını gör"
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    3 Ufuk
+                  </button>
+                  <button
                     onClick={() => handleApprove(aid)}
                     disabled={busy || isEditing}
                     className="btn btn-positive !py-1.5 !text-xs"
@@ -360,6 +371,16 @@ export default function PendingActions({ actions, onResolved, accounts }) {
         isOpen={premortemActionId !== null}
         onClose={() => setPremortemActionId(null)}
         actionId={premortemActionId}
+        onApproved={(actionId, result) => {
+          onResolved?.(actionId, 'approved', result);
+        }}
+      />
+    )}
+    {horizonsActionId !== null && (
+      <HorizonsModal
+        isOpen={horizonsActionId !== null}
+        onClose={() => setHorizonsActionId(null)}
+        actionId={horizonsActionId}
         onApproved={(actionId, result) => {
           onResolved?.(actionId, 'approved', result);
         }}

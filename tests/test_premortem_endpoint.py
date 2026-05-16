@@ -125,13 +125,42 @@ def _make_mock_result(action_id: int, n: int = 5) -> PremortemResult:
     )
 
 
+_FAKE_SNAPSHOT = {
+    "snapshot_at": "2026-05-16T12:00:00+00:00",
+    "net_worth_tl": 50000.0,
+    "cash_tl": 15000.0,
+    "card_debt_tl": 5000.0,
+    "loan_debt_tl": 0.0,
+    "investment_tl": 40000.0,
+    "cashflow_30d_tl": 7000.0,
+    "cashflow_60d_tl": 14000.0,
+    "lowest_balance_tl": 12000.0,
+    "lowest_balance_date": "2026-06-01",
+    "crunch_count": 0,
+    "daily_limit_tl": 250.0,
+}
+
+
+@pytest.fixture
+def mock_snapshot(monkeypatch):
+    """build_cockpit_snapshot + compute_snapshot_hash'i mock'lar."""
+    monkeypatch.setattr(
+        "app.routers.premortem.build_cockpit_snapshot",
+        lambda db, user_id: _FAKE_SNAPSHOT,
+    )
+    monkeypatch.setattr(
+        "app.routers.premortem.compute_snapshot_hash",
+        lambda snapshot: "deadbeefcafe1234",
+    )
+
+
 # ============================================================
 # TESTLER
 # ============================================================
 
 @patch("app.routers.premortem.generate_premortem")
-def test_premortem_happy_path(mock_generate, client, db_session, user_alice):
-    """200: 5 senaryo, DJ kaydedildi, premortem_run_at doldu."""
+def test_premortem_happy_path(mock_generate, mock_snapshot, client, db_session, user_alice):
+    """200: 5 senaryo, DJ kaydedildi, premortem_run_at + snapshot_hash doldu."""
     action = _make_pending_action(db_session, user_alice.id)
     mock_generate.return_value = _make_mock_result(action.id)
 
@@ -146,15 +175,16 @@ def test_premortem_happy_path(mock_generate, client, db_session, user_alice):
     assert body["cached"] is False
 
     # DB dogrulama
+    import json as _json
     dj = db_session.execute(
         select(DecisionJournal).where(
             DecisionJournal.id == body["persisted_decision_journal_id"]
         )
     ).scalar_one()
-    import json
-    persisted = json.loads(dj.premortem_scenarios)
+    persisted = _json.loads(dj.premortem_scenarios)
     assert len(persisted) == 5
     assert dj.premortem_run_at is not None
+    assert dj.cockpit_snapshot_hash == "deadbeefcafe1234"
 
 
 @patch("app.routers.premortem.generate_premortem")
@@ -212,7 +242,7 @@ def test_premortem_503_llm_fail(mock_generate, client, db_session, user_alice):
 
 
 @patch("app.routers.premortem.generate_premortem")
-def test_premortem_idempotent_rerun(mock_generate, client, db_session, user_alice):
+def test_premortem_idempotent_rerun(mock_generate, mock_snapshot, client, db_session, user_alice):
     """Ayni aksiyon icin iki kez POST — DB'de tek DJ kaydi, ikinci run_at >= birinci."""
     import json
     action = _make_pending_action(db_session, user_alice.id)

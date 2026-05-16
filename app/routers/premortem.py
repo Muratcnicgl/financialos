@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.cockpit_snapshot import build_cockpit_snapshot, compute_snapshot_hash
 from app.dependencies import get_db, get_current_user
 from app.models import ActionStatus, PendingAction, User
 from app.premortem import (
@@ -88,11 +89,14 @@ def run_premortem(
         "rationale": payload_dict.get("rationale") or payload_dict.get("reason"),
     }
 
+    snapshot = build_cockpit_snapshot(db, current_user.id)
+    snapshot_hash = compute_snapshot_hash(snapshot)
+
     try:
         result = generate_premortem(
             action_id=action.id,
             action_context=action_context,
-            cockpit_snapshot=None,  # H2G3 ikinci alt is: cockpit snapshot buraya girer
+            cockpit_snapshot=snapshot,
         )
     except PremortemError as e:
         logger.error("premortem generation failed action_id=%s error=%s", action_id, e)
@@ -101,7 +105,7 @@ def run_premortem(
             detail=f"Premortem motoru su anda cevap veremedi: {e}",
         )
 
-    dj = persist_premortem(db, action, current_user.id, result)
+    dj = persist_premortem(db, action, current_user.id, result, snapshot_hash)
 
     logger.info(
         "premortem ok action_id=%s provider=%s scenarios=%d",

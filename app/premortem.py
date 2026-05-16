@@ -272,6 +272,7 @@ def persist_premortem(
     action: PendingAction,
     user_id: int,
     result: PremortemResult,
+    snapshot_hash: str = "",
 ) -> DecisionJournal:
     """
     Premortem sonuclarini DecisionJournal'a yazar.
@@ -292,6 +293,7 @@ def persist_premortem(
     if existing:
         existing.premortem_scenarios = scenarios_json
         existing.premortem_run_at = now
+        existing.cockpit_snapshot_hash = snapshot_hash
         dj = existing
     else:
         dj = DecisionJournal(
@@ -301,7 +303,7 @@ def persist_premortem(
             predicted_outcome=action.summary or "",
             confidence_at_decision=None,
             mc_rules_applied=json.dumps([]),
-            cockpit_snapshot_hash="",
+            cockpit_snapshot_hash=snapshot_hash,
             premortem_scenarios=scenarios_json,
             premortem_run_at=now,
         )

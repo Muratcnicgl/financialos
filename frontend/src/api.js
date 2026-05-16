@@ -251,6 +251,22 @@ export const fundPriceApi = {
 };
 
 // =============================================================
+// CASHFLOW (1)
+// =============================================================
+
+export const cashflowApi = {
+  getForecast: ({ days = 60, accountId = null, include = null, crunchThreshold = 0 } = {}) =>
+    request('/api/cashflow/forecast', {
+      params: {
+        days,
+        ...(accountId !== null && { account_id: accountId }),
+        include: include ? include.join(',') : 'incomes,expenses,receivables,payables',
+        crunch_threshold: crunchThreshold,
+      },
+    }),
+};
+
+// =============================================================
 // HEALTH (1)
 // Vite proxy sadece /api/* yonlendirdigi icin /api/health kullaniyoruz.
 // Backend hem '/' hem '/api/health' icin ayni cevabi verir.

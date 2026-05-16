@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3,
+  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves,
 } from 'lucide-react';
 import { healthApi } from './api.js';
 import { ToastProvider } from './components/Toast.jsx';
@@ -15,6 +15,7 @@ import Transactions from './panels/Transactions.jsx';
 import IncomeDebt from './panels/IncomeDebt.jsx';
 import RedLines from './panels/RedLines.jsx';
 import Reports from './panels/Reports.jsx';
+import Cashflow from './panels/Cashflow.jsx';
 
 const TABS = [
   { id: 'cockpit',     label: 'Cockpit',         icon: Activity      },
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'incomedebt',  label: 'Gelir & Borç',    icon: TrendingUp    },
   { id: 'redlines',    label: 'Kırmızı Çizgiler', icon: ShieldAlert  },
   { id: 'reports',     label: 'Raporlar',         icon: BarChart3    },
+  { id: 'cashflow',    label: 'Akış',             icon: Waves        },
 ];
 
 function useTheme() {
@@ -191,13 +193,14 @@ function AppContent() {
         <div className={`max-w-6xl mx-auto px-4 ${
           activeTab === 'coach' ? 'h-full flex flex-col pt-4' : 'py-6'
         }`}>
-          {activeTab === 'cockpit' && <Cockpit />}
+          {activeTab === 'cockpit' && <Cockpit setActiveTab={setActiveTab} />}
           {activeTab === 'coach' && <Coach />}
           {activeTab === 'accounts' && <Accounts />}
           {activeTab === 'transactions' && <Transactions />}
           {activeTab === 'incomedebt' && <IncomeDebt />}
           {activeTab === 'redlines' && <RedLines />}
           {activeTab === 'reports' && <Reports />}
+          {activeTab === 'cashflow' && <Cashflow />}
         </div>
       </main>
 

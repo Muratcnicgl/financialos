@@ -3,11 +3,11 @@ import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Banknote, Calculator, Scale, ScaleIcon, AlertTriangle,
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
-  Eye, Telescope, Bell,
+  Eye, Telescope, Bell, Waves, ArrowRight,
 } from 'lucide-react';
 import {
   cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
-  formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
+  cashflowApi, formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
 } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
 import AccountCard from '../components/AccountCard.jsx';
@@ -27,13 +27,14 @@ import EmptyState from '../components/EmptyState.jsx';
  * - Ust grup: Operasyonel (Nakit, Kart, Kredi, Yatirim) - 4 kart
  * - Alt grup: Strateji (Emanet, Gelir, Reel Butce, Gorulen Net, Tam Net) - 5 kart
  */
-export default function Cockpit() {
+export default function Cockpit({ setActiveTab }) {
   const [data, setData] = useState(null);
   const [pendingActions, setPendingActions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [priceUpdateAccount, setPriceUpdateAccount] = useState(null);
+  const [flowSummary, setFlowSummary] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -59,6 +60,10 @@ export default function Cockpit() {
       setLoading(false);
       setRefreshing(false);
     }
+    // Akış özeti — sessiz fail, cockpit yüklemesini engellemesin
+    cashflowApi.getForecast({ days: 30 })
+      .then(r => setFlowSummary(r.summary))
+      .catch(() => {});
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -310,6 +315,47 @@ export default function Cockpit() {
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Getiri</p>
               <p className={`font-numeric font-semibold ${signClass(investmentPnl.getiri_yuzde)}`}>
                 {formatPercent(investmentPnl.getiri_yuzde)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Akış Özeti — cashflow forecast özeti (30 gün) */}
+      {flowSummary && (
+        <div className="card p-4 border-brand-200/60 dark:border-brand-800/40 bg-brand-50/30 dark:bg-brand-950/10">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Waves className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+              <h3 className="font-semibold text-sm">Akış Özeti (30 gün)</h3>
+            </div>
+            {setActiveTab && (
+              <button
+                onClick={() => setActiveTab('cashflow')}
+                className="flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:underline"
+              >
+                Detay <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">En Düşük Bakiye</p>
+              <p className={`font-numeric font-semibold text-sm ${flowSummary.lowest_balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
+                {formatTL(flowSummary.lowest_balance)} TL
+              </p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{formatDate(flowSummary.lowest_date)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Net Akış</p>
+              <p className={`font-numeric font-semibold text-sm ${flowSummary.net_flow >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
+                {flowSummary.net_flow > 0 ? '+' : ''}{formatTL(flowSummary.net_flow)} TL
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Sıkışma Günü</p>
+              <p className={`font-numeric font-semibold text-sm ${flowSummary.crunch_count > 0 ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                {flowSummary.crunch_count}
               </p>
             </div>
           </div>

@@ -720,7 +720,7 @@ class GoalRule(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"),
-                     nullable=False, index=True)
+                     nullable=False)  # index __table_args__'da
 
     name = Column(String(200), nullable=False)
     priority = Column(Integer, nullable=False, default=0)
@@ -755,8 +755,8 @@ class Goal(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    goal_type = Column(String(20), nullable=False, index=True)
-    # 'debt_freedom' | 'cash_target'
+    goal_type = Column(String(20), nullable=False)
+    # 'debt_freedom' | 'cash_target' — index __table_args__'da
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     title = Column(String(200), nullable=False)
@@ -766,8 +766,8 @@ class Goal(Base):
     # debt_freedom için goal yaratım anındaki toplam borç (Account.loan + credit_card)
     baseline_amount = Column(Numeric(14, 2), nullable=True)
 
-    status = Column(String(20), nullable=False, default="active", index=True)
-    # 'active' | 'achieved' | 'paused' | 'abandoned'
+    status = Column(String(20), nullable=False, default="active")
+    # 'active' | 'achieved' | 'paused' | 'abandoned' — index __table_args__'da
 
     # Progress cache — refresh_goal() tarafından güncellenir
     current_amount = Column(Numeric(14, 2), nullable=False, default=0)
@@ -804,10 +804,10 @@ class GoalAllocation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"),
-                     nullable=False, index=True)
+                     nullable=False)  # index __table_args__'da
     transaction_id = Column(Integer,
                             ForeignKey("transactions.id", ondelete="CASCADE"),
-                            nullable=False, index=True)
+                            nullable=False)  # index __table_args__'da
 
     amount = Column(Numeric(14, 2), nullable=False)
     source = Column(String(20), nullable=False, default="manual")

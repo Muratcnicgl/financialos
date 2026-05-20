@@ -608,7 +608,8 @@ class DecisionJournal(Base):
     __tablename__ = "decision_journal"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # index tek-sutunlu degil; idx_decision_journal_user_time composite'i kapsıyor
 
     # KARAR
     decision_text = Column(Text, nullable=False)

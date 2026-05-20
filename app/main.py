@@ -46,6 +46,9 @@ from app.routers import premortem as premortem_router
 from app.routers import simulation as simulation_router
 from app.routers import debt_strategy as debt_strategy_router
 
+# Grup 5: H2G5 Goal Engine
+from app.routers import goals as goals_router
+
 
 # ============================================================
 # LOGGING
@@ -185,6 +188,9 @@ app.include_router(cashflow_router.router)
 app.include_router(premortem_router.router)
 app.include_router(simulation_router.router)
 app.include_router(debt_strategy_router.router)
+
+# Grup 5
+app.include_router(goals_router.router)
 
 
 # ============================================================

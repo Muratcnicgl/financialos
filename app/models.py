@@ -1,5 +1,5 @@
 """
-SQLAlchemy ORM modelleri — 11 tablo:
+SQLAlchemy ORM modelleri — 14 tablo:
 
 ANA TABLOLAR (8):
 1. User              — kullanıcı (single-user şu an, multi-user'a hazır)
@@ -16,6 +16,11 @@ YENİ TABLOLAR (3) — Wave-1 mukemmellestirme:
 10. CoachInsight     — Koç'un kendi kalıcı notları (uzun vadeli hafıza)
 11. ApiCallLog       — LLM cagri sayisi (Gemini 1500/gun limiti takibi)
 
+H2G5 GOAL ENGINE TABLOLARI (3) — ADR-024 (Allocation-Based, Monarch Goals 3.0 pattern):
+12. Goal             — hedef tanımı (debt_freedom | cash_target)
+13. GoalAllocation   — transaction → goal bağlantısı (pozitif=katkı, negatif=çekim)
+14. GoalRule         — otomatik allocation kuralları
+
 INDEX STRATEJISI:
 - transactions(user_id, transaction_date)  — listelemede sik kullanilir
 - transactions(account_id, transaction_date) — hesap gecmisi
@@ -29,7 +34,7 @@ from datetime import datetime, date, timezone
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, Text,
     Date, DateTime, ForeignKey, Enum as SQLEnum, Index, UniqueConstraint,
-    Numeric, PrimaryKeyConstraint, func, text,
+    Numeric, PrimaryKeyConstraint, func, text, JSON,
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -699,4 +704,127 @@ class ReasoningTrace(Base):
         Index("ix_reasoning_traces_coach_memory_id", "coach_memory_id"),
         Index("ix_reasoning_traces_created_at", "created_at"),
         Index("ix_reasoning_traces_user_id", "user_id"),
+    )
+
+
+# ============================================================
+# H2G5 GOAL ENGINE (ADR-024) — Allocation-Based Goal Tracking
+# Pattern: Monarch Money Goals 3.0 (transaction-linked goals)
+# ============================================================
+
+
+class GoalRule(Base):
+    """Otomatik allocation kurali. Yeni tx geldiginde evaluate_rules_for_transaction
+    tarafindan degerlendirilir; eslesen kurallara gore GoalAllocation yaratilir."""
+    __tablename__ = "goal_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+
+    name = Column(String(200), nullable=False)
+    priority = Column(Integer, nullable=False, default=0)
+
+    criteria = Column(JSON, nullable=False)
+    # Ornek: {"tx_type": "transfer", "destination_account_type": ["savings", "cash"]}
+    # Ornek: {"tx_type": "income", "amount_min": 5000}
+
+    allocation_type = Column(String(20), nullable=False)
+    # 'full' | 'percent' | 'fixed'
+    allocation_value = Column(Numeric(10, 2), nullable=True)
+    # percent: (0, 100], fixed: TL tutari; full icin NULL
+
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    goal = relationship("Goal", back_populates="rules")
+
+    __table_args__ = (
+        Index("ix_goal_rules_goal_id", "goal_id"),
+    )
+
+
+class Goal(Base):
+    """Finansal hedef — debt_freedom veya cash_target.
+
+    current_amount + progress_percent + projected_completion_date:
+    GoalAllocation toplamından hesaplanır (goal_engine.refresh_goal).
+    Her refresh_goal çağrısında güncellenir, cache olarak tutulur.
+    """
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    goal_type = Column(String(20), nullable=False, index=True)
+    # 'debt_freedom' | 'cash_target'
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    title = Column(String(200), nullable=False)
+    target_amount = Column(Numeric(14, 2), nullable=False)
+    target_date = Column(Date, nullable=True)
+
+    # debt_freedom için goal yaratım anındaki toplam borç (Account.loan + credit_card)
+    baseline_amount = Column(Numeric(14, 2), nullable=True)
+
+    status = Column(String(20), nullable=False, default="active", index=True)
+    # 'active' | 'achieved' | 'paused' | 'abandoned'
+
+    # Progress cache — refresh_goal() tarafından güncellenir
+    current_amount = Column(Numeric(14, 2), nullable=False, default=0)
+    progress_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    projected_completion_date = Column(Date, nullable=True)
+    last_refreshed_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+    achieved_at = Column(DateTime, nullable=True)
+
+    allocations = relationship("GoalAllocation", back_populates="goal",
+                               cascade="all, delete-orphan")
+    rules = relationship("GoalRule", back_populates="goal",
+                         cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_goals_goal_type", "goal_type"),
+        Index("ix_goals_status", "status"),
+    )
+
+
+class GoalAllocation(Base):
+    """Tek transaction'ın tek goal'e ne kadar katkı verdiği.
+
+    amount > 0: tasarruf/katkı (contribution)
+    amount < 0: çekim/azalma (withdrawal)
+
+    Aynı (goal_id, transaction_id) çifti birden fazla kez kaydedilemez
+    — unique constraint uq_goal_tx bunu engeller.
+    """
+    __tablename__ = "goal_allocations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    transaction_id = Column(Integer,
+                            ForeignKey("transactions.id", ondelete="CASCADE"),
+                            nullable=False, index=True)
+
+    amount = Column(Numeric(14, 2), nullable=False)
+    source = Column(String(20), nullable=False, default="manual")
+    # 'manual' | 'rule' | 'system'
+
+    rule_id = Column(Integer,
+                     ForeignKey("goal_rules.id", ondelete="SET NULL"),
+                     nullable=True)
+
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    goal = relationship("Goal", back_populates="allocations")
+    transaction = relationship("Transaction")
+    rule = relationship("GoalRule", foreign_keys=[rule_id])
+
+    __table_args__ = (
+        UniqueConstraint("goal_id", "transaction_id", name="uq_goal_tx"),
+        Index("ix_goal_allocations_goal_id", "goal_id"),
+        Index("ix_goal_allocations_transaction_id", "transaction_id"),
     )

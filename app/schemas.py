@@ -4,8 +4,9 @@ ORM modellerinden bağımsız, frontend ile veri sözleşmesi.
 """
 
 from datetime import datetime, date
+from decimal import Decimal
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 # === ORTAK ===
@@ -246,3 +247,100 @@ class CockpitSnapshot(BaseModel):
     upcoming_receivables: List[dict]
     alerts: List[dict]
     investment_pnl: List[dict]
+
+
+# ============================================================
+# H2G5 GOAL ENGINE (ADR-024)
+# ============================================================
+
+class GoalCreate(BaseModel):
+    goal_type: Literal["debt_freedom", "cash_target"]
+    title: str = Field(..., min_length=1, max_length=200)
+    target_amount: Decimal = Field(..., gt=0)
+    target_date: Optional[date] = None
+
+
+class GoalUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    target_amount: Optional[Decimal] = Field(None, gt=0)
+    target_date: Optional[date] = None
+    status: Optional[Literal["active", "achieved", "paused", "abandoned"]] = None
+
+
+class GoalRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: Optional[int] = None
+    goal_type: str
+    title: str
+    target_amount: Decimal
+    baseline_amount: Optional[Decimal] = None
+    target_date: Optional[date]
+    status: str
+    current_amount: Decimal
+    progress_percent: Decimal
+    projected_completion_date: Optional[date]
+    last_refreshed_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    achieved_at: Optional[datetime]
+
+
+class GoalAllocationCreate(BaseModel):
+    transaction_id: int
+    amount: Decimal  # pozitif=katkı, negatif=çekim
+
+
+class GoalAllocationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    goal_id: int
+    transaction_id: int
+    amount: Decimal
+    source: str
+    rule_id: Optional[int]
+    created_at: datetime
+
+
+class GoalRuleCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    priority: int = 0
+    criteria: dict
+    allocation_type: Literal["full", "percent", "fixed"]
+    allocation_value: Optional[Decimal] = Field(None, ge=0)
+    is_active: bool = True
+
+    @field_validator("allocation_value")
+    @classmethod
+    def value_required_for_percent_or_fixed(cls, v, info):
+        atype = info.data.get("allocation_type")
+        if atype in ("percent", "fixed") and v is None:
+            raise ValueError(f"{atype} allocation requires allocation_value")
+        if atype == "percent" and v is not None and (v <= 0 or v > 100):
+            raise ValueError("percent must be in (0, 100]")
+        return v
+
+
+class GoalRuleUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    priority: Optional[int] = None
+    criteria: Optional[dict] = None
+    allocation_type: Optional[Literal["full", "percent", "fixed"]] = None
+    allocation_value: Optional[Decimal] = Field(None, ge=0)
+    is_active: Optional[bool] = None
+
+
+class GoalRuleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    goal_id: int
+    name: str
+    priority: int
+    criteria: dict
+    allocation_type: str
+    allocation_value: Optional[Decimal]
+    is_active: bool
+    created_at: datetime

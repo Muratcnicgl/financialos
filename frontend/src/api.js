@@ -286,6 +286,56 @@ export const debtStrategyApi = {
 };
 
 // =============================================================
+// GOALS (13) — H2G5 Goal Engine (allocation-based, ADR-025)
+// =============================================================
+
+export const goalsApi = {
+  // Hedef CRUD
+  list:   ({ statusFilter, goalType } = {}) =>
+    request('/api/goals', {
+      params: {
+        ...(statusFilter !== undefined && { status_filter: statusFilter }),
+        ...(goalType !== undefined && { goal_type: goalType }),
+      },
+    }),
+  get:    (id) => request(`/api/goals/${id}`),
+  create: (data) => request('/api/goals', { method: 'POST', body: data }),
+  update: (id, data) => request(`/api/goals/${id}`, { method: 'PATCH', body: data }),
+  delete: (id) => request(`/api/goals/${id}`, { method: 'DELETE' }),
+
+  // Progress yenile (deterministik recompute)
+  refresh: (id) => request(`/api/goals/${id}/refresh`, { method: 'POST' }),
+
+  // Allocations (manuel + transaction-linked)
+  allocations: {
+    list:   (goalId) => request(`/api/goals/${goalId}/allocations`),
+    create: (goalId, data) => request(`/api/goals/${goalId}/allocations`, {
+      method: 'POST',
+      body: data,
+    }),
+    delete: (allocationId) => request(`/api/goals/allocations/${allocationId}`, {
+      method: 'DELETE',
+    }),
+  },
+
+  // Otomatik kurallar (rule engine)
+  rules: {
+    list:   (goalId) => request(`/api/goals/${goalId}/rules`),
+    create: (goalId, data) => request(`/api/goals/${goalId}/rules`, {
+      method: 'POST',
+      body: data,
+    }),
+    update: (ruleId, data) => request(`/api/goals/rules/${ruleId}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+    delete: (ruleId) => request(`/api/goals/rules/${ruleId}`, {
+      method: 'DELETE',
+    }),
+  },
+};
+
+// =============================================================
 // HEALTH (1)
 // Vite proxy sadece /api/* yonlendirdigi icin /api/health kullaniyoruz.
 // Backend hem '/' hem '/api/health' icin ayni cevabi verir.

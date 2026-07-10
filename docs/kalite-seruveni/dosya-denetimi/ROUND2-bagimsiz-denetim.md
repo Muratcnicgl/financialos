@@ -35,10 +35,11 @@ katmanı (coach.py, coach_insights.py).
 - **coach.py YENİ CHECKPOINT stripping**: kullanıcı açıkça kural isteyip cevapta "eklenebilir"
   gibi hedge kelime geçince öneri siliniyor. → Kullanıcı-istediğinde-koru fix'i uygulandı (BUG #094).
 - **is_question boşlukları** (MEDIUM plausible): değerlendir/özetle/yorumla/karşılaştır/göster/
-  hesapla + gelecek-zaman ifadeleri yakalanmıyor → propose_action bu durumda hâlâ açık. LLM-eval
-  ile ölçülmeli (yanlış-pozitif riski). **BACKLOG: LLM-004.**
-- **STEP E retry non-realized eylemde propose_action zorluyor** (KURAL SIFIR): gelecek-zaman
-  ifadesi + boş yanıtta retry tetiklenebilir. LLM-eval gerektirir. **BACKLOG: LLM-004.**
+  hesapla + gelecek-zaman ifadeleri yakalanmıyor → propose_action bu durumda hâlâ açık.
+  ✅ **ÇÖZÜLDÜ (BUG #095):** is_question analiz fiillerini yakalar + should_offer_propose_tool
+  gelecek/niyet ifadesinde propose_action'ı baskılar (deterministik). Uçtan uca contract harness ile kilitli.
+- **STEP E retry non-realized eylemde propose_action zorluyor** (KURAL SIFIR): ✅ **ÇÖZÜLDÜ
+  (BUG #095):** retry artık `offer_propose` guard'ına bağlı — gelecek/niyet ifadesinde zorlanmaz.
 - **coach_insights K2 non-deterministik başlık → duplicate insight** (LOW-MEDIUM): dedup title
   LLM üretimine bağlı. **BACKLOG.**
 
@@ -46,22 +47,30 @@ katmanı (coach.py, coach_insights.py).
 - **models.py Account/Goal cascade yok** (HIGH/MEDIUM): FK enforce olunca User/Account silme
   IntegrityError. Router 409 guard'ı (BUG #091) çökmeyi kapattı; tam cascade tasarımı ayrı.
   **BACKLOG: DATA (cascade stratejisi).**
-- **reasoning_trace per-step commit paylaşılan session'ı erken commit'liyor** (MEDIUM plausible):
-  chat turn'ü ortada hata alırsa yarı-yazılı state kalıcı olabilir. **BACKLOG.**
+- **reasoning_trace per-step commit** (MEDIUM plausible): İncelendi — büyük ölçüde TASARIM
+  GEREĞİ (observability trace, chat başarısız olsa bile debug için kalmalı; CoachMemory/
+  PendingAction kendi commit'lerinde atomik). Net bug değil. **İzleme.**
 - **main.py _catch_up_snapshots iş mantığı** (style, app/PROJE.md): startup modülüne taşınmalı.
 
 **Düşük şiddet (izleme):**
-- rules_engine kart durum 3-state basitleştirmesi: kesim sonrası "ödeme yaklaşıyor" uyarısını
-  bastırabilir (kart %99.8 doluyken önemli). Tasarım basitleştirmesi — ayrı değerlendirilecek.
-- rules_engine anomali penceresi 30 vs 31 gün off-by-one (kozmetik).
-- sim emanet guard asimetrisi (add_transaction/update_balance sim'de emanet'i bloklamıyor —
-  yalnız önizleme, gerçek executor bloklar).
-- executor mutasyon+status ayrı commit (P2 plausible, düşük olasılık).
-- sell_investment balance vs current_price sapması (P2, kokpit etkilenmiyor).
-- income-on-card işaret (P2, desteklenmeyen senaryo).
-- debts.py çelişkili paid state (LOW edge).
-- goal_engine daily_rate/90 genç goal'de yavaş (modelleme).
-- cashflow tek-hesap projeksiyonu global gelir/gider karıştırıyor (modelleme).
+- rules_engine kart durum 3-state basitleştirmesi: ✅ **MİTİGE (BUG #096):** kart son ödeme
+  artık ayrı proaktif reminder olarak firing — durum-state suppression'dan bağımsız.
+- rules_engine anomali penceresi 30 vs 31 gün off-by-one (kozmetik). **İzleme.**
+- sim emanet guard asimetrisi → ✅ **ÇÖZÜLDÜ (BUG #101):** add_transaction + update_account_balance
+  sim'de emanet'i bloklar (executor ile birebir); update_fund_price meşru revalüasyon (bloklanmaz).
+- executor mutasyon+status ayrı commit (P2 plausible, düşük olasılık). **İzleme.**
+- sell_investment balance vs current_price sapması → ✅ **ÇÖZÜLDÜ (BUG #102):** satışta
+  current_price=actual_price güncellenir; balance == lot_count*current_price tutarlı.
+- income-on-card işaret → ✅ **ÇÖZÜLDÜ (BUG #103):** karta gelen gelir borcu azaltır (executor+sim).
+- debts.py çelişkili paid state (LOW edge). **İzleme.**
+- goal_engine daily_rate/90 genç goal'de yavaş (modelleme). **İzleme.**
+- cashflow tek-hesap projeksiyonu global gelir/gider karıştırıyor (modelleme). **İzleme.**
+
+## Vizyon değeri (denetim sonrası, aynı turda)
+Kurucu vizyona hizmet eden eklemeler: **A1 kart son ödeme reminder (#096)**, **A3 aylık özet
+(#097)** + rules_engine refactor, **koç aylık trend farkındalığı (#098)**, **son işlemler
+grounding-tutarlı context (#099)**, **zikzak "yarınki limit" projeksiyonu (#100)**, **koç
+davranış sözleşmesi uçtan-uca harness** (deterministik eval). Süit 162→272 yeşil.
 
 ## Doğrulanan temiz alanlar (ajan raporlarından)
 premortem.py, fund_tracker.py (tam temiz); rules_engine bölme-sıfır guard'ları + leap-year +

@@ -21,6 +21,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.rules_engine import generate_monthly_summary
 from app.models import (
     Transaction, TransactionType, User, NetWorthSnapshot,
     Account, AccountType, PersonalDebt, DebtDirection,
@@ -265,68 +266,8 @@ def upcoming_cashflow(
 
 
 # ============================================================
-# AYLIK ÖZET (A3) — gelir/gider/net + kategori dağılımı + önceki aya trend
+# AYLIK ÖZET (A3) — matematik rules_engine.generate_monthly_summary'de
 # ============================================================
-
-_TR_AYLAR = [
-    "", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-]
-
-
-def _month_bounds(year: int, month: int) -> tuple[date, date]:
-    last = monthrange(year, month)[1]
-    return date(year, month, 1), date(year, month, last)
-
-
-def _month_aggregates(db: Session, user_id: int, start: date, end: date) -> dict:
-    """Bir takvim ayının gelir/gider/net + gider kategori dağılımını hesaplar."""
-    rows = db.query(
-        Transaction.transaction_type.label("ttype"),
-        func.coalesce(Transaction.category, "(kategorisiz)").label("category"),
-        func.sum(Transaction.amount).label("total"),
-        func.count(Transaction.id).label("cnt"),
-    ).filter(
-        Transaction.user_id == user_id,
-        Transaction.transaction_date >= start,
-        Transaction.transaction_date <= end,
-        Transaction.transaction_type.in_([TransactionType.income, TransactionType.expense]),
-    ).group_by(
-        Transaction.transaction_type,
-        func.coalesce(Transaction.category, "(kategorisiz)"),
-    ).all()
-
-    total_income = 0.0
-    total_expense = 0.0
-    tx_count = 0
-    expense_by_cat: dict[str, dict] = {}
-    for r in rows:
-        tx_count += r.cnt
-        if r.ttype == TransactionType.income:
-            total_income += float(r.total)
-        else:
-            total_expense += float(r.total)
-            expense_by_cat[r.category] = {
-                "category": r.category,
-                "total": round(float(r.total), 2),
-                "count": r.cnt,
-            }
-
-    # Gider kategori yüzdeleri (gider toplamına göre)
-    cats = sorted(expense_by_cat.values(), key=lambda c: -c["total"])
-    for c in cats:
-        c["percentage"] = round(c["total"] / total_expense * 100, 1) if total_expense > 0 else 0.0
-
-    net_change = total_income - total_expense
-    return {
-        "total_income": round(total_income, 2),
-        "total_expense": round(total_expense, 2),
-        "net_change": round(net_change, 2),
-        "transaction_count": tx_count,
-        "savings_rate": round(net_change / total_income * 100, 1) if total_income > 0 else None,
-        "expense_categories": cats,
-    }
-
 
 @router.get("/monthly-summary")
 def monthly_summary(
@@ -338,39 +279,9 @@ def monthly_summary(
     """
     A3: Aylık özet rapor — gelir/gider/net değişim + gider kategori dağılımı +
     önceki aya göre trend. year/month verilmezse içinde bulunulan ay.
-
-    Trend: cari ay ile önceki takvim ay karşılaştırması (yüzde delta; önceki 0 ise None).
+    Hesap rules_engine'de (mimari kural); router yalnız parametre + delege eder.
     """
     today = date.today()
     y = year or today.year
     m = month or today.month
-
-    cur_start, cur_end = _month_bounds(y, m)
-    pm_y, pm_m = (y - 1, 12) if m == 1 else (y, m - 1)
-    prev_start, prev_end = _month_bounds(pm_y, pm_m)
-
-    cur = _month_aggregates(db, current_user.id, cur_start, cur_end)
-    prev = _month_aggregates(db, current_user.id, prev_start, prev_end)
-
-    def _pct_delta(c: float, p: float) -> Optional[float]:
-        return round((c - p) / p * 100, 1) if p > 0 else None
-
-    trend = {
-        "income_delta_pct": _pct_delta(cur["total_income"], prev["total_income"]),
-        "expense_delta_pct": _pct_delta(cur["total_expense"], prev["total_expense"]),
-        "net_change_delta": round(cur["net_change"] - prev["net_change"], 2),
-        "prev_total_income": prev["total_income"],
-        "prev_total_expense": prev["total_expense"],
-        "prev_net_change": prev["net_change"],
-    }
-
-    return {
-        "period": {
-            "year": y, "month": m,
-            "label": f"{_TR_AYLAR[m]} {y}",
-            "start": cur_start.isoformat(), "end": cur_end.isoformat(),
-        },
-        "current": cur,
-        "previous_period": {"year": pm_y, "month": pm_m, "label": f"{_TR_AYLAR[pm_m]} {pm_y}"},
-        "trend": trend,
-    }
+    return generate_monthly_summary(current_user.id, y, m, db)

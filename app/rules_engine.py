@@ -36,7 +36,7 @@ from calendar import monthrange
 from typing import List, Dict, Optional, Tuple
 import re
 
-from sqlalchemy import text
+from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 from app.models import (
     Account, AccountType, RecurringIncome, RecurringExpense, Transaction,
@@ -660,6 +660,101 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
             "anomaly_flag": anomaly_flag,
         })
     return patterns
+
+
+# ============================================================
+# AYLIK ÖZET (A3) — takvim-ayı gelir/gider/net + kategori + önceki-ay trend
+# (Mimari kural: matematik rules_engine'de; reports router yalnız bunu çağırır.)
+# ============================================================
+
+_TR_AYLAR = [
+    "", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+]
+
+
+def _month_bounds(year: int, month: int) -> Tuple[date, date]:
+    last = monthrange(year, month)[1]
+    return date(year, month, 1), date(year, month, last)
+
+
+def _month_aggregates(db: Session, user_id: int, start: date, end: date) -> Dict:
+    """Bir takvim ayının gelir/gider/net + gider kategori dağılımı (saf okuma)."""
+    rows = db.query(
+        Transaction.transaction_type.label("ttype"),
+        func.coalesce(Transaction.category, "(kategorisiz)").label("category"),
+        func.sum(Transaction.amount).label("total"),
+        func.count(Transaction.id).label("cnt"),
+    ).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_date >= start,
+        Transaction.transaction_date <= end,
+        Transaction.transaction_type.in_([TransactionType.income, TransactionType.expense]),
+    ).group_by(
+        Transaction.transaction_type,
+        func.coalesce(Transaction.category, "(kategorisiz)"),
+    ).all()
+
+    total_income = 0.0
+    total_expense = 0.0
+    tx_count = 0
+    expense_by_cat: Dict[str, Dict] = {}
+    for r in rows:
+        tx_count += r.cnt
+        if r.ttype == TransactionType.income:
+            total_income += float(r.total)
+        else:
+            total_expense += float(r.total)
+            expense_by_cat[r.category] = {
+                "category": r.category,
+                "total": round(float(r.total), 2),
+                "count": r.cnt,
+            }
+
+    cats = sorted(expense_by_cat.values(), key=lambda c: -c["total"])
+    for c in cats:
+        c["percentage"] = round(c["total"] / total_expense * 100, 1) if total_expense > 0 else 0.0
+
+    net_change = total_income - total_expense
+    return {
+        "total_income": round(total_income, 2),
+        "total_expense": round(total_expense, 2),
+        "net_change": round(net_change, 2),
+        "transaction_count": tx_count,
+        "savings_rate": round(net_change / total_income * 100, 1) if total_income > 0 else None,
+        "expense_categories": cats,
+    }
+
+
+def generate_monthly_summary(user_id: int, year: int, month: int, db: Session) -> Dict:
+    """A3: takvim-ayı özeti (current + previous_period + trend). Saf okuma."""
+    cur_start, cur_end = _month_bounds(year, month)
+    pm_y, pm_m = (year - 1, 12) if month == 1 else (year, month - 1)
+    prev_start, prev_end = _month_bounds(pm_y, pm_m)
+
+    cur = _month_aggregates(db, user_id, cur_start, cur_end)
+    prev = _month_aggregates(db, user_id, prev_start, prev_end)
+
+    def _pct_delta(c: float, p: float) -> Optional[float]:
+        return round((c - p) / p * 100, 1) if p > 0 else None
+
+    return {
+        "period": {
+            "year": year, "month": month,
+            "label": f"{_TR_AYLAR[month]} {year}",
+            "start": cur_start.isoformat(), "end": cur_end.isoformat(),
+        },
+        "current": cur,
+        "previous_period": {"year": pm_y, "month": pm_m, "label": f"{_TR_AYLAR[pm_m]} {pm_y}"},
+        "trend": {
+            "income_delta_pct": _pct_delta(cur["total_income"], prev["total_income"]),
+            "expense_delta_pct": _pct_delta(cur["total_expense"], prev["total_expense"]),
+            "net_change_delta": round(cur["net_change"] - prev["net_change"], 2),
+            "prev_total_income": prev["total_income"],
+            "prev_total_expense": prev["total_expense"],
+            "prev_net_change": prev["net_change"],
+        },
+    }
 
 
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:

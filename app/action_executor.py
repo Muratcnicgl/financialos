@@ -715,7 +715,7 @@ def _execute_update_fund_price(db: Session, user_id: int, payload: Dict) -> Dict
     if account_id is None or new_price is None:
         return {"success": False, "message": "account_id ve new_price gerekli."}
 
-    return update_fund_price_manual(db, account_id, float(new_price))
+    return update_fund_price_manual(db, account_id, float(new_price), user_id=user_id)  # BUG #115
 
 
 def _execute_add_master_checkpoint(db: Session, user_id: int, payload: Dict) -> Dict:

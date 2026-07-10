@@ -89,6 +89,7 @@ def update_fund_price_manual(
     db: Session,
     account_id: int,
     new_price: float,
+    user_id: Optional[int] = None,   # BUG #115: sahiplik kapsamı (verilirse zorunlu filtre)
 ) -> Dict:
     """
     Yatırım hesabının fiyatını manuel olarak günceller.
@@ -107,7 +108,13 @@ def update_fund_price_manual(
             "message": str,
         }
     """
-    account = db.query(Account).filter(Account.id == account_id).first()
+    # BUG #115 fix: diğer tüm handler'lar gibi user_id ile kapsamla (verildiyse). Tek-kullanıcı
+    # MVP'de zararsızdı ama bu, user_id filtresi OLMAYAN tek mutasyon handler'ıydı (multi-user
+    # geçişinde crafted account_id başka kullanıcının fonunu güncelleyebilirdi).
+    q = db.query(Account).filter(Account.id == account_id)
+    if user_id is not None:
+        q = q.filter(Account.user_id == user_id)
+    account = q.first()
     if not account:
         return {"success": False, "message": f"Hesap bulunamadi: id={account_id}"}
 

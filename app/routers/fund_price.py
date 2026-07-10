@@ -91,11 +91,12 @@ def update_price(
             f"Sadece yatirim hesabi guncellenir. Bu hesap: {acc.account_type.value}",
         )
 
-    # Imza: update_fund_price_manual(db, account_id, new_price)
+    # Imza: update_fund_price_manual(db, account_id, new_price, user_id)
     result = update_fund_price_manual(
         db=db,
         account_id=payload.account_id,
         new_price=payload.new_price,
+        user_id=user.id,   # BUG #115: sahiplik kapsamı
     )
 
     if not result.get("success"):

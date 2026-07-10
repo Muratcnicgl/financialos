@@ -161,7 +161,23 @@ def _project_cash_completion(
     if recent_sum <= 0:
         return None
 
-    daily_rate = recent_sum / Decimal("90")
+    # BUG #105 fix: hız = recent_sum / GERÇEK katkı süresi (sabit 90 DEĞİL). Genç bir goal'de
+    # (örn. 10 gün önce açılmış, 3000 birikmiş) sabit 90'a bölmek hızı ~9x düşük gösterip
+    # tamamlanmayı çok uzağa atıyordu. Penceredeki ilk allocation'dan bugüne olan span kullanılır
+    # (en az 1, en çok 90 gün).
+    first_alloc = db.query(func.min(GoalAllocation.created_at)).filter(
+        and_(
+            GoalAllocation.goal_id == goal.id,
+            GoalAllocation.created_at >= cutoff,
+        )
+    ).scalar()
+    if first_alloc:
+        span_days = (datetime.utcnow() - first_alloc).days
+        span_days = max(1, min(90, span_days))
+    else:
+        span_days = 90
+
+    daily_rate = recent_sum / Decimal(str(span_days))
     remaining = goal.target_amount - current
     days_needed = int(remaining / daily_rate)
 

@@ -109,3 +109,12 @@ def test_debt_avalanche_para_korunumu(debts):
     expected = principal + res.total_interest_paid
     # float birikimli yuvarlama toleransı (borç başına ~0.01 * ay)
     assert abs(res.total_paid - expected) <= 1.0 + 0.02 * res.months_to_freedom
+
+
+# NOT (property-test bulgusu, bug DEĞİL): "avalanche her zaman snowball'dan az faiz öder"
+# BU MODELDE EVRENSEL DEĞİL. Karşı-örnek: küçük %0 borç + büyük min_payment (örn. bakiye 501,
+# rate 0, min 500). Snowball o küçük borcu ÖNCE kapatıp BÜYÜK minimumu (500) bir ay erken
+# serbest bırakır → yüksek-faizli borca daha fazla para akar → daha az faiz. Bu gerçek bir
+# kişisel-finans nüansıdır (minimumlar "lumpy" olunca avalanche optimal olmayabilir); kod
+# gerçekliği doğru modelliyor ve compare_strategies faizsiz-borç uyarısı veriyor (#081).
+# Dolayısıyla bu bir DEĞİŞMEZ olarak ASSERT EDİLMEZ — yanlış-pozitif olurdu.

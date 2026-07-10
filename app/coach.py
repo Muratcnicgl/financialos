@@ -695,6 +695,7 @@ Statü: {cockpit['statu']}
   - Ay sonuna kalan   : {cockpit['days_remaining']} gün
   - Günlük limit      : {_fmt(cockpit['daily_limit'])} TL/gün
   - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
+  - Bugün harcamazsan : yarınki limit {_fmt(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))} TL/gün (zikzak: biriken güç)
 
 ## Hesaplar
 {accounts_text}

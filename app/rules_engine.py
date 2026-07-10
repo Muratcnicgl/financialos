@@ -893,6 +893,15 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     carried_forward = 0.0  # ADR-026: additive carry reddedildi (bilinçli 0, "eksik" değil)
     today_target = daily_limit  # sürdürülebilir dinamik ortalama = bugünkü hedef
 
+    # ZİKZAK PROJEKSİYONU (kurucu "biriken güç" — Gemini sohbetlerinin ekseni):
+    # Bugün harcamazsan reel_butce aynı kalır, kalan gün 1 azalır → yarınki dinamik limit
+    # yükselir. ADR-026 ile TUTARLI: additive DEĞİL, aynı bütçenin bir gün az güne bölünmesi
+    # (çift-sayım yok). Koç bunu "bugün nöbet tutarsan yarın limitin X'e çıkar" diye kullanır.
+    yarin_limit_harcamasiz = (
+        round(reel_butce / (days_remaining - 1), 2) if days_remaining > 1
+        else round(reel_butce, 2)  # son gün: tüm kalan bütçe bugünündür
+    )
+
     # Yaklaşan ödemeler ve tahsilatlar
     upcoming_payments = _collect_upcoming_loan_payments(user_id, today, db)
     upcoming_payments.extend(upcoming_incomes)
@@ -936,6 +945,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "net_deger_tam": net_deger_tam,                # Tam (stratejik)
         "alacaklar_toplami": alacaklar_toplami,        # Transparency
         "daily_limit": daily_limit,
+        "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,
         "today_target": today_target,

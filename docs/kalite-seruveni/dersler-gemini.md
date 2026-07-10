@@ -28,12 +28,17 @@
 
 ## Meta-ders (her iki sohbet)
 
-1. **LLM'in matematiğine ASLA güvenme** → deterministik motor. (Bugün Rules Engine var; grounding kontrolü ekle → LLM-003.)
-2. **Varsayım = hata.** Anlık veri, teyit önce. (KURAL SIFIR var; kod-seviyesi enforce + grounding eksik.)
-3. **Çift sayma yasak.** (ADR-026 uyguladı; float çift-yuvarlama kaldı.)
-4. **Kırılgan çıktı formatı** tekrar eden bela → structured output'a geç (regex postprocess'i emekliye ayır).
-5. **Sanal zenginlik yasak** → gölge muhasebe (var; sağlamlaştır).
-6. **Omurgalı/realist ton** koru; dalkavukluğa kayma.
-7. **Egemenlik** kök ideal → yerel LLM seçeneği stratejik değerlendir (V2).
+1. **LLM'in matematiğine ASLA güvenme** → deterministik motor. ✅ Rules Engine + **grounding kontrolü eklendi (LLM-003/#083)** + koç context sayıları grounding-tutarlı (#110 + invariant).
+2. **Varsayım = hata.** Anlık veri, teyit önce. ✅ KURAL SIFIR + **gelecek/niyet baskılama (#095)** + uçtan-uca contract harness kilidi.
+3. **Çift sayma yasak.** ✅ ADR-026 (zikzak) + **sim sınır çift-sayım (#084)** + beklenen-gelir çift-sayım (#086). (float çift-yuvarlama izleme.)
+4. **Kırılgan çıktı formatı** → structured output. Yeniden değerlendirildi: NL koç için regex postprocess UYGUN (artık iyi test edilmiş: #085 + contract harness). Structured output muhtemelen gereksiz.
+5. **Sanal zenginlik yasak** → gölge muhasebe. ✅ `apply_shadow_accounting` doğrulandı (golden test) + zikzak "yarınki limit" görünür.
+6. **Omurgalı/realist ton** koru; dalkavukluğa kayma. ✅ V3 tonu korundu.
+7. **Egemenlik** kök ideal → yerel LLM. ✅ **Ollama sovereign provider (LLM-005)** eklendi.
 
-> Bu dersler, per-file kod denetiminin ve devrimsel geliştirme adımlarının **filtresi**: her değişiklik bu 7 meta-derse hizmet etmeli.
+### Bu turda eklenen meta-dersler (yürütme deneyimi)
+8. **Kendi kodunu da ADVERSARIAL denetle.** Birim testler entegrasyon regresyonunu kaçırır: bu turda kendi #085 fix'im analiz raporunu bozuyordu (yalnız-birim testler kaçırdı, per-file ajan yakaladı); kendi #110 grounding-yanlış-pozitifimi ise öz-denetim ajanı yakaladı. **Ders: her büyük değişiklikten sonra bağımsız adversarial öz-denetim + entegrasyon/invariant testi.**
+9. **Katman-arası değişiklik katman-arası doğrulama ister.** tzinfo sweep (#092) backend datetime'ı `+00:00` yaptı; frontend parse'ı (`new Date`, `+ 'Z'` DEĞİL) bozmadığı TEYİT edildi — değiştiren, tükettiği tarafı da doğrulamalı.
+10. **Araştır → önceliklendir → en kaliteli yol.** Yapılabilir ≠ yapılmalı: structured output yapılabilirdi ama NL koç için yanlış; feature-creep yerine kurucu boşlukları (Borç Çığı, zikzak projeksiyon, aylık trend) kapatıldı.
+
+> Bu dersler, per-file kod denetiminin ve geliştirme adımlarının **filtresi**: her değişiklik bu meta-derslere hizmet etmeli. Kurucu boşlukların büyük kısmı 11 Tem 2026 turunda kapatıldı (süit 162→291).

@@ -23,14 +23,14 @@ Her madde kaynak ID'leri ile isaretlidir (per-file kodu orn. `AE-001` VE/VEYA di
 
 ---
 
-## ✅ UYGULAMA DURUMU (6 Tem 2026 — 19/21 P0 çözüldü + doğrulandı, süit 162 yeşil)
+## ✅ UYGULAMA DURUMU (10 Tem 2026 — 21/21 P0 çözüldü + doğrulandı, süit 187 yeşil)
 
-**Çözüldü (BUG #059-#082, hepsi test/çalıştırma ile doğrulandı — bkz. `uygulanan-fixler.md`):**
-P0-1 (#069), P0-2 (#068), P0-3 (#079), P0-4 (#081), P0-5 (#066), P0-6 (#064), P0-8 (#080), P0-9 (#065), P0-10 (#082), P0-11 (#073), P0-12 (#074), P0-13 (#072), P0-14 (#072), P0-15 (#070), P0-16 (#071), P0-18 (#062), P0-20 (#067), P0-21 (#063) + önceki tur (RULE-001/#059, DATA-003-004/#060, FE-002/#061, ADR-026 zikzak) + altyapı (scripts #075/#076, pytest #077, conftest in-memory #078).
+**Çözüldü (BUG #059-#085, hepsi test/çalıştırma ile doğrulandı — bkz. `uygulanan-fixler.md`):**
+P0-1 (#069), P0-2 (#068), P0-3 (#079), P0-4 (#081), P0-5 (#066), P0-6 (#064), **P0-7 (#084)**, P0-8 (#080), P0-9 (#065), P0-10 (#082), P0-11 (#073), P0-12 (#074), P0-13 (#072), P0-14 (#072), P0-15 (#070), P0-16 (#071), P0-18 (#062), **P0-19 (#085)**, P0-20 (#067), P0-21 (#063) + önceki tur (RULE-001/#059, DATA-003-004/#060, FE-002/#061, ADR-026 zikzak) + altyapı (scripts #075/#076, pytest #077, conftest in-memory #078) + devrimsel: **grounding check (LLM-003/#083)**.
 
-**Bekleyen P0 (2) — test-harness bağımlı, bilinçli ertelendi (doğrulanamayan değişiklik uygulanmaz):**
-- **P0-7** (sim sınır çift-sayım) — kök neden anlaşıldı (`_project_forward` `[start,end]` kapalı pencere; zincirlenen segmentler sınır gününü çift sayıyor). Fix `[start,end)` yarı-açık pencere; AMA mevcut simülasyon testleri `simulate_action`'ı MOCK'luyor → `_project_forward` sınır davranışı test-kapsamsız. **Önce simulation_engine boundary testi yaz, sonra fix.**
-- **P0-19** (coach sahte-tamamlama regex) — legit cevabı bozmadan genişletmek için LLM-eval harness (LLM-004) gerekir.
+**Kapatılan son 2 P0 (10 Tem 2026 — önce test yazıldı, kırmızı doğrulandı, sonra fix):**
+- **P0-7** (sim sınır çift-sayım) → **BUG #084**: `_project_forward` pencereleri yarı-açık `(start, end]`. `tests/test_simulation_boundary.py` önce kırmızıydı (kredi zincir 100k→80k vs tek 100k→85k), fix sonrası eşit. 3 boundary testi yeşil.
+- **P0-19** (coach sahte-tamamlama) → **BUG #085**: `_FAKE_PASTTENSE_RE` parantezsiz düz geçmiş-zaman iddiasını (1. tekil + edilgen) yakalar; `tests/test_coach_fake_completion.py` 8 MUST_CATCH + 6 MUST_PRESERVE (yanlış-pozitif koruması) ile doğrulandı.
 
 > Not: P0-1 kısmi (post-commit trigger izolasyonu); tam handler-commit birleştirmesi ayrı.
 

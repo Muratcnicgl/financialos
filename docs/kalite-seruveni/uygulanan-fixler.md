@@ -57,7 +57,11 @@ Her satır: yapıldı → **doğrulandı**. Halüsinasyon/varsayım yok; her fix
 | 23 | P0-8 SE-002 / BUG #080 | simulation add_transaction bakiyeyi koşulsuz (transfer dahil) değiştiriyordu; gerçek executor SADECE `auto_update_balance=True` iken, transfer'de hiç değiştirmiyor → birebir hizalandı | `app/simulation_engine.py` | Süit 162 yeşil | ✅ |
 | 24 | P0-4 DS-003 / BUG #081 | debt_strategy: faizi belirtilmemiş krediler faizsiz simüle ediliyordu (iyimser maliyet) → `compare_strategies` sonucuna açık `warnings` eklendi | `app/debt_strategy.py` | +1 test (faizsiz kredi uyarısı); süit 162 yeşil | ✅ |
 
-> **Durum: 18/21 P0 çözüldü + doğrulandı.** Kalan 3: P0-7 (sim sınır çift-sayım), P0-10 (sim reel_butce 0), P0-19 (coach sahte-tamamlama — LLM eval harness gerektirir).
+| 25 | LLM-003 / BUG #083 (DEVRİMSEL #1) | Grounding check: koç cevabındaki her TL tutarı cockpit'e izlenebilir mi denetlenir; izlenemeyen → uyarı + confidence≤0.4 + trace grounding_violation. "Rules Engine karar verir, LLM açıklar"ın doğrulama katmanı; "varsayım yasak" mandatının kod enforcement'ı | `app/grounding.py` (yeni), `app/coach.py` | +6 test; süit 168 yeşil | ✅ |
+| 26 | P0-7 GR-... / BUG #084 | simulation `_project_forward` zincirleme ufuklarda sınır gününü (T+30) çift sayıyordu (`[start,end]` kapalı pencere) → yarı-açık `(start,end]`. Önce boundary testi kırmızı (kredi zincir 100k→80k vs tek 100k→85k), fix sonrası eşit | `app/simulation_engine.py`, `tests/test_simulation_boundary.py` (yeni) | +3 test; süit 171 yeşil | ✅ |
+| 27 | P0-19 / BUG #085 | Coach parantezsiz düz geçmiş-zaman sahte-tamamlama ("Kaydettim.") propose_action olmadan "işlendi" izlenimi veriyordu → `_FAKE_PASTTENSE_RE` (1. tekil + edilgen) iddia cümlesini atar + netleştirme sorusu. Kullanıcının geçmişine dokunmaz | `app/coach.py`, `tests/test_coach_fake_completion.py` (yeni) | +16 test (8 catch + 6 preserve + 2); süit 187 yeşil | ✅ |
+
+> **Durum: 21/21 P0 çözüldü + doğrulandı (10 Tem 2026, süit 187 yeşil).** + Devrimsel adım #1: grounding check (LLM-003).
 
 ## Bekleyen (onay/temizlik)
 - **20 yetim `reasoning_traces` kaydı** (user id=2, var olmayan): FK açıkken app çalışır ama veri kiri. Silmek düşük riskli (ölü debug trace) — kullanıcı onayıyla temizlenecek.

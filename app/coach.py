@@ -9,6 +9,12 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #094 fix (per-file denetim): YENİ CHECKPOINT bölümü kullanıcı AÇIKÇA kural/checkpoint
+  istediyse hedge kelime ("eklenebilir") içerse bile KORUNUR (eski dal istediği öneriyi siliyordu).
+- BUG #093 fix (per-file denetim): FallbackProvider kota-dışı beklenmedik hatayı ERROR+exc_info
+  loglar — kök-neden "tüm sağlayıcılar düştü" görüntüsü altında saklanmasın.
+- BUG #085 iter2 (per-file denetim): _FAKE_PASTTENSE_RE yalnız 1. tekil şahıs + tek-satır;
+  edilgen formlar analiz raporlarını bozuyordu (yanlış-pozitif) → kaldırıldı, rapor korunur.
 - LLM-005 (DEVRİMSEL #2): OllamaProvider — tamamen yerel/egemen LLM (Qwen 2.5,
   OpenAI-uyumlu :11434). LLM_PROVIDER=ollama ile tek-basina; fallback zincirinin
   SON halkasi olarak (OLLAMA_ENABLED/BASE_URL/MODEL acikssa) bulut saglayicilar
@@ -1245,9 +1251,13 @@ class FallbackProvider(LLMProvider):
                     )
                     continue
                 if i < len(self.providers) - 1:
-                    logger.warning(
-                        f"FallbackProvider: {provider.NAME} hata verdi ({e}), "
-                        f"siradakine geciliyor: {self.providers[i+1].NAME}"
+                    # BUG #093 fix: kota/boş DEĞİL bir hata (400/401/kod bug'ı) sessizce
+                    # yutulup "tüm sağlayıcılar düştü" gibi görünüyordu. ERROR + exc_info ile
+                    # gerçek kök-neden (stack) görünür yapılır; fallback yine de devam eder.
+                    logger.error(
+                        f"FallbackProvider: {provider.NAME} BEKLENMEDİK hata verdi ({e!r}), "
+                        f"siradakine geciliyor: {self.providers[i+1].NAME}",
+                        exc_info=True,
                     )
                     continue
                 raise
@@ -1501,12 +1511,12 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
             while j < len(lines) and lines[j].strip() and not lines[j].strip().startswith('['):
                 block.append(lines[j])
                 j += 1
-            # Kullanıcı checkpoint istemiyorsa → her zaman sil
-            # Kullanıcı checkpoint istiyorsa → yalnızca koşullu ifade varsa sil
-            should_remove = (
-                not user_wants_checkpoint
-                or _YC_CONDITIONAL_RE.search('\n'.join(block))
-            )
+            # BUG #094 fix: Kullanıcı checkpoint/kural İSTEDİYSE bölümü KORU — hedge kelime
+            # ("eklenebilir/önerilir") içerse bile. Gerçek bir kural önerisi neredeyse her
+            # zaman bu kelimelerle ifade edilir; eski `or _YC_CONDITIONAL_RE` dalı kullanıcının
+            # AÇIKÇA istediği öneriyi siliyordu. Artık sadece kullanıcı İSTEMEDİYSE silinir
+            # (halüsinasyon/istenmeyen checkpoint bölümü temizliği korunur).
+            should_remove = not user_wants_checkpoint
             if should_remove:
                 i = j
                 continue

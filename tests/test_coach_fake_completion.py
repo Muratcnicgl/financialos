@@ -107,3 +107,25 @@ def test_edilgen_analiz_korunur():
     out = _postprocess_report(text, cockpit={}, user_message="analiz", proposed_actions=[])
     assert out.strip() == text.strip()
     assert _CLARIFY_MSG not in out
+
+
+# ============================================================
+# BUG #094 — kullanıcı kural/checkpoint İSTEDİYSE hedge kelimeye rağmen korunur
+# ============================================================
+
+_YC_TEXT = "## YENİ CHECKPOINT\nKart kullanımını %80 ile sınırla, bu kural eklenebilir."
+
+
+def test_094_kullanici_istediyse_checkpoint_korunur():
+    """Kullanıcı 'kural öner' dediyse, 'eklenebilir' hedge kelimesine rağmen öneri kalır."""
+    out = _postprocess_report(_YC_TEXT, cockpit={}, user_message="yeni bir kural öner", proposed_actions=[])
+    assert "YENİ CHECKPOINT" in out
+    assert "sınırla" in out
+
+
+def test_094_kullanici_istemediyse_checkpoint_silinir():
+    """Kontrol: kullanıcı istemediyse istenmeyen checkpoint bölümü eskisi gibi silinir."""
+    text = "Kart borcun 42.100 TL.\n" + _YC_TEXT
+    out = _postprocess_report(text, cockpit={}, user_message="bütçe durumu nedir", proposed_actions=[])
+    assert "YENİ CHECKPOINT" not in out
+    assert "Kart borcun 42.100 TL" in out

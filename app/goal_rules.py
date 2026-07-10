@@ -20,6 +20,12 @@ Desteklenen criteria anahtarları:
   account_type          : str | list[str] — kaynak hesap tipi
                           ("cash", "credit_card", "loan", "investment")
   description_contains  : str — açıklamada geçen anahtar kelime (case-insensitive)
+
+GUNCELLEMELER:
+  BUG #059 fix: account_type criteria eşleşmesinde str(acc.account_type)
+    ("AccountType.cash") yerine acc.account_type.value ("cash") kullanılır.
+    Önceki kod account_type kriterli HER GoalRule'u sessizce ölü bırakıyordu
+    (tx_type dalı ~satır 102'de zaten .value kullanıyordu). Kalite serüveni RULE-001.
 """
 from __future__ import annotations
 
@@ -127,7 +133,9 @@ def _matches(tx: models.Transaction, criteria: dict, db: Session) -> bool:
         allowed = criteria["account_type"]
         if isinstance(allowed, str):
             allowed = [allowed]
-        if str(acc.account_type) not in allowed:
+        # BUG #059 fix: str(enum) "AccountType.cash" döndürür, criteria "cash" bekler.
+        # tx_type dalı (satır ~102) zaten .value kullanıyor; buraya da uygulandı.
+        if acc.account_type.value not in allowed:
             return False
 
     # description_contains — case-insensitive substring
@@ -159,7 +167,10 @@ def _compute_allocation_amount(
         if rule.allocation_value is None:
             return Decimal("0")
         fixed = Decimal(str(rule.allocation_value))
-        # Tx'in işaretini koru: gelir ⇒ +fixed, gider ⇒ -fixed
-        return fixed if tx_amount >= 0 else -fixed
+        # BUG #064 fix (GR-001): işaret tx_amount'tan gelmez — tx.amount DB'de HER ZAMAN
+        # pozitiftir (yön transaction_type'ta), yani `tx_amount >= 0` daima True olup
+        # `else -fixed` ölü daldı. Bir GİDERE eşleşen "fixed" kural withdrawal (-) yerine
+        # yanlışlıkla contribution (+) kaydedip goal progress'i şişiriyordu.
+        return fixed if tx.transaction_type.value == "income" else -fixed
 
     return Decimal("0")

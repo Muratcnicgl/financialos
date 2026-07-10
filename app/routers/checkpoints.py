@@ -110,6 +110,17 @@ def update_checkpoint(
         raise HTTPException(404, f"Checkpoint bulunamadi (id={cp_id})")
 
     update_data = payload.model_dump(exclude_unset=True)
+    # BUG #067 fix (RCH-003): korunan checkpoint'in (priority=1 + red_line) priority/
+    # checkpoint_type alanlari degistirilip sonra ?hard=true ile silinerek Master Checkpoint
+    # enforcement'i (emanet dokunulmazligi vb.) iki adimda delinmesin. delete_checkpoint ile
+    # ayni koruma burada da uygulanir — korunan kayitta bu iki alan degistirilemez.
+    is_protected = (cp.priority == 1 and cp.checkpoint_type == CheckpointType.red_line)
+    if is_protected and ("priority" in update_data or "checkpoint_type" in update_data):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Korunan checkpoint'in (MC{cp_id} '{cp.title}') priority/checkpoint_type "
+                   f"alanlari degistirilemez (Master Checkpoint enforcement).",
+        )
     for k, v in update_data.items():
         setattr(cp, k, v)
 

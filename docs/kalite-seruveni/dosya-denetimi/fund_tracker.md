@@ -1,0 +1,43 @@
+# Denetim: app/fund_tracker.py
+
+### [FT-001] update_fund_price_manual hesap sorgusunda user_id filtresi yok
+- **Sorun:** `update_fund_price_manual` (satir 88-151) `Account` kaydini SADECE `Account.id == account_id` ile ceker (satir 110), `Account.user_id` filtresi yok. Fonksiyon imzasinda `user_id` parametresi bile bulunmuyor. Ayni dosyadaki kardes handler'lardan `_execute_sell_investment` (`app/action_executor.py:548-551`) ve `_execute_update_account_balance` (`app/action_executor.py:386-389`) tutarli sekilde `Account.id == X, Account.user_id == user_id` ikilisini kullaniyor — bu fonksiyon bu pattern'i kirmis. `_execute_update_fund_price` (`app/action_executor.py:625-636`) `user_id` parametresini alir ama hicbir yerde kullanmadan `update_fund_price_manual(db, account_id, ...)`'a iletir (satir 636), yani action_executor-onay akisinda hesap sahiplik kontrolu tamamen atlaniyor. `app/routers/fund_price.py` router seviyesinde ayrica sahiplik dogrulamasi yapiyor (satir 82-85) ama fund_tracker.py'nin kendisi bu garantiyi vermiyor — fonksiyon baska bir cagiran tarafindan (bugunku action_executor yolu dahil) dogrudan kullanildiginda korumasiz.
+- **Kanit:** satir 88-92 (imza), satir 110 (filtre), karsilastirma: app/action_executor.py:548-551, app/action_executor.py:636
+- **Aksiyon:** `update_fund_price_manual` imzasina `user_id: int` parametresi ekle, sorguyu `Account.id == account_id, Account.user_id == user_id` yap; `_execute_update_fund_price` zaten elindeki `user_id`'yi bu cagriya gecsin.
+- **Onem:** Yuksek · **Guven:** Kesin
+
+### [FT-002] last_price_update isoformat() ile UTC suffix'siz donuyor — PROJE.md kuraliyla celisiyor
+- **Sorun:** `docs/architecture.md` ve `app/PROJE.md` acikca sart kosuyor: "Frontend'e tarih yansitan endpoint'lerde serialize oncesi tzinfo=timezone.utc ile aware'e cevrilmeli — aksi halde Pydantic suffix'siz ISO string yayar, JS bunu local time olarak yorumlar." `get_freshness_summary` icinde `inv.last_price_update.isoformat()` (satir 191) ve `update_fund_price_manual` icinde `account.last_price_update.isoformat()` (satir 149) bu donusumu YAPMIYOR — DB'deki naive UTC datetime dogrudan isoformat()'a veriliyor, `+00:00` suffix'i yok. Ikinci deger `app/routers/fund_price.py:112` uzerinden `FundPriceUpdateResponse.timestamp: str` alanina duz string olarak geciyor (Pydantic bir datetime tipine cevirip duzeltmiyor, oldugu gibi frontend'e ulasiyor). Su an frontend bu alanlari dogrudan render etmiyor (Cockpit.jsx sadece `age_text` kullaniyor, `frontend/src/panels/Cockpit.jsx:508`) ama alan aynen API kontratinda duruyor ve ilerde kullanilirsa (veya baska bir tuketici eklenirse) 3 saatlik kayma bug'ina donusur.
+- **Kanit:** satir 149, satir 191 (karsilastirma icin dogru pattern: `app/routers/coach.py` `_memory_to_history_item`)
+- **Aksiyon:** Her iki `isoformat()` cagrisindan once `.replace(tzinfo=timezone.utc)` uygula: `account.last_price_update.replace(tzinfo=timezone.utc).isoformat()`.
+- **Onem:** Orta · **Guven:** Kesin
+
+### [FT-003] old_value hesaplamasi gercek account.balance yerine yeniden turetiliyor — balance out-of-band degismisse yanlis "eski deger" gosterilir
+- **Sorun:** `update_fund_price_manual` `old_value`'yu `round((old_price or 0) * lot_count, 2)` (satir 126) ile hesapliyor; DB'deki `account.balance` alanini dogrudan okumuyor. Normalde bu esittir (balance = lot*price invariant'i bu fonksiyon tarafindan korunuyor). Ancak `app/action_executor.py:376-403` (`_execute_update_account_balance`) yatirim hesaplari da dahil HERHANGI bir emanet-olmayan hesabin `balance` alanini lot/price formulunden bagimsiz, dogrudan `new_balance` ile ezebiliyor (satir 401: `account.balance = float(new_balance)`, lot_count/current_price guncellenmiyor). Bu durumda bir sonraki `update_fund_price_manual` cagrisinda donen `old_value`, `value_diff` ve mesajdaki "deger: X -> Y TL" metni kullaniciya YANLIS bir "eski deger" gosterir (gercek DB balance'i degil, lot_count*eski_price ile turetilmis kurgusal deger).
+- **Kanit:** satir 126-127, satir 148, satir 150; karsilastirma: app/action_executor.py:400-401
+- **Aksiyon:** `old_value = round(account.balance, 2)` kullan (mevcut DB degerini oku) veya en azindan iki degerin sapmasi durumunda loglama/uyari ekle.
+- **Onem:** Orta · **Guven:** Dogrulanmali (invariant'in ne siklikla bozuldugu calisma-zamani veri davranisina bagli, ama kod yolu dogrulandi)
+
+### [FT-004] Emanet hesaplar icin "uyari cikarmiyoruz" kurali sadece agregat sayimda uygulaniyor, item bazinda degil
+- **Sorun:** Satir 180'deki yorum ve kosul (`if stale and not inv.is_emanet: stale_count += 1`) acikca "Emanet icin uyari cikarmiyoruz" diyor, ama satir 193'te item'in kendi `is_stale` alani emanet/emanet-olmama farki gozetmeksizin ham `stale` degerini aliyor. `frontend/src/panels/Cockpit.jsx:501-509` bu `item.is_stale` alanini dogrudan kirmizi/uyari rengi icin kullaniyor — yani emanet bir fonun fiyati bayatladiginda agregat rozet ("N eski") onu saymasa da, o satirin kendisi yine kirmizi/uyari renginde gosteriliyor. Belgelenen niyet ile davranis tutarsiz.
+- **Kanit:** satir 180 (yorum + agregat mantik) vs satir 193 (item mantigi); frontend/src/panels/Cockpit.jsx:501-509
+- **Aksiyon:** Ya satir 193'u `"is_stale": stale and not inv.is_emanet` yap ya da yorumu/niyeti guncelle ("sadece agregat sayimda haric tutuluyor, item renginde tutulmuyor") — hangisi dogruysa acikca belirt.
+- **Onem:** Dusuk · **Guven:** Kesin
+
+### [FT-005] EMK fallback'te sessiz except — hata izi kaybolur
+- **Sorun:** Satir 244-256 arasinda YAT basarisiz olunca EMK ile tekrar denenir; bu ic try/except bloğunda `except Exception: continue` (satir 255-256) hicbir loglama yapmadan bir sonraki tarihe geciyor. Ayni fonksiyondaki digor except dallari (`TefasRateLimitError`, `TefasAPIError`, en disardaki genel `Exception`) hepsi loglaniyor veya en azindan aciklayici; sadece bu ic-ic blok sessiz. TEFAS fiyat cekme basarisiz oldugunda "neden basarisiz oldu" bilgisi tamamen kayboluyor, debug zorlasir.
+- **Kanit:** satir 255-256
+- **Aksiyon:** `except Exception as e: logger.debug(f"EMK fallback basarisiz {fund_code} {check_date}: {e}"); continue`
+- **Onem:** Dusuk · **Guven:** Kesin
+
+### [FT-006] try_auto_fetch_fund_price / try_auto_fetch_stock_price hicbir yerden cagrilmiyor (olu kod)
+- **Sorun:** Repo genelinde grep dogruladi: `try_auto_fetch_fund_price(` ve `try_auto_fetch_stock_price(` sadece tanimlandiklari yerde geciyor (satir 209, 270), hicbir router/executor bu fonksiyonlari cagirmiyor. `requirements.txt`'teki `pytefas==0.3.0`, `yfinance==0.2.48`, `borsapy>=0.8.7` bagimliliklari da bu olu kod ile birlikte kullanilmiyor (kurulum/CVE yuzeyini gereksiz genisletiyor). Docstring'ler "V2'de aktive edilecek" diyerek bunu bilerek birakildigini belirtiyor, yani bu bir "bug" degil bilinen bir ara-durum ama denetim kapsaminda not edilmeli.
+- **Kanit:** satir 7, 14, 209, 270-281; grep sonucu (repo genelinde baska cagiran yok)
+- **Aksiyon:** V2 aktivasyonu planlanmiyorsa fonksiyonlari ve ilgili bagimliliklari kaldirmayi, planlaniyorsa bir hedef tarihi/ADR referansini docstring'e eklemeyi degerlendir.
+- **Onem:** Dusuk · **Guven:** Kesin
+
+### [FT-007] is_price_stale / get_price_age_text negatif yas (gelecekteki timestamp) durumunu ele almiyor
+- **Sorun:** `last_update` DB'de gelecekte bir tarih olursa (saat senkron hatasi, manuel veri bozulmasi, testte yanlis tarih girisi vb.) `age = datetime.utcnow() - last_update` negatif cikar. `is_price_stale` bu durumda `age > timedelta(24h)` False doner (stale degil) — kabul edilebilir bir sonuc. Ama `get_price_age_text` icin `seconds < 60` kontrolu negatif saniyeleri de yakalar ve "az once" doner — kullaniciya yanlis/kafa karistirici bir mesaj ("az once" ama aslinda gelecekte bir tarih) gosterilir. Dusuk olasilikli kenar durum ama sessizce yanlis sonuc uretiyor, herhangi bir guard/log yok.
+- **Kanit:** satir 43-44, satir 55-59
+- **Aksiyon:** Negatif `age` durumunda ayri bir dal ekle (or. loglama + "tarih hatali" metni) ya da en azindan bir yorum ile bilinen limitasyon olarak isaretle.
+- **Onem:** Dusuk · **Guven:** Dogrulanmali (DB'de gelecekteki last_price_update olusma yolu bu dosyada dogrulanmadi, teorik kenar durum)

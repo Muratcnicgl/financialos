@@ -204,6 +204,24 @@ def create_allocation(
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    # BUG #072 fix (P0-13/P0-14): allocation tutarı gerçek transaction tutarıyla sınırlanır.
+    # Aksi halde 10 TL'lik işlem "1.000.000 TL katkı" olarak bağlanıp (sanal zenginlik) veya
+    # aynı tx birden fazla goal'e tam tutarla bağlanıp (çift-sayım) goal progress'i şişiriyordu.
+    # Bu tx'e TÜM hedeflerdeki mevcut allocation'lar + yeni istek, tx tutarını aşamaz.
+    from sqlalchemy import func as _func
+    from decimal import Decimal as _Dec
+    existing_sum = db.query(
+        _func.coalesce(_func.sum(_func.abs(models.GoalAllocation.amount)), 0)
+    ).filter(models.GoalAllocation.transaction_id == payload.transaction_id).scalar()
+    tx_amt = abs(_Dec(str(tx.amount)))
+    existing_abs = abs(_Dec(str(existing_sum or 0)))
+    if abs(payload.amount) + existing_abs > tx_amt:
+        raise HTTPException(
+            status_code=422,
+            detail=(f"Allocation tutarı transaction tutarını aşıyor. İşlem: {tx_amt} TL, "
+                    f"zaten bağlı (tüm hedefler): {existing_abs} TL, istenen: {abs(payload.amount)} TL."),
+        )
+
     try:
         alloc = link_transaction(
             goal_id=goal_id,

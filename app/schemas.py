@@ -264,7 +264,10 @@ class GoalUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     target_amount: Optional[Decimal] = Field(None, gt=0)
     target_date: Optional[date] = None
-    status: Optional[Literal["active", "achieved", "paused", "abandoned"]] = None
+    # BUG #063 fix (SH-002): "achieved" çıkarıldı. achieved geçişi SADECE
+    # goal_engine.refresh_goal'da (gerçek katkı >= target ise) olur; kullanıcı PATCH ile
+    # hiç katkı yapmadan "sanal başarı" işaretleyemez ("Rules Engine karar verir" ilkesi).
+    status: Optional[Literal["active", "paused", "abandoned"]] = None
 
 
 class GoalRead(BaseModel):

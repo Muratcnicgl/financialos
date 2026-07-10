@@ -144,14 +144,18 @@ def calculate_carried_forward(
     actual_spent_yesterday: float,
 ) -> float:
     """
-    ZikZak: Dün limitin altında harcadıysan fark bugüne devrolur (pozitif).
-    Üstünde harcadıysan fark bugünden düşer (negatif).
+    DEPRECATED (ADR-026): Bu additive devreden bakiye modeli KULLANILMAMALI.
+    Dinamik daily_limit (reel_butce/days_remaining) zaten önceki tasarrufu içerir;
+    üstüne bunu eklemek ÇİFT-SAYIM üretir ("Sanal Zenginlik" tuzağı, kök vizyonda yasak).
+    Ayrıca negatif (aşım) devretmek YNAB'ın kanıta dayalı kuralına aykırı.
+    Korunuyor sadece geriye-dönük referans için; generate_cockpit çağırmaz.
     """
     return round(daily_limit_yesterday - actual_spent_yesterday, 2)
 
 
 def calculate_today_target(daily_limit: float, carried_forward: float) -> float:
-    """Bugünkü hedef = günlük baz limit + devreden bakiye."""
+    """DEPRECATED (ADR-026): additive today_target = daily_limit + carry çift-sayımdır.
+    today_target doğrudan dinamik daily_limit'e eşittir. Bu fonksiyonu kullanma."""
     return round(daily_limit + carried_forward, 2)
 
 
@@ -726,10 +730,13 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     days_remaining = get_month_remaining_days(today)
     daily_limit = calculate_daily_limit(reel_butce, days_remaining)
 
-    # ZikZak (basitleştirilmiş — bugünkü işlemleri saymaz, dünkü harcamayı bilmiyoruz şu an)
-    # Gerçek senaryoda CoachMemory veya Transaction'dan dünün özetini çekeriz
-    carried_forward = 0.0  # İlk versiyon için 0; geliştirilecek
-    today_target = calculate_today_target(daily_limit, carried_forward)
+    # ZikZak — ADR-026: additive carried_forward KULLANILMAZ (çift-sayım / "Sanal Zenginlik" tuzağı).
+    # daily_limit = reel_butce / days_remaining ZATEN dinamik; bugün az harcanınca yarınki limit
+    # otomatik yükselir (zikzak etkisi burada, çift-saymadan). calculate_carried_forward/
+    # calculate_today_target (additive) DEPRECATED — kullanma. Kök vizyondaki "harcama günü lump"
+    # hissi ayrı, tek-havuzlu bir "harcama günü tavanı" ile verilecek (bkz. ADR-026 Sonraki adım).
+    carried_forward = 0.0  # ADR-026: additive carry reddedildi (bilinçli 0, "eksik" değil)
+    today_target = daily_limit  # sürdürülebilir dinamik ortalama = bugünkü hedef
 
     # Yaklaşan ödemeler ve tahsilatlar
     upcoming_payments = _collect_upcoming_loan_payments(user_id, today, db)

@@ -139,16 +139,22 @@ def trigger_due_incomes(
     if not cash_acc:
         return {"triggered": []}
 
+    # BUG #071 fix (P0-16): day_of_month'u ay uzunluğuna clamp'le (kısa aylarda 31 atlanmasın).
+    import calendar
+    last_day = calendar.monthrange(today.year, today.month)[1]
+
     incomes = db.query(RecurringIncome).filter(
         RecurringIncome.user_id == user.id,
         RecurringIncome.is_active == True,
-        RecurringIncome.day_of_month <= today.day,
     ).all()
 
     triggered = []
     for inc in incomes:
+        effective_day = min(inc.day_of_month, last_day)
+        if effective_day > today.day:
+            continue  # bu ay vadesi henüz gelmedi
         # BUG #047 çift kontrol:
-        # (1) Bu ay henüz tetiklenmemiş mi
+        # (1) Bu ay zaten EXECUTED olarak işaretlenmiş mi (last_triggered execute'te set edilir)
         if inc.last_triggered_year_month == year_month:
             continue
         # (2) Bu kayıt için zaten pending var mı
@@ -175,10 +181,9 @@ def trigger_due_incomes(
                 },
                 summary=f"{inc.name}: {_fmt(inc.amount)} TL geldi",
             )
-            # BUG #047: source fields + last_triggered tek commit'te
+            # BUG #070 fix (P0-15): last_triggered BURADA set EDİLMEZ — execute'te set edilir.
             pending.source_recurring_id = inc.id
             pending.source_recurring_type = "income"
-            inc.last_triggered_year_month = year_month
             db.commit()
             triggered.append({
                 "id": pending.id,

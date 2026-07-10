@@ -153,16 +153,24 @@ def trigger_due_expenses(
     today = date.today()
     year_month = f"{today.year}-{today.month:02d}"
 
+    # BUG #071 fix (P0-16): day_of_month'u ay uzunluğuna clamp'le. 29/30/31 kısa aylarda
+    # (Şubat/Nisan/Haziran/Eylül/Kasım) `day_of_month <= today.day` HİÇ True olmuyordu →
+    # o ay sessizce atlanıp telafi de edilmiyordu.
+    import calendar
+    last_day = calendar.monthrange(today.year, today.month)[1]
+
     exps = db.query(RecurringExpense).filter(
         RecurringExpense.user_id == user.id,
         RecurringExpense.is_active == True,
-        RecurringExpense.day_of_month <= today.day,
     ).all()
 
     triggered = []
     for exp in exps:
+        effective_day = min(exp.day_of_month, last_day)
+        if effective_day > today.day:
+            continue  # bu ay vadesi henüz gelmedi
         # BUG #047 çift kontrol:
-        # (1) Bu ay henüz tetiklenmemiş mi
+        # (1) Bu ay zaten EXECUTED olarak işaretlenmiş mi (last_triggered execute'te set edilir)
         if exp.last_triggered_year_month == year_month:
             continue
         # (2) Bu kayıt için zaten pending var mı
@@ -190,10 +198,10 @@ def trigger_due_expenses(
                 },
                 summary=f"{exp.name}: {_fmt(exp.amount)} TL ödendi",
             )
-            # BUG #047: source fields + last_triggered tek commit'te
+            # BUG #070 fix (P0-15): last_triggered BURADA set EDİLMEZ — execute'te
+            # (_mark_recurring_triggered) set edilir; reddedilen/başarısız gider re-triggerable kalır.
             pending.source_recurring_id = exp.id
             pending.source_recurring_type = "expense"
-            exp.last_triggered_year_month = year_month
             db.commit()
             triggered.append({
                 "id": pending.id,

@@ -53,8 +53,12 @@ def category_breakdown(
 ):
     since = date.today() - timedelta(days=days)
 
+    # BUG #073 fix (P0-11/RRE-001): transaction_type de select+group_by'a eklendi. "both"
+    # modunda aynı kategori adlı gelir + gider tek 'total'da toplanıp yön bilgisini yok
+    # ediyordu (örn. 1000 gelir + 200 gider → tek satır 1200); artık ayrı, etiketli satırlar.
     q = db.query(
         func.coalesce(Transaction.category, "(kategorisiz)").label("category"),
+        Transaction.transaction_type.label("ttype"),
         func.sum(Transaction.amount).label("total"),
         func.count(Transaction.id).label("cnt"),
     ).filter(
@@ -72,16 +76,24 @@ def category_breakdown(
         ))
 
     rows = q.group_by(
-        func.coalesce(Transaction.category, "(kategorisiz)")
+        func.coalesce(Transaction.category, "(kategorisiz)"),
+        Transaction.transaction_type,
     ).order_by(
         func.sum(Transaction.amount).desc()
     ).all()
 
     grand_total = sum(r.total for r in rows)
 
+    def _label(r):
+        # "both" modunda geliri giderden ayırt et (yön etiketi)
+        if type == "both":
+            yon = "gelir" if r.ttype == TransactionType.income else "gider"
+            return f"{r.category} ({yon})"
+        return r.category
+
     items = [
         CategoryItem(
-            category=r.category,
+            category=_label(r),
             total=round(r.total, 2),
             count=r.cnt,
             percentage=round(r.total / grand_total * 100, 1) if grand_total > 0 else 0.0,
@@ -189,15 +201,31 @@ def upcoming_cashflow(
         items.append({"date": d.due_date.isoformat(), "type": "payable",
                       "amount": -d.amount, "label": label, "source": "personal_debt"})
 
-    # --- Loan hesapları: next_payment_date ---
+    # --- Loan hesapları: ufuk boyunca AYLIK taksitler (BUG #074 fix / P0-12) ---
+    # Eskiden sadece next_payment_date'teki TEK taksit ekleniyordu; 180 günlük ufukta
+    # 5 kredinin her biri ~6 taksit öderken rapor 1'er gösterip total_payable'ı ciddi eksik,
+    # net_flow'u iyimser çıkarıyordu ("sanal zenginlik" ihlali). Artık next_payment_date'ten
+    # başlayarak ufuk sonuna kadar, kalan taksit sayısıyla sınırlı aylık taksitler üretilir.
+    import calendar as _cal
     for acc in db.query(Account).filter(
         Account.user_id == current_user.id,
         Account.account_type == AccountType.loan,
         Account.next_payment_date.isnot(None),
-        Account.next_payment_date <= horizon,
     ).all():
-        items.append({"date": acc.next_payment_date.isoformat(), "type": "payable",
-                      "amount": -(acc.monthly_payment or 0), "label": acc.name, "source": "loan"})
+        pay = acc.monthly_payment or 0
+        if pay <= 0:
+            continue
+        remaining = acc.remaining_installments if acc.remaining_installments is not None else 999
+        cur = acc.next_payment_date
+        pay_day = cur.day
+        count = 0
+        while cur <= horizon and count < remaining:
+            items.append({"date": cur.isoformat(), "type": "payable",
+                          "amount": -pay, "label": acc.name, "source": "loan"})
+            count += 1
+            ny = cur.year + (cur.month // 12)
+            nm = (cur.month % 12) + 1
+            cur = date(ny, nm, min(pay_day, _cal.monthrange(ny, nm)[1]))
 
     # --- RecurringIncome: aylık tekrar tarihleri ---
     for inc in db.query(RecurringIncome).filter(

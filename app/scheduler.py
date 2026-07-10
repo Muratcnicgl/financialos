@@ -116,6 +116,10 @@ def run_extractor(name: str, db: Session, user_id: int) -> dict:
         else:
             return {"error": f"unknown_extractor: {name}"}
     except Exception as e:
+        # BUG #062 fix (SC-001): hatada session'i temizle. Yoksa bir extractor commit'te
+        # patlarsa paylaşılan db "PendingRollback"a düşer ve sonraki extractor'lar/Coach'un
+        # _save_message'i sessizce/patlayarak çalışmaz (docstring'in "izolasyon" vaadi ihlaliydi).
+        db.rollback()
         logger.exception(f"Extractor {name} failed for user {user_id}: {e}")
         return {"error": str(e)[:200], "extractor": name}
 

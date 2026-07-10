@@ -25,6 +25,11 @@ GÜNCELLEMELER:
 - 4 May 2026 BUG #032 fix: _fmt_lot() eklendi — lot değerleri tam sayıysa int gösterilir (4.0→4).
 - 4 May 2026 BUG #039 fix: _normalize_transaction_payload() LLM açıkça nakit/banka hesabı
   seçtiyse kart varsayılanına yönlendirmez; account_id varsa ve kredi kartı değilse payload'a dokunulmaz.
+- 6 Tem 2026 BUG #068 fix (AE-002/P0-2): _execute_sell_investment satış gelirinin gideceği
+  hesabı MUTASYONDAN ÖNCE doğrular; geçersiz/emanet/eksik hesapta lot düşürmeden başarısız döner
+  (eskiden net_eline_gecen hiçbir hesaba yatmadan lot düşüp success dönüyordu → para kaybı).
+- 6 Tem 2026 BUG #069 fix (AE-001/P0-1): execute_pending_action post-commit trigger'ı ayrı try'a
+  alındı — trigger hatası zaten 'executed' aksiyonu 'failed' işaretleyip çift-sayıma yol açmasın.
 """
 
 import json
@@ -252,6 +257,30 @@ def _build_action_message(action_type: str, result: Dict) -> str:
 # 2. EXECUTE — Onaylanmış aksiyonu DB'ye uygula
 # ============================================================
 
+def _mark_recurring_triggered(db: Session, pending: PendingAction, payload: Dict) -> None:
+    """
+    BUG #070 (P0-15): recurring kaynaklı aksiyon GERÇEKTEN executed olunca kaynak
+    RecurringIncome/Expense'in last_triggered_year_month'unu işaretler. Bu iş eskiden
+    trigger anında (propose sırasında) yapılıyordu; reddedilen/başarısız gider "bu ay
+    halledildi" sayılıp bir daha tetiklenmiyordu (sessiz veri kaybı). Commit YAPMAZ —
+    çağıran execute_pending_action status='executed' ile aynı commit'te yazar.
+    """
+    if not getattr(pending, "source_recurring_id", None):
+        return
+    from app.models import RecurringIncome, RecurringExpense
+    td = payload.get("transaction_date")
+    ym = td[:7] if isinstance(td, str) and len(td) >= 7 else \
+        f"{datetime.utcnow().year}-{datetime.utcnow().month:02d}"
+    if pending.source_recurring_type == "income":
+        rec = db.query(RecurringIncome).filter(RecurringIncome.id == pending.source_recurring_id).first()
+    elif pending.source_recurring_type == "expense":
+        rec = db.query(RecurringExpense).filter(RecurringExpense.id == pending.source_recurring_id).first()
+    else:
+        rec = None
+    if rec is not None:
+        rec.last_triggered_year_month = ym
+
+
 def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
     """
     PendingAction'ı uygular. Onay sonrası çağrılır.
@@ -317,10 +346,18 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
         # Başarılı — kaydı 'executed' işaretle
         pending.status = ActionStatus.executed
         pending.resolved_at = datetime.utcnow()
+        # BUG #070 fix (P0-15): recurring last_triggered'i SADECE gerçekten executed olunca
+        # işaretle (status ile aynı commit'te). Reddedilen/başarısız kayıt re-triggerable kalır.
+        _mark_recurring_triggered(db, pending, payload)
         db.commit()
-        # Wave-2 H1G2: olay-tetikli action_rejection_pattern
-        from app.scheduler import trigger_after_action_resolution
-        trigger_after_action_resolution(db, user_id)
+        # BUG #069 fix (P0-1): post-commit tetikleyici AYRI try. Aksiyon zaten 'executed'
+        # (para/mutasyon kalıcı); trigger patlarsa asla 'failed' işaretleme — aksi halde
+        # kullanıcı "başarısız" görüp tekrar tetikler, mutasyon çift uygulanır (çift-sayım).
+        try:
+            from app.scheduler import trigger_after_action_resolution
+            trigger_after_action_resolution(db, user_id)
+        except Exception as te:
+            logger.warning("trigger_after_action_resolution basarisiz (aksiyon zaten executed): %s", te)
 
         return {
             "success": True,
@@ -588,22 +625,27 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
         lots_to_sell=lots,
     )
 
-    # Yatırım hesabını güncelle: lot azalt, balance yeniden hesapla
+    # BUG #068 fix (AE-002): Satış gelirinin gideceği hesabı MUTASYONDAN ÖNCE doğrula.
+    # Eskiden lot düşürülüp commit ediliyor, ama hesap geçersiz/emanet/eksikse
+    # net_eline_gecen hiçbir yere yatmadan "success" dönüyordu → para sessizce yok oluyordu.
+    credit_account_id = payload.get("credit_to_account_id")
+    if not credit_account_id:
+        return {"success": False, "message": "Satış geliri için hedef nakit hesap (credit_to_account_id) belirtilmeli — aksi halde para kaybolur. Satış yapılmadı."}
+    credit_account = db.query(Account).filter(
+        Account.id == credit_account_id,
+        Account.user_id == user_id,
+    ).first()
+    if credit_account is None:
+        return {"success": False, "message": f"Nakit aktarılacak hesap bulunamadı: id={credit_account_id}. Satış yapılmadı."}
+    if credit_account.is_emanet:
+        return {"success": False, "message": f"'{credit_account.name}' emanet hesap — satış parası buraya yatırılamaz. Satış yapılmadı."}
+
+    # Doğrulama geçti — şimdi mutasyon (lot azalt + nakdi hedefe yatır) tek commit'te
     inv.lot_count = sim["kalan_lot"]
     inv.balance = sim["kalan_deger"]
     inv.updated_at = datetime.utcnow()
-
-    # Nakdi hangi hesaba geçirelim?
-    credit_account_id = payload.get("credit_to_account_id")
-    credit_account = None
-    if credit_account_id:
-        credit_account = db.query(Account).filter(
-            Account.id == credit_account_id,
-            Account.user_id == user_id,
-        ).first()
-        if credit_account and not credit_account.is_emanet:
-            credit_account.balance += sim["net_eline_gecen"]
-            credit_account.updated_at = datetime.utcnow()
+    credit_account.balance += sim["net_eline_gecen"]
+    credit_account.updated_at = datetime.utcnow()
 
     db.commit()
 

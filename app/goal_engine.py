@@ -104,8 +104,11 @@ def _project_debt_freedom(goal: models.Goal, db: Session) -> Optional[date]:
         from app.debt_strategy import compare_strategies
         result = compare_strategies(db=db, user_id=goal.user_id, extra_monthly=0.0)
         snowball = result.get("snowball")
-        if snowball and snowball.months_to_freedom < 600:
-            return date.today() + timedelta(days=int(snowball.months_to_freedom * 30))
+        # BUG #066 fix (GE-001): compare_strategies DICT döner (_result_to_dict, key
+        # 'months_to_freedom'); attribute erişimi (snowball.months_to_freedom) AttributeError
+        # atıp bare-except tarafından yutuluyordu → projected_completion_date HER ZAMAN None idi.
+        if snowball and snowball["months_to_freedom"] < 600:
+            return date.today() + timedelta(days=int(snowball["months_to_freedom"] * 30))
     except Exception:
         pass
     return None

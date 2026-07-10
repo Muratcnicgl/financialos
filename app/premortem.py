@@ -141,7 +141,12 @@ def _user_prompt(action_context: dict, cockpit_snapshot: Optional[dict] = None) 
             f"  Net deger: {cockpit_snapshot.get('net_worth_tl', 0.0)} TL",
             f"  30g net akis: {cockpit_snapshot.get('cashflow_30d_tl', 0.0)} TL",
             f"  60g net akis: {cockpit_snapshot.get('cashflow_60d_tl', 0.0)} TL",
-            f"  En dusuk bakiye tarihi: {cockpit_snapshot.get('crunch_day', '-')}",
+            # BUG #065 fix (CS-001): yanlış anahtar 'crunch_day' HER ZAMAN '-' döndürüyordu;
+            # build_cockpit_snapshot 'lowest_balance_date/tl' + 'crunch_count' üretiyor. Dosyanın
+            # en kritik verisi (nakit ne zaman tükenir) LLM'e hiç ulaşmıyordu.
+            f"  En dusuk bakiye tarihi: {cockpit_snapshot.get('lowest_balance_date', '-')}",
+            f"  En dusuk bakiye: {cockpit_snapshot.get('lowest_balance_tl', 0.0)} TL",
+            f"  Nakit kriz gunu sayisi (30g): {cockpit_snapshot.get('crunch_count', 0)}",
         ]
 
     lines += [

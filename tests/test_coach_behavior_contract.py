@@ -102,3 +102,39 @@ def test_cok_satirli_rapor_uctan_uca_bozulmaz(db):
     assert "## KOKPİT" in res["reply"]
     assert "## STRATEJİ" in res["reply"]
     assert _CLARIFY_MSG not in res["reply"]
+
+
+# ============================================================
+# Grounding (LLM-003) — uçtan uca halüsinasyon yakalama
+# ============================================================
+
+def test_grounding_halusinasyon_uctan_uca(db):
+    """Cockpit'te olmayan bir TL tutarı koç cevabında geçerse grounding.ok False."""
+    session, u = db
+    prov = ScriptedProvider(text="[CONFIDENCE: 0.9] Dikkat, 47.800 TL beklenmedik borç var.")
+    res = CoachEngine(provider=prov).chat(session, u.id, "durum nedir?", include_cockpit=True)
+    assert res["grounding"]["ok"] is False
+    assert 47800.0 in res["grounding"]["unverified"]
+
+
+# ============================================================
+# propose_action happy-path — gerçekleşmiş eylemde pending oluşur
+# ============================================================
+
+def test_propose_action_happy_path_pending_olusur(db):
+    session, u = db
+    cash = session.query(Account).filter_by(
+        user_id=u.id, account_type=AccountType.cash).first()
+    prov = ScriptedProvider(text="500 TL yemek kaydediyorum.", tool_calls=[{
+        "name": "propose_action",
+        "input": {
+            "action_type": "add_transaction",
+            "payload": {"amount": 500, "transaction_type": "expense",
+                        "account_id": cash.id, "category": "yemek"},
+            "summary": "500 TL yemek",
+        },
+    }])
+    # BUG #042 guard: gider mesajı hesap anahtar kelimesi içermeli ("nakitten")
+    res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım nakitten", include_cockpit=False)
+    assert len(res["proposed_actions"]) == 1
+    assert res["proposed_actions"][0]["action_type"] == "add_transaction"

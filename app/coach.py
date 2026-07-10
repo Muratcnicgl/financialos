@@ -5,9 +5,14 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - AnthropicProvider  (Claude — ücretli, en güçlü)
 - GeminiProvider     (Google — Flash-Lite 1000/gün ücretsiz)
 - GroqProvider       (Llama 3.3 70B Versatile — 14400/gün ücretsiz, çok hızlı)
+- OllamaProvider     (YEREL/EGEMEN — Qwen 2.5, offline, veri makineden çıkmaz)
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- LLM-005 (DEVRİMSEL #2): OllamaProvider — tamamen yerel/egemen LLM (Qwen 2.5,
+  OpenAI-uyumlu :11434). LLM_PROVIDER=ollama ile tek-basina; fallback zincirinin
+  SON halkasi olarak (OLLAMA_ENABLED/BASE_URL/MODEL acikssa) bulut saglayicilar
+  dusunce devreye giren offline guvenlik agi. Kok vizyon "Sovereign OS".
 - BUG #085 fix (P0-19): Parantezsiz duz gecmis-zaman sahte tamamlama. Koc
   propose_action cagirmadan "Kaydettim./Islem kaydedildi." yazarsa hicbir DB
   yazimi olmadan "islendi" izlenimi kullaniciya ulasiyordu. _FAKE_PASTTENSE_RE
@@ -1131,6 +1136,69 @@ class OpenRouterProvider(LLMProvider):
 
 
 # ============================================================
+# 11b. OLLAMA PROVIDER (SOVEREIGN / YEREL — DEVRİMSEL ADIM #2)
+# ============================================================
+
+class OllamaProvider(LLMProvider):
+    """Tamamen YEREL LLM (Ollama, OpenAI-uyumlu endpoint).
+
+    Kök vizyon "Sovereign OS": koç internet/kota/gizlilik bağımlılığı olmadan,
+    finansal veri makineden HİÇ çıkmadan çalışabilmeli. Bu provider bulut
+    sağlayıcıların tümü düşse (offline/kota) devreye giren egemen güvenlik ağıdır;
+    fallback zincirinin SON halkası olarak eklenir.
+
+    Ollama OpenAI-uyumlu API sunar (http://localhost:11434/v1). Qwen 2.5 gibi
+    araç-yetenekli (tool-capable) modeller propose_action tool-call'u destekler.
+    Ollama api_key umursamaz — dummy değer geçilir.
+    """
+    DEFAULT_MODEL = "qwen2.5:7b-instruct"  # origin vision: yerel Qwen 2.5
+    DEFAULT_BASE_URL = "http://localhost:11434/v1"
+    NAME = "Ollama"
+
+    def __init__(self, model: Optional[str] = None, base_url: Optional[str] = None):
+        from openai import OpenAI
+        self.base_url = (base_url or os.getenv("OLLAMA_BASE_URL", "").strip()
+                         or self.DEFAULT_BASE_URL)
+        # Yerel model yavaş olabilir → cömert timeout (env ile ayarlanabilir)
+        try:
+            timeout = float(os.getenv("OLLAMA_TIMEOUT", "120"))
+        except ValueError:
+            timeout = 120.0
+        self.client = OpenAI(api_key="ollama", base_url=self.base_url, timeout=timeout)
+        self.model = model or os.getenv("OLLAMA_MODEL", "").strip() or self.DEFAULT_MODEL
+
+    def _raw_chat(self, system_prompt, messages, tools):
+        oai_tools = [
+            {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["parameters"]}}
+            for t in tools
+        ]
+        oai_messages = [{"role": "system", "content": system_prompt}]
+        oai_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
+
+        kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2}
+        if oai_tools:
+            kwargs["tools"] = oai_tools
+            kwargs["tool_choice"] = "auto"
+
+        response = self.client.chat.completions.create(**kwargs)
+        msg = response.choices[0].message
+        text = msg.content or ""
+        tool_calls = []
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.function and tc.function.name:
+                    try:
+                        args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                    except Exception:
+                        args = {}
+                    tool_calls.append({"name": tc.function.name, "input": args})
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls)
+
+    def chat(self, system_prompt, messages, tools):
+        return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
+
+
+# ============================================================
 # 12. FALLBACK PROVIDER
 # ============================================================
 
@@ -1230,6 +1298,19 @@ def _build_openrouter() -> Optional[OpenRouterProvider]:
     return OpenRouterProvider(api_key=api_key)
 
 
+def _build_ollama() -> Optional[OllamaProvider]:
+    """Yerel Ollama — SADECE acikca etkinlestirilmisse (OLLAMA_ENABLED/BASE_URL/MODEL).
+    Aksi halde fallback zincirinde localhost'a beyhude baglanti denemesi yapmaz."""
+    enabled = (
+        os.getenv("OLLAMA_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+        or bool(os.getenv("OLLAMA_BASE_URL", "").strip())
+        or bool(os.getenv("OLLAMA_MODEL", "").strip())
+    )
+    if not enabled:
+        return None
+    return OllamaProvider()
+
+
 def build_provider() -> LLMProvider:
     provider_name = os.getenv("LLM_PROVIDER", "gemini").lower().strip()
 
@@ -1251,11 +1332,18 @@ def build_provider() -> LLMProvider:
             raise ValueError("GROQ_API_KEY bulunamadi (.env kontrol et).")
         return p
 
+    if provider_name == "ollama":
+        # DEVRİMSEL #2: egemen/yerel mod — sadece Ollama, internet gerekmez.
+        p = OllamaProvider()
+        return p
+
     if provider_name == "fallback":
         # BUG #022 fix: Groq once, Gemini fallback.
         # BUG #028 fix: Zincir genisledi: Groq -> Cerebras -> Gemini -> OpenRouter
+        # DEVRİMSEL #2: zincirin SON halkasi yerel Ollama (egemen guvenlik agi) —
+        # sadece acikca etkinse (OLLAMA_ENABLED/BASE_URL/MODEL) eklenir.
         chain = []
-        for builder in [_build_groq, _build_cerebras, _build_gemini, _build_openrouter]:
+        for builder in [_build_groq, _build_cerebras, _build_gemini, _build_openrouter, _build_ollama]:
             p = builder()
             if p:
                 chain.append(p)

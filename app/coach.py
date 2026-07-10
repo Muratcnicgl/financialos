@@ -727,7 +727,13 @@ Statü: {cockpit['statu']}
         r_lines = []
         for r in reminders:
             sign = "+" if r["type"] == "income" else "-"
-            risk_s = " ⚠️ KART RİSKİ" if r["card_risk"] else ""
+            # A1 tamamlama: kart son ödeme kalemi ayrı, net bir etiketle vurgulanır.
+            if r["type"] == "card_payment":
+                risk_s = " 💳 SON ÖDEME"
+            elif r["card_risk"]:
+                risk_s = " ⚠️ KART RİSKİ"
+            else:
+                risk_s = ""
             acc_s = f", {r['account_name']}" if r["account_name"] else ""
             r_lines.append(
                 f"  - {_days_label(r['days_until'])}: {r['name']} "

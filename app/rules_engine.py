@@ -14,6 +14,11 @@ Her fonksiyon saf (pure) — sadece girdiye bakar, çıktıyı döner.
 7. Komut çözümleme            (parse_gg_command)
 
 GÜNCELLEMELER:
+- BUG #086 fix: _calculate_expected_income_until_eom, bu ay tetiklenmiş (nakde geçmiş)
+  geliri beklenen'e saymaz (çift-sayım önlendi — kurucu "çift sayma yasak").
+- BUG #096 (A1 tamamlama): _collect_upcoming_reminders artık kredi kartı SON ÖDEME
+  gününü de proaktif hatırlatır (payment_day 0-7 gün + kart borcu > 0). Kurucu vizyonun
+  en kritik proaktif uyarısı — kart %99.8 doluyken hayati.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -570,6 +575,28 @@ def _collect_upcoming_reminders(
                 "due_date": debt.due_date.isoformat(),
                 "account_name": "",
                 "card_risk": False,
+            })
+
+    # Kredi kartı SON ÖDEME (A1 tamamlama): kurucu vizyonun EN kritik proaktif hatırlatması.
+    # Ziraat döngüsü — son ödeme günü (payment_day) yaklaşıp kart borcu varken koç proaktif
+    # uyarmalı ("borç hazırlığı yap"). Kart %99.8 doluyken bu hayati; RecurringExpense/Debt
+    # kapsamı bunu içermiyordu → eksikti.
+    for acc in accounts:
+        if acc.account_type != AccountType.credit_card:
+            continue
+        if not acc.payment_day or (acc.balance or 0.0) <= 0.01:  # borç yoksa hatırlatma yok
+            continue
+        target = _get_next_due_date(today, acc.payment_day)
+        days_until = (target - today).days
+        if 0 <= days_until <= REMINDER_DAYS:
+            reminders.append({
+                "type": "card_payment",
+                "name": f"{acc.name} son ödeme",
+                "amount": acc.balance,           # güncel kart borcu (yaklaşık ödenecek)
+                "days_until": days_until,
+                "due_date": target.isoformat(),
+                "account_name": acc.name,
+                "card_risk": True,               # yüksek öncelik + vurgu (sıralama başa alır)
             })
 
     reminders.sort(key=lambda x: (not x["card_risk"], x["days_until"]))

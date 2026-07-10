@@ -503,8 +503,15 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
     balance_diff = 0.0
     if payload.get("auto_update_balance") and account_id:
         if txn_type == "income":
-            account.balance += float(amount)
-            balance_diff = float(amount)
+            # BUG #103 fix: karta gelen gelir (iade/cashback/chargeback) BORCU AZALTIR;
+            # nakit/yatırıma gelen gelir varlığı artırır. Eskiden kart için de += yapıp
+            # borcu YANLIŞLIKLA artırıyordu (gider'in simetriği eksikti).
+            if account.account_type == AccountType.credit_card:
+                account.balance -= float(amount)  # kart borcu azalır
+                balance_diff = -float(amount)
+            else:
+                account.balance += float(amount)
+                balance_diff = float(amount)
         elif txn_type == "expense":
             # Kart harcamasıysa kart borcunu artır, nakitse nakti azalt
             if account.account_type == AccountType.credit_card:

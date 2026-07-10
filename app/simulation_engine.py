@@ -257,7 +257,12 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             # bir işlemi bakiye değişimi olarak ön-izleyip yanlış karar desteği veriyordu.
             if payload.get("auto_update_balance") and account_id:
                 if ttype == "income":
-                    target.balance += amount
+                    # BUG #103 fix: karta gelen gelir (iade/cashback) borcu AZALTIR (executor
+                    # ile birebir); nakit/yatırıma gelen gelir varlığı artırır.
+                    if target.account_type == "credit_card":
+                        target.balance -= amount
+                    else:
+                        target.balance += amount
                 elif ttype == "expense":
                     if target.account_type == "credit_card":
                         target.balance += amount  # kart borcu artar

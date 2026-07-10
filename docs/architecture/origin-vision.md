@@ -48,9 +48,9 @@ Kök vizyonu bugünkü kodla karşılaştırınca ortaya çıkan, kaliteyi doğr
 | # | Kök vizyon | Bugünkü durum | Etki |
 |---|---|---|---|
 | **V1** | **Zikzak / devreden bakiye** çekirdek özellik | Zikzak *etkisi* dinamik `daily_limit`'te ZATEN var (doğru). Additive `carried_forward` reddedildi — çift-sayım (ADR-026). "Harcama günü lump" hissi eksik | ✅ Karar verildi (ADR-026); lump-tavanı ayrı tasarım |
-| V2 | **Egemenlik:** yerel, internetsiz, kotasız LLM | Bulut LLM zinciri (Groq/Cerebras/Gemini/OpenRouter); kota/gizlilik dışa bağımlı | Vizyon-stratejik: yerel LLM (Ollama/Qwen) seçeneği tekrar değerlendirilmeli (wave3-vision de anıyor) |
-| V3 | **Gölge muhasebe** net anlaşılır olmalı | Çalışıyor ama UI'da "jargon" (UX-034); RULE-027 negatif/aşırı değerde korumasız | Orta |
-| V4 | **Varsayım YASAK / anlık veri** | KURAL SIFIR var (iyi) ama LLM grounding kontrolü yok (LLM-003); is_question kenar durumları (LLM-010/BE-027) | Yüksek — kurucu prensip tam enforce edilmeli |
+| V2 | **Egemenlik:** yerel, internetsiz, kotasız LLM | ✅ **KAPANDI (LLM-005):** `OllamaProvider` (Qwen 2.5, :11434) eklendi — `LLM_PROVIDER=ollama` tek-başına egemen mod + `OLLAMA_ENABLED=1` fallback son-halka | ✅ Kök vizyonun ilk somut adımı atıldı |
+| V3 | **Gölge muhasebe** net anlaşılır olmalı | ✅ **Doğru implemente** (`apply_shadow_accounting`, rules_engine.py:128 = `Nakit + Gelir − Kart Borcu − Kredi Taksiti` — kurucu formülün birebiri + kredi taksiti iyileştirmesi). UI'da hâlâ "jargon" (UX-034) | Düşük (matematik doğru; sadece isimlendirme) |
+| V4 | **Varsayım YASAK / anlık veri** | ✅ **KURAL SIFIR + grounding (LLM-003):** koç cevabındaki her TL tutarı cockpit'e izlenebilir mi denetlenir, izlenemeyen→uyarı+confidence↓ | ✅ Kurucu "uydurma yasak" mandatı kod-enforce |
 | V5 | **Sıfır matematik hatası** | RULE-001..040 finansal hata seti (float rounding, kart döngüsü, FIFO) | **P0 — "kusursuzluk" bunu gerektiriyor** |
 | V6 | **Persistent memory / checkpoint** | Var ve gelişmiş (MasterCheckpoint, CoachInsight) | ✓ Vizyona sadık |
 | V7 | **Omurgalı realist koç** | V3_GOD_MODE tonu koruyor | ✓ Vizyona sadık |
@@ -77,3 +77,17 @@ Rezan'ın Claude hesabındaki ~40+ FinancialOS geliştirme sohbetinden (Nisan 30
 - **Doğrulama:** ADR-025 (goal engine 2 tip: debt_freedom + cash_target), ADR-001 iletişim kuralları, BUG #NNN konvansiyonu — hepsi repo/memory ile tutarlı.
 
 > Bu ~40 sohbetin tamamı erişilebilir durumda; çoğu yürütme logu (git/python komutları) ve repo'da zaten kayıtlı. Belirli birini derinlemesine taramam istenirse adıyla belirtilmesi yeterli.
+
+---
+
+## 6. Tam satır-satır okuma doğrulaması (10 Tem 2026)
+
+Her iki Gemini sohbeti **baştan sona, satır satır** yeniden okundu (kullanıcı talebi: "gerçekten her satırı"). Ham metinler `get_page_text` ile önceki oturumda alınıp bu oturumda temiz dosyalara çıkarıldı (Sohbet A: 43.865 karakter / "Finansal Koç" `5815590f7ab63710`; Sohbet B: 46.734 karakter / "Finansal Stratejist" `96f070d16e6498d1`). Satır-referanslı kanıtlarla doğrulanan kurucu bulgular:
+
+- **Zikzak (Sohbet B, satır 110-142):** 321→345 TL dinamik ortalama; "harcanmayan hak buharlaşmaz, yarına devreder" mekanizması **total/gün YENİDEN HESABIYLA** uygulandı — ayrı additive kova YOK. → **ADR-026'yı birebir doğrular** (additive `carried_forward` çift-sayım olurdu).
+- **Gölge Muhasebe (Sohbet B, satır 604-670):** "Sanal Zenginlik Tuzağı" — kart harcaması ödeme ~40 gün ertelense de bütçeden ANINDA düşülür; `KALAN BÜTÇE = Nakit + Beklenen − Kart Borcu`. → `apply_shadow_accounting` (rules_engine.py:128) ile **doğru implemente**, EKSİK DEĞİL.
+- **"Çift sayma (double counting) yapma" (Sohbet B, satır 231):** kurucu emrin açık ifadesi. → Bu oturumdaki **P0-7/#084 (simülasyon sınır çift-sayımı)** fix'i doğrudan bu mandata hizmet eder.
+- **"Varsayım Yok, Veri Var / uydurma rakam = büyük sorun" (Sohbet B, satır 808, 886-916):** kullanıcı gerçekleşmemiş tasarrufa güvenmeyi ("Likidite Tuzağı") reddetti; "Geleceği satın alma, anı yönet." → **KURAL SIFIR + grounding (LLM-003)** bunun kod enforcement'ı.
+- **Sovereign / Qwen halüsinasyonu (Sohbet A, satır 839-848):** Qwen "faiz %4.5→%5.0 indirilmesi" mantık hatası → **"Rules Engine karar verir, LLM açıklar"** ilkesinin doğuş anı. → Ollama (LLM-005) egemenliği geri getirir, grounding (LLM-003) o failure-mode'a karşı savunur. İki devrimsel adım birbirini tamamlar.
+
+**SONUÇ:** Tam okuma, bugünkü mimarinin kurucu vizyona **sadık** olduğunu KANITLADI. Kurucu kullanıcının en çok vurguladığı iki emir (çift-sayma-yasak, varsayım/uydurma-yasak) bu oturumda P0-7 ve grounding ile pekiştirildi; egemenlik (V2) Ollama ile geri getirildi. Kök vizyonda **gizli kalmış eksik bir çekirdek mekanik bulunamadı** — mevcut sistem zikzak+gölge muhasebe+dinamik limiti doğru taşıyor.

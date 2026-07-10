@@ -8,6 +8,11 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #083 fix (LLM-003 grounding): chat() cikisinda check_grounding ile koc
+  cevabindaki her TL tutari cockpit'e izlenebilir mi denetlenir. Izlenemeyen
+  tutar (silent hallucination suphesi) -> logger.warning + confidence<=0.4 +
+  FINAL_ANSWER trace'ine grounding_violation islenir + donus dict'ine "grounding".
+  Kok vizyon "varsayim yasak / kusursuzluk" mandatinin kod-seviyesi enforcement'i.
 - 2 May 2026 BUG #023 fix: Soru/bildirim ayrimi LLM'den koda tasindi.
   Llama 3.3 KURAL SIFIR'i takip etmiyor, soru olan mesajlara da
   propose_action cagiriyordu ("yarin Efe'den para gelecek mi" -> yanlis
@@ -71,6 +76,7 @@ from app.action_executor import propose_action, _fmt
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
+from app.grounding import check_grounding  # LLM-003: cikti dogrulama (grounding)
 
 logger = logging.getLogger(__name__)
 
@@ -1795,14 +1801,32 @@ class CoachEngine:
             # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
             reply = _build_smart_reply(clean_text, proposed_actions)
 
+            # LLM-003 (grounding): Koc cevabindaki her TL tutari cockpit'e izlenebilir mi?
+            # Izlenemeyen tutar = potansiyel "silent hallucination" (varsayim yasak mandati).
+            # UYARI sinyali — sert blok degil; guveni dusurur ve trace'e islenir.
+            grounding = check_grounding(reply, cockpit_dict or {})
+            if not grounding["ok"]:
+                logger.warning(
+                    "grounding ihlali user_id=%s: cockpit'te bulunamayan TL tutarlari=%s",
+                    user_id, grounding["unverified"],
+                )
+                # Halusinasyon supheli tutar varsa raporlanan guveni asagi cek
+                if confidence is not None:
+                    confidence = min(confidence, 0.4)
+
             # --------------------------------------------------------
             # STEP F: Final answer
             # --------------------------------------------------------
             with recorder.step(OperationName.FINAL_ANSWER, intent="Yanit kullaniciya hazir") as s:
-                s.observation = f"reply_len={len(reply)}, action_count={len(proposed_actions)}"
+                s.observation = (
+                    f"reply_len={len(reply)}, action_count={len(proposed_actions)}, "
+                    f"grounding_ok={grounding['ok']}, grounding_checked={grounding['checked']}"
+                )
                 if confidence is not None:
                     s.confidence_score = confidence
-                if account_unclear:
+                if not grounding["ok"]:
+                    s.inference = f"grounding_violation: {grounding['unverified']}"
+                elif account_unclear:
                     s.inference = "account_unclear override"
                 elif date_unclear:
                     s.inference = "date_unclear override"
@@ -1855,6 +1879,7 @@ class CoachEngine:
                 "proposed_actions": proposed_actions,
                 "cockpit_snapshot": cockpit_dict,
                 "coach_memory_id": last_assistant.id if last_assistant else None,
+                "grounding": grounding,  # LLM-003: {ok, checked, unverified}
             }
         finally:
             recorder.close()

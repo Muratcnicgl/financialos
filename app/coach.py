@@ -800,6 +800,31 @@ Statü: {cockpit['statu']}
             si_lines.append(f"  - {tarih}: {sign}{_fmt(t['tutar'])} TL ({kat}){acikla}")
         context += "\n\n## SON İŞLEMLER (en yeni ilk)\n" + "\n".join(si_lines)
 
+    # BORÇ ÖZGÜRLÜĞÜ (kurucu "Borç Çığı"/avalanche): 5-kredi durumunda koç proaktif yol gösterir.
+    # Deterministik (debt_strategy); koç açıklar-hesap-yapmaz. Sadece borç varsa gösterilir.
+    try:
+        from app.debt_strategy import collect_debts, calc_avalanche, MAX_MONTHS
+        _debts = collect_debts(db, user_id)
+        if _debts:
+            av = calc_avalanche(_debts, extra_monthly=0.0)
+            name_by_id = {d.account_id: d.name for d in _debts}
+            order_names = " → ".join(name_by_id.get(aid, str(aid)) for aid in av.order[:6])
+            if av.months_to_freedom >= MAX_MONTHS:
+                sure_s = "Minimum ödemelerle makul sürede kapanmıyor — ek ödeme şart."
+            else:
+                payoff_s = av.payoff_date.isoformat() if av.payoff_date else "?"
+                sure_s = (
+                    f"~{av.months_to_freedom} ay (≈{payoff_s}), "
+                    f"toplam faiz {_fmt(av.total_interest_paid)} TL"
+                )
+            context += (
+                f"\n\n## BORÇ ÖZGÜRLÜĞÜ (Borç Çığı — en yüksek faiz önce, min. ödeme senaryosu)\n"
+                f"  - {sure_s}\n"
+                f"  - Öncelik sırası: {order_names}"
+            )
+    except Exception as e:
+        logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
+
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
     # Wave-1 enjeksiyonu (is_active + priority enum + created_at) deprecated.

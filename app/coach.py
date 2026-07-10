@@ -787,6 +787,18 @@ Statü: {cockpit['statu']}
     except Exception as e:
         logger.warning(f"aylık özet coach context'e eklenemedi: {e}")
 
+    # SON İŞLEMLER (C2-lite): koç analizini gerçek harcamalara dayandırsın.
+    son_islemler = cockpit.get("son_islemler", [])
+    if son_islemler:
+        si_lines = []
+        for t in son_islemler:
+            sign = "+" if t["tip"] == "income" else "-"
+            tarih = t.get("tarih") or "?"
+            kat = t.get("kategori") or ""
+            acikla = f" — {t['aciklama']}" if t.get("aciklama") else ""
+            si_lines.append(f"  - {tarih}: {sign}{_fmt(t['tutar'])} TL ({kat}){acikla}")
+        context += "\n\n## SON İŞLEMLER (en yeni ilk)\n" + "\n".join(si_lines)
+
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
     # Wave-1 enjeksiyonu (is_active + priority enum + created_at) deprecated.

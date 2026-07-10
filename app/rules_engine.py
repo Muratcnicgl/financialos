@@ -662,6 +662,30 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
     return patterns
 
 
+def _collect_recent_transactions(user_id: int, db: Session, limit: int = 8) -> List[Dict]:
+    """
+    Son N işlem (C2-lite): koçun analizini gerçek harcamalara dayandırması için.
+    Cockpit'e girer → tutarlar grounding'e dahil olur (halüsinasyon yüzeyi düşer).
+    """
+    txns = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user_id)
+        .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
+        .limit(limit)
+        .all()
+    )
+    result = []
+    for t in txns:
+        result.append({
+            "tarih": t.transaction_date.isoformat() if t.transaction_date else None,
+            "tip": t.transaction_type.value,
+            "tutar": round(float(t.amount), 2),
+            "kategori": t.category or "(kategorisiz)",
+            "aciklama": t.description or "",
+        })
+    return result
+
+
 # ============================================================
 # AYLIK ÖZET (A3) — takvim-ayı gelir/gider/net + kategori + önceki-ay trend
 # (Mimari kural: matematik rules_engine'de; reports router yalnız bunu çağırır.)
@@ -924,6 +948,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "upcoming_reminders": _collect_upcoming_reminders(
             user_id, today, db, accounts, kart_borcu
         ),
+        "son_islemler": _collect_recent_transactions(user_id, db),  # C2-lite: son 8 işlem
     }
 
 

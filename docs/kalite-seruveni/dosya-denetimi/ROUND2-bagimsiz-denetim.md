@@ -71,6 +71,23 @@ katmanı (coach.py, coach_insights.py).
 belgelenerek kapatıldı. Deterministik düzeltme kalmadı. Açık backlog yalnız: structured output
 (LLM-gated, contract harness ile de-risk), Account/Goal cascade (mimari tasarım), main.py stil.
 
+## ROUND 3 — KAPSAM-GÜDÜMLÜ (coverage-driven) denetim (11 Tem 2026)
+
+pytest-cov ile kritik modül kapsamı ölçüldü; düşük-kapsamlı finansal-mantık yollarına test
+yazılırken **iki semantik denetimin (per-file + öz-denetim) KAÇIRDIĞI 3 gerçek bug bulundu**:
+- **BUG #113 (executor):** `mark_debt_paid` nakdi hareket ettirmiyordu. Prompt bunu TEK aksiyon
+  olarak öneriyor (araştırmayla doğrulandı) → alacak tahsili net değeri YANLIŞ düşürüyordu.
+  Executor↔sim tutarlı hale getirildi (tahsilat nakit+, ödeme nakit−). **Finansal doğruluk.**
+- **BUG #114 (executor):** `_DATE_KEYWORD_RE`'de `['']` düz apostrofları raw string'i erken
+  kapatıp karakter sınıfını boş `[]` yapıyordu → "3'ünde/5'inde" Türkçe sıralı tarihleri
+  yakalanmıyor (TARIH_BELIRSIZ bu formda çalışmıyor) + `\w` kaçış-uyarısı. Çift-tırnak raw ile düzeltildi.
+- **BUG #115 (fund_tracker):** `update_fund_price_manual` user_id ile kapsamlanmayan tek mutasyon
+  handler'ıydı (denetimin PLAUSIBLE flag'i doğrulandı). Opsiyonel user_id + iki çağıran güncellendi.
+
+Kapsam: action_executor %49→%73, simulation_engine %66→%85 (simulate_action çekirdeği MOCK'suz
+test edildi), fund_tracker %14→%51. **Ders (meta-ders #8'i pekiştirir): semantik denetim +
+kapsam-güdümlü test BİRLİKTE gerekir — biri diğerinin kaçırdığını yakalar.** Süit 291→324.
+
 ## Vizyon değeri (denetim sonrası, aynı turda)
 Kurucu vizyona hizmet eden eklemeler: **A1 kart son ödeme reminder (#096)**, **A3 aylık özet
 (#097)** + rules_engine refactor, **koç aylık trend farkındalığı (#098)**, **son işlemler

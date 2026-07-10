@@ -112,7 +112,18 @@ def update_expense(
     ).first()
     if not exp:
         raise HTTPException(404, f"Gider bulunamadi: id={expense_id}")
-    for k, v in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    # BUG #088 fix: create account_id sahipliğini doğruluyor (line 87-92) ama update
+    # doğrulamadan setattr ediyordu → başka kullanıcının/var olmayan hesabına bağlanıp
+    # trigger-due o hesaba propose_action üretebiliyordu. Simetrik doğrulama eklendi.
+    if "account_id" in update_data and update_data["account_id"] is not None:
+        target = db.query(Account).filter(
+            Account.id == update_data["account_id"],
+            Account.user_id == user.id,
+        ).first()
+        if not target:
+            raise HTTPException(404, "Hedef hesap bulunamadi veya size ait degil.")
+    for k, v in update_data.items():
         setattr(exp, k, v)
     db.commit()
     db.refresh(exp)

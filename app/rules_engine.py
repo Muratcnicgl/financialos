@@ -322,9 +322,18 @@ def _calculate_expected_income_until_eom(
         .all()
     )
 
+    # BUG #086 fix: Bu ay zaten tetiklenmiş (nakde geçmiş) gelir "beklenen"e SAYILMAZ.
+    # reel_butce = nakit + recurring_income - ... olduğundan, maaş gününde tetiklenip
+    # nakde eklenen gelir hem nakit'te hem recurring_income'da görünüp reel_butce'yi
+    # bir maaş kadar şişiriyordu (çift-sayım — kurucu "çift sayma yasak" ihlali).
+    # _collect_upcoming_reminders (rules_engine:508) zaten bu guard'ı kullanıyor; tutarlılaştırıldı.
+    year_month = today.strftime("%Y-%m")
+
     total = 0.0
     upcoming = []
     for inc in incomes:
+        if inc.last_triggered_year_month == year_month:  # BUG #086: bu ay nakde geçti, çift sayma
+            continue
         target_day = min(inc.day_of_month, last_day)
         if target_day >= today.day:  # Bu ay henüz gelmedi
             total += inc.amount

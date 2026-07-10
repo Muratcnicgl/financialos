@@ -17,19 +17,19 @@ import pytest
 from app.coach import _postprocess_report, _CLARIFY_MSG
 
 
-# --- Koc'un sahte tamamlama iddiasi: proposed_actions BOS -> temizlenmeli ---
+# --- Koc'un sahte tamamlama iddiasi (1. TEKİL ŞAHIS, tek-satır): temizlenmeli ---
 MUST_CATCH = [
     "Harcamanı kaydettim.",
-    "İşlem kaydedildi.",
     "500 TL gideri ekledim.",
     "Tamamdır, işledim.",
     "Kart borcunu güncelledim.",
-    "İşlem kayıt altına alındı.",
     "Nakit hesabına geçirdim.",
     "Olur, 250 TL market harcamasını kaydettim, başka bir şey var mı?",
 ]
 
 # --- Mesru cevaplar: DOKUNULMAMALI (yanlis-pozitif korumasi) ---
+# BUG #085 iter2: edilgen 3. şahıs ("işlendi/kaydedildi/geçirildi") ve ÇOK-SATIRLI raporlar
+# artık korunuyor — bunlar analiz raporlarında kullanıcının geçmişini betimleyen meşru dil.
 MUST_PRESERVE = [
     "Geçen ay toplam 12.000 TL harcama kaydetmişsin.",          # kullanicinin gecmisi
     "Bu ay kaydettiğin işlemler toplam 8.500 TL.",              # katilimci (participle)
@@ -37,7 +37,18 @@ MUST_PRESERVE = [
     "Kart borcun 42.100 TL, günlük limitin 62 TL.",             # analiz
     "Merhaba! Bugün nasıl yardımcı olabilirim?",                # selamlasma
     "Bu harcamayı kaydetmek ister misin? Onaylarsan eklerim.",  # gelecek/niyet, iddia degil
+    "Maaşın 1'inde hesaba geçirildi, 3 fatura da işlendi.",     # EDİLGEN analiz — geçmiş betim
+    "İşlem kaydedildi mi diye merak ediyorsan, evet geçen ay.", # edilgen, koç iddiası değil
 ]
+
+# --- Çok-satırlı yapısal rapor: 1. şahıs iddia içerse bile ASLA bozulmamalı ---
+MULTILINE_REPORT = (
+    "## 2. FİNANSAL KOKPİT\n"
+    "- Kart borcun 42.100 TL\n"
+    "- Maaşın hesaba geçirildi, 3 fatura işlendi\n"
+    "## 3. STRATEJİ\n"
+    "- Bugün nöbet günü, harcama yapma"
+)
 
 
 @pytest.mark.parametrize("text", MUST_CATCH)
@@ -71,10 +82,28 @@ def test_proposed_action_varsa_dokunulmaz():
 
 
 def test_karma_metin_sadece_iddia_cumlesi_atilir():
-    """Coklu cumle: yalniz iddia cumlesi atilir, gerisi korunur."""
+    """Tek-satır çoklu cümle: yalniz iddia cumlesi atilir, gerisi korunur."""
     text = "Kart borcun 42.100 TL. Harcamanı kaydettim. Günlük limitin 62 TL."
     out = _postprocess_report(text, cockpit={}, user_message="harcama", proposed_actions=[])
     assert "kaydettim" not in out.lower()
     assert "Kart borcun 42.100 TL" in out
     assert "Günlük limitin 62 TL" in out
     assert _CLARIFY_MSG in out
+
+
+def test_cok_satirli_rapor_bozulmaz():
+    """BUG #085 iter2: çok-satırlı yapısal rapor 1. şahıs iddia içerse bile korunur."""
+    out = _postprocess_report(MULTILINE_REPORT, cockpit={}, user_message="analiz et", proposed_actions=[])
+    # Rapor yapısı korunmalı — satırlar space'e çökmemeli, başlıklar durmalı
+    assert "## 2. FİNANSAL KOKPİT" in out
+    assert "## 3. STRATEJİ" in out
+    assert "\n" in out  # çok-satır yapısı korundu
+    assert _CLARIFY_MSG not in out  # rapora netleştirme sorusu EKLENMEDİ
+
+
+def test_edilgen_analiz_korunur():
+    """BUG #085 iter2: edilgen 3. şahıs ('işlendi/geçirildi') analiz cümlesi korunur."""
+    text = "Maaşın 1'inde hesaba geçirildi, 3 fatura da işlendi."
+    out = _postprocess_report(text, cockpit={}, user_message="analiz", proposed_actions=[])
+    assert out.strip() == text.strip()
+    assert _CLARIFY_MSG not in out

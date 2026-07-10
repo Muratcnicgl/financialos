@@ -145,6 +145,7 @@ def _simulate(
     total_paid = 0.0
     schedule: List[MonthSnapshot] = []
     debt_payoff_months: Dict[int, int] = {}
+    last_base_min: Dict[int, float] = {}  # BUG #089: her borca fiilen ödenen güncel minimum
     month = 0
 
     while any(b > 0.01 for b in state.values()) and month < MAX_MONTHS:
@@ -177,6 +178,12 @@ def _simulate(
                 base_min = max(state[aid] * MIN_CARD_PAYMENT_RATIO, 50.0)
             else:
                 base_min = d.min_payment  # kredi: sabit taksit
+            # BUG #089 fix: bir borç bittiğinde rollover'a EKLENECEK tutar, o borca fiilen
+            # ödenen güncel minimum olmalı — collect_debts'teki SABİT başlangıç min_payment DEĞİL.
+            # Kart minimumu her ay azaldığı için (BUG #079), stale büyük başlangıç min'ini
+            # rollover'a eklemek "hayalet para" yaratıp kredi-içeren planları sistemli iyimser
+            # (months_to_freedom çok erken) gösteriyordu. Fiilen ödenen base_min'i sakla.
+            last_base_min[aid] = base_min
             min_pay = min(base_min, state[aid])  # Bakiyeden fazla ödeme yok
             state[aid] -= min_pay
             total_paid += min_pay
@@ -217,9 +224,11 @@ def _simulate(
             payoff_events=list(snapshot_events),
         ))
 
-        # 4. Snowball/Avalanche rollover: biten borclarin minimum'u sonraki ay extra'ya eklenir
+        # 4. Snowball/Avalanche rollover: biten borclarin FİİLEN ödenen minimum'u (stale
+        # başlangıç değil — BUG #089) sonraki ay extra'ya eklenir. Kredi için last_base_min
+        # == sabit taksit; kart için o borcun son ödenen (azalmış) minimumudur.
         for aid in snapshot_events:
-            extra_monthly += debt_by_id[aid].min_payment
+            extra_monthly += last_base_min.get(aid, debt_by_id[aid].min_payment)
 
     payoff = date.today() + timedelta(days=month * 30)
 

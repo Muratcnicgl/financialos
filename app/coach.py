@@ -1447,16 +1447,20 @@ _FAKE_NIYET_RE = re.compile(
 # _FAKE_CONFIRM_RE sadece [koseli parantez] icini yakaliyordu; "Harcamani kaydettim.",
 # "Islem kaydedildi.", "500 TL gideri ekledim." gibi duz cumleler hicbir filtreye
 # takilmiyordu -> propose_action olmadan kullaniciya "islendi" izlenimi (finansal guven ihlali).
-# YALNIZ koc'un KENDI mutasyon-tamamlama iddiasini yakalar (1. tekil sahis + edilgen);
-# "kaydetmissin/kaydettin" (kullanicinin gecmisi) veya katilimci ("kaydettigin") DOKUNULMAZ.
+# BUG #085 iter2 (per-file denetim düzeltmesi): YALNIZ koc'un KENDI 1. TEKİL ŞAHIS
+# mutasyon-tamamlama iddiasini yakalar. Edilgen 3. şahıs formları (kaydedildi/işlendi/
+# eklendi/güncellendi/geçirildi) KALDIRILDI — çünkü bunlar analiz raporlarında kullanıcının
+# GEÇMİŞİNİ betimleyen meşru cümlelerde doğal geçiyor ("3 fatura işlendi", "maaş hesaba
+# geçirildi") ve raporu bozuyordu (yanlış-pozitif). Edilgen sahte-tamamlama zaten köşeli
+# parantezli ise _FAKE_CONFIRM_RE ile yakalanır. "kaydetmissin/kaydettin/kaydettigin" DOKUNULMAZ.
 _FAKE_PASTTENSE_RE = re.compile(
     r'\b('
-    r'kaydett[iı]m|kaydedild[iı]'
-    r'|i[sş]led[iı]m|i[sş]lend[iı]'
-    r'|ekled[iı]m|eklend[iı]'
-    r'|g[uü]ncelled[iı]m|g[uü]ncellend[iı]'
-    r'|hesab[ıi]na\s*ge[cç]ird[iı]m|hesaba\s*ge[cç]irild[iı]'
-    r'|kay[ıi]t\s*alt[ıi]na\s*ald[ıi]m|kay[ıi]t\s*alt[ıi]na\s*al[ıi]nd[ıi]'
+    r'kaydett[iı]m'
+    r'|i[sş]led[iı]m'
+    r'|ekled[iı]m'
+    r'|g[uü]ncelled[iı]m'
+    r'|hesab[ıi]na\s*ge[cç]ird[iı]m'
+    r'|kay[ıi]t\s*alt[ıi]na\s*ald[ıi]m'
     r')\b',
     re.IGNORECASE,
 )
@@ -1522,9 +1526,14 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
         if _FAKE_CONFIRM_RE.search(cleaned):
             cleaned = _FAKE_CONFIRM_RE.sub('', cleaned).strip()
             fake = True
-        # BUG #085 fix (P0-19): parantezsiz duz gecmis-zaman iddiasi -> iddia iceren CUMLEYI at
-        if _FAKE_PASTTENSE_RE.search(cleaned):
-            sentences = re.split(r'(?<=[.!?\n])\s+', cleaned)
+        # BUG #085 fix (P0-19): parantezsiz duz gecmis-zaman iddiasi -> iddia iceren CUMLEYI at.
+        # BUG #085 iter2: SADECE tek-satırlık kısa yanıtlara uygula. Sahte tamamlama ("Kaydettim.")
+        # her zaman kısa, tek-satır bir yanıttır; çok-satırlı YAPISAL RAPOR (## başlıklar, kokpit
+        # tablosu) asla sahte-tamamlama değildir ve cümle-bölüp-birleştirmek raporu bozuyordu
+        # (yanlış-pozitif — per-file denetim HIGH bulgusu). Çok-satırlı yanıta DOKUNMA.
+        is_structured_report = ("\n" in cleaned) or ("##" in cleaned) or ("[" in cleaned)
+        if not is_structured_report and _FAKE_PASTTENSE_RE.search(cleaned):
+            sentences = re.split(r'(?<=[.!?])\s+', cleaned)
             kept = [s for s in sentences if not _FAKE_PASTTENSE_RE.search(s)]
             cleaned = ' '.join(kept).strip()
             fake = True

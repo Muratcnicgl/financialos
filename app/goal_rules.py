@@ -153,24 +153,28 @@ def _compute_allocation_amount(
 ) -> Decimal:
     """Kural allocation_type'ına göre TL miktarı hesapla."""
     tx_amount = Decimal(str(tx.amount))
+    # BUG #090 fix: full/percent dalları da işaret-farkındalığını uygulamalı (fixed dalı
+    # #064'te düzeltilmişti, bunlar unutulmuş → gidere eşleşen full/percent kural progress'i
+    # şişiriyordu). tx.amount DB'de HER ZAMAN pozitif; yön transaction_type'ta.
+    # İŞARET KURALI: yalnız GİDER withdrawal (−); gelir VE transfer contribution (+).
+    # (Transfer bir hesaba akış olarak goal'a pozitif katkı sayılır — bkz. test_09.)
+    sign = Decimal("-1") if tx.transaction_type.value == "expense" else Decimal("1")
 
     if rule.allocation_type == "full":
-        return tx_amount
+        return sign * tx_amount
 
     elif rule.allocation_type == "percent":
         if rule.allocation_value is None:
             return Decimal("0")
         pct = Decimal(str(rule.allocation_value)) / Decimal("100")
-        return (tx_amount * pct).quantize(Decimal("0.01"))
+        return sign * (tx_amount * pct).quantize(Decimal("0.01"))
 
     elif rule.allocation_type == "fixed":
         if rule.allocation_value is None:
             return Decimal("0")
         fixed = Decimal(str(rule.allocation_value))
-        # BUG #064 fix (GR-001): işaret tx_amount'tan gelmez — tx.amount DB'de HER ZAMAN
-        # pozitiftir (yön transaction_type'ta), yani `tx_amount >= 0` daima True olup
-        # `else -fixed` ölü daldı. Bir GİDERE eşleşen "fixed" kural withdrawal (-) yerine
-        # yanlışlıkla contribution (+) kaydedip goal progress'i şişiriyordu.
-        return fixed if tx.transaction_type.value == "income" else -fixed
+        # BUG #064 fix (GR-001) + #090: işaret tx_amount'tan gelmez (hep pozitif). Gidere
+        # eşleşen "fixed" kural withdrawal (−) olmalı; gelir/transfer (+). full/percent ile hizalı.
+        return sign * fixed
 
     return Decimal("0")

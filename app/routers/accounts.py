@@ -17,8 +17,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from sqlalchemy.exc import IntegrityError
+
 from app.dependencies import get_db, get_current_user
-from app.models import User, Account, AccountType
+from app.models import User, Account, AccountType, Transaction, RecurringExpense
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -217,6 +219,27 @@ def delete_account(
             detail="Emanet hesabi silinemez (MC1 koruma).",
         )
 
-    db.delete(acc)
-    db.commit()
+    # BUG #091 fix: FK artık ENFORCE ediliyor (PRAGMA foreign_keys=ON, BUG #060). Bağlı
+    # transaction/recurring expense varken silmek IntegrityError → HTTP 500 veriyordu.
+    # Önce bağımlı kayıtları say, kullanıcıya düzgün 409 döndür (veri kaybı yok).
+    txn_count = db.query(Transaction).filter(Transaction.account_id == account_id).count()
+    exp_count = db.query(RecurringExpense).filter(RecurringExpense.account_id == account_id).count()
+    if txn_count or exp_count:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Hesap silinemez: {txn_count} işlem ve {exp_count} düzenli gider bağlı. "
+                f"Önce bunları silin veya başka hesaba taşıyın."
+            ),
+        )
+
+    try:
+        db.delete(acc)
+        db.commit()
+    except IntegrityError:
+        db.rollback()  # başka bir FK bağımlılığı (ör. goal allocation) — session'ı temizle
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Hesap başka kayıtlara bağlı olduğu için silinemedi.",
+        )
     return None

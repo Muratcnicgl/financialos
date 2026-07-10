@@ -310,6 +310,22 @@ def update_transaction(
     update_data = payload.model_dump(exclude_unset=True)
     auto_update = update_data.pop("auto_update_balance", True)
 
+    # BUG #087 fix: update yolu create ile aynı doğrulamayı yapmalı.
+    # (a) amount <= 0 reddedilmeli — aksi halde negatif tutar _apply_to_balance'ta
+    #     işareti ters çevirip bakiyeyi bozuyordu (gider güncellemesi bakiyeyi ARTIRIYORDU).
+    if "amount" in update_data and (update_data["amount"] is None or update_data["amount"] <= 0):
+        raise HTTPException(status_code=422, detail="Tutar pozitif olmalı (amount > 0).")
+    # (b) account_id başka kullanıcının/var olmayan hesabına taşınamaz (create 404 veriyor;
+    #     update sessizce kabul edip txn'i sahipsiz hesaba bağlıyordu).
+    if "account_id" in update_data and update_data["account_id"] is not None:
+        target = (
+            db.query(Account)
+            .filter(Account.id == update_data["account_id"], Account.user_id == user.id)
+            .first()
+        )
+        if not target:
+            raise HTTPException(status_code=404, detail="Hedef hesap bulunamadi veya size ait degil.")
+
     # 1. Eski etki
     if auto_update and txn.account_id:
         old_account = (

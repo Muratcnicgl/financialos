@@ -81,13 +81,9 @@ def test_execute_update_account_balance_emanet_MC1_reddedilir(db):
     assert p.status == ActionStatus.failed
 
 
-# ---- mark_debt_paid (mevcut davranış: SADECE durum bayrağı, nakit HAREKETSİZ) ----
-def test_execute_mark_debt_paid_durum_bayragi(db):
-    """
-    NOT: Mevcut executor mark_debt_paid'i SADECE is_paid/paid_date işaretler, NAKİT HAREKET
-    ETTİRMEZ. (Simülasyon ise nakdi hareket ettiriyor — tutarsızlık ürün kararı bekliyor;
-    bkz. flag.) Bu test executor'ın GERÇEK davranışını sabitler.
-    """
+# ---- mark_debt_paid (BUG #113: TEK aksiyon, nakdi de hareket ettirir) ----
+def test_execute_mark_debt_paid_alacak_tahsili_nakit_artar(db):
+    """BUG #113: alacak tahsili nakdi ARTIRIR (tek aksiyon; executor↔sim tutarlı)."""
     cash = Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=5000.0)
     debt = PersonalDebt(user_id=1, counterparty="Efe", direction=DebtDirection.receivable,
                         amount=1000.0, is_paid=False, due_date=date(2026, 5, 10))
@@ -96,9 +92,21 @@ def test_execute_mark_debt_paid_durum_bayragi(db):
     res = execute_pending_action(db, p.id, 1)
     assert res["success"] is True
     db.refresh(debt); db.refresh(cash)
-    assert debt.is_paid is True
-    assert debt.paid_date is not None
-    assert cash.balance == 5000.0               # executor nakit HAREKET ETTİRMEZ (mevcut davranış)
+    assert debt.is_paid is True and debt.paid_date is not None
+    assert cash.balance == 6000.0               # tahsilat → nakit +1000
+
+
+def test_execute_mark_debt_paid_borc_odemesi_nakit_azalir(db):
+    """BUG #113: borç ödemesi nakdi AZALTIR."""
+    cash = Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=5000.0)
+    debt = PersonalDebt(user_id=1, counterparty="Efe", direction=DebtDirection.payable,
+                        amount=1000.0, is_paid=False, due_date=date(2026, 5, 10))
+    db.add_all([cash, debt]); db.commit(); db.refresh(cash); db.refresh(debt)
+    p = _pending(db, "mark_debt_paid", {"debt_id": debt.id})
+    res = execute_pending_action(db, p.id, 1)
+    assert res["success"] is True
+    db.refresh(cash)
+    assert cash.balance == 4000.0               # ödeme → nakit -1000
 
 
 def test_execute_mark_debt_paid_zaten_odenmis_reddedilir(db):

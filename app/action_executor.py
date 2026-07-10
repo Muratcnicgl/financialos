@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 from app.models import (
     Account, AccountType, Transaction, TransactionType,
-    PersonalDebt, MasterCheckpoint, CheckpointType,
+    PersonalDebt, DebtDirection, MasterCheckpoint, CheckpointType,
     PendingAction, ActionStatus,
 )
 from app.rules_engine import simulate_partial_sale
@@ -560,6 +560,28 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
         date.fromisoformat(paid_date_str) if paid_date_str else date.today()
     )
     debt.is_paid = True
+
+    # BUG #113 fix (kapsam-güdümlü keşif): mark_debt_paid TEK aksiyondur (prompt: "X bana ödedi
+    # / borcumu ödedim" → mark_debt_paid). Bu yüzden NAKDİ DE HAREKET ETTİRMELİ — eskiden yalnız
+    # is_paid işaretleyip nakdi hareketsiz bırakıyordu: alacak tahsili net değeri YANLIŞ düşürüyor,
+    # borç ödemesi yanlış yükseltiyordu (tahsilat/ödeme net-nötr olmalı; görülen nakit değişmeli).
+    # Simülasyon zaten böyle yapıyordu → executor ile TUTARLI hale geldi. Varsayılan nakit hesaba işlenir.
+    cash = (
+        db.query(Account)
+        .filter(Account.user_id == user_id, Account.account_type == AccountType.cash)
+        .order_by(Account.id.asc())
+        .first()
+    )
+    cash_effect = 0.0
+    if cash:
+        if debt.direction == DebtDirection.receivable:
+            cash.balance += debt.amount          # alacak TAHSİL edildi → nakit artar
+            cash_effect = debt.amount
+        else:
+            cash.balance -= debt.amount          # borç ÖDENDİ → nakit azalır
+            cash_effect = -debt.amount
+        cash.updated_at = datetime.utcnow()
+
     db.commit()
 
     return {
@@ -569,6 +591,8 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
         "amount": debt.amount,
         "direction": debt.direction.value,
         "paid_date": debt.paid_date.isoformat(),
+        "cash_effect": cash_effect,               # +tahsilat / -ödeme; nakit hesap yoksa 0
+        "cash_account": cash.name if cash else None,
     }
 
 

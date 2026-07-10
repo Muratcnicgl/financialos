@@ -54,6 +54,11 @@ Her satır: yapıldı → **doğrulandı**. Halüsinasyon/varsayım yok; her fix
 | 21 | TEST-005/006 / BUG #078 | conftest `db_session` production engine → izole in-memory StaticPool (canlı DB yazma + test sızıntısı riski kapandı) | `tests/conftest.py` | Tüm süit **159→161 yeşil**, 0 hata | ✅ |
 | 22 | P0-3 DS-001 / BUG #079 | debt_strategy kart asgari ödemesi her ay güncel bakiyeden (azalan); eskiden başlangıç bakiyesinden sabit → payoff iyimserdi | `app/debt_strategy.py` | 2 test: azalan-min yakınsama + korunum invariant; süit 161 yeşil | ✅ |
 
+| 23 | P0-8 SE-002 / BUG #080 | simulation add_transaction bakiyeyi koşulsuz (transfer dahil) değiştiriyordu; gerçek executor SADECE `auto_update_balance=True` iken, transfer'de hiç değiştirmiyor → birebir hizalandı | `app/simulation_engine.py` | Süit 162 yeşil | ✅ |
+| 24 | P0-4 DS-003 / BUG #081 | debt_strategy: faizi belirtilmemiş krediler faizsiz simüle ediliyordu (iyimser maliyet) → `compare_strategies` sonucuna açık `warnings` eklendi | `app/debt_strategy.py` | +1 test (faizsiz kredi uyarısı); süit 162 yeşil | ✅ |
+
+> **Durum: 18/21 P0 çözüldü + doğrulandı.** Kalan 3: P0-7 (sim sınır çift-sayım), P0-10 (sim reel_butce 0), P0-19 (coach sahte-tamamlama — LLM eval harness gerektirir).
+
 ## Bekleyen (onay/temizlik)
 - **20 yetim `reasoning_traces` kaydı** (user id=2, var olmayan): FK açıkken app çalışır ama veri kiri. Silmek düşük riskli (ölü debug trace) — kullanıcı onayıyla temizlenecek.
 

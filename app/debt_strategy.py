@@ -299,6 +299,20 @@ def compare_strategies(
             f'faizli. Iki yontem de iyi secim.'
         )
 
+    # BUG #081 fix (P0-4/DS-003): faizi belirtilmemiş krediler FAİZSİZ (0%) simüle ediliyor →
+    # toplam faiz/ay sayısı iyimser çıkar ("sanal zenginlik"). Bunu sessizce yapma; UI/koç
+    # uyarabilsin diye açıkça bildir.
+    interest_free_loans = [
+        d.name for d in debts
+        if d.account_type == 'loan' and d.interest_rate_monthly == 0.0
+    ]
+    warnings = []
+    if interest_free_loans:
+        warnings.append(
+            f"{len(interest_free_loans)} kredinin faizi belirtilmemiş, FAİZSİZ varsayıldı "
+            f"({', '.join(interest_free_loans)}) — gerçek maliyet ve süre daha yüksek olabilir."
+        )
+
     return {
         'debts': [
             {
@@ -317,7 +331,8 @@ def compare_strategies(
             'interest_saved_with_avalanche': round(saved, 2),
             'months_difference': months_diff,
             'recommendation_note': note,
-        }
+        },
+        'warnings': warnings,
     }
 
 

@@ -31,3 +31,25 @@ def test_kredi_sabit_taksit_korunur():
     res = _simulate([loan], priority_order=[2], extra_monthly=0.0)
     assert 0 < res.months_to_freedom < MAX_MONTHS
     assert abs(res.total_paid - (12000.0 + res.total_interest_paid)) < 0.5
+
+
+def test_faizsiz_kredi_uyarisi_doner():
+    """BUG #081 (P0-4): faizi belirtilmemiş kredi FAİZSİZ varsayılınca açık uyarı dönmeli."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from app.database import Base
+    from app import models  # noqa: F401
+    from app.models import Account, AccountType, User
+    from app.debt_strategy import compare_strategies
+
+    eng = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(eng)
+    db = sessionmaker(bind=eng)()
+    db.add(User(id=1, name="T"))
+    db.add(Account(id=1, user_id=1, name="Garanti Kredi", account_type=AccountType.loan,
+                   balance=12000.0, interest_rate=None, monthly_payment=3000.0, remaining_installments=5))
+    db.commit()
+    res = compare_strategies(db=db, user_id=1, extra_monthly=0.0)
+    assert res["warnings"], "faizsiz kredi uyarısı bekleniyordu"
+    assert "Garanti Kredi" in res["warnings"][0]
+    db.close()

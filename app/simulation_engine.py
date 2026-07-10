@@ -220,8 +220,12 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             net_to_account = gross - withholding
 
             # Yatirim hesabini kucult
+            # BUG #102 tutarlılık (öz-denetim): gerçek executor satışta current_price'ı
+            # actual_price'a günceller; sim de aynısını yapmalı — yoksa kalan lotları BAYAT
+            # fiyattan değerleyip önizlemeyi gerçek sonuçtan saptırıyordu.
             inv.lot_count = (inv.lot_count or 0) - lots
-            inv.balance = (inv.lot_count or 0) * (inv.current_price or 0)
+            inv.current_price = price
+            inv.balance = (inv.lot_count or 0) * price
 
             # Nakdi hedef hesaba ekle
             cash_id = payload.get("credit_to_account_id")

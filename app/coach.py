@@ -785,6 +785,15 @@ Statü: {cockpit['statu']}
                 f"  - Trend: {exp_delta_s} (net değişim Δ {_fmt(tr['net_change_delta'])} TL)"
                 f"{top_cat_s}"
             )
+            # BUG #110 fix: koça gösterilen aylık sayıları cockpit'e ekle ki grounding onları
+            # DOĞRULANMIŞ saysın (aksi halde grounding bu meşru deterministik tutarları
+            # "izlenemeyen" sanıp analiz raporunda confidence'ı yanlışlıkla düşürüyordu).
+            cockpit.setdefault("_coach_extra_numbers", []).extend([
+                cur_ms["total_income"], cur_ms["total_expense"], cur_ms["net_change"],
+                tr["net_change_delta"], tr["prev_total_income"],
+                tr["prev_total_expense"], tr["prev_net_change"],
+                *[c["total"] for c in cur_ms["expense_categories"]],
+            ])
     except Exception as e:
         logger.warning(f"aylık özet coach context'e eklenemedi: {e}")
 
@@ -822,6 +831,11 @@ Statü: {cockpit['statu']}
                 f"  - {sure_s}\n"
                 f"  - Öncelik sırası: {order_names}"
             )
+            # BUG #110 fix: borç-özgürlük projeksiyon sayılarını grounding'e tanıt.
+            cockpit.setdefault("_coach_extra_numbers", []).extend([
+                av.total_interest_paid, av.total_paid,
+                *[d.balance for d in _debts],
+            ])
     except Exception as e:
         logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
 
@@ -1840,11 +1854,13 @@ class CoachEngine:
                 system_prompt = f"{V3_GOD_MODE_PROMPT}\n\n{context_text}"
 
             with recorder.step(OperationName.RULE_CHECK, intent="Cockpit + kural durumu") as s:
-                uyarilar = cockpit_dict.get("uyarilar", []) if cockpit_dict else []
+                # BUG #111 fix (öz-denetim): cockpit anahtarı "alerts" (uyarilar DEĞİL) ve
+                # uyarı dict'i seviye/baslik içerir (kod DEĞİL) → trace hep "0 uyari" gösteriyordu.
+                uyarilar = cockpit_dict.get("alerts", []) if cockpit_dict else []
                 s.observation = f"Cockpit hazir. Aktif uyari: {len(uyarilar)}"
                 s.set_action_input({"include_cockpit": include_cockpit})
                 if uyarilar:
-                    kodlar = [u.get("kod", "?") for u in uyarilar[:3]]
+                    kodlar = [u.get("baslik", u.get("seviye", "?")) for u in uyarilar[:3]]
                     s.inference = f"Uyarilar: {kodlar}"
 
             messages = self._load_history(db, user_id)

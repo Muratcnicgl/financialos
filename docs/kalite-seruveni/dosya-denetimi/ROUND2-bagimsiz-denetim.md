@@ -52,25 +52,30 @@ katmanı (coach.py, coach_insights.py).
   PendingAction kendi commit'lerinde atomik). Net bug değil. **İzleme.**
 - **main.py _catch_up_snapshots iş mantığı** (style, app/PROJE.md): startup modülüne taşınmalı.
 
-**Düşük şiddet (izleme):**
+**Düşük şiddet:**
 - rules_engine kart durum 3-state basitleştirmesi: ✅ **MİTİGE (BUG #096):** kart son ödeme
   artık ayrı proaktif reminder olarak firing — durum-state suppression'dan bağımsız.
-- rules_engine anomali penceresi 30 vs 31 gün off-by-one (kozmetik). **İzleme.**
-- sim emanet guard asimetrisi → ✅ **ÇÖZÜLDÜ (BUG #101):** add_transaction + update_account_balance
-  sim'de emanet'i bloklar (executor ile birebir); update_fund_price meşru revalüasyon (bloklanmaz).
-- executor mutasyon+status ayrı commit (P2 plausible, düşük olasılık). **İzleme.**
-- sell_investment balance vs current_price sapması → ✅ **ÇÖZÜLDÜ (BUG #102):** satışta
-  current_price=actual_price güncellenir; balance == lot_count*current_price tutarlı.
-- income-on-card işaret → ✅ **ÇÖZÜLDÜ (BUG #103):** karta gelen gelir borcu azaltır (executor+sim).
-- debts.py çelişkili paid state (LOW edge). **İzleme.**
-- goal_engine daily_rate/90 genç goal'de yavaş (modelleme). **İzleme.**
-- cashflow tek-hesap projeksiyonu global gelir/gider karıştırıyor (modelleme). **İzleme.**
+- rules_engine anomali penceresi 30 vs 31 gün off-by-one → ✅ **ÇÖZÜLDÜ (BUG #108):** ikisi de eşit 30 gün.
+- sim emanet guard asimetrisi → ✅ **ÇÖZÜLDÜ (BUG #101).**
+- executor mutasyon+status ayrı commit (P2 plausible, düşük olasılık). **İzleme (yapısal, düşük risk).**
+- sell_investment balance vs current_price sapması → ✅ **ÇÖZÜLDÜ (BUG #102).**
+- income-on-card işaret → ✅ **ÇÖZÜLDÜ (BUG #103).**
+- debts.py çelişkili paid state → ✅ **ÇÖZÜLDÜ (BUG #106):** explicit is_paid kazanır, her durumda tutarlı.
+- goal_engine daily_rate/90 genç goal'de yavaş → ✅ **ÇÖZÜLDÜ (BUG #105):** gerçek allocation span.
+- cashflow tek-hesap projeksiyonu → ✅ **ÇÖZÜLDÜ/BELGELENDİ (BUG #107):** UI hiç account_id
+  geçmiyor (yol kullanılmıyor); izole-hesap semantiği ürün kararı → varsayımla değişiklik YOK, sınırlama koda not düşüldü.
+- coach_insights K2 duplicate → ✅ **ÇÖZÜLDÜ (BUG #104):** stabil kategori-bazlı title.
+
+## SONUÇ — denetim tamamen kapatıldı (11 Tem 2026)
+7-ajan denetiminin TÜM bulguları çözüldü, mitige edildi, tasarım-gereği doğrulandı veya
+belgelenerek kapatıldı. Deterministik düzeltme kalmadı. Açık backlog yalnız: structured output
+(LLM-gated, contract harness ile de-risk), Account/Goal cascade (mimari tasarım), main.py stil.
 
 ## Vizyon değeri (denetim sonrası, aynı turda)
 Kurucu vizyona hizmet eden eklemeler: **A1 kart son ödeme reminder (#096)**, **A3 aylık özet
 (#097)** + rules_engine refactor, **koç aylık trend farkındalığı (#098)**, **son işlemler
-grounding-tutarlı context (#099)**, **zikzak "yarınki limit" projeksiyonu (#100)**, **koç
-davranış sözleşmesi uçtan-uca harness** (deterministik eval). Süit 162→272 yeşil.
+grounding-tutarlı context (#099)**, **zikzak "yarınki limit" projeksiyonu (#100)** + frontend
+görünürlük, **koç davranış sözleşmesi uçtan-uca harness** (deterministik eval). Süit 162→280 yeşil.
 
 ## Doğrulanan temiz alanlar (ajan raporlarından)
 premortem.py, fund_tracker.py (tam temiz); rules_engine bölme-sıfır guard'ları + leap-year +

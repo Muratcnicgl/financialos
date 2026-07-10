@@ -44,6 +44,16 @@ Her satır: yapıldı → **doğrulandı**. Halüsinasyon/varsayım yok; her fix
 - **159 test yeşil, 0 hata** (izole in-memory, 3.70s). Master Checkpoint emanet enforcement + P0-2 artık gerçek testle korunuyor.
 - Bekleyen test işi: rules_engine/action_executor için genişletilmiş kapsam (Hypothesis property testleri), LLM eval harness (coach P0-19 için).
 
+## Tur 3 — script veri-güvenliği + test altyapısı + P0-3
+
+| # | ID | Değişiklik | Dosya | Doğrulama | Durum |
+|---|----|-----------|-------|-----------|-------|
+| 18 | SBK-001..007 / BUG #075 | backup.py: DB yolu DATABASE_URL'den, negatif keep-days reddi, az-önceki yedek silinmez, saniye+ezme-koruması, integrity_check, mutlak yol | `scripts/backup.py` | Gerçek yedek alındı (380 KB, integrity OK); negatif reddedildi | ✅ |
+| 19 | SSD-001 / BUG #076 | setup_data.py drop_all öncesi interaktif onay + `--force`/env flag + DATABASE_URL uyarısı (Murat'ın gerçek verisi yanlışlıkla silinmesin) | `scripts/setup_data.py` | import-safe (main/drop_all çalışmadı) | ✅ |
+| 20 | TEST-018/001 / BUG #077 | `pyproject.toml` testpaths=["tests"] → pytest kök `test_*.py` (drop_all) toplamaz + `requirements-dev.txt` + izole emanet testi (MC1 + P0-2, 5 test) | `pyproject.toml`, `requirements-dev.txt`, `tests/test_action_executor_emanet.py` | 5 emanet testi geçti | ✅ |
+| 21 | TEST-005/006 / BUG #078 | conftest `db_session` production engine → izole in-memory StaticPool (canlı DB yazma + test sızıntısı riski kapandı) | `tests/conftest.py` | Tüm süit **159→161 yeşil**, 0 hata | ✅ |
+| 22 | P0-3 DS-001 / BUG #079 | debt_strategy kart asgari ödemesi her ay güncel bakiyeden (azalan); eskiden başlangıç bakiyesinden sabit → payoff iyimserdi | `app/debt_strategy.py` | 2 test: azalan-min yakınsama + korunum invariant; süit 161 yeşil | ✅ |
+
 ## Bekleyen (onay/temizlik)
 - **20 yetim `reasoning_traces` kaydı** (user id=2, var olmayan): FK açıkken app çalışır ama veri kiri. Silmek düşük riskli (ölü debug trace) — kullanıcı onayıyla temizlenecek.
 

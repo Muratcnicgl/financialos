@@ -169,7 +169,15 @@ def _simulate(
             if state[aid] <= 0.01:
                 continue
             d = debt_by_id[aid]
-            min_pay = min(d.min_payment, state[aid])  # Bakiyeden fazla odeme
+            # BUG #079 fix (P0-3): kart asgari ödemesi her ay GÜNCEL bakiyeden hesaplanır
+            # (azalır). Eskiden collect_debts'te başlangıç bakiyesinden hesaplanan SABİT
+            # min_payment kullanılıyordu → kart gerçekte olduğundan hızlı kapanıyor,
+            # snowball/avalanche payoff ay sayısı sistemli iyimser çıkıyordu.
+            if d.account_type == 'credit_card':
+                base_min = max(state[aid] * MIN_CARD_PAYMENT_RATIO, 50.0)
+            else:
+                base_min = d.min_payment  # kredi: sabit taksit
+            min_pay = min(base_min, state[aid])  # Bakiyeden fazla ödeme yok
             state[aid] -= min_pay
             total_paid += min_pay
             snapshot_paid[aid] = min_pay

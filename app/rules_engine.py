@@ -609,8 +609,12 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
     Tek GROUP BY sorgusu — N+1 yok. index: ix_transactions_user_date.
     curr_count >= PATTERN_MIN_TRANSACTIONS olanlar döner (gürültü filtresi).
     """
-    curr_start = today - timedelta(days=30)
-    prev_start = today - timedelta(days=60)
+    # BUG #108 fix: pencereler EŞİT 30 gün olmalı. Eskiden curr `>= today-30` (üstten sınırsız)
+    # = 31 gün, prev `[today-60, today-30)` = 30 gün → sabit harcayan kategori bile fazladan
+    # sınır gününden dolayı hafif pozitif change_pct/anomali eğilimi gösteriyordu (off-by-one).
+    # curr = [today-29, today] (30 gün), prev = [today-59, today-30] (30 gün).
+    curr_start = today - timedelta(days=29)
+    prev_start = today - timedelta(days=59)
 
     rows = db.execute(text(f"""
         SELECT

@@ -258,6 +258,12 @@ def generate_forecast(
     end = today + timedelta(days=horizon_days - 1)
 
     # --- Başlangıç bakiyesi: nakit hesaplar ---
+    # BİLİNEN SINIRLAMA (denetim, BUG #107): account_id verilirse SADECE açılış bakiyesi ve
+    # (aşağıda) recurring gider bu hesaba göre daraltılır; gelir/kredi taksiti/alacak/borç
+    # RecurringIncome/PersonalDebt'te account_id olmadığı için GLOBAL kalır. Yani tek-hesap
+    # projeksiyonu "bu hesap tüm nakit akışının merkezi" varsayar (izole hesap DEĞİL).
+    # Şu an hiçbir UI çağrısı account_id GEÇMİYOR (hep agregat mod) → yol pratikte kullanılmıyor.
+    # İzole-hesap semantiği ürün kararı gerektirir; varsayımla davranış değiştirilmedi.
     cash_q = db.query(Account).filter(
         Account.user_id == user_id,
         Account.account_type == AccountType.cash,

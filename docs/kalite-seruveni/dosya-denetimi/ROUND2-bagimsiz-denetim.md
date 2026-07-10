@@ -88,6 +88,23 @@ Kapsam: action_executor %49→%73, simulation_engine %66→%85 (simulate_action 
 test edildi), fund_tracker %14→%51. **Ders (meta-ders #8'i pekiştirir): semantik denetim +
 kapsam-güdümlü test BİRLİKTE gerekir — biri diğerinin kaçırdığını yakalar.** Süit 291→324.
 
+## ROUND 4 — property-based + net-değer korunumu (11 Tem 2026)
+
+- **hypothesis** ile çekirdek matematik değişmezleri fuzz-doğrulandı (shadow accounting, daily
+  limit, partial-sale stopaj 300 örnek, debt PARA KORUNUMU 150 rastgele borç seti). Kod bug'ı
+  YOK — güçlü "sıfır hata" kanıtı. Bir nüans belgelendi (avalanche≤snowball faiz EVRENSEL DEĞİL:
+  küçük %0 borç + büyük minimum → snowball büyük minimumu erken serbest bırakır; gerçek finans
+  nüansı, #081 uyarısı var).
+- **Net-değer korunumu** testleri #113'ü net-değer seviyesinde kilitledi (alacak tahsili net-nötr;
+  gider tam-tutar düşüş; satış yalnız-stopaj). **YENİ BULGU (flag — tasarım kararı):** `net_deger_tam`
+  kişisel ALACAĞI (receivable) varlık sayıyor ama kişisel BORCU (payable) yükümlülük SAYMIYOR
+  (`rules_engine:886` = net_deger + alacaklar; payable hiç düşülmüyor) → asimetri, net değeri
+  fazla-iyimser gösterir (realist-koç etiğiyle gerginlik). Banka borçları (kart/kredi) DOĞRU
+  düşülüyor (`net_deger:881`); kişisel payable ikincil. **Karar:** headline metrik olduğu için
+  varsayımla değiştirilmedi; kullanıcı kararı — `net_deger_tam += -ödenmemiş_payable` simetrik/
+  finansal-doğru olur (öneri), ama kullanıcının dashboard'unda kişisel IOU'ları net değerden
+  düşmek isteyip istemediği ürün kararıdır.
+
 ## Vizyon değeri (denetim sonrası, aynı turda)
 Kurucu vizyona hizmet eden eklemeler: **A1 kart son ödeme reminder (#096)**, **A3 aylık özet
 (#097)** + rules_engine refactor, **koç aylık trend farkındalığı (#098)**, **son işlemler

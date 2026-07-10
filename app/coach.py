@@ -9,6 +9,11 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #095 fix (KURAL SIFIR sağlamlaştırma): propose_action ön-filtresi genişletildi.
+  is_question artık analiz fiillerini de (değerlendir/özetle/yorumla/karşılaştır/göster/
+  hesapla) yakalar; ayrı should_offer_propose_tool gelecek-zaman/niyet ifadesinde
+  ("yarın kapatacağım") gerçekleşmiş eylem yoksa propose_action'ı BASKILAR. Hem tool-gating
+  hem STEP-E zorla-retry bu filtreye bağlandı → koç gerçekleşmemiş eylem UYDURAMAZ (varsayım yasak).
 - BUG #094 fix (per-file denetim): YENİ CHECKPOINT bölümü kullanıcı AÇIKÇA kural/checkpoint
   istediyse hedge kelime ("eklenebilir") içerse bile KORUNUR (eski dal istediği öneriyi siliyordu).
 - BUG #093 fix (per-file denetim): FallbackProvider kota-dışı beklenmedik hatayı ERROR+exc_info
@@ -109,7 +114,56 @@ def is_question(msg: str) -> bool:
         return True
     if re.search(r'\b(yoksa|öner|tavsiye|analiz|incele|stratej|ne yap)\b', m):
         return True
+    # Analiz-istek fiilleri (BUG #095): değerlendir/özetle/yorumla/karşılaştır/göster/hesapla
+    if re.search(r'\b(değerlendir|özetle|yorumla|karşılaştır|göster|hesapla|listele|durum)\b', m):
+        return True
     return False
+
+
+# Gelecek-zaman / niyet ifadeleri: "yarın kapatacağım", "gelecek hafta satacağım",
+# "planlıyorum", "düşünüyorum". Gerçekleşmiş eylem DEĞİL → KURAL SIFIR gereği propose_action
+# önerilmemeli (varsayım yasak — kurucu #1 mandat).
+_FUTURE_INTENT_RE = re.compile(
+    r'(acağım|eceğim|acağız|eceğiz|acaksın|eceksin|acak\b|ecek\b'
+    r'|planlıyorum|düşünüyorum|niyetinde|planım\s+var'
+    r'|yarın|gelecek\s+(hafta|ay|yıl|sene)|önümüzdeki|ileride|ilerde)',
+    re.IGNORECASE,
+)
+# Gerçekleşmiş eylem işaretleri (KURAL SIFIR ✅ listesi) — karışık mesajda ("aldım ama
+# yarın satacağım") gerçekleşen kısmı korur, yanlışlıkla baskılamaz.
+_REALIZED_ACTION_RE = re.compile(
+    r'\b(yaptım|ettim|sattım|aldım|ödedim|kapattım|harcadım|girdim'
+    r'|yatırdım|çektim|kaydett|geldi|geçti|yatırdı)\b',
+    re.IGNORECASE,
+)
+
+
+def is_future_or_intent(msg: str) -> bool:
+    """Gelecek-zaman veya niyet ifadesi mi? (gerçekleşmemiş eylem)."""
+    return bool(_FUTURE_INTENT_RE.search(msg or ""))
+
+
+def has_realized_action(msg: str) -> bool:
+    """Gerçekleşmiş somut eylem işareti içeriyor mu?"""
+    return bool(_REALIZED_ACTION_RE.search(msg or ""))
+
+
+def should_offer_propose_tool(msg: str) -> bool:
+    """
+    propose_action tool'u LLM'e sunulmalı mı? (KURAL SIFIR ön-filtresi — BUG #095)
+
+    HAYIR (baskıla) eğer:
+    - mesaj bir SORU/analiz isteği ise, VEYA
+    - GELECEK/NİYET ifadesi ise VE gerçekleşmiş eylem işareti YOKSA.
+
+    Baskılamak GÜVENLİ başarısızlık yönüdür: yanlış-pozitifte koç sadece netleştirme
+    sorar; yanlış-negatifte koç gerçekleşmemiş eylem UYDURUR (kurucu "varsayım yasak" ihlali).
+    """
+    if is_question(msg):
+        return False
+    if is_future_or_intent(msg) and not has_realized_action(msg):
+        return False
+    return True
 
 
 # ============================================================
@@ -1727,11 +1781,17 @@ class CoachEngine:
             # STEP B: Soru-bildirim siniflandirma
             # --------------------------------------------------------
             # BUG #023: Soru ise propose_action yok; save_insight her zaman aktif
+            # BUG #095: KURAL SIFIR ön-filtresi genişletildi — gelecek/niyet ifadesinde de
+            # (gerçekleşmiş eylem yoksa) propose_action sunulmaz (varsayım yasak).
             is_q = is_question(user_message)
-            active_tools = [SAVE_INSIGHT_SCHEMA] if is_q else [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA]
+            offer_propose = should_offer_propose_tool(user_message)
+            active_tools = (
+                [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA] if offer_propose
+                else [SAVE_INSIGHT_SCHEMA]
+            )
 
             with recorder.step(OperationName.OBSERVATION, intent="Soru-bildirim siniflandirma") as s:
-                s.observation = f"is_question={is_q}, tool_count={len(active_tools)}"
+                s.observation = f"is_question={is_q}, offer_propose={offer_propose}, tool_count={len(active_tools)}"
                 tool_names = [t.get("name", "?") for t in active_tools]
                 s.inference = f"active_tools: {tool_names}"
 
@@ -1835,8 +1895,11 @@ class CoachEngine:
             # STEP E: Retry (BUG #043/#045 ve BUG #049)
             # --------------------------------------------------------
             # BUG #043/#045: Boş cevap VEYA sahte niyet tespit edilirse tek retry
+            # BUG #095: retry SADECE propose_action sunulması gereken durumda zorlanır.
+            # Gelecek/niyet ifadesinde (offer_propose=False) zorla propose_action = uydurma
+            # eylem riski (KURAL SIFIR ihlali) — bu yüzden `and offer_propose` guard'ı.
             if (not proposed_actions and not account_unclear and not date_unclear
-                    and not is_q
+                    and offer_propose
                     and (not (llm_response.text or "").strip()
                          or _FAKE_NIYET_RE.search(llm_response.text or ""))):
                 logger.warning(f"BUG #045/#043 retry tetiklendi: {user_message!r}")

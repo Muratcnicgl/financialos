@@ -1,0 +1,5 @@
+# Geliştirme/test bağımlılıkları (TEST-011). Kurulum: pip install -r requirements-dev.txt
+pytest>=8.0
+pytest-cov>=5.0
+httpx>=0.27          # FastAPI TestClient için
+hypothesis>=6.100    # finansal matematik property testleri (RULE)

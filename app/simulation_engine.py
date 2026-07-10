@@ -237,17 +237,21 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             if not target:
                 return False, "Hedef hesap bulunamadi"
 
-            if ttype == "income":
-                target.balance += amount
-            elif ttype == "expense":
-                if target.account_type == "credit_card":
-                    target.balance += amount  # kart borcu artar
-                else:
-                    target.balance -= amount  # nakit hesap azalir
-            elif ttype == "transfer":
-                target.balance += amount
-            else:
+            if ttype not in ("income", "expense", "transfer"):
                 return False, f"Bilinmeyen islem tipi: {ttype}"
+            # BUG #080 fix (P0-8/SE-002): gerçek executor bakiyeyi SADECE auto_update_balance=True
+            # iken günceller (action_executor:504) ve transfer'de HİÇ değiştirmez. Simülasyon
+            # eskiden koşulsuz + transfer'de de değiştiriyordu → gerçekte bakiyeyi değiştirmeyecek
+            # bir işlemi bakiye değişimi olarak ön-izleyip yanlış karar desteği veriyordu.
+            if payload.get("auto_update_balance") and account_id:
+                if ttype == "income":
+                    target.balance += amount
+                elif ttype == "expense":
+                    if target.account_type == "credit_card":
+                        target.balance += amount  # kart borcu artar
+                    else:
+                        target.balance -= amount  # nakit hesap azalir
+                # transfer: executor bakiye değiştirmiyor → simülasyon da değiştirmez
 
             world.event_log.append(
                 f"[T+0] ISLEM: {ttype} {amount:,.2f} TL -> {target.name} "

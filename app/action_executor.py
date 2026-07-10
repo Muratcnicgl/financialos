@@ -643,6 +643,12 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
     # Doğrulama geçti — şimdi mutasyon (lot azalt + nakdi hedefe yatır) tek commit'te
     inv.lot_count = sim["kalan_lot"]
     inv.balance = sim["kalan_deger"]
+    # BUG #102 fix: kalan_deger = kalan_lot * actual_price. actual_price taze bir piyasa
+    # gözlemidir; current_price'ı da güncelle ki balance == lot_count*current_price tutarlı
+    # kalsın. Eskiden current_price bayat kalıp cockpit (lot*current_price) ile balance ve
+    # simülasyon (balance okur) birbirinden sapıyordu.
+    inv.current_price = actual_price
+    inv.last_price_update = datetime.utcnow()
     inv.updated_at = datetime.utcnow()
     credit_account.balance += sim["net_eline_gecen"]
     credit_account.updated_at = datetime.utcnow()

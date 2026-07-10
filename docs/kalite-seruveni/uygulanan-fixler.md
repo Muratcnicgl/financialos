@@ -34,6 +34,9 @@ Her satır: yapıldı → **doğrulandı**. Halüsinasyon/varsayım yok; her fix
 ## Genel smoke test (17 fix sonrası, canlı DB read-only)
 `generate_cockpit` ✅ (today_target==daily_limit → ADR-026 doğru) · `generate_forecast(180g)` ✅ · `build_cockpit_snapshot` ✅ (P0-9 anahtarları mevcut) · `app.main` import ✅ (her batch). Çekirdek motorlar sağlam.
 
+| 18 | SBK-001..007 / BUG #075 | `scripts/backup.py`: DB yolu DATABASE_URL'den (hardcoded değil, mutlak); DB yoksa `sys.exit(1)` (sessiz başarı yok); negatif `--keep-days` reddi; az önce alınan yedek asla silinmez (≥1 garanti); saniye hassasiyeti + integrity_check + sqlite hata yakalama | `scripts/backup.py` | Gerçek yedek: 380 KB alındı, integrity OK, yeni silinmedi; negatif -5 reddedildi; DATABASE_URL türevli yol | ✅ |
+| 19 | SSD-001 / BUG #076 | `scripts/setup_data.py`: `drop_all` öncesi açık onay (interaktif) veya `--force`/`SETUP_DATA_FORCE=1` + hedef DATABASE_URL uyarısı — yanlışlıkla Murat'ın gerçek verisini silme koruması | `scripts/setup_data.py` | import OK (main/drop_all çalışmadı, guard aktif) | ✅ |
+
 ## Bekleyen (onay/temizlik)
 - **20 yetim `reasoning_traces` kaydı** (user id=2, var olmayan): FK açıkken app çalışır ama veri kiri. Silmek düşük riskli (ölü debug trace) — kullanıcı onayıyla temizlenecek.
 

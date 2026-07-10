@@ -32,6 +32,20 @@ from app.models import (
 
 
 def main():
+    # BUG #076 fix (SSD-001): drop_all TÜM veriyi siler. Yanlışlıkla Murat'ın gerçek
+    # verisini yok etmeyi önlemek için açık onay (interaktif) veya --force/env flag gerekir,
+    # ve hedef DATABASE_URL kullanıcıya gösterilir.
+    import os as _os
+    import sys as _sys
+    _db_url = _os.getenv("DATABASE_URL", "sqlite:///./data/financialos.db")
+    _force = ("--force" in _sys.argv) or (_os.getenv("SETUP_DATA_FORCE") == "1")
+    print(f"UYARI: Bu script hedef veritabanındaki TÜM veriyi siler (drop_all).")
+    print(f"       Hedef: {_db_url}")
+    if not _force:
+        _resp = input("Devam edilsin mi? Tüm mevcut veri KALICI SİLİNECEK (evet/hayir): ").strip().lower()
+        if _resp not in ("evet", "e", "yes", "y"):
+            print("İptal edildi. (Onaysız çalıştırmak için: --force veya SETUP_DATA_FORCE=1)")
+            return
     print("DB sifirlaniyor (drop_all + create_all)...")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)

@@ -122,11 +122,16 @@ def update_debt(
     for k, v in update_data.items():
         setattr(debt, k, v)
 
-    # Akilli senkronizasyon
-    if "paid_date" in update_data:
+    # Akilli senkronizasyon — BUG #106 fix: çelişkide (is_paid=False + paid_date verilmiş)
+    # explicit is_paid KAZANIR ve tutarlılık HER durumda garanti edilir. Eskiden iki kural
+    # sırayla çalışıp "is_paid=True ama paid_date=None" (ödendi ama tarih yok) üretebiliyordu.
+    if "is_paid" in update_data:
+        if update_data["is_paid"] is False:
+            debt.paid_date = None
+        elif debt.paid_date is None:
+            debt.paid_date = date.today()  # ödendi işaretlendi ama tarih yok → bugün
+    elif "paid_date" in update_data:
         debt.is_paid = update_data["paid_date"] is not None
-    if "is_paid" in update_data and update_data["is_paid"] is False:
-        debt.paid_date = None
 
     db.commit()
     db.refresh(debt)

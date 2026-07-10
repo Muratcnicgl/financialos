@@ -93,7 +93,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     User, MasterCheckpoint, CoachMemory, PendingAction, ActionStatus,
 )
-from app.rules_engine import generate_cockpit, turkish_date
+from app.rules_engine import generate_cockpit, turkish_date, generate_monthly_summary
 from app.action_executor import propose_action, _fmt
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
@@ -757,6 +757,35 @@ Statü: {cockpit['statu']}
             anomaly_s = " ⚠️ ANOMALİ" if p["anomaly_flag"] else ""
             p_lines.append(f"  - {cat}: {prev_s} TL → {curr_s} TL {change_s}{anomaly_s}")
         context += "\n\n## Davranış Kalıpları (son 30 gün / önceki 30 gün)\n" + "\n".join(p_lines)
+
+    # BU AY (A3 özeti) — koçun aylık trend farkındalığı (kurucu "durum raporu" ruhu).
+    # Deterministik veri; koç açıklar, hesap yapmaz. Sadece bu ay işlem varsa gösterilir.
+    try:
+        ms = generate_monthly_summary(user_id, today.year, today.month, db)
+        cur_ms = ms["current"]
+        if cur_ms["transaction_count"] > 0:
+            tr = ms["trend"]
+            exp_delta = tr["expense_delta_pct"]
+            exp_delta_s = (
+                f"gider geçen aya göre %{exp_delta:+.0f}" if exp_delta is not None
+                else "gider (önceki ay verisi yok)"
+            )
+            top_cat_s = ""
+            if cur_ms["expense_categories"]:
+                tc = cur_ms["expense_categories"][0]
+                top_cat_s = f"\n  - En çok: {tc['category']} {_fmt(tc['total'])} TL (%{tc['percentage']:.0f})"
+            sr = cur_ms["savings_rate"]
+            sr_s = f", tasarruf oranı %{sr:.0f}" if sr is not None else ""
+            context += (
+                f"\n\n## BU AY ({ms['period']['label']} — ay içi)\n"
+                f"  - Gelir {_fmt(cur_ms['total_income'])} TL | "
+                f"Gider {_fmt(cur_ms['total_expense'])} TL | "
+                f"Net {_fmt(cur_ms['net_change'])} TL{sr_s}\n"
+                f"  - Trend: {exp_delta_s} (net değişim Δ {_fmt(tr['net_change_delta'])} TL)"
+                f"{top_cat_s}"
+            )
+    except Exception as e:
+        logger.warning(f"aylık özet coach context'e eklenemedi: {e}")
 
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.

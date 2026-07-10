@@ -221,6 +221,13 @@ export default function Cockpit({ setActiveTab }) {
               </span>
             )}
           </p>
+          {/* Zikzak projeksiyonu — kurucu "biriken güç": bugün harcamazsan yarınki limit yükselir */}
+          {data.yarin_limit_harcamasiz > data.daily_limit && (
+            <p className="text-xs text-positive-600 dark:text-positive-400 mt-1.5 flex items-center gap-1">
+              <Waves className="w-3.5 h-3.5 shrink-0" />
+              Bugün harcamazsan yarın limitin {formatTL(data.yarin_limit_harcamasiz)} TL/gün'e çıkar
+            </p>
+          )}
         </div>
       </div>
 
@@ -387,9 +394,11 @@ export default function Cockpit({ setActiveTab }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="font-medium truncate">{r.name}</p>
-                      {r.card_risk && (
+                      {r.type === 'card_payment' ? (
+                        <span className="chip chip-negative text-[9px] flex-shrink-0">💳 Son ödeme</span>
+                      ) : r.card_risk ? (
                         <span className="chip chip-negative text-[9px] flex-shrink-0">Kart riski</span>
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       {dayLabel} · {r.account_name || r.type}

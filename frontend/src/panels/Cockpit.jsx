@@ -10,6 +10,7 @@ import {
   cashflowApi, formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
 } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
+import MonthlySummary from '../components/MonthlySummary.jsx';
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -230,6 +231,9 @@ export default function Cockpit({ setActiveTab }) {
           )}
         </div>
       </div>
+
+      {/* A3: Aylık özet — kurucu "durum raporu" */}
+      <MonthlySummary />
 
       {/* Uyarılar */}
       {data.alerts && data.alerts.length > 0 && (

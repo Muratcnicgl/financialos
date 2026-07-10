@@ -63,10 +63,34 @@ Her satır: yapıldı → **doğrulandı**. Halüsinasyon/varsayım yok; her fix
 
 > **Durum: 21/21 P0 çözüldü + doğrulandı (10 Tem 2026, süit 187 yeşil).** + Devrimsel adım #1: grounding check (LLM-003).
 
+## SESSION-2 (11 Tem 2026) — Gemini tam-okuma + 7-ajan denetim + vizyon gerçekleştirme
+
+Bu turda ~50 commit, süit **162 → 287 yeşil** (+125 test). Tümü `kalite-seruveni` dalında,
+`main` dokunulmadı, tek yazarlı (AI trailer'ları temizlendi — kullanıcı isteği).
+
+**Devrimsel/altyapı:** LLM-003 grounding (#083) · LLM-005 Ollama sovereign · serializers (#092) ·
+koç davranış sözleşmesi harness (deterministik eval).
+
+**Son 2 P0 + per-file denetim (#084-#108, hepsi doğrulandı):** P0-7 sim sınır çift-sayım (#084),
+P0-19 sahte-tamamlama (#085 + iter2 regresyon düzeltmesi), beklenen-gelir çift-sayım (#086),
+txn-update balance corruption (#087), expense ownership (#088), debt rollover (#089), goal-rules
+işaret (#090), hesap-silme 409 (#091), tzinfo sweep (#092), FallbackProvider log (#093), YENİ
+CHECKPOINT koruma (#094), KURAL SIFIR gelecek/niyet (#095), sim emanet (#101), sell_investment
+valuation (#102), income-on-card (#103), K2 insight dedup (#104), goal projeksiyon span (#105),
+debt paid-state (#106), cashflow sınırlama notu (#107), anomali penceresi (#108).
+
+**Vizyon gerçekleştirme (kurucu koç tamamlandı):** A1 kart son ödeme reminder (#096), A3 aylık
+özet (#097), koç aylık trend (#098), son işlemler grounding-tutarlı (#099), zikzak yarınki-limit
+projeksiyonu (#100), Borç Çığı koç context'i (#109), frontend Cockpit görünürlük, main.py refactor.
+
+**Golden test:** `test_founding_scenario.py` — Murat'ın manzarası entegre doğrulandı (Gölge
+Muhasebe + Zikzak + kart son ödeme + Borç Çığı). Denetim kaydı: `dosya-denetimi/ROUND2-*.md`.
+
 ## Bekleyen (onay/temizlik)
-- **20 yetim `reasoning_traces` kaydı** (user id=2, var olmayan): FK açıkken app çalışır ama veri kiri. Silmek düşük riskli (ölü debug trace) — kullanıcı onayıyla temizlenecek.
+- **20 yetim `reasoning_traces` kaydı** (user id=2, var olmayan): FK açıkken app çalışır ama veri kiri. Silmek düşük riskli (ölü debug trace) — **kullanıcı onayı bekliyor** (veri silme).
+- Açık backlog (büyük/mimari, aceleye gerek yok): structured output (LLM-gated, harness ile de-risk edildi — ama NL koç için muhtemelen gereksiz), Account/Goal cascade (tek-kullanıcıda düşük etki).
 
 ## Yürütme notları
-- Numaralandırma: BUG #059→#061 (önceki en yüksek #058'di). ADR-026 (önceki #025).
+- Numaralandırma: BUG #059→#109 bu iki turda. ADR-026 (önceki #025).
 - Her fix `dersler-gemini.md` 7 meta-dersine ve kök vizyona hizmet ediyor.
-- Sıradaki: backend per-file konsolidasyonu (MASTER-FIX-LIST) → P0 finansal matematik bug'ları.
+- Deterministik kalite backlog'u TÜKENDI; sonraki faz: gerçek kullanım (Wave-2 disiplini) veya kullanıcı yönlendirmesi.

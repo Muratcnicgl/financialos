@@ -13,6 +13,13 @@ Bu modul iki yerden cagrilir:
 
 Bagimsizlik: action_executor.py veya rules_engine.py'yi import etmez. Bu sayede
 gercek DB'ye sizinti riski yok. Mantigi burada bagimsiz ama tutarli sekilde yazilmistir.
+
+GUNCELLEMELER:
+- BUG #084 fix (P0-7): Zincirleme ufuk projeksiyonunda sinir-gunu cift-sayimi.
+  _project_forward pencereleri artik yari-acik (start, end]. Onceki inclusive
+  [start, end] modelinde T+30 gibi tam sinir gunune dusen maas/kredi taksiti hem
+  1. hem 2. pencerede sayilip T+90'da hayalet gelir/odeme uretiyordu. Bkz.
+  tests/test_simulation_boundary.py.
 """
 
 from __future__ import annotations
@@ -323,7 +330,10 @@ def _next_payment_in_window(
     hits = []
     cursor = next_pay
     while cursor <= end:
-        if cursor >= start:
+        # BUG #084 fix (P0-7): yari-acik pencere (start, end]. Zincirleme projeksiyonda
+        # sinir gunu (onceki pencerenin SONU = bu pencerenin BASI) cift sayilmasin diye
+        # start dahil DEGIL. Tek-cagrili baseline ile birebir tutarlilik saglar.
+        if cursor > start:
             hits.append(cursor)
         # bir sonraki ay
         y, m = cursor.year, cursor.month + 1
@@ -352,7 +362,7 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
             ldom = _last_day_of_month(cursor)
             day = min(inc.day_of_month, ldom)
             pay_date = date(cursor.year, cursor.month, day)
-            if start <= pay_date <= end:
+            if start < pay_date <= end:  # BUG #084 fix (P0-7): yari-acik (start, end] — sinir cift-sayimini onler
                 cash = _find_default_cash_account(world)
                 if cash:
                     cash.balance += inc.amount
@@ -390,7 +400,7 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
             continue
         if not d.due_date:
             continue
-        if not (start <= d.due_date <= end):
+        if not (start < d.due_date <= end):  # BUG #084 fix (P0-7): yari-acik (start, end] tutarlilik
             continue
         cash = _find_default_cash_account(world)
         if cash:

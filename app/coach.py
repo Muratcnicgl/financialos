@@ -8,6 +8,12 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #085 fix (P0-19): Parantezsiz duz gecmis-zaman sahte tamamlama. Koc
+  propose_action cagirmadan "Kaydettim./Islem kaydedildi." yazarsa hicbir DB
+  yazimi olmadan "islendi" izlenimi kullaniciya ulasiyordu. _FAKE_PASTTENSE_RE
+  koc'un KENDI mutasyon-tamamlama iddiasini (1. tekil + edilgen) yakalar;
+  proposed_actions bossa iddia iceren cumleyi atip netlestirme sorusu ekler.
+  Kullanicinin gecmisine ("kaydettin/kaydettigin") DOKUNMAZ. Bkz. tests/test_coach_fake_completion.py.
 - BUG #083 fix (LLM-003 grounding): chat() cikisinda check_grounding ile koc
   cevabindaki her TL tutari cockpit'e izlenebilir mi denetlenir. Izlenemeyen
   tutar (silent hallucination suphesi) -> logger.warning + confidence<=0.4 +
@@ -1349,6 +1355,23 @@ _FAKE_NIYET_RE = re.compile(
     r'|(onay\s+bekliyorum)',
     re.IGNORECASE,
 )
+# BUG #085 fix (P0-19): Parantezsiz DUZ gecmis-zaman sahte tamamlama.
+# _FAKE_CONFIRM_RE sadece [koseli parantez] icini yakaliyordu; "Harcamani kaydettim.",
+# "Islem kaydedildi.", "500 TL gideri ekledim." gibi duz cumleler hicbir filtreye
+# takilmiyordu -> propose_action olmadan kullaniciya "islendi" izlenimi (finansal guven ihlali).
+# YALNIZ koc'un KENDI mutasyon-tamamlama iddiasini yakalar (1. tekil sahis + edilgen);
+# "kaydetmissin/kaydettin" (kullanicinin gecmisi) veya katilimci ("kaydettigin") DOKUNULMAZ.
+_FAKE_PASTTENSE_RE = re.compile(
+    r'\b('
+    r'kaydett[iı]m|kaydedild[iı]'
+    r'|i[sş]led[iı]m|i[sş]lend[iı]'
+    r'|ekled[iı]m|eklend[iı]'
+    r'|g[uü]ncelled[iı]m|g[uü]ncellend[iı]'
+    r'|hesab[ıi]na\s*ge[cç]ird[iı]m|hesaba\s*ge[cç]irild[iı]'
+    r'|kay[ıi]t\s*alt[ıi]na\s*ald[ıi]m|kay[ıi]t\s*alt[ıi]na\s*al[ıi]nd[ıi]'
+    r')\b',
+    re.IGNORECASE,
+)
 
 
 def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "", proposed_actions: Optional[List] = None) -> str:
@@ -1404,10 +1427,21 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
 
     cleaned = '\n'.join(result).strip()
 
-    # BUG #041 fix: proposed_actions boşsa sahte tamamlama cümlelerini sil
-    if not proposed_actions and _FAKE_CONFIRM_RE.search(cleaned):
-        cleaned = _FAKE_CONFIRM_RE.sub('', cleaned).strip()
-        cleaned = (cleaned + '\n\n' + _CLARIFY_MSG).strip()
+    # Sahte tamamlama temizligi — SADECE hicbir aksiyon onerilmediyse (DB'ye hic yazilmadi).
+    if not proposed_actions:
+        fake = False
+        # BUG #041 fix: koseli-parantezli sahte tamamlama -> sil
+        if _FAKE_CONFIRM_RE.search(cleaned):
+            cleaned = _FAKE_CONFIRM_RE.sub('', cleaned).strip()
+            fake = True
+        # BUG #085 fix (P0-19): parantezsiz duz gecmis-zaman iddiasi -> iddia iceren CUMLEYI at
+        if _FAKE_PASTTENSE_RE.search(cleaned):
+            sentences = re.split(r'(?<=[.!?\n])\s+', cleaned)
+            kept = [s for s in sentences if not _FAKE_PASTTENSE_RE.search(s)]
+            cleaned = ' '.join(kept).strip()
+            fake = True
+        if fake:
+            cleaned = (cleaned + '\n\n' + _CLARIFY_MSG).strip()
 
     return cleaned
 

@@ -243,6 +243,11 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             target = world.acc(account_id) if account_id else _find_default_cash_account(world)
             if not target:
                 return False, "Hedef hesap bulunamadi"
+            # BUG #101 fix: MC1 emanet — gerçek executor (action_executor:486) emanet hesaba
+            # işlem eklemeyi bloklar. Sim eskiden bloklamıyordu → gerçekte reddedilecek işlemi
+            # rozy önizleyip yanıltıcı karar desteği veriyordu. Executor ile birebir hizalandı.
+            if account_id and target.is_emanet:
+                return False, f"'{target.name}' emanet hesap (MC1). Islem eklenemez."
 
             if ttype not in ("income", "expense", "transfer"):
                 return False, f"Bilinmeyen islem tipi: {ttype}"
@@ -270,6 +275,10 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             target = world.acc(payload["account_id"])
             if not target:
                 return False, f"Hesap bulunamadi: {payload['account_id']}"
+            # BUG #101 fix: MC1 emanet — gerçek executor (action_executor:431) emanet bakiyeyi
+            # değiştirmeyi bloklar; sim de bloklamalı (önizleme executor ile tutarlı olsun).
+            if target.is_emanet:
+                return False, f"'{target.name}' emanet hesap (MC1). Bakiye degistirilemez."
             old = target.balance
             target.balance = float(payload["new_balance"])
             world.event_log.append(

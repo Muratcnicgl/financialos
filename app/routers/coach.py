@@ -33,6 +33,7 @@ from datetime import datetime, date, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -96,7 +97,7 @@ class TraceStepOut(BaseModel):
     usage_output_tokens: Optional[int] = None
     latency_ms: Optional[int] = None
     error: Optional[str] = None
-    created_at: datetime
+    created_at: UtcDateTime
 
     model_config = {"from_attributes": True}
 
@@ -133,8 +134,8 @@ class HistoryItem(BaseModel):
     id: int
     role: str
     content: str
-    timestamp: datetime
-    created_at: datetime
+    timestamp: UtcDateTime
+    created_at: UtcDateTime
     actions: List[ActionDTO] = []  # BUG #046: pending aksiyonlar (history reload)
 
     class Config:

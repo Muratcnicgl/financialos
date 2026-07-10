@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/api/user", tags=["user"])
 class UserOut(BaseModel):
     id: int
     name: str
-    created_at: datetime
+    created_at: UtcDateTime
 
     class Config:
         from_attributes = True

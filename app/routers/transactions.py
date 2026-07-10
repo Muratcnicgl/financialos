@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.serializers import utc_isoformat  # BUG #092: datetime UTC suffix
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType,
 )
@@ -73,7 +74,7 @@ def _txn_to_dict(txn: Transaction) -> dict:
         "description": txn.description,
         "transaction_date": txn.transaction_date.isoformat() if txn.transaction_date else None,
         "is_card_expense": txn.is_card_expense,
-        "created_at": txn.created_at.isoformat() if txn.created_at else None,
+        "created_at": utc_isoformat(txn.created_at),  # BUG #092: UTC suffix (yoksa JS -3h)
     }
 
 

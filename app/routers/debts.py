@@ -13,6 +13,7 @@ from datetime import datetime, date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
@@ -50,7 +51,7 @@ class DebtOut(DebtBase):
     id: int
     is_paid: bool
     paid_date: Optional[date]
-    created_at: datetime
+    created_at: UtcDateTime
 
     class Config:
         from_attributes = True

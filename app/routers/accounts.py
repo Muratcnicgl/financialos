@@ -21,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import get_db, get_current_user
 from app.models import User, Account, AccountType, Transaction, RecurringExpense
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -76,9 +77,9 @@ class AccountUpdate(BaseModel):
 
 class AccountOut(AccountBase):
     id: int
-    last_price_update: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
+    last_price_update: Optional[UtcDateTime] = None
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
 
     class Config:
         from_attributes = True

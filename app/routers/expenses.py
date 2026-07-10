@@ -12,6 +12,7 @@ from datetime import datetime, date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
@@ -52,7 +53,7 @@ class ExpenseUpdate(BaseModel):
 
 class ExpenseOut(ExpenseBase):
     id: int
-    created_at: datetime
+    created_at: UtcDateTime
     last_triggered_year_month: Optional[str] = None
 
     class Config:

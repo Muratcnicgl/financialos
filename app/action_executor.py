@@ -67,7 +67,10 @@ _DATE_KEYWORD_RE = _re.compile(
     r'|\d+\s+g[uü]n\s+[oö]nce'
     r'|\d{1,2}[./]\d{1,2}[./]\d{2,4}'
     r'|\d{4}-\d{2}-\d{2}'
-    r'|tarihinde|tarihli|\d{1,2}['']\w+nde|\d{1,2}['']\w+da'
+    # BUG #114 fix: eskiden ['']  içindeki DÜZ apostrof (U+0027) r'...' raw string'i erken
+    # kapatıyordu → karakter sınıfı boş [] oluyor, "3'ünde/5'inde" gibi Türkçe sıralı tarihler
+    # YAKALANMIYOR + \w kaçış-uyarısı. Çift-tırnak raw + hem düz (') hem kıvrık (’) apostrof:
+    r"|tarihinde|tarihli|\d{1,2}['’]\w+nde|\d{1,2}['’]\w+da"
     r')\b',
     _re.IGNORECASE,
 )

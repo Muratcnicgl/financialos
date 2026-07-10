@@ -18,6 +18,7 @@ from app.models import (
 )
 from app.rules_engine import generate_cockpit
 from app.coach import _build_context_message
+from app.grounding import check_grounding
 
 
 def _seed_founding(db, user_id):
@@ -64,3 +65,16 @@ def test_kurucu_senaryo_koc_context_borc_ozgurlugu_ve_zikzak(db_session, test_us
     assert "Bugün harcamazsan" in context
     # Master Checkpoint bloğu (emanet/red-line altyapısı) her zaman var
     assert "MASTER CHECKPOINT" in context
+
+
+def test_context_grounding_tutarliligi_invariant(db_session, test_user):
+    """
+    GROUNDING-TUTARLILIK INVARIANT: koça verilen context'teki HER TL tutarı cockpit'te
+    doğrulanabilir olmalı. Aksi halde grounding meşru deterministik sayıları "izlenemeyen"
+    sanıp analiz raporunda confidence düşürür (BUG #110 sınıfı regresyon). Bu test, ileride
+    biri yeni bir context bloğu eklerken sayılarını cockpit'e tanıtmayı unutursa yakalar.
+    """
+    _seed_founding(db_session, test_user.id)
+    context, cockpit = _build_context_message(db_session, test_user.id)
+    r = check_grounding(context, cockpit)
+    assert r["ok"] is True, f"context'te grounding'siz TL tutar(lar): {r['unverified']}"

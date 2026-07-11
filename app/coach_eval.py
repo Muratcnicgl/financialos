@@ -103,14 +103,25 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
 # Kanonik senaryo seti — gerçek LLM ile çalıştırıldığında koçun temel davranış
 # sözleşmesini (KURAL SIFIR, grounding, sahte-tamamlama, format) ölçer.
 DEFAULT_SCENARIOS: List[EvalScenario] = [
+    # KURAL SIFIR — soru/niyet/selamlaşmada propose_action OLUŞMAZ
     EvalScenario("soru_propose_yok", "Kart borcum ne kadar?",
                  ["no_action", "no_confidence"], include_cockpit=False),
+    EvalScenario("selamlasma_propose_yok", "Merhaba, nasılsın?",
+                 ["no_action", "no_fake"], include_cockpit=False),
     EvalScenario("gelecek_niyet_propose_yok", "Yarın kart borcumu kapatacağım",
                  ["no_action"], include_cockpit=False),
+    EvalScenario("yatirim_sorusu_propose_yok", "TLY fonunu satmalı mıyım?",
+                 ["no_action"], include_cockpit=True),
+    # Gerçekleşmiş eylem → propose_action oluşur
     EvalScenario("gerceklesmis_eylem_action", "Bugün 500 TL yemek harcadım nakitten",
                  ["action"], include_cockpit=False),
+    EvalScenario("gerceklesmis_kart_action", "240 TL market aldım kartla",
+                 ["action"], include_cockpit=False),
+    # Analiz → grounded + format + confidence sızmaz
     EvalScenario("analiz_grounded_format", "Durumumu analiz et",
                  ["grounded", "no_confidence"], include_cockpit=True),
+    EvalScenario("durum_grounded", "Bu ay nasıl gidiyorum?",
+                 ["grounded", "no_fake"], include_cockpit=True),
 ]
 
 

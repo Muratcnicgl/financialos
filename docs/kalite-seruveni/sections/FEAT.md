@@ -60,11 +60,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** RecurringExpense üzerine `is_subscription`+yenileme günü; scheduler nightly batch koça hatırlatma insight'ı yazar (FEAT-006 ile bağlı). LLM açıklar.
 - **Etki:** Orta · **Efor:** S
 
-### [FEAT-009] "Harcanabilir güvenli tutar" (safe-to-spend)
+### [FEAT-009] "Harcanabilir güvenli tutar" (safe-to-spend) ✅ UYGULANDI (11 Tem 2026)
 - **Değer/Fırsat:** Yaklaşan tüm faturalar/taksitler/hedef katkıları düşüldükten sonra bugün gerçekten güvenle harcanabilir tek sayı. Günlük limitten daha güçlü, ileriye bakan sinyal.
 - **Kaynak/İlham:** Copilot "Safe to Spend" imza metriği.
 - **Nasıl (mimari):** cashflow forecast + rules_engine: en düşük gelecek bakiye tamponu üzerinden hesap. Cockpit metriği; salt okuma.
 - **Etki:** Yüksek · **Efor:** M
+- **Durum:** `_calculate_safe_to_spend` (rules_engine) — `guvenli_harcama = max(0, lowest_forecast_balance - buffer)`; #121 forecast summary'sinden paylaşımlı (tek hesap). Cockpit kutusu + koç context'i + 8 test. Kapsam notu: kart döngüsü hariç (kart-ayarlı daily_limit ile birlikte okunur). Bağımlı: BUG #121 (ileriye dönük nakit krizi).
 
 ### [FEAT-010] Nakit runway (kaç gün dayanır)
 - **Değer/Fırsat:** "Hiç gelir gelmezse mevcut nakit kaç gün yeter" göstergesi; belirsizlik/işsizlik kaygısını somut sayıya indirger.

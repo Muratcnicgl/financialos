@@ -262,6 +262,18 @@ export default function Cockpit({ setActiveTab }) {
       {/* A3: Aylık özet — kurucu "durum raporu" */}
       <MonthlySummary />
 
+      {/* FEAT-006: toplam abonelik yükü — glanceable (Rocket Money headline) */}
+      {data.abonelik_yuku?.adet > 0 && (
+        <div className="card p-3 flex items-center gap-2 text-sm">
+          <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+          <span className="text-zinc-600 dark:text-zinc-300">
+            {data.abonelik_yuku.adet} abonelik ·{' '}
+            <span className="font-numeric font-semibold">{formatTL(data.abonelik_yuku.aylik)} TL</span>/ay
+            <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(data.abonelik_yuku.yillik)} TL/yıl)</span>
+          </span>
+        </div>
+      )}
+
       {/* Uyarılar */}
       {data.alerts && data.alerts.length > 0 && (
         <div className="space-y-2">

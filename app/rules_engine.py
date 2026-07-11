@@ -23,6 +23,9 @@ GÜNCELLEMELER:
   (receivable, is_paid=False, due_date 0-7 gün) da hatırlatır. Roadmap A1 "alacak (Efe vb.)
   tarihleri yaklaşınca koç proaktif" der; nakit dar (günlük 62 TL) olduğundan Efe'den
   zamanında TAHSİL etmek doğrudan ödeme-gücü meselesi (Garanti kredileri buna bağlı).
+- BUG #120: _collect_overdue_debts — vadesi GEÇMİŞ ödenmemiş borç/alacaklar alert olur.
+  Hatırlatmalar sadece 0-7 gün ileri baktığından vade geçince kalem sessizce kayboluyordu;
+  gecikmiş yükümlülük (kritik) / tahsil edilmemiş alacak (uyarı) artık kokpit alerts'ine düşer.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -653,6 +656,40 @@ def _collect_upcoming_reminders(
     return reminders
 
 
+def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]:
+    """
+    BUG #120: Vadesi GEÇMİŞ, ödenmemiş borç/alacaklar → gecikme uyarısı (alert).
+    Hatırlatmalar sadece 0-7 gün İLERİ bakar; vade geçince kalem sessizce kaybolurdu.
+    Solvency koçu için bu kör nokta:
+    - payable geç: Murat bir yükümlülüğü kaçırdı (ceza/temerrüt riski) → seviye 'kritik'
+    - receivable geç: Efe geç kaldı, tahsil edilmeli (beklenen nakit girişi) → seviye 'uyari'
+    Sıralama: en çok geciken önce (aciliyet).
+    """
+    debts = db.query(PersonalDebt).filter(
+        PersonalDebt.user_id == user_id,
+        PersonalDebt.is_paid == False,
+        PersonalDebt.due_date != None,
+        PersonalDebt.due_date < today,
+    ).all()
+
+    alerts: List[Dict] = []
+    for d in sorted(debts, key=lambda x: x.due_date):   # en eski (en çok geciken) önce
+        gecikme = (today - d.due_date).days
+        if d.direction == DebtDirection.payable:
+            alerts.append({
+                "seviye": "kritik",
+                "baslik": f"Gecikmiş borç: {d.counterparty}",
+                "mesaj": f"{d.counterparty}'a {d.amount:,.2f} TL borç {gecikme} gün gecikti — öde.",
+            })
+        else:
+            alerts.append({
+                "seviye": "uyari",
+                "baslik": f"Gecikmiş alacak: {d.counterparty}",
+                "mesaj": f"{d.counterparty} {d.amount:,.2f} TL {gecikme} gün gecikti — tahsil et.",
+            })
+    return alerts
+
+
 def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List[Dict]:
     """
     Son 30 gün vs önceki 30 günlük gider kalıplarını hesaplar.
@@ -984,6 +1021,11 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         upcoming_payments=upcoming_payments,
         today=today,
     )
+    # BUG #120: vadesi geçmiş borç/alacak gecikme uyarıları (detect_alerts scalar-saf
+    # kaldığından ayrı DB helper'ı; kritik gecikmeler listenin başına alınır).
+    overdue_alerts = _collect_overdue_debts(user_id, today, db)
+    alerts = [a for a in overdue_alerts if a["seviye"] == "kritik"] + alerts + \
+             [a for a in overdue_alerts if a["seviye"] != "kritik"]
 
     return {
         "date": today.isoformat(),

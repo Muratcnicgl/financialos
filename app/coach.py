@@ -1263,7 +1263,9 @@ class GroqProvider(LLMProvider):
 # ============================================================
 
 class CerebrasProvider(LLMProvider):
-    DEFAULT_MODEL = "qwen-3-235b-a22b-instruct-2507"
+    # Cerebras 27 May 2026'da qwen-3-235b-a22b-instruct-2507'i deprecate etti (404). gpt-oss-120b
+    # güncel + tool-calling güçlü (Groq ile tutarlı). Eval canlı çalıştırmasında yakalandı.
+    DEFAULT_MODEL = "gpt-oss-120b"
     NAME = "Cerebras"
 
     def __init__(self, api_key: str, model: Optional[str] = None):

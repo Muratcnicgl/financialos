@@ -867,6 +867,21 @@ Statü: {cockpit['statu']}
     except Exception as e:
         logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
 
+    # KONSOLİDASYON EŞİĞİ (FEAT-014): birden çok borcu tek krediye çevirmek YALNIZCA teklif
+    # edilen oran ağırlıklı ortalamanın ALTINDAYSA tasarruf ettirir. Assumption-free, nötr eşik
+    # (tavsiye değil) — 5 kredi + kart durumunda kritik karar aracı.
+    ks = cockpit.get("konsolidasyon") or {}
+    if ks.get("borc_adet", 0) >= 2:
+        context += (
+            f"\n\n## KONSOLİDASYON EŞİĞİ ({ks['borc_adet']} borç, toplam {_fmt(ks['toplam_bakiye'])} TL)\n"
+            f"  - Ağırlıklı ortalama faiz: %{ks['agirlikli_ort_oran']:.2f}/ay "
+            f"(dağılım %{ks['en_dusuk_oran']:.2f}–%{ks['en_yuksek_oran']:.2f})\n"
+            f"  - Konsolidasyon (tek krediye toplama) SADECE teklif edilen oran "
+            f"%{ks['agirlikli_ort_oran']:.2f}/ay ALTINDAYSA faiz olarak avantajlı. "
+            f"Nötr eşik — tavsiye değil; kullanıcı teklif oranını söylerse karşılaştır."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).append(ks["toplam_bakiye"])
+
     # ALACAK YAŞLANDIRMA (FEAT-027): 13 dağınık alacağı vade-yaşına göre gruplar → hangi
     # alacağın peşine ÖNCE düşüleceğini netleştirir. Nakit dar; zamanında tahsilat kritik.
     ay_ag = cockpit.get("alacak_yaslanma") or {}

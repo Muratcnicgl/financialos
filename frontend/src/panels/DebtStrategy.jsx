@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info } from 'lucide-react';
+import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine } from 'lucide-react';
 import { debtStrategyApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 
@@ -78,6 +78,95 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
           <div className="text-base font-semibold text-zinc-100 text-sm">{fmtDate(strategy.payoff_date)}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// FEAT-014: konsolidasyon what-if — teklif edilen oran/vade ile tek-kredi karşılaştırması.
+// Eşik (ağırlıklı ort. oran) borçlardan client-side türetilir; kesin taksit/faiz endpoint'ten.
+function ConsolidationSimulator({ debts }) {
+  const toast = useToast();
+  const [rate, setRate] = useState('');
+  const [term, setTerm] = useState('');
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const total = debts.reduce((s, d) => s + d.balance, 0);
+  const weighted = total > 0 ? debts.reduce((s, d) => s + d.balance * d.interest_rate_monthly, 0) / total : 0;
+
+  const run = async () => {
+    const r = Number(rate), t = Number(term);
+    if (!(r >= 0) || !(t >= 1)) { toast.error('Geçerli oran (%/ay) ve vade (ay) gir.'); return; }
+    try {
+      setBusy(true);
+      setResult(await debtStrategyApi.consolidation({ rate: r, term: t }));
+    } catch (e) {
+      toast.error(`Konsolidasyon hesaplanamadı: ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (debts.length < 2) return null;
+
+  return (
+    <div className="card p-5 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-md bg-brand-600/20 flex-shrink-0">
+          <Combine className="w-5 h-5 text-brand-300" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-zinc-100">Konsolidasyon Simülatörü</h3>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            {debts.length} borç · toplam {TL(total)} · ağırlıklı ort. faiz{' '}
+            <span className="font-semibold text-zinc-200">%{weighted.toFixed(2)}/ay</span>.
+            Konsolidasyon yalnız bu oranın <span className="font-semibold">altında</span> avantajlı. Nötr araç — tavsiye değil.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-xs text-zinc-400">
+          Teklif oranı (%/ay)
+          <input type="number" step="0.01" min="0" max="20" value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            className="block mt-1 w-32 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
+        </label>
+        <label className="text-xs text-zinc-400">
+          Vade (ay)
+          <input type="number" step="1" min="1" max="360" value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            className="block mt-1 w-28 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
+        </label>
+        <button onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Combine className="w-3.5 h-3.5" />}
+          Hesapla
+        </button>
+      </div>
+
+      {result && (
+        <div className={`rounded-lg border p-4 ${result.oran_avantajli ? 'border-positive-600/50 bg-positive-950/30' : 'border-warn-600/50 bg-warn-950/30'}`}>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="text-xs text-zinc-400">Yeni taksit</div>
+              <div className="text-base font-semibold text-zinc-100">{TL(result.yeni_taksit)}/ay</div>
+            </div>
+            <div>
+              <div className="text-xs text-zinc-400">Toplam faiz</div>
+              <div className="text-base font-semibold text-zinc-100">{TL(result.yeni_toplam_faiz)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-zinc-400">Vade</div>
+              <div className="text-base font-semibold text-zinc-100">{result.vade_ay} ay</div>
+            </div>
+          </div>
+          <p className={`text-sm mt-3 ${result.oran_avantajli ? 'text-positive-300' : 'text-warn-300'}`}>
+            {result.oran_avantajli
+              ? `Teklif %${result.yeni_oran.toFixed(2)} < eşik %${result.agirlikli_ort_oran.toFixed(2)} — faiz olarak avantajlı. Vade uzarsa toplam faiz yine de artabilir; süre + taksit birlikte değerlendir.`
+              : `Teklif %${result.yeni_oran.toFixed(2)} ≥ eşik %${result.agirlikli_ort_oran.toFixed(2)} — faiz olarak avantaj yok.`}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -224,6 +313,9 @@ export default function DebtStrategy() {
           </div>
         </div>
       )}
+
+      {/* FEAT-014: konsolidasyon what-if simülatörü */}
+      <ConsolidationSimulator debts={data.debts} />
     </div>
   );
 }

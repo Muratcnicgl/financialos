@@ -310,6 +310,11 @@ export const debtStrategyApi = {
     request('/api/debt-strategy/compare', {
       params: { extra_monthly: extraMonthly },
     }),
+  // FEAT-014: konsolidasyon what-if — teklif edilen oran + vade ile tek-kredi karşılaştırması
+  consolidation: ({ rate, term }) =>
+    request('/api/debt-strategy/consolidation', {
+      params: { rate, term },
+    }),
 };
 
 // =============================================================

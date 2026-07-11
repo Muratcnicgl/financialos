@@ -1721,14 +1721,17 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # borçsuzluk tarihi (FEAT-012, aşağıda) aynı listeden türetilir (çift collect_debts yok).
     _dbts = []
     asgari_tuzagi = None
+    konsolidasyon = None
     trap_alerts: List[Dict] = []
     try:
-        from app.debt_strategy import collect_debts as _collect_debts, calculate_min_payment_trap
+        from app.debt_strategy import (collect_debts as _collect_debts,
+                                        calculate_min_payment_trap, calculate_consolidation_baseline)
         _dbts = _collect_debts(db, user_id)
         asgari_tuzagi = calculate_min_payment_trap(_dbts, today=today)  # FEAT-015
+        konsolidasyon = calculate_consolidation_baseline(_dbts)         # FEAT-014 (proaktif eşik)
         trap_alerts = _min_payment_trap_alerts(asgari_tuzagi)
     except Exception as e:
-        logger.warning("asgari ödeme tuzağı hesaplanamadı user_id=%s: %s", user_id, e)
+        logger.warning("borç metrikleri (tuzak/konsolidasyon) hesaplanamadı user_id=%s: %s", user_id, e)
     alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"] + \
              sub_price_alerts + overspend_alerts + trap_alerts
@@ -1809,6 +1812,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru
         "borc_ozgurluk": borc_ozgurluk,  # FEAT-012: borçsuz olma tarihi + kalan faiz (None=borç yok)
         "asgari_tuzagi": asgari_tuzagi,  # FEAT-015: kart asgari-ödemeyle kaç ay + toplam faiz (None=kart yok)
+        "konsolidasyon": konsolidasyon,  # FEAT-014: konsolidasyon eşiği (ağırlıklı ort. oran; None=<2 borç)
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

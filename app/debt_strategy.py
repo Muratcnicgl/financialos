@@ -363,6 +363,69 @@ def compare_strategies(
     }
 
 
+def _annuity_payment(principal: float, monthly_rate: float, term_months: int) -> float:
+    """Sabit taksitli (annüite) kredi aylık ödemesi. r=0 → eşit anapara bölüşümü."""
+    if term_months <= 0:
+        return principal
+    if monthly_rate <= 0:
+        return principal / term_months
+    r = monthly_rate / 100.0
+    factor = (1 + r) ** term_months
+    return principal * r * factor / (factor - 1)
+
+
+def calculate_consolidation_baseline(debts: List[DebtItem]) -> Optional[dict]:
+    """
+    FEAT-014 (konsolidasyon taban çizgisi — ASSUMPTION-FREE): birden çok borcu tek krediye
+    çevirmek YALNIZCA teklif edilen faiz oranı mevcut AĞIRLIKLI ORTALAMA orandan DÜŞÜKSE
+    tasarruf ettirir. Bu eşik kullanıcının KENDİ borçlarından türetilir (dış varsayım yok,
+    "al/sat" değil nötr matematik — FEAT KISIT). 5 kredi + kart durumunda kritik karar aracı.
+
+    Ağırlıklı ort. aylık oran = Σ(bakiye × oran) / Σ(bakiye). <2 borç → None (konsolidasyon
+    en az iki borç ister). Salt hesap.
+    """
+    active = [d for d in debts if d.balance > 0]
+    if len(active) < 2:
+        return None
+    toplam = sum(d.balance for d in active)
+    agirlikli_oran = sum(d.balance * d.interest_rate_monthly for d in active) / toplam
+    return {
+        "borc_adet": len(active),
+        "toplam_bakiye": round(toplam, 2),
+        "agirlikli_ort_oran": round(agirlikli_oran, 3),  # %/ay — konsolidasyon eşiği
+        "en_yuksek_oran": round(max(d.interest_rate_monthly for d in active), 3),
+        "en_dusuk_oran": round(min(d.interest_rate_monthly for d in active), 3),
+    }
+
+
+def simulate_consolidation(
+    debts: List[DebtItem], new_rate_monthly: float, term_months: int,
+) -> Optional[dict]:
+    """
+    FEAT-014 (konsolidasyon what-if): tüm borçları tek krediye (verilen oran + vade) çevirince
+    aylık taksit + toplam faiz. Nötr karşılaştırma — mevcut ağırlıklı ort. orana göre tasarruf
+    edip etmediğini gösterir. Tavsiye DEĞİL: kullanıcı teklif edilen oran/vadeyi girer, sistem
+    matematiği yapar. <2 borç veya geçersiz vade → None. Salt hesap.
+    """
+    base = calculate_consolidation_baseline(debts)
+    if base is None or term_months <= 0:
+        return None
+    principal = base["toplam_bakiye"]
+    taksit = _annuity_payment(principal, new_rate_monthly, term_months)
+    toplam_odeme = taksit * term_months
+    toplam_faiz = toplam_odeme - principal
+    return {
+        **base,
+        "yeni_oran": round(new_rate_monthly, 3),
+        "vade_ay": term_months,
+        "yeni_taksit": round(taksit, 2),
+        "yeni_toplam_faiz": round(toplam_faiz, 2),
+        "yeni_toplam_odeme": round(toplam_odeme, 2),
+        # eşik kıyası: yeni oran ağırlıklı ortalamadan düşükse konsolidasyon FAİZ oranı olarak avantajlı
+        "oran_avantajli": new_rate_monthly < base["agirlikli_ort_oran"],
+    }
+
+
 def calculate_min_payment_trap(
     debts: List[DebtItem], today: Optional[date] = None,
 ) -> Optional[dict]:

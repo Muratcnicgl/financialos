@@ -96,11 +96,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** debt_strategy/rules_engine amortisman hesabı (Account.interest_rate, taksit). Cockpit/DebtStrategy metriği; salt okuma.
 - **Etki:** Yüksek · **Efor:** M
 
-### [FEAT-014] Çoklu kredi konsolidasyon simülatörü
+### [FEAT-014] Çoklu kredi konsolidasyon simülatörü ✅ UYGULANDI (12 Tem 2026)
 - **Değer/Fırsat:** 5 ayrı krediyi tek konsolidasyon kredisiyle değiştirmeyi modeller: yeni taksit, toplam faiz, vade karşılaştırması. Türkiye'de yaygın; nötr karşılaştırma aracı, tavsiye değil.
 - **Kaynak/İlham:** Türkiye çoklu kredi konsolidasyonu; debt consolidation calculators.
 - **Nasıl (mimari):** simulation_engine'e "consolidation" senaryosu (RAM kopyası, gerçek DB'ye dokunmaz) + debt_strategy amortisman. Kullanıcı faiz/vade girer, sistem hesaplar.
 - **Etki:** Yüksek · **Efor:** M
+- **Durum:** İki katman. (1) `calculate_consolidation_baseline` (debt_strategy, saf, ASSUMPTION-FREE): ağırlıklı ort. aylık oran = Σ(bakiye×oran)/Σbakiye = konsolidasyon EŞİĞİ. Konsolidasyon yalnız teklif oran bu eşiğin altındaysa faiz-avantajlı. Kullanıcının KENDİ borçlarından türetilir (dış varsayım yok). Cockpit `konsolidasyon` + koç context (proaktif, nötr eşik — Kural: tavsiye değil). (2) `simulate_consolidation` + `_annuity_payment` (annüite formülü): teklif oran+vade → yeni taksit/toplam faiz; `GET /api/debt-strategy/consolidation?rate&term` (<2 borç→404, oran>20→422). DebtStrategy.jsx what-if formu (eşik client-side, kesin sayı endpoint). 12 test. `collect_debts` FEAT-012/015 ile paylaşımlı.
 
 ### [FEAT-015] Kart asgari-ödeme tuzağı göstergesi ✅ UYGULANDI (12 Tem 2026)
 - **Değer/Fırsat:** "Sadece asgari ödersen bu kart 11 yılda kapanır ve X TL faiz ödersin" uyarısı. Kart %99.8 doluyken kritik farkındalık.

@@ -299,6 +299,12 @@ export default function Cockpit({ setActiveTab }) {
               </div>
             </div>
           ))}
+          {/* #126: sığmayan uyarılar — alert yorgunluğu için gizlenenlerin sayısı */}
+          {data.gizli_uyari_sayisi > 0 && (
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center pt-1">
+              +{data.gizli_uyari_sayisi} düşük öncelikli uyarı daha
+            </p>
+          )}
         </div>
       )}
 

@@ -93,6 +93,32 @@ def test_alert_siralamasi_kritik_once(db):
         assert son_kritik < ilk_uyari, f"kritik uyarıdan önce olmalı: {seviyeler}"
 
 
+def test_alert_yorgunlugu_uyari_capi(db):
+    """#126: çok alertli senaryoda uyarılar top-3 ile sınırlı, TÜM kritikler kalır, gizli sayısı > 0."""
+    db.add(Account(user_id=1, name="E", account_type=AccountType.cash, balance=800.0))
+    db.add(Account(user_id=1, name="Z", account_type=AccountType.credit_card,
+                   balance=11976.0, credit_limit=12000.0))
+    db.add(PersonalDebt(user_id=1, counterparty="Kirveci", direction=DebtDirection.payable,
+                        amount=1500.0, is_paid=False, due_date=TODAY - timedelta(days=4)))
+    # birçok uyarı kaynağı: abonelik zammı + iki kategori aşımı
+    for i, a in enumerate([49.99, 49.99, 64.99]):
+        db.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=a,
+                           category="abonelik", description="Spotify",
+                           transaction_date=TODAY - timedelta(days=70 - i * 30)))
+    for cat, prev, curr in [("market", 1000, 900), ("yemek", 800, 750)]:
+        db.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=prev,
+                           category=cat, transaction_date=date(2026, 4, 10)))
+        db.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=curr,
+                           category=cat, transaction_date=TODAY - timedelta(days=3)))
+    db.commit()
+    c = generate_cockpit(1, TODAY, db)
+    uyari = [a for a in c["alerts"] if a["seviye"] == "uyari"]
+    assert len(uyari) <= 3, f"uyarı capı 3 olmalı, {len(uyari)} bulundu"
+    assert c["gizli_uyari_sayisi"] >= 1, "sığmayan uyarı sayısı raporlanmalı"
+    # kritikler hiç kırpılmaz
+    assert any(a["baslik"].startswith("Gecikmiş borç") for a in c["alerts"])
+
+
 def test_saglikli_kullanici_tum_sinyaller_pozitif(db):
     """Sağlıklı: reel_butce > 0, daily_limit > 0, guvenli_harcama > 0, crunch yok — tutarlı."""
     db.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=20000.0))

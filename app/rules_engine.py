@@ -1367,6 +1367,13 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # detect_alerts kritik/uyari'yi karıştırıyordu; Murat en ciddi sinyali her zaman en başta görsün.
     _SEV = {"kritik": 0, "uyari": 1}
     alerts.sort(key=lambda a: _SEV.get(a.get("seviye"), 2))
+    # #126: alert yorgunluğu — TÜM kritikler kalır (solvency emniyeti), uyarılar top-3 ile sınırlı.
+    # Maksimal senaryoda 10 alert gözlemlendi; okunmaz. Gizlenen uyarı sayısı ayrı alanda.
+    _MAX_UYARI = 3
+    _kritikler = [a for a in alerts if a.get("seviye") == "kritik"]
+    _uyarilar = [a for a in alerts if a.get("seviye") != "kritik"]
+    gizli_uyari_sayisi = max(0, len(_uyarilar) - _MAX_UYARI)
+    alerts = _kritikler + _uyarilar[:_MAX_UYARI]
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary, kart_borcu=kart_borcu)  # FEAT-009 + #123 kart-farkındalığı
     nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
 
@@ -1402,6 +1409,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "upcoming_payments": upcoming_payments,
         "upcoming_receivables": upcoming_receivables,
         "alerts": alerts,
+        "gizli_uyari_sayisi": gizli_uyari_sayisi,  # #126: sığmayan uyarı sayısı ("+N daha")
         "investment_pnl": investment_pnl_list,
         "category_patterns": _calculate_category_patterns(user_id, today, db),
         "upcoming_reminders": _collect_upcoming_reminders(

@@ -367,11 +367,20 @@ def _annuity_payment(principal: float, monthly_rate: float, term_months: int) ->
     """Sabit taksitli (annüite) kredi aylık ödemesi. r=0 → eşit anapara bölüşümü."""
     if term_months <= 0:
         return principal
-    if monthly_rate <= 0:
+    # BUG #128 fix (property test yakaladı): İhmal edilebilir oran (≤1e-6 %/ay) faizsiz
+    # sayılır — aksi halde çok küçük r'de factor-1≈r katastrofik hassasiyet kaybı verir
+    # (annüite sayısal kararsız), toplam faiz negatife düşerdi. Gerçekçi oran (≥0.001) etkilenmez.
+    if monthly_rate <= 1e-6:
         return principal / term_months
     r = monthly_rate / 100.0
-    factor = (1 + r) ** term_months
-    return principal * r * factor / (factor - 1)
+    # BUG #128 fix (property test yakaladı): Aşırı oran×vade'de (1+r)^n float sınırını aşar
+    # (OverflowError). Bu uçta annüite taksiti asimptotik faiz-only'e (principal×r) yakınsar:
+    # factor/(factor-1) → 1. Endpoint zaten oran≤20/vade≤360 sınırlar; guard saf fonksiyonu korur.
+    try:
+        factor = (1 + r) ** term_months
+        return principal * r * factor / (factor - 1)
+    except OverflowError:
+        return principal * r
 
 
 def calculate_consolidation_baseline(debts: List[DebtItem]) -> Optional[dict]:

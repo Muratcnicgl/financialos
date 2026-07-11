@@ -24,3 +24,13 @@ def test_payoff_date_enjekte_edilen_today_ile_deterministik():
     # payoff_date = ay-başı + months_to_freedom takvim ayı (gerçek takvim)
     assert r.payoff_date == _add_months(date(2026, 1, 15), r.months_to_freedom)
     assert r.months_to_freedom >= 1
+
+
+def test_rule011_asla_bitmezse_payoff_date_none():
+    from app.debt_strategy import MAX_MONTHS
+    # min ödeme (1000) < aylık faiz (100000×%5=5000) → borç asla bitmez
+    debts = [DebtItem(account_id=1, name="Bitmez", account_type="loan",
+                      balance=100000.0, interest_rate_monthly=5.0, min_payment=1000.0)]
+    r = calc_avalanche(debts, extra_monthly=0.0, today=date(2026, 1, 15))
+    assert r.months_to_freedom >= MAX_MONTHS
+    assert r.payoff_date is None          # sahte "50 yıl" tarihi değil

@@ -244,7 +244,9 @@ def _simulate(
         for aid in snapshot_events:
             extra_monthly += last_base_min.get(aid, debt_by_id[aid].min_payment)
 
-    payoff = _add_months(today or date.today(), month)  # RULE-010: gerçek takvim ay
+    # RULE-010: gerçek takvim ay. RULE-011: MAX_MONTHS'a ulaşıldıysa borç min ödemeyle ASLA
+    # bitmiyor → sahte "50 yıl sonra" tarihi yerine payoff_date=None (çağıran yanılmasın).
+    payoff = None if month >= MAX_MONTHS else _add_months(today or date.today(), month)
 
     return StrategyResult(
         strategy='',

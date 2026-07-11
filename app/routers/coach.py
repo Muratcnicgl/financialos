@@ -99,7 +99,9 @@ class TraceStepOut(BaseModel):
     error: Optional[str] = None
     created_at: UtcDateTime
 
-    model_config = {"from_attributes": True}
+    # BUG #118: model_name alanı Pydantic'in korumalı "model_" namespace'iyle çakışıyor →
+    # protected_namespaces=() ile uyarı susturulur (alan API sözleşmesi, yeniden adlandırılmaz).
+    model_config = {"from_attributes": True, "protected_namespaces": ()}
 
 
 class TraceResponse(BaseModel):

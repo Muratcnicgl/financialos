@@ -82,3 +82,37 @@ def test_cockpit_snapshot_idempotent(client, db_session):
     client.get("/api/cockpit")
     client.get("/api/cockpit")   # ikinci çağrı yeni snapshot yazMAMALI
     assert db_session.query(NetWorthSnapshot).filter_by(user_id=1).count() == 1
+
+
+def test_cockpit_120_gecikmis_borc_http_uzerinden_alerts(client, db_session):
+    """#120 uçtan uca: vadesi geçmiş borç, HTTP cockpit yanıtının alerts'inde görünür
+    (JSON serileştirme dahil — numerik 'tutar' alanı round-trip'ten sağ çıkar)."""
+    from datetime import date, timedelta
+    db_session.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=3000.0))
+    db_session.add(PersonalDebt(user_id=1, counterparty="Kirveci", direction=DebtDirection.payable,
+                                amount=2500.0, is_paid=False,
+                                due_date=date.today() - timedelta(days=4)))
+    db_session.commit()
+
+    body = client.get("/api/cockpit").json()
+    overdue = [a for a in body["alerts"] if a.get("baslik", "").startswith("Gecikmiş borç")]
+    assert len(overdue) == 1
+    assert overdue[0]["seviye"] == "kritik"
+    assert overdue[0]["tutar"] == 2500.0        # numerik alan JSON'da korundu
+    assert body["alerts"][0]["baslik"].startswith("Gecikmiş borç")   # kritik en başta
+
+
+def test_cockpit_119_yaklasan_alacak_http_uzerinden_reminders(client, db_session):
+    """#119 uçtan uca: 0-7 gün içinde vadesi gelen alacak, HTTP cockpit upcoming_reminders'ında."""
+    from datetime import date, timedelta
+    db_session.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=3000.0))
+    db_session.add(PersonalDebt(user_id=1, counterparty="Efe", direction=DebtDirection.receivable,
+                                amount=1800.0, is_paid=False,
+                                due_date=date.today() + timedelta(days=3)))
+    db_session.commit()
+
+    body = client.get("/api/cockpit").json()
+    rec = [r for r in body["upcoming_reminders"] if r["type"] == "receivable"]
+    assert len(rec) == 1
+    assert rec[0]["amount"] == 1800.0
+    assert "Efe" in rec[0]["name"]

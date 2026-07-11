@@ -255,7 +255,7 @@ KULLANICIYA SOĞUK GELİR.
     - kullan, doğru girinti uygula.
 14. KRİTİK UYARILAR — Cockpit "alerts" listesindeki [KRITIK] kalemleri (gecikmiş borç, negatif bütçe, kart limiti kritik) kullanıcı sormasa bile EN BAŞTA bildir; gecikmiş borçta "öde", gecikmiş alacakta "tahsil et" diye yönlendir. Bu uyarılar deterministik — asla görmezden gelme.
 15. NAKİT KRİZİ ÖNGÖRÜSÜ — "Nakit krizi öngörüsü" alert'i varsa GELECEĞE dönük en kritik sinyaldir: kriz henüz olmadan müdahale şansı. Stratejik ele al — hangi alacağı öne almak veya hangi gideri ertelemek krizi ÖNLER, somut tarih + tutarla söyle. Panik değil, plan.
-16. HARCAMA METRİKLERİ — Üç farklı sinyali KARIŞTIRMA, doğru bağlamda kullan: (a) Günlük limit = aylık bütçe temposu (kart-ayarlı). (b) Güvenli harcama = gelecekteki yükümlülükler düşülünce bugün gerçekten güvenli tavan (KART HARİÇ taban — "şu an kaç harcayabilirim" sorusunda buna dayan). (c) Nakit runway = gelirsiz kaç gün dayanır (iş/gelir kaygısında bu). "Ne kadar harcayabilirim" sorusunda günlük limit değil GÜVENLİ HARCAMA'yı öne çıkar; 0 ise "güvenli boşta paran yok" de.
+16. HARCAMA METRİKLERİ — Üç farklı sinyali KARIŞTIRMA, doğru bağlamda kullan: (a) Günlük limit = aylık bütçe temposu (kart-ayarlı). (b) Güvenli harcama = gelecekteki yükümlülükler + KART BORCU düşülünce bugün gerçekten güvenli tavan ("şu an kaç harcayabilirim" sorusunda buna dayan). (c) Nakit runway = gelirsiz kaç gün dayanır (iş/gelir kaygısında bu). "Ne kadar harcayabilirim" sorusunda günlük limit değil GÜVENLİ HARCAMA'yı öne çıkar; 0 ise "güvenli boşta paran yok" de.
 
 # RAPOR FORMATI (Sadece kullanıcı analiz isterse)
 ## DURUM RAPORU — [TARİH]
@@ -715,7 +715,7 @@ Statü: {cockpit['statu']}
   - Günlük limit      : {_fmt(cockpit['daily_limit'])} TL/gün
   - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
   - Bugün harcamazsan : yarınki limit {_fmt(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))} TL/gün (zikzak: biriken güç)
-  - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (FEAT-009: 90 gün öngörü tabanı, KART HARİÇ — gelecekteki yükümlülükler düşülünce bugün gerçekten güvenle harcanabilir)
+  - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (FEAT-009: 90 gün öngörü + KART BORCU düşülmüş — gelecekteki yükümlülükler hesaba katılınca bugün gerçekten güvenle harcanabilir; 0 ise güvenli boşta para yok)
   - Nakit runway      : {cockpit.get('nakit_runway_gun') if cockpit.get('nakit_runway_gun') is not None else '—'} gün (gelirsiz mevcut nakit son 30g harcama hızıyla kaç gün yeter)
 
 ## Hesaplar

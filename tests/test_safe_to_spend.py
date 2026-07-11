@@ -92,3 +92,30 @@ def test_cockpit_kriz_senaryosunda_sifir(db):
     _payable(db, 3000.0, 10)
     cockpit = generate_cockpit(1, TODAY, db)
     assert cockpit["guvenli_harcama"] == 0.0
+
+
+# ---- pure: kart-farkındalığı (BUG #123) ------------------------------------
+
+def test_pure_kart_borcu_dususu():
+    # lowest 4276 ama 11976 kart borcu → 4276-11976 < 0 → 0 (tehlikeli iyimserlik önlendi)
+    assert _calculate_safe_to_spend({"lowest_balance": 4276.0}, kart_borcu=11976.0) == 0.0
+    # küçük kart borcu → kısmi düşüş
+    assert _calculate_safe_to_spend({"lowest_balance": 3000.0}, kart_borcu=1000.0) == 2000.0
+
+
+def test_cockpit_123_kart_batik_alacakli_senaryo(db):
+    """
+    BUG #123 regresyon: alacak forecast'i pozitife taşısa BİLE, büyük kart borcu varken
+    güvenli harcama 0 olmalı (uçtan-uca gözlemle yakalanan çelişki).
+    """
+    from datetime import timedelta
+    from app.models import Account, AccountType, PersonalDebt, DebtDirection
+    _cash(db, 4276.0)
+    db.add(Account(user_id=1, name="Ziraat", account_type=AccountType.credit_card,
+                   balance=11976.0, credit_limit=12000.0))
+    # Efe alacağı forecast'i pozitife taşır (eskiden güvenli-harcama = 4276 gösteriyordu)
+    db.add(PersonalDebt(user_id=1, counterparty="Efe", direction=DebtDirection.receivable,
+                        amount=8000.0, is_paid=False, due_date=TODAY + timedelta(days=3)))
+    db.commit()
+    cockpit = generate_cockpit(1, TODAY, db)
+    assert cockpit["guvenli_harcama"] == 0.0     # kart borcu düşülünce güvenli para yok

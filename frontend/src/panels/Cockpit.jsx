@@ -239,7 +239,7 @@ export default function Cockpit({ setActiveTab }) {
           {data.guvenli_harcama !== undefined && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
               <Lock className="w-3.5 h-3.5 shrink-0" />
-              Güvenli harcama (90g öngörü, kart hariç):{' '}
+              Güvenli harcama (90g öngörü, kart borcu düşülmüş):{' '}
               <span className={`font-numeric font-semibold ${data.guvenli_harcama > 0 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
                 {formatTL(data.guvenli_harcama)} TL
               </span>

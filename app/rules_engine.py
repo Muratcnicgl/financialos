@@ -31,9 +31,10 @@ GÜNCELLEMELER:
   insolvency'yi kriz OLMADAN önce uyarıyor ("hayatta kalma > yatırım" vizyonu). Forecast kart
   döngüsünü içermez → yanlış-pozitif yok (yalnızca düzenli akış bile negatife düşerse uyarır).
 - FEAT-009 (Copilot "Safe to Spend" ilhamı): _calculate_safe_to_spend — cockpit'e `guvenli_harcama`
-  metriği. Bugün, forecast ufkunda hiçbir gün bakiye buffer altına düşmeden harcanabilecek en büyük
-  tutar = max(0, lowest_balance - buffer). Forecast'i #121 ile aynı summary'den türetir (tek hesap).
-  Kart-hariç taban; kart-ayarlı daily_limit ile birlikte okunur.
+  metriği = max(0, lowest_balance - kart_borcu - buffer). Forecast'i #121 ile aynı summary'den türetir.
+  BUG #123 (kritik): forecast kartı içermediğinden, bir alacak forecast'i pozitife taşıyınca metrik
+  TÜM nakdi gösteriyordu (12K kart borcu varken tehlikeli iyimser, reel_butce<0 ile çelişik). Kart
+  borcu düşülerek düzeltildi — uçtan-uca gerçekçi senaryo gözlemiyle yakalandı (birim test kaçırmıştı).
 - FEAT-006/007 (Rocket Money/Monarch ilhamı): detect_subscriptions — işlem geçmişinde tekrarlayan
   abonelikleri tespit (medyan aralık + farklı-tutar ≤ 2 ayırt edicisi). _subscription_price_alerts
   aboneliğin tutarı arttıysa (sessiz zam) uyarı üretir → cockpit alerts. GET /api/subscriptions.
@@ -783,21 +784,23 @@ def _detect_cashflow_crunch(
     return _crunch_alert_from_summary(summary, horizon_days)
 
 
-def _calculate_safe_to_spend(summary: Optional[Dict], buffer: float = 0.0) -> float:
+def _calculate_safe_to_spend(summary: Optional[Dict], kart_borcu: float = 0.0, buffer: float = 0.0) -> float:
     """
-    FEAT-009 (Copilot "Safe to Spend" ilhamı, kopya değil): BUGÜN, önümüzdeki forecast
-    ufkunda HİÇBİR günün nakit bakiyesi `buffer`'ın altına düşmeden güvenle harcanabilecek
-    EN BÜYÜK tutar. Matematik: bugün X harcamak tüm gelecek bakiyeleri X düşürür →
-    kısıt lowest_balance - X >= buffer → X <= lowest_balance - buffer.
+    FEAT-009 (Copilot "Safe to Spend" ilhamı, kopya değil): BUGÜN, gelecekteki yükümlülükler
+    hesaba katılınca güvenle harcanabilecek EN BÜYÜK tutar. Matematik: bugün X harcamak tüm
+    gelecek bakiyeleri X düşürür → kısıt lowest_balance - X >= buffer → X <= lowest_balance - buffer.
 
-    Kapsam: forecast kredi KARTI döngüsünü İÇERMEZ (cashflow.py) → bu "kart ödemesi hariç"
-    bir TABANDIR; kart-ayarlı daily_limit (reel_butce) ile BİRLİKTE okunmalı. Düzenli akışı
-    bile negatife düşen (Murat gibi) durumda 0 döner — realist, asla iyimser değil.
+    BUG #123 (KART-FARKINDALIĞI — kritik güvenlik düzeltmesi): forecast kredi KARTI döngüsünü
+    İÇERMEZ (cashflow.py). Kart borcu düşülmezse, bir alacak (ör. Efe) forecast'i pozitife
+    taşıdığında güvenli-harcama TÜM nakdi gösteriyordu — oysa 12.000 kart borcu varken bu
+    TEHLİKELİ İYİMSER (reel_butce negatif / "hayatta kalma modu" ile çelişir). Bu yüzden kart
+    borcu (Gölge Muhasebe ruhu) düşülür → Murat gibi kart-batık durumda 0 döner. Realist koç
+    "12.000 borç dururken 4.276'yı güvenle harca" DEMEZ.
     """
     if not summary:
         return 0.0
     lowest = summary.get("lowest_balance", 0.0)
-    return round(max(0.0, lowest - buffer), 2)
+    return round(max(0.0, lowest - kart_borcu - buffer), 2)
 
 
 def _calculate_cash_runway(
@@ -1345,7 +1348,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     overspend_alerts = _category_overspend_alerts(user_id, today, db)
     alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts + overspend_alerts
-    guvenli_harcama = _calculate_safe_to_spend(cashflow_summary)  # FEAT-009
+    guvenli_harcama = _calculate_safe_to_spend(cashflow_summary, kart_borcu=kart_borcu)  # FEAT-009 + #123 kart-farkındalığı
     nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
 
     return {

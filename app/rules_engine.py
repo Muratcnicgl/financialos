@@ -34,6 +34,9 @@ GÜNCELLEMELER:
   metriği. Bugün, forecast ufkunda hiçbir gün bakiye buffer altına düşmeden harcanabilecek en büyük
   tutar = max(0, lowest_balance - buffer). Forecast'i #121 ile aynı summary'den türetir (tek hesap).
   Kart-hariç taban; kart-ayarlı daily_limit ile birlikte okunur.
+- FEAT-006/007 (Rocket Money/Monarch ilhamı): detect_subscriptions — işlem geçmişinde tekrarlayan
+  abonelikleri tespit (medyan aralık + farklı-tutar ≤ 2 ayırt edicisi). _subscription_price_alerts
+  aboneliğin tutarı arttıysa (sessiz zam) uyarı üretir → cockpit alerts. GET /api/subscriptions.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -1053,7 +1056,9 @@ def detect_subscriptions(
             "aylik_maliyet": aylik_maliyet,
             "tekrar": len(items),
             "son_tarih": items[-1].transaction_date.isoformat(),
-            "fiyat_degisti": len(distinct) >= 2,  # FEAT-007 sinyali: fiyat artmış
+            "fiyat_degisti": len(distinct) >= 2,  # FEAT-007 sinyali: fiyat değişmiş
+            "eski_tutar": amounts[0],             # FEAT-007: ilk (en eski) tutar
+            "yeni_tutar": amounts[-1],            # FEAT-007: son (güncel) tutar
         })
 
     subscriptions.sort(key=lambda s: -s["aylik_maliyet"])
@@ -1064,6 +1069,30 @@ def detect_subscriptions(
         "yillik_toplam": round(aylik_toplam * 12, 2),
         "adet": len(subscriptions),
     }
+
+
+def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[Dict]:
+    """
+    FEAT-007 (Rocket Money price-creep alert ilhamı): tespit edilen aboneliklerde tutar
+    ARTMIŞSA sessiz zam uyarısı üretir (salt görünürlük, uyarı seviyesi). Yalnızca artış
+    (yeni > eski) uyarılır — düşüş değil. detect_subscriptions'ı yeniden kullanır.
+    """
+    alerts: List[Dict] = []
+    for s in detect_subscriptions(user_id, today, db)["abonelikler"]:
+        eski = s.get("eski_tutar", 0.0)
+        yeni = s.get("yeni_tutar", 0.0)
+        if s.get("fiyat_degisti") and yeni > eski > 0:
+            artis_pct = round((yeni - eski) / eski * 100, 1)
+            alerts.append({
+                "seviye": "uyari",
+                "baslik": f"Abonelik zammı: {s['isim']}",
+                "mesaj": (
+                    f"{s['isim']} {eski:,.2f} → {yeni:,.2f} TL'ye çıkmış "
+                    f"(%{artis_pct} artış). Hâlâ kullanıyor musun?"
+                ),
+                "tutar": yeni,  # grounding: yeni tutar cockpit'te izlenebilir
+            })
+    return alerts
 
 
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
@@ -1225,8 +1254,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     crunch_alert = _crunch_alert_from_summary(cashflow_summary)  # kritik, gecikmelerden sonra
     if crunch_alert:
         kritik_front.append(crunch_alert)
+    # FEAT-007: abonelik zammı (uyarı) — kritik olmayan kuyruğa eklenir.
+    sub_price_alerts = _subscription_price_alerts(user_id, today, db)
     alerts = kritik_front + alerts + \
-             [a for a in overdue_alerts if a["seviye"] != "kritik"]
+             [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary)  # FEAT-009
 
     return {

@@ -49,11 +49,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Yüksek · **Efor:** M
 - **Durum:** `detect_subscriptions` (rules_engine, salt okuma) + `GET /api/subscriptions`. Algoritma harici araştırmayla (Rocket Money/Monarch) doğrulandı: 180g tarama → description grubu → medyan aralık aylık/yıllık + **farklı-tutar ≤ 2** ayırt edicisi (fiyat artışına tolerans, değişken harcama elenir). `fiyat_degisti` bayrağı = FEAT-007 sinyali. RecurringExpense "— ay" soneki normalize. 9 test. Kalan (follow-up): propose→RecurringExpense dönüştürme + FE panel.
 
-### [FEAT-007] Abonelik fiyat artışı (price creep) tespiti
+### [FEAT-007] Abonelik fiyat artışı (price creep) tespiti ✅ UYGULANDI (11 Tem 2026)
 - **Değer/Fırsat:** Bir aboneliğin tutarı sessizce arttığında uyarır ("Spotify 59.99'dan 74.99'a çıktı"). Fark edilmeyen zamları görünür kılar.
 - **Kaynak/İlham:** Rocket Money price-increase alerts.
 - **Nasıl (mimari):** rules_engine tekrarlayan ödeme grubunda tutar deltası kontrolü; detect_alerts'e yeni uyarı tipi. Salt görünürlük.
 - **Etki:** Orta · **Efor:** S
+- **Durum:** `_subscription_price_alerts` — detect_subscriptions'a eklenen `eski_tutar`/`yeni_tutar` üzerinden; yeni > eski ise uyarı seviyesi cockpit alert'i (%artış + eski→yeni). Yalnızca artış (düşüş değil). generate_cockpit'e bağlı → koç Kural 14 ile proaktif. 4 test. Bağımlı: FEAT-006.
 
 ### [FEAT-008] Abonelik iptal hatırlatıcı + yıllık maliyet paneli
 - **Değer/Fırsat:** Deneme süresi/yenileme yaklaşınca proaktif hatırlatma ve "bu abonelik yılda X TL" çerçevesi; iptal kararını kolaylaştırır.

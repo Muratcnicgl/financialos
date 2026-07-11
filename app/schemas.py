@@ -6,7 +6,7 @@ ORM modellerinden bağımsız, frontend ile veri sözleşmesi.
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, computed_field
 
 
 # === ORTAK ===
@@ -288,6 +288,28 @@ class GoalRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     achieved_at: Optional[datetime]
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def sinking_fund(self) -> Optional[dict]:
+        """
+        FEAT-003: cash_target + target_date olan hedef bir "sinking fund"tır — aylık gereken
+        katkı serileştirme anında hesaplanır (cache YOK, mevcut alanlardan türetilir → şema/DB
+        değişmez). Diğer tipler/tarihsiz hedefler için None.
+        """
+        if self.goal_type != "cash_target" or self.target_date is None:
+            return None
+        from app.goal_engine import sinking_fund_plan  # lazy: import cycle riskini sıfırla
+        plan = sinking_fund_plan(self.target_amount, self.target_date, self.current_amount)
+        if plan is None:
+            return None
+        # Decimal → float (JSON serileştirme; frontend Türkçe formatlar)
+        return {
+            "aylik_gereken": float(plan["aylik_gereken"]),
+            "kalan_ay": plan["kalan_ay"],
+            "gecikmis": plan["gecikmis"],
+            "tamamlandi": plan["tamamlandi"],
+        }
 
 
 class GoalAllocationCreate(BaseModel):

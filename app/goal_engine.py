@@ -18,7 +18,7 @@ Tasarım ilkeleri:
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from sqlalchemy import func, and_
@@ -185,6 +185,44 @@ def _project_cash_completion(
         return None
 
     return date.today() + timedelta(days=days_needed)
+
+
+def sinking_fund_plan(target_amount, target_date, current_amount, today: Optional[date] = None) -> Optional[dict]:
+    """
+    FEAT-003 (sinking funds / YNAB "true expenses"): target_date'li bir birikim hedefi için
+    AYLIK GEREKEN katkıyı hesaplar. Düzensiz büyük gideri (MTV, sigorta, tatil, bayram) aylık
+    küçük parçalara böler → "büyük fatura şoku" biter. Salt hesap (ADR-001, LLM yok).
+
+    Dönüş (target_date varsa): {aylik_gereken: Decimal, kalan_ay: int, gecikmis: bool, tamamlandi: bool}
+    target_date yoksa None (klasik cash_target — sinking fund değil).
+    """
+    if target_date is None:
+        return None
+    if today is None:
+        today = date.today()
+
+    target = Decimal(str(target_amount))
+    current = Decimal(str(current_amount))
+    remaining = target - current
+    if remaining <= 0:
+        return {"aylik_gereken": Decimal("0.00"), "kalan_ay": 0, "gecikmis": False, "tamamlandi": True}
+
+    # Bugünden target_date'e kalan TAM ay sayısı (gün eşiği dahil)
+    months = (target_date.year - today.year) * 12 + (target_date.month - today.month)
+    if target_date.day < today.day:
+        months -= 1
+
+    if months <= 0:
+        # Vade bu ay ya da geçmiş → kalanın TÜMÜ şimdi gerekli
+        return {
+            "aylik_gereken": remaining.quantize(Decimal("0.01"), ROUND_HALF_UP),
+            "kalan_ay": 0,
+            "gecikmis": target_date < today,
+            "tamamlandi": False,
+        }
+
+    monthly = (remaining / Decimal(months)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+    return {"aylik_gereken": monthly, "kalan_ay": months, "gecikmis": False, "tamamlandi": False}
 
 
 # ============================================================

@@ -24,11 +24,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** rules_engine generate_cockpit'e `atanmamis_nakit = nakit - (zarflar + hedef allocation)` metriği. FEAT-001 zarflarına bağlı; salt hesap.
 - **Etki:** Orta · **Efor:** S
 
-### [FEAT-003] Birikim zarfları (sinking funds)
+### [FEAT-003] Birikim zarfları (sinking funds) ✅ UYGULANDI (11 Tem 2026)
 - **Değer/Fırsat:** Düzensiz yıllık giderleri (MTV, sigorta, tatil, bayram) aylık küçük parçalara böler; "büyük fatura şoku" ortadan kalkar.
 - **Kaynak/İlham:** Sinking funds (davranışsal bütçe), YNAB true expenses.
 - **Nasıl (mimari):** goal_engine'e yeni goal_type `sinking_fund` (hedef tutar + hedef tarih → aylık gereken). goal_rules ile otomatik allocation. Progress mevcut allocation mekanizmasıyla.
 - **Etki:** Yüksek · **Efor:** M
+- **Durum:** `sinking_fund_plan` (goal_engine, saf) — aylık gereken = kalan / kalan_ay + gecikmiş/tamamlandı. **Tasarım kararı:** yeni goal_type YERİNE "cash_target + target_date = sinking fund" (daha az yüzey, geri-uyumlu). `GoalRead.sinking_fund` **computed_field** (serileştirmede türetilir → şema/DB DEĞİŞMEZ, Alembic'siz güvenli). Goals.jsx "💧 Aylık gereken X TL/ay · N ay" satırı. 10 test.
 
 ### [FEAT-004] Paranın yaşı (Age of Money) metriği
 - **Değer/Fırsat:** Harcanan paranın kaç gün önce kazanıldığını gösterir; buffer sağlığının tek sayılık göstergesi, "maaştan maaşa" yaşamaktan çıkışı ölçer.

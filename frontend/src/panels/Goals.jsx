@@ -174,6 +174,16 @@ function GoalCard({ goal, onSelect }) {
           </p>
         </div>
       </div>
+
+      {/* FEAT-003: sinking fund — target_date'li birikim hedefinde aylık gereken katkı */}
+      {goal.sinking_fund && !goal.sinking_fund.tamamlandi && (
+        <div className={`mt-2 text-xs flex items-center justify-center gap-1.5 ${goal.sinking_fund.gecikmis ? 'text-negative-400' : 'text-zinc-400'}`}>
+          <span>💧</span>
+          {goal.sinking_fund.gecikmis
+            ? `Vade geçti — kalan ${formatTL(goal.sinking_fund.aylik_gereken)} TL gerekli`
+            : `Aylık gereken: ${formatTL(goal.sinking_fund.aylik_gereken)} TL/ay · ${goal.sinking_fund.kalan_ay} ay kaldı`}
+        </div>
+      )}
     </button>
   );
 }

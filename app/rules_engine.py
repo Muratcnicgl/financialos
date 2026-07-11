@@ -204,6 +204,10 @@ def evaluate_credit_card_strategy(
     kalan_limit = round(credit_limit - current_debt, 2)
 
     # Bugün kesim sonrası mı? (kesim günü geçmiş, ödeme günü gelmemiş aralık dışı = vade avantajı)
+    # NOT: Kesimden sonraki TÜM günler vade_avantaji döner — YENİ harcamanın bir sonraki
+    # ekstreye gitmesi (float) her zaman doğru. Kesilen ekstrenin ÖDEME hazırlığı bu fonksiyonun
+    # işi DEĞİL; son ödeme yaklaşımı _collect_upcoming_reminders (BUG #096) tarafından ayrıca
+    # uyarılır. Bu ikisini birleştirmeye çalışma → çifte uyarı olur.
     if today.day > statement_day:
         durum = "vade_avantaji"
         mesaj = (

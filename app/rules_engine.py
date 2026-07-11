@@ -675,17 +675,22 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
     alerts: List[Dict] = []
     for d in sorted(debts, key=lambda x: x.due_date):   # en eski (en çok geciken) önce
         gecikme = (today - d.due_date).days
+        # "tutar" numerik alanı: grounding (_collect_numeric) bu tutarı DOĞRULANMIŞ saysın —
+        # aksi halde tutar yalnızca mesaj string'inde kalır, koç doğru tutarı yazınca grounding
+        # "izlenemeyen" sanıp confidence'ı yanlışlıkla düşürür. Frontend bu alanı yok sayar.
         if d.direction == DebtDirection.payable:
             alerts.append({
                 "seviye": "kritik",
                 "baslik": f"Gecikmiş borç: {d.counterparty}",
                 "mesaj": f"{d.counterparty}'a {d.amount:,.2f} TL borç {gecikme} gün gecikti — öde.",
+                "tutar": d.amount,
             })
         else:
             alerts.append({
                 "seviye": "uyari",
                 "baslik": f"Gecikmiş alacak: {d.counterparty}",
                 "mesaj": f"{d.counterparty} {d.amount:,.2f} TL {gecikme} gün gecikti — tahsil et.",
+                "tutar": d.amount,
             })
     return alerts
 

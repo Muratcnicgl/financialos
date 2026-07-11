@@ -85,3 +85,26 @@ def test_120_generate_cockpit_alerts_e_dusuyor(db_session, test_user):
     assert any("Kirveci" in a.get("baslik", "") for a in kritikler)
     # kritik gecikme listenin başına alınır
     assert cockpit["alerts"][0]["baslik"].startswith("Gecikmiş borç")
+
+
+def test_120_gecikme_tutari_grounding_dogrulanir(db_session, test_user):
+    """
+    Regresyon guard'ı: koç gecikmiş tutarı doğru yazınca grounding onu DOĞRULANMIŞ saymalı.
+    Tutar yalnızca mesaj string'inde kalsaydı (numerik 'tutar' alanı olmasaydı) grounding
+    tutarı 'izlenemeyen' sanıp confidence'ı düşürürdü — bu regresyonu kilitliyoruz.
+    """
+    from app.rules_engine import generate_cockpit
+    from app.grounding import check_grounding
+    today = date(2026, 5, 20)
+    # Gecikmiş Efe 4.000 + ikinci (gelecek vadeli) 1.500 alacak → alacaklar_toplami=5.500.
+    # Böylece 4.000 tutarı SADECE overdue alert'in numerik 'tutar' alanı üzerinden grounding'e
+    # girer (toplam 5.500 üstünden değil) — fix'in gerçekten iş yaptığını kanıtlar.
+    _debt(db_session, test_user.id, direction=DebtDirection.receivable,
+          counterparty="Efe", amount=4000.0, overdue_days=7, today=today)
+    _debt(db_session, test_user.id, direction=DebtDirection.receivable,
+          counterparty="Selim", amount=1500.0, overdue_days=-10, today=today)  # gelecek vade
+
+    cockpit = generate_cockpit(test_user.id, today, db_session)
+    reply = "Efe'den 4.000 TL alacağın 7 gün gecikti, tahsil etmelisin."
+    g = check_grounding(reply, cockpit)
+    assert g["ok"] is True, f"gecikmiş tutar grounding'de izlenemedi: {g['unverified']}"

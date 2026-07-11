@@ -42,11 +42,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** rules_engine'de kategori günlük ortalama × kalan gün projeksiyonu (mevcut _calculate_category_patterns altyapısını genişletir). LLM açıklar; aksiyon yok.
 - **Etki:** Yüksek · **Efor:** M
 
-### [FEAT-006] Abonelik denetçisi
+### [FEAT-006] Abonelik denetçisi ✅ UYGULANDI (11 Tem 2026, detection+endpoint)
 - **Değer/Fırsat:** İşlem geçmişinden aynı tutarlı tekrarlayan ödemeleri (Netflix, Spotify, üyelik) otomatik tespit eder, toplam aylık/yıllık abonelik yükünü çıkarır. Kullanılmayanı işaretler.
 - **Kaynak/İlham:** Rocket Money / Copilot subscription detection.
 - **Nasıl (mimari):** rules_engine'de merchant+tutar tekrarı deseni; tespit edilenler RecurringExpense'e dönüştürülmek üzere propose_action ile önerilir, kullanıcı onaylar.
 - **Etki:** Yüksek · **Efor:** M
+- **Durum:** `detect_subscriptions` (rules_engine, salt okuma) + `GET /api/subscriptions`. Algoritma harici araştırmayla (Rocket Money/Monarch) doğrulandı: 180g tarama → description grubu → medyan aralık aylık/yıllık + **farklı-tutar ≤ 2** ayırt edicisi (fiyat artışına tolerans, değişken harcama elenir). `fiyat_degisti` bayrağı = FEAT-007 sinyali. RecurringExpense "— ay" soneki normalize. 9 test. Kalan (follow-up): propose→RecurringExpense dönüştürme + FE panel.
 
 ### [FEAT-007] Abonelik fiyat artışı (price creep) tespiti
 - **Değer/Fırsat:** Bir aboneliğin tutarı sessizce arttığında uyarır ("Spotify 59.99'dan 74.99'a çıktı"). Fark edilmeyen zamları görünür kılar.

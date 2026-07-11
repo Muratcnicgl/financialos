@@ -964,6 +964,108 @@ def generate_monthly_summary(user_id: int, year: int, month: int, db: Session) -
     }
 
 
+# ============================================================
+# FEAT-006 — ABONELİK DENETÇİSİ (subscription detection)
+# ============================================================
+# İlham: Rocket Money / Monarch / Copilot abonelik tespiti (araştırıldı, kopya değil).
+# Standart yaklaşım: 90-180 gün işlem taraması → merchant grubu → düzenli aralık (aylık/yıllık)
+# → tutar eşleşmesi (fiyat artışına tolerans). FinancialOS'te "merchant" = description.
+# EKLENEN AYIRT EDİCİ: farklı-tutar sayısı ≤ 2 (abonelik sabit ya da tek fiyat-artışıdır;
+# market/yemek gibi değişken harcamada çok sayıda farklı tutar olur → yanlış-pozitif elenir).
+
+_SUB_MIN_OCCURRENCES = 3          # abonelik kabulü için min tekrar
+_SUB_MONTHLY_GAP = (24, 35)       # ~aylık medyan aralık (gün)
+_SUB_ANNUAL_GAP = (350, 381)      # ~yıllık
+_SUB_MAX_DISTINCT_AMOUNTS = 2     # sabit veya tek fiyat-artışı
+
+
+def _normalize_merchant(desc: str) -> str:
+    """Açıklamayı grup anahtarına indirger. RecurringExpense tetikleyicisi '{ad} — {ay}'
+    eklediğinden ' — ' sonrasını atarız (aynı aboneliğin ayları birleşsin)."""
+    d = (desc or "").strip().lower()
+    if " — " in d:
+        d = d.split(" — ")[0].strip()
+    return " ".join(d.split())
+
+
+def detect_subscriptions(
+    user_id: int, today: date, db: Session, lookback_days: int = 180,
+) -> Dict:
+    """
+    FEAT-006: İşlem geçmişinde tekrarlayan abonelik-benzeri ödemeleri tespit eder.
+    Salt okuma (rules_engine ilkesi). Dönüş: {abonelikler:[...], aylik_toplam, yillik_toplam, adet}.
+
+    Bir grup abonelik sayılır ⇔ (a) ≥ _SUB_MIN_OCCURRENCES tekrar, (b) farklı tutar ≤ 2
+    (fiyat artışına tolerans, değişken harcama elenir), (c) medyan aralık aylık VEYA yıllık bandında.
+    """
+    from collections import defaultdict
+    start = today - timedelta(days=lookback_days)
+    txns = (
+        db.query(Transaction)
+        .filter(
+            Transaction.user_id == user_id,
+            Transaction.transaction_type == TransactionType.expense,
+            Transaction.transaction_date >= start,
+            Transaction.description.isnot(None),
+        )
+        .order_by(Transaction.transaction_date)
+        .all()
+    )
+
+    groups: Dict[str, list] = defaultdict(list)
+    for t in txns:
+        key = _normalize_merchant(t.description)
+        if key:
+            groups[key].append(t)
+
+    subscriptions: List[Dict] = []
+    for key, items in groups.items():
+        if len(items) < _SUB_MIN_OCCURRENCES:
+            continue
+        items.sort(key=lambda t: t.transaction_date)
+        gaps = [
+            (items[i + 1].transaction_date - items[i].transaction_date).days
+            for i in range(len(items) - 1)
+        ]
+        gaps = [g for g in gaps if g > 0]
+        if not gaps:
+            continue
+        gaps_sorted = sorted(gaps)
+        median_gap = gaps_sorted[len(gaps_sorted) // 2]
+
+        amounts = [round(float(t.amount), 2) for t in items]
+        distinct = set(amounts)
+        if len(distinct) > _SUB_MAX_DISTINCT_AMOUNTS:
+            continue  # değişken harcama (market vb.) — abonelik değil
+
+        if _SUB_MONTHLY_GAP[0] <= median_gap <= _SUB_MONTHLY_GAP[1]:
+            period, aylik_maliyet = "monthly", amounts[-1]
+        elif _SUB_ANNUAL_GAP[0] <= median_gap <= _SUB_ANNUAL_GAP[1]:
+            period, aylik_maliyet = "annual", round(amounts[-1] / 12, 2)
+        else:
+            continue  # düzensiz aralık — abonelik değil
+
+        subscriptions.append({
+            "isim": items[-1].description,        # orijinal (en son) açıklama
+            "anahtar": key,
+            "period": period,
+            "guncel_tutar": amounts[-1],
+            "aylik_maliyet": aylik_maliyet,
+            "tekrar": len(items),
+            "son_tarih": items[-1].transaction_date.isoformat(),
+            "fiyat_degisti": len(distinct) >= 2,  # FEAT-007 sinyali: fiyat artmış
+        })
+
+    subscriptions.sort(key=lambda s: -s["aylik_maliyet"])
+    aylik_toplam = round(sum(s["aylik_maliyet"] for s in subscriptions), 2)
+    return {
+        "abonelikler": subscriptions,
+        "aylik_toplam": aylik_toplam,
+        "yillik_toplam": round(aylik_toplam * 12, 2),
+        "adet": len(subscriptions),
+    }
+
+
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     """
     Tüm cockpit verisini üretir — frontend ve LLM bu çıktıdan beslenir.

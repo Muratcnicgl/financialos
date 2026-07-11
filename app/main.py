@@ -48,6 +48,7 @@ from app.routers import debt_strategy as debt_strategy_router
 
 # Grup 5: H2G5 Goal Engine
 from app.routers import goals as goals_router
+from app.routers import subscriptions as subscriptions_router  # FEAT-006
 
 
 # ============================================================
@@ -152,6 +153,7 @@ app.include_router(debt_strategy_router.router)
 
 # Grup 5
 app.include_router(goals_router.router)
+app.include_router(subscriptions_router.router)  # FEAT-006
 
 
 # ============================================================

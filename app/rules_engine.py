@@ -42,7 +42,10 @@ GÜNCELLEMELER:
   her giderin ay-sonu projeksiyonu geçen ayı belirgin aşacaksa erken uyarı (envelope bütçe gerekmez,
   geçen ay yumuşak referans). Ay başında (< 5 gün) gürültü nedeniyle atlanır. Top-2 → cockpit alerts.
 - FEAT-010 (startup runway kavramı): _calculate_cash_runway — cockpit'e `nakit_runway_gun`: mevcut
-  nakit, son 30g harcama hızıyla gelirsiz kaç gün yeter (nakit / günlük burn). None = belirsiz.
+  nakit, gelirsiz kaç gün yeter (nakit / günlük burn). None = belirsiz.
+- BUG #124: runway burn'ü artık kredi TAKSİTLERİNİ de içerir (harcama + aylık taksit/30). Aksi halde
+  runway sadece harcamaya bakıp "300 gün" derken aynı kredilerin crunch'ı "10 gün sonra kriz" diyordu
+  (çelişki). Uçtan-uca gözlemle yakalandı.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -816,16 +819,25 @@ def _calculate_cash_runway(
     if nakit <= 0:
         return 0
     start = today - timedelta(days=window_days)
-    spent = db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+    spent = float(db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
         Transaction.user_id == user_id,
         Transaction.transaction_type == TransactionType.expense,
         Transaction.transaction_date >= start,
         Transaction.transaction_date <= today,
-    ).scalar() or 0.0
-    spent = float(spent)
-    if spent <= 0:
-        return None
-    daily_burn = spent / window_days
+    ).scalar() or 0.0)
+
+    # BUG #124 (tutarlılık): gelirsiz senaryoda kredi TAKSİTLERİ de cash'i eritir → günlük
+    # burn'e dahil et. Aksi halde runway (sadece harcama) aynı kredilerin ürettiği nakit-krizi
+    # öngörüsüyle ÇELİŞİR (uçtan-uca gözlem: runway 300 gün derken crunch "10 gün sonra kriz").
+    loan_monthly = float(db.query(func.coalesce(func.sum(Account.monthly_payment), 0)).filter(
+        Account.user_id == user_id,
+        Account.account_type == AccountType.loan,
+        Account.remaining_installments > 0,
+    ).scalar() or 0.0)
+
+    daily_burn = spent / window_days + loan_monthly / 30.0
+    if daily_burn <= 0:
+        return None  # ne harcama ne taksit → belirsiz/sonsuz
     return int(nakit / daily_burn)
 
 

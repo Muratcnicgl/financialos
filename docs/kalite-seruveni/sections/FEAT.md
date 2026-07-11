@@ -90,7 +90,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** debt_strategy zaten snowball/avalanche simüle ediyor; çıktıya borçsuzluk tarihi + aylık kalan-borç serisi eklenir. LLM açıklar.
 - **Etki:** Yüksek · **Efor:** S
 
-### [FEAT-013] Faiz sızıntısı sayacı
+### [FEAT-013] Faiz sızıntısı sayacı ✅ UYGULANDI
 - **Değer/Fırsat:** Şu ana kadar ödenen toplam faizi ve mevcut planla ödenecek kalan faizi gösterir ("kredilerin sana bu yıl 41.200 TL faize mal oldu"). Görünmez maliyeti görünür yapar.
 - **Kaynak/İlham:** Davranışsal finans — faizin somutlaştırılması.
 - **Nasıl (mimari):** debt_strategy/rules_engine amortisman hesabı (Account.interest_rate, taksit). Cockpit/DebtStrategy metriği; salt okuma.
@@ -138,13 +138,13 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** rules_engine gün bazında harcama=0 serisi; Cockpit rozeti + koç teşviki. Salt okuma + insight.
 - **Etki:** Orta · **Efor:** S
 
-### [FEAT-021] Net değer değişim ayrıştırması (attribution)
+### [FEAT-021] Net değer değişim ayrıştırması (attribution) ✅ UYGULANDI
 - **Değer/Fırsat:** Net değer değişiminin ne kadarının tasarruf/borç ödeme, ne kadarının yatırım fiyat hareketi olduğunu ayrıştırır ("bu ay +18.000; 12.000'i borç ödeme, 6.000'i fon değerlenmesi").
 - **Kaynak/İlham:** Maybe Finance / Monarch net worth attribution.
 - **Nasıl (mimari):** rules_engine iki NetWorthSnapshot arası delta + PriceHistory ile fiyat etkisini ayırır. reports metriği; salt okuma (yatırım tavsiyesi değil, açıklama).
 - **Etki:** Orta · **Efor:** M
 
-### [FEAT-022] Finansal sağlık skoru (composite)
+### [FEAT-022] Finansal sağlık skoru (composite) ✅ UYGULANDI
 - **Değer/Fırsat:** Tasarruf oranı + borç/gelir + kart kullanımı + nakit tamponu birleşik 0-100 skoru; sistemin genel durumunu tek bakışta özetler ve trendini gösterir.
 - **Kaynak/İlham:** Copilot/Monarch health score, CFPB Financial Well-Being.
 - **Nasıl (mimari):** rules_engine'de bileşen metrikleri (çoğu FEAT-016/023/010'dan) ağırlıklı skor. Cockpit; salt hesap.
@@ -156,7 +156,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** reports/rules_engine mevcut gelir-gider toplamlarından; NetWorthSnapshot benzeri aylık seri. Salt okuma.
 - **Etki:** Orta · **Efor:** S
 
-### [FEAT-024] Enflasyon-düzeltilmiş (reel) net değer
+### [FEAT-024] Enflasyon-düzeltilmiş (reel) net değer ✅ UYGULANDI
 - **Değer/Fırsat:** Nominal net değer artsa bile TÜFE karşısında satın alma gücünün ne olduğunu gösterir; Türkiye yüksek enflasyon bağlamında kritik gerçeklik kontrolü.
 - **Kaynak/İlham:** Türkiye enflasyon muhasebesi; reel getiri kavramı.
 - **Nasıl (mimari):** Kullanıcı aylık TÜFE'yi manuel girer (fund_tracker manuel fiyat paterni gibi); rules_engine NetWorthSnapshot'ı baz aya deflate eder. Salt okuma, nötr.

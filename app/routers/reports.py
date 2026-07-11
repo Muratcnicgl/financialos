@@ -21,7 +21,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.rules_engine import generate_monthly_summary, calculate_networth_attribution
+from app.rules_engine import (
+    generate_monthly_summary, calculate_networth_attribution, calculate_real_networth,
+)
 from app.models import (
     Transaction, TransactionType, User, NetWorthSnapshot,
     Account, AccountType, PersonalDebt, DebtDirection,
@@ -157,6 +159,21 @@ def net_worth_attribution(
     yatırım, alacak). Yeterli snapshot geçmişi yoksa {available: false}.
     """
     r = calculate_networth_attribution(current_user.id, date.today(), db)
+    if r is None:
+        return {"available": False}
+    return {"available": True, **r}
+
+
+@router.get("/real-net-worth")
+def real_net_worth(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    FEAT-024: Enflasyon-düzeltilmiş (reel) net değer — nominal vs reel değişim + enflasyon etkisi.
+    Türkiye'de servetin gerçek yönünü gösterir. Yeterli snapshot geçmişi yoksa {available: false}.
+    """
+    r = calculate_real_networth(current_user.id, date.today(), db)
     if r is None:
         return {"available": False}
     return {"available": True, **r}

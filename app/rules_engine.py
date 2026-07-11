@@ -55,6 +55,9 @@ GÜNCELLEMELER:
 - FEAT-013 (faiz sızıntısı sayacı): calculate_interest_leak — kredi+kart borçlarının AYLIK faiz
   maliyeti (borç × aylık_oran/100). Cockpit'e `faiz_sizintisi` {kalemler, aylik/yillik/gunluk}.
   "Her ay faize kaç TL kaptırıyorsun" — Murat'ın 5-kredi durumunda sarsıcı realist metrik.
+- FEAT-024 (enflasyon-düzeltilmiş net değer): calculate_real_networth — nominal net değer değişimi
+  vs enflasyona göre deflate edilmiş REEL değişim (Türkiye'de servet enflasyonla erir; borçlu için
+  tersine erime lehte). GET /api/reports/real-net-worth. Enflasyon .env INFLATION_ANNUAL (varsayılan %40).
 - FEAT-021 (net değer değişim ayrıştırması): calculate_networth_attribution — bu ayki net değer
   değişimini sürücülerine (nakit, kart/kredi ödeme, yatırım, alacak) ayırır (snapshot'lardan,
   objektif; sürücüler toplamı = değişim). GET /api/reports/net-worth-attribution. Yetersiz geçmiş → None.
@@ -1305,6 +1308,50 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
         "aylik_toplam": aylik_toplam,
         "yillik_toplam": round(aylik_toplam * 12, 2),
         "gunluk": round(aylik_toplam / 30.0, 2),
+    }
+
+
+# FEAT-024: yıllık enflasyon varsayımı — Türkiye'de dominant servet faktörü. .env ile ayarlanır.
+_INFLATION_ANNUAL = float(os.getenv("INFLATION_ANNUAL", "0.40"))
+
+
+def calculate_real_networth(
+    user_id: int, today: date, db: Session, annual_inflation: Optional[float] = None,
+) -> Optional[Dict]:
+    """
+    FEAT-024 (enflasyon-düzeltilmiş / REEL net değer): Türkiye'de enflasyon serveti eritir —
+    nominal net değer artsa bile REEL (satın alma gücü) olarak azalabilir. Tersine, BORÇLU için
+    enflasyon borcu eritir (reel yük azalır). Bu ayrım realist koçun kritik içgörüsü.
+
+    En eski ↔ en güncel snapshot arası: nominal değişim vs enflasyona göre deflate edilmiş reel
+    değişim. Yeterli geçmiş yoksa None. Salt hesap; enflasyon varsayımı parametre (.env INFLATION_ANNUAL).
+    """
+    if annual_inflation is None:
+        annual_inflation = _INFLATION_ANNUAL
+    earliest = db.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
+    latest = db.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+    if not earliest or not latest or earliest.id == latest.id:
+        return None
+    gun = (latest.snapshot_date - earliest.snapshot_date).days
+    if gun < 1:
+        return None
+
+    factor = (1 + annual_inflation) ** (gun / 365.0)   # dönem enflasyon faktörü
+    reel_guncel = latest.net_worth_full / factor        # başlangıç TL'si cinsinden
+    nominal_degisim = latest.net_worth_full - earliest.net_worth_full
+    reel_degisim = reel_guncel - earliest.net_worth_full
+    return {
+        "baslangic_tarih": earliest.snapshot_date.isoformat(),
+        "gun": gun,
+        "baslangic_net": round(earliest.net_worth_full, 2),
+        "nominal_net": round(latest.net_worth_full, 2),
+        "reel_net": round(reel_guncel, 2),               # başlangıç satın alma gücüyle
+        "nominal_degisim": round(nominal_degisim, 2),
+        "reel_degisim": round(reel_degisim, 2),
+        "enflasyon_etkisi": round(reel_degisim - nominal_degisim, 2),  # enflasyonun aşındırdığı/erittiği
+        "yillik_enflasyon": annual_inflation,
     }
 
 

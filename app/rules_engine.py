@@ -55,6 +55,9 @@ GÜNCELLEMELER:
 - FEAT-013 (faiz sızıntısı sayacı): calculate_interest_leak — kredi+kart borçlarının AYLIK faiz
   maliyeti (borç × aylık_oran/100). Cockpit'e `faiz_sizintisi` {kalemler, aylik/yillik/gunluk}.
   "Her ay faize kaç TL kaptırıyorsun" — Murat'ın 5-kredi durumunda sarsıcı realist metrik.
+- FEAT-021 (net değer değişim ayrıştırması): calculate_networth_attribution — bu ayki net değer
+  değişimini sürücülerine (nakit, kart/kredi ödeme, yatırım, alacak) ayırır (snapshot'lardan,
+  objektif; sürücüler toplamı = değişim). GET /api/reports/net-worth-attribution. Yetersiz geçmiş → None.
 - FEAT-022 (finansal sağlık skoru): calculate_health_score — 0-100 ŞEFFAF composite (ödeme gücü,
   faiz yükü, nakit tamponu, kart sağlığı, bütçe uyumu). Bileşenler görünür (kara kutu değil).
   Cockpit'e `saglik_skoru` {skor, seviye, bilesenler}. Tüm solvency sinyallerini tek sayıda özetler.
@@ -93,6 +96,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Account, AccountType, RecurringIncome, RecurringExpense, Transaction,
     TransactionType, PersonalDebt, DebtDirection, MasterCheckpoint, Envelope,
+    NetWorthSnapshot,
 )
 
 # ============================================================
@@ -1301,6 +1305,44 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
         "aylik_toplam": aylik_toplam,
         "yillik_toplam": round(aylik_toplam * 12, 2),
         "gunluk": round(aylik_toplam / 30.0, 2),
+    }
+
+
+def calculate_networth_attribution(user_id: int, today: date, db: Session) -> Optional[Dict]:
+    """
+    FEAT-021 (net değer değişim ayrıştırması): bu ayki net değer değişimini SÜRÜCÜLERİNE ayırır
+    (snapshot'lardan, objektif). "Net değerin +X TL: nakit +A, kart borcu ödeme +B, kredi +C,
+    yatırım +D, alacak +E." net_deger = nakit + yatırım + alacak - kart - kredi olduğundan
+    Δnet = Δnakit + Δyatırım + Δalacak - Δkart - Δkredi (sürücüler toplamı = değişim).
+
+    Referans: bu ayın 1'ine (veya öncesine) en yakın snapshot. Yeterli geçmiş yoksa None.
+    """
+    latest = db.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+    if not latest:
+        return None
+    ref_date = date(today.year, today.month, 1)
+    ref = db.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == user_id,
+        NetWorthSnapshot.snapshot_date <= ref_date,
+    ).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+    if not ref or ref.id == latest.id:
+        return None  # ay başı referansı yok / tek snapshot → ayrıştırma anlamsız
+
+    surucureler = [
+        {"ad": "Nakit", "katki": round(latest.cash - ref.cash, 2)},
+        {"ad": "Kart borcu ödeme", "katki": round(ref.card_debt - latest.card_debt, 2)},
+        {"ad": "Kredi ödeme", "katki": round(ref.loan_debt - latest.loan_debt, 2)},
+        {"ad": "Yatırım", "katki": round(latest.investment_value - ref.investment_value, 2)},
+        {"ad": "Alacak", "katki": round(latest.receivables - ref.receivables, 2)},
+    ]
+    surucureler.sort(key=lambda x: -abs(x["katki"]))  # en etkili sürücü önce
+    return {
+        "baslangic_tarih": ref.snapshot_date.isoformat(),
+        "baslangic_net": round(ref.net_worth_full, 2),
+        "guncel_net": round(latest.net_worth_full, 2),
+        "degisim": round(latest.net_worth_full - ref.net_worth_full, 2),
+        "surucureler": surucureler,
     }
 
 

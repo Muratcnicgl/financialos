@@ -21,7 +21,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.rules_engine import generate_monthly_summary
+from app.rules_engine import generate_monthly_summary, calculate_networth_attribution
 from app.models import (
     Transaction, TransactionType, User, NetWorthSnapshot,
     Account, AccountType, PersonalDebt, DebtDirection,
@@ -145,6 +145,21 @@ def net_worth_trend(
         for r in rows
     ]
     return {"items": items, "days": days}
+
+
+@router.get("/net-worth-attribution")
+def net_worth_attribution(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    FEAT-021: Bu ayki net değer değişimini sürücülerine ayrıştırır (nakit, kart/kredi ödeme,
+    yatırım, alacak). Yeterli snapshot geçmişi yoksa {available: false}.
+    """
+    r = calculate_networth_attribution(current_user.id, date.today(), db)
+    if r is None:
+        return {"available": False}
+    return {"available": True, **r}
 
 
 # ============================================================

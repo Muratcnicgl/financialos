@@ -40,10 +40,11 @@
 - **Aksiyon:** Her provider çağrısına timeout (örn. 30sn); aşınca bir sonraki provider'a geç.
 - **Etki:** Orta · **Efor:** S
 
-### [RESIL-008] Circuit breaker yok — sürekli düşen provider her seferde deneniyor
+### [RESIL-008] Circuit breaker yok — sürekli düşen provider her seferde deneniyor ✅ KISMEN UYGULANDI (12 Tem 2026)
 - **Kanıt:** `app/coach.py:1139-1173` (fallback her istekte baştan)
 - **Aksiyon:** Provider bazında circuit breaker (N ardışık hata → M dakika atla); latency/maliyet tasarrufu.
 - **Etki:** Düşük · **Efor:** M
+- **Durum:** KALICI-hata breaker'ı uygulandı: `_is_request_too_large` (413 / "request too large" / context limit — 429 geçici kotadan AYRI) veren sağlayıcı `FallbackProvider._oversized_providers`'a alınıp process boyunca atlanır (sabit-boyut prompt her çağrıda aynı 413'ü verir → beyhude round-trip + log gürültüsü biter). Groq free tier TPM 8000 < Türkçe prompt tipik tetik (memory: `reference_groq_tpm_limiti`). Tüm sağlayıcı oversized ise güvenli tarafta tam listeye döner. 4 test (test_fallback_provider.py). **Kalan (N-ardışık geçici hata → M-dk zaman-bazlı skip):** geçici kota için henüz yok; bu MVP'de düşük etki (fallback zaten geçici hatada sıradakine geçiyor).
 
 ### [RESIL-009] Retry backoff'ta jitter yok + maks sınır belirsiz
 - **Kanıt:** `app/coach.py:489`

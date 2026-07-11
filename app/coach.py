@@ -566,6 +566,31 @@ def _is_quota_exceeded(exc: Exception) -> bool:
     return False
 
 
+# RESIL-008: "request too large / context limit" — SABİT-boyut prompt için KALICI hata.
+# 429 (geçici kota, dakika başı sıfırlanır) ile KARIŞTIRILMAMALI: bu, isteğin TEK BAŞINA
+# model/tier limitini aşması → aynı prompt her çağrıda aynı hatayı verir. Circuit breaker
+# bu sağlayıcıyı process boyunca atlar (bkz. FallbackProvider). Groq free tier TPM 8000 <
+# Türkçe koç prompt'u (~8400 tok) tipik örnek (memory: reference_groq_tpm_limiti).
+REQUEST_TOO_LARGE_KEYWORDS = (
+    "request too large",
+    "reduce your message size",
+    "too large for model",
+    "context length exceeded",
+    "maximum context length",
+    "string too long",
+)
+
+
+def _is_request_too_large(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    for kw in REQUEST_TOO_LARGE_KEYWORDS:
+        if kw in msg:
+            return True
+    if getattr(exc, "status_code", None) == 413:
+        return True
+    return False
+
+
 def _call_with_retry(fn, *args, max_attempts: int = 3, base_delay: float = 1.0, **kwargs):
     last_exc = None
     for attempt in range(1, max_attempts + 1):
@@ -1492,6 +1517,9 @@ class FallbackProvider(LLMProvider):
         self.providers = providers
         self.last_used_provider: Optional[str] = None
         self.fallback_count: int = 0
+        # RESIL-008: "request too large / context limit" veren sağlayıcı adları — bu process
+        # boyunca atlanır (sabit-boyut prompt her çağrıda aynı 413'ü verir; beyhude round-trip yok).
+        self._oversized_providers: set = set()
 
     @property
     def model(self) -> str:
@@ -1499,9 +1527,13 @@ class FallbackProvider(LLMProvider):
 
     def chat(self, system_prompt, messages, tools):
         last_exc = None
-        for i, provider in enumerate(self.providers):
+        # RESIL-008: kalıcı "request too large" veren sağlayıcıları baştan ele. HEPSİ elenirse
+        # (beklenmez — Gemini/Ollama geniş bağlam alır) güvenli tarafta kalıp tam listeye dön.
+        candidates = [p for p in self.providers if p.NAME not in self._oversized_providers] \
+            or self.providers
+        for i, provider in enumerate(candidates):
             try:
-                logger.info(f"FallbackProvider deniyor [{i+1}/{len(self.providers)}]: {provider.NAME}")
+                logger.info(f"FallbackProvider deniyor [{i+1}/{len(candidates)}]: {provider.NAME}")
                 result = provider.chat(system_prompt, messages, tools)
                 self.last_used_provider = provider.NAME
                 # provider_used backfill: alt provider set etmediyse FallbackProvider doldurur
@@ -1509,7 +1541,7 @@ class FallbackProvider(LLMProvider):
                 if i > 0:
                     self.fallback_count += 1
                     logger.warning(
-                        f"FallbackProvider: {self.providers[0].NAME} basarisiz oldu, "
+                        f"FallbackProvider: {candidates[0].NAME} basarisiz oldu, "
                         f"{provider.NAME} kullanildi (toplam fallback: {self.fallback_count})"
                     )
                 return result
@@ -1517,21 +1549,33 @@ class FallbackProvider(LLMProvider):
                 last_exc = e
                 is_quota = _is_quota_exceeded(e)
                 is_empty = isinstance(e, ProviderEmptyResponseError)
+                is_too_large = _is_request_too_large(e)
 
-                if (is_quota or is_empty) and i < len(self.providers) - 1:
-                    reason = "quota doldu" if is_quota else "bos/bozuk cevap"
+                # RESIL-008: KALICI hata — sağlayıcıyı process boyunca atlanacak listeye AL (bir
+                # kez logla). 429 geçici kotadan farklı: bu istek boyutu tier limitini aşıyor,
+                # aynı prompt her seferinde aynı hatayı verir → tekrar denemek beyhude.
+                if is_too_large and provider.NAME not in self._oversized_providers:
+                    self._oversized_providers.add(provider.NAME)
+                    logger.warning(
+                        f"FallbackProvider: {provider.NAME} isteği KALICI sunamıyor "
+                        f"(request too large / context limit) — bu process boyunca atlanacak. ({e})"
+                    )
+
+                if (is_quota or is_empty or is_too_large) and i < len(candidates) - 1:
+                    reason = ("quota doldu" if is_quota else
+                              "request too large" if is_too_large else "bos/bozuk cevap")
                     logger.warning(
                         f"FallbackProvider: {provider.NAME} {reason} ({e}), "
-                        f"siradakine geciliyor: {self.providers[i+1].NAME}"
+                        f"siradakine geciliyor: {candidates[i+1].NAME}"
                     )
                     continue
-                if i < len(self.providers) - 1:
+                if i < len(candidates) - 1:
                     # BUG #093 fix: kota/boş DEĞİL bir hata (400/401/kod bug'ı) sessizce
                     # yutulup "tüm sağlayıcılar düştü" gibi görünüyordu. ERROR + exc_info ile
                     # gerçek kök-neden (stack) görünür yapılır; fallback yine de devam eder.
                     logger.error(
                         f"FallbackProvider: {provider.NAME} BEKLENMEDİK hata verdi ({e!r}), "
-                        f"siradakine geciliyor: {self.providers[i+1].NAME}",
+                        f"siradakine geciliyor: {candidates[i+1].NAME}",
                         exc_info=True,
                     )
                     continue

@@ -71,3 +71,29 @@ def test_pasif_gelir_tetiklenmez(client, db_session):
     db_session.commit()
     r = client.post("/api/incomes/trigger-due")
     assert r.json()["triggered"] == []
+
+
+def test_last_triggered_propose_de_degil_execute_de_isaretlenir(client, db_session):
+    """
+    BUG #070 (P0-15) uçtan uca: last_triggered_year_month YALNIZCA execute (approve)
+    anında yazılır — propose anında DEĞİL. Eskiden propose'da işaretlenince reddedilen
+    gelir 'bu ay halledildi' sayılıp bir daha tetiklenmiyordu (sessiz veri kaybı).
+    """
+    from datetime import datetime
+    inc = _income(db_session, day=1)
+    ym = f"{datetime.utcnow().year}-{datetime.utcnow().month:02d}"
+
+    # 1) Trigger (propose) → last_triggered HÂLÂ None olmalı
+    triggered = client.post("/api/incomes/trigger-due").json()["triggered"]
+    action_id = triggered[0]["id"]
+    db_session.refresh(inc)
+    assert inc.last_triggered_year_month is None, "propose'da işaretlenmemeli"
+
+    # 2) Approve (execute) → last_triggered bu aya set edilir
+    r = client.post(f"/api/actions/{action_id}/approve")
+    assert r.status_code == 200
+    db_session.refresh(inc)
+    assert inc.last_triggered_year_month == ym
+
+    # 3) Aynı ay tekrar trigger → dedup (last_triggered eşleşir), yeni pending yok
+    assert client.post("/api/incomes/trigger-due").json()["triggered"] == []

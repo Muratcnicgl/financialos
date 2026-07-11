@@ -34,7 +34,10 @@ def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict) -> None:
     today = date.today()
     if db.query(NetWorthSnapshot).filter_by(user_id=user_id, snapshot_date=today).first():
         return
-    receivables = max(0.0, cockpit.get("net_deger_tam", cockpit["net_deger"]) - cockpit["net_deger"])
+    # BUG #117 fix (#116 takibi): net_deger_tam artık payable de düşüyor → (net_deger_tam −
+    # net_deger) = alacak − borç olurdu (yanlış "receivables"). Alacağı doğrudan cockpit'ten al.
+    receivables = cockpit.get("alacaklar_toplami",
+                              max(0.0, cockpit.get("net_deger_tam", cockpit["net_deger"]) - cockpit["net_deger"]))
     snap = NetWorthSnapshot(
         user_id=user_id,
         snapshot_date=today,

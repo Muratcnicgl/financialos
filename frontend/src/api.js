@@ -248,6 +248,8 @@ export const reportsApi = {
     request('/api/reports/category-breakdown', { params: { days, type } }),
   netWorthTrend: (days = 30) =>
     request('/api/reports/net-worth-trend', { params: { days } }),
+  netWorthAttribution: () => request('/api/reports/net-worth-attribution'),   // FEAT-021
+  realNetWorth: () => request('/api/reports/real-net-worth'),                 // FEAT-024
   upcomingCashflow: (days = 30) =>
     request('/api/reports/upcoming-cashflow', { params: { days } }),
   // A3: aylık özet (gelir/gider/net + kategori + önceki-ay trend). Boş param = içinde bulunulan ay.

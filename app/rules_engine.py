@@ -1360,6 +1360,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     overspend_alerts = _category_overspend_alerts(user_id, today, db)
     alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts + overspend_alerts
+    # #125: KARARLI önem sıralaması — tüm 'kritik' kalemler tüm 'uyari'lardan önce (iç sıra korunur).
+    # detect_alerts kritik/uyari'yi karıştırıyordu; Murat en ciddi sinyali her zaman en başta görsün.
+    _SEV = {"kritik": 0, "uyari": 1}
+    alerts.sort(key=lambda a: _SEV.get(a.get("seviye"), 2))
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary, kart_borcu=kart_borcu)  # FEAT-009 + #123 kart-farkındalığı
     nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
 

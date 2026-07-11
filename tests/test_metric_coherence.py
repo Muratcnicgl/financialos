@@ -72,6 +72,27 @@ def test_crunch_varsa_runway_kisa(db):
         f"crunch varken runway kısa olmalı (kredi-farkında), {c['nakit_runway_gun']} bulundu"
 
 
+def test_alert_siralamasi_kritik_once(db):
+    """#125: karışık seviyeli senaryoda TÜM kritik kalemler TÜM uyarılardan önce gelir."""
+    db.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=4276.0))
+    db.add(Account(user_id=1, name="Ziraat", account_type=AccountType.credit_card,
+                   balance=11976.0, credit_limit=12000.0))   # kart %99.8 → kritik
+    db.add(PersonalDebt(user_id=1, counterparty="Kirveci", direction=DebtDirection.payable,
+                        amount=1500.0, is_paid=False, due_date=TODAY - timedelta(days=4)))  # gecikmiş → kritik
+    # kategori aşım (uyarı) için geçen ay + bu ay hızlı market
+    db.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=1000.0,
+                       category="market", transaction_date=date(2026, 4, 10)))
+    db.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=900.0,
+                       category="market", transaction_date=TODAY - timedelta(days=3)))
+    db.commit()
+    c = generate_cockpit(1, TODAY, db)
+    seviyeler = [a["seviye"] for a in c["alerts"]]
+    if "kritik" in seviyeler and "uyari" in seviyeler:
+        son_kritik = max(i for i, s in enumerate(seviyeler) if s == "kritik")
+        ilk_uyari = min(i for i, s in enumerate(seviyeler) if s == "uyari")
+        assert son_kritik < ilk_uyari, f"kritik uyarıdan önce olmalı: {seviyeler}"
+
+
 def test_saglikli_kullanici_tum_sinyaller_pozitif(db):
     """Sağlıklı: reel_butce > 0, daily_limit > 0, guvenli_harcama > 0, crunch yok — tutarlı."""
     db.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=20000.0))

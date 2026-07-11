@@ -122,14 +122,28 @@ def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
     return items
 
 
+def _add_months(d: date, months: int) -> date:
+    """
+    RULE-010 fix: d'ye n TAKVİM ayı ekler (gün ay sonuna clamp'lenir). Eskiden payoff_date
+    `today + month*30 gün` idi → 12 ay=360≠365, uzun vadede haftalarca kayıyordu.
+    """
+    from calendar import monthrange
+    total = d.month - 1 + months
+    year = d.year + total // 12
+    month = total % 12 + 1
+    return date(year, month, min(d.day, monthrange(year, month)[1]))
+
+
 def _simulate(
     debts: List[DebtItem],
     priority_order: List[int],
     extra_monthly: float,
+    today: Optional[date] = None,
 ) -> StrategyResult:
     """
     Verilen oncelik sirasi + ekstra para ile ay-ay simulasyon.
     Snowball/Avalanche ortak motoru - sadece priority_order farkli.
+    RULE-010: `today` enjekte edilebilir (deterministik payoff_date; default date.today()).
     """
     if not debts:
         return StrategyResult(
@@ -230,7 +244,7 @@ def _simulate(
         for aid in snapshot_events:
             extra_monthly += last_base_min.get(aid, debt_by_id[aid].min_payment)
 
-    payoff = date.today() + timedelta(days=month * 30)
+    payoff = _add_months(today or date.today(), month)  # RULE-010: gerçek takvim ay
 
     return StrategyResult(
         strategy='',
@@ -248,18 +262,20 @@ def _simulate(
 # STRATEJI ALGORITMALARI
 # ============================================================
 
-def calc_snowball(debts: List[DebtItem], extra_monthly: float = 0.0) -> StrategyResult:
+def calc_snowball(debts: List[DebtItem], extra_monthly: float = 0.0,
+                  today: Optional[date] = None) -> StrategyResult:
     """Snowball: bakiye kucukten buyuge."""
     order = sorted(debts, key=lambda d: d.balance)
-    result = _simulate(debts, [d.account_id for d in order], extra_monthly)
+    result = _simulate(debts, [d.account_id for d in order], extra_monthly, today=today)
     result.strategy = 'snowball'
     return result
 
 
-def calc_avalanche(debts: List[DebtItem], extra_monthly: float = 0.0) -> StrategyResult:
+def calc_avalanche(debts: List[DebtItem], extra_monthly: float = 0.0,
+                   today: Optional[date] = None) -> StrategyResult:
     """Avalanche: faiz orani yuksekten dusuge."""
     order = sorted(debts, key=lambda d: -d.interest_rate_monthly)
-    result = _simulate(debts, [d.account_id for d in order], extra_monthly)
+    result = _simulate(debts, [d.account_id for d in order], extra_monthly, today=today)
     result.strategy = 'avalanche'
     return result
 

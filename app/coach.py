@@ -743,7 +743,8 @@ Statü: {cockpit['statu']}
 
         r_lines = []
         for r in reminders:
-            sign = "+" if r["type"] == "income" else "-"
+            # BUG #119: alacak (receivable) da gelir gibi NAKİT GİRİŞİ → + işaret.
+            sign = "+" if r["type"] in ("income", "receivable") else "-"
             # A1 tamamlama: kart son ödeme kalemi ayrı, net bir etiketle vurgulanır.
             if r["type"] == "card_payment":
                 risk_s = " 💳 SON ÖDEME"

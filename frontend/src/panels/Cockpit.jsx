@@ -394,10 +394,14 @@ export default function Cockpit({ setActiveTab }) {
               const dayLabel = r.days_until === 0 ? 'Bugün'
                 : r.days_until === 1 ? 'Yarın'
                 : `${r.days_until} gün sonra`;
-              const sign = r.type === 'income' ? '+' : '−';
-              const colorClass = r.type === 'income'
+              // BUG #119: alacak (receivable) da gelir gibi bir NAKİT GİRİŞİ — + ve yeşil.
+              const isInflow = r.type === 'income' || r.type === 'receivable';
+              const sign = isInflow ? '+' : '−';
+              const colorClass = isInflow
                 ? 'text-positive-600 dark:text-positive-400'
                 : 'text-negative-600 dark:text-negative-400';
+              const typeLabel = { income: 'Gelir', receivable: 'Tahsilat',
+                debt: 'Borç', expense: 'Gider', card_payment: 'Son ödeme' }[r.type] || r.type;
               return (
                 <div key={i}
                   className="flex items-center justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2">
@@ -411,7 +415,7 @@ export default function Cockpit({ setActiveTab }) {
                       ) : null}
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {dayLabel} · {r.account_name || r.type}
+                      {dayLabel} · {r.account_name || typeLabel}
                     </p>
                   </div>
                   <span className={`font-numeric font-semibold flex-shrink-0 ${colorClass}`}>

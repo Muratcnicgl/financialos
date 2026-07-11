@@ -19,6 +19,10 @@ GÜNCELLEMELER:
 - BUG #096 (A1 tamamlama): _collect_upcoming_reminders artık kredi kartı SON ÖDEME
   gününü de proaktif hatırlatır (payment_day 0-7 gün + kart borcu > 0). Kurucu vizyonun
   en kritik proaktif uyarısı — kart %99.8 doluyken hayati.
+- BUG #119 (A1 tamamlama): _collect_upcoming_reminders artık vadesi yaklaşan ALACAKLARI
+  (receivable, is_paid=False, due_date 0-7 gün) da hatırlatır. Roadmap A1 "alacak (Efe vb.)
+  tarihleri yaklaşınca koç proaktif" der; nakit dar (günlük 62 TL) olduğundan Efe'den
+  zamanında TAHSİL etmek doğrudan ödeme-gücü meselesi (Garanti kredileri buna bağlı).
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -592,6 +596,28 @@ def _collect_upcoming_reminders(
             reminders.append({
                 "type": "debt",
                 "name": f"{debt.counterparty} borcu",
+                "amount": debt.amount,
+                "days_until": days_until,
+                "due_date": debt.due_date.isoformat(),
+                "account_name": "",
+                "card_risk": False,
+            })
+
+    # PersonalDebt (receivable, unpaid, due soon) — BUG #119: Efe alacakları.
+    # Vadesi yaklaşan alacak = Murat'ın TAHSİL etmesi gereken nakit girişi. Nakit dar
+    # olduğundan (günlük 62 TL) zamanında tahsilat solvency-kritik; roadmap A1'in açık
+    # hedefi. card_risk=False (risk değil, giriş fırsatı → sıralamada risklerden sonra).
+    for debt in db.query(PersonalDebt).filter(
+        PersonalDebt.user_id == user_id,
+        PersonalDebt.is_paid == False,
+        PersonalDebt.direction == DebtDirection.receivable,
+        PersonalDebt.due_date != None,
+    ).all():
+        days_until = (debt.due_date - today).days
+        if 0 <= days_until <= REMINDER_DAYS:
+            reminders.append({
+                "type": "receivable",
+                "name": f"{debt.counterparty} alacağı",
                 "amount": debt.amount,
                 "days_until": days_until,
                 "due_date": debt.due_date.isoformat(),

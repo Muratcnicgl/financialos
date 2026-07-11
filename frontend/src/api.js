@@ -172,6 +172,12 @@ export const envelopesApi = {
   delete: (id) => request(`/api/envelopes/${id}`, { method: 'DELETE' }),
 };
 
+// FEAT-006/007: abonelik denetçisi
+export const subscriptionsApi = {
+  list: () => request('/api/subscriptions'),                      // {abonelikler, aylik_toplam, ...}
+  toRecurring: (data) => request('/api/subscriptions/to-recurring', { method: 'POST', body: data }),
+};
+
 // =============================================================
 // DEBTS (4)
 // =============================================================

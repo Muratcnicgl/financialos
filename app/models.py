@@ -219,6 +219,31 @@ class RecurringExpense(Base):
     user = relationship("User", back_populates="expenses")
 
 
+class Envelope(Base):
+    """
+    FEAT-001: Kategori bazlı aylık BÜTÇE ZARFI (YNAB / Actual Budget zarf yöntemi).
+    Her kategoriye aylık tutar ayrılır; o kategorideki harcama zarftan düşülür. Harcama
+    ayrı bir allocation tablosunda DEĞİL, mevcut Transaction.category üzerinden izlenir
+    (tek doğruluk kaynağı) — bu ay harcanan = SUM(expense, category, bu ay). Zarf aşımında
+    görünür uyarı. monthly_amount her ay için geçerli (recurring bütçe).
+    """
+    __tablename__ = "envelopes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    category = Column(String(50), nullable=False)          # Transaction.category ile eşleşir
+    monthly_amount = Column(Numeric(14, 2), nullable=False)  # aylık bütçe (Decimal — RULE-006)
+    is_active = Column(Boolean, default=True, nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        # (user, category) tekildir — bir kategori için tek zarf. Bu constraint aynı zamanda
+        # user_id prefix'li aramalar için index sağlar (dual-index anti-pattern'den kaçınıldı).
+        UniqueConstraint("user_id", "category", name="uq_envelope_user_category"),
+    )
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
 

@@ -46,6 +46,10 @@ GÜNCELLEMELER:
 - BUG #124: runway burn'ü artık kredi TAKSİTLERİNİ de içerir (harcama + aylık taksit/30). Aksi halde
   runway sadece harcamaya bakıp "300 gün" derken aynı kredilerin crunch'ı "10 gün sonra kriz" diyordu
   (çelişki). Uçtan-uca gözlemle yakalandı.
+- FEAT-001 (YNAB/Actual Budget zarf yöntemi): calculate_envelopes — kategori bazlı aylık bütçe zarfı.
+  Yeni Envelope tablosu (create_all-safe); harcanan = bu ayın Transaction toplamı (ayrı allocation
+  yok). Cockpit'e `zarflar`. FEAT-005 entegre: zarf varsa aşım öngörüsü GERÇEK bütçeye göre (geçen ay
+  yerine). CRUD: /api/envelopes.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -80,7 +84,7 @@ from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 from app.models import (
     Account, AccountType, RecurringIncome, RecurringExpense, Transaction,
-    TransactionType, PersonalDebt, DebtDirection, MasterCheckpoint,
+    TransactionType, PersonalDebt, DebtDirection, MasterCheckpoint, Envelope,
 )
 
 # ============================================================
@@ -949,10 +953,11 @@ def _category_overspend_alerts(
     min_days: int = 5, over_ratio: float = 1.15, top_n: int = 2,
 ) -> List[Dict]:
     """
-    FEAT-005 (Copilot/YNAB "projected spending"): ay-içi mevcut harcama HIZIYLA her giderin
-    ay-sonu projeksiyonunu geçen ayın aynı kategorisiyle kıyaslar; belirgin aşacaklar için
-    ERKEN uyarı ("bu gidişle market geçen ayı %30 aşacak"). Envelope bütçe gerekmez — geçen ay
-    yumuşak referans. Salt okuma. Ay başında (< min_days) projeksiyon gürültülü → atlanır.
+    FEAT-005 (Copilot/YNAB "projected spending") + FEAT-001 entegrasyonu: ay-içi harcama
+    HIZIYLA her giderin ay-sonu projeksiyonunu REFERANSLA kıyaslar; belirgin aşacaklar için
+    ERKEN uyarı. Referans: bir kategori için ZARF (envelope) bütçesi varsa GERÇEK bütçe;
+    yoksa geçen ayın aynı kategorisi (yumuşak referans). Salt okuma. Ay başında (< min_days)
+    projeksiyon gürültülü → atlanır.
     """
     days_in_month = monthrange(today.year, today.month)[1]
     days_elapsed = today.day
@@ -963,22 +968,31 @@ def _category_overspend_alerts(
     prev_year, prev_month = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
     ps, pe = _month_bounds(prev_year, prev_month)
     prev_by_cat = {c["category"]: c["total"] for c in _month_aggregates(db, user_id, ps, pe)["expense_categories"]}
+    # FEAT-001: aktif zarf bütçeleri (varsa gerçek referans)
+    envelopes = {e.category: float(e.monthly_amount) for e in db.query(Envelope).filter(
+        Envelope.user_id == user_id, Envelope.is_active == True).all()}  # noqa: E712
 
     warnings: List[Dict] = []
     for c in curr["expense_categories"]:
+        cat = c["category"]
         mtd = c["total"]
-        prev_total = prev_by_cat.get(c["category"], 0.0)
-        if prev_total <= 0 or mtd <= 0:
-            continue  # geçen ay referansı yok → yeni-kategori gürültüsü elenir
+        if mtd <= 0:
+            continue
+        if cat in envelopes:
+            ref, ref_label = envelopes[cat], "bütçe"       # FEAT-001: gerçek zarf bütçesi
+        else:
+            ref, ref_label = prev_by_cat.get(cat, 0.0), "geçen ay"
+        if ref <= 0:
+            continue  # referans yok → yeni-kategori gürültüsü elenir
         projected = round(mtd / days_elapsed * days_in_month, 2)
-        if projected > prev_total * over_ratio:
-            asim_pct = round((projected - prev_total) / prev_total * 100, 1)
+        if projected > ref * over_ratio:
+            asim_pct = round((projected - ref) / ref * 100, 1)
             warnings.append({
                 "seviye": "uyari",
-                "baslik": f"Kategori aşım öngörüsü: {c['category']}",
+                "baslik": f"Kategori aşım öngörüsü: {cat}",
                 "mesaj": (
-                    f"{c['category']} bu gidişle ay sonu ~{_tl(projected)} TL olur "
-                    f"(geçen ay {_tl(prev_total)} TL, %{asim_pct} fazla). Hız kes."
+                    f"{cat} bu gidişle ay sonu ~{_tl(projected)} TL olur "
+                    f"({ref_label} {_tl(ref)} TL, %{asim_pct} fazla). Hız kes."
                 ),
                 "tutar": projected,        # grounding
                 "_proj": projected,        # sıralama için (dışa sızmaz sorun değil)
@@ -1198,6 +1212,54 @@ def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[D
     return _subscription_price_alerts_from_result(detect_subscriptions(user_id, today, db))
 
 
+def calculate_envelopes(user_id: int, today: date, db: Session) -> Dict:
+    """
+    FEAT-001 (YNAB/Actual Budget zarf yöntemi): aktif bütçe zarflarının BU AY durumu.
+    Salt okuma. Harcanan = bu ayın o kategorideki gider toplamı (Transaction — tek doğruluk
+    kaynağı, ayrı allocation yok). kalan = bütçe - harcanan; aşıldıysa görünür işaret.
+
+    Dönüş: {zarflar:[{category, butce, harcanan, kalan, yuzde, asildi}], toplam_butce,
+             toplam_harcanan, toplam_kalan, asan_adet}. Zarf yoksa boş.
+    """
+    envs = db.query(Envelope).filter(
+        Envelope.user_id == user_id, Envelope.is_active == True,  # noqa: E712
+    ).all()
+    if not envs:
+        return {"zarflar": [], "toplam_butce": 0.0, "toplam_harcanan": 0.0,
+                "toplam_kalan": 0.0, "asan_adet": 0}
+
+    curr = _month_aggregates(db, user_id, date(today.year, today.month, 1), today)
+    spent_by_cat = {c["category"]: c["total"] for c in curr["expense_categories"]}
+
+    zarflar: List[Dict] = []
+    toplam_butce = toplam_harcanan = 0.0
+    asan = 0
+    for e in envs:
+        butce = float(e.monthly_amount)
+        harcanan = float(spent_by_cat.get(e.category, 0.0))
+        asildi = harcanan > butce
+        if asildi:
+            asan += 1
+        toplam_butce += butce
+        toplam_harcanan += harcanan
+        zarflar.append({
+            "category": e.category,
+            "butce": round(butce, 2),
+            "harcanan": round(harcanan, 2),
+            "kalan": round(butce - harcanan, 2),
+            "yuzde": round(harcanan / butce * 100, 1) if butce > 0 else 0.0,
+            "asildi": asildi,
+        })
+    zarflar.sort(key=lambda z: -z["yuzde"])  # en dolu/aşan önce
+    return {
+        "zarflar": zarflar,
+        "toplam_butce": round(toplam_butce, 2),
+        "toplam_harcanan": round(toplam_harcanan, 2),
+        "toplam_kalan": round(toplam_butce - toplam_harcanan, 2),
+        "asan_adet": asan,
+    }
+
+
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     """
     Tüm cockpit verisini üretir — frontend ve LLM bu çıktıdan beslenir.
@@ -1376,6 +1438,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     alerts = _kritikler + _uyarilar[:_MAX_UYARI]
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary, kart_borcu=kart_borcu)  # FEAT-009 + #123 kart-farkındalığı
     nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
+    zarflar_durumu = calculate_envelopes(user_id, today, db)  # FEAT-001
 
     return {
         "date": today.isoformat(),
@@ -1401,6 +1464,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
             "yillik": sub_result["yillik_toplam"],
             "adet": sub_result["adet"],
         },
+        "zarflar": zarflar_durumu,  # FEAT-001: kategori bütçe zarfları durumu
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

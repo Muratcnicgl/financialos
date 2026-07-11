@@ -140,3 +140,21 @@ her çağrı 413 verip fallback'e düşüyor (fonksiyonel çalışır, round-tri
 gating deterministik doğrulandı (propose SUNULUYOR), #127 retry'ı bunu sertleştirdi.
 
 **Golden:** test_founding_scenario + test_e2e_journey (uçtan-uca yeni yüzey entegrasyonu).
+
+### SESSION-3 devamı (12 Tem 2026) — borç-stratejisi katmanı (Murat'ın 5-kredi + dolu-kart gerçeği)
+
+Deterministik + FEAT/S işleri tükenince en yüksek-değer kalanlar Murat'ın borç-dominant
+durumuna göre seçildi (gözlem-güdümlü, kopyalamadan ilham). Süit **620 → 632 yeşil**.
+
+| FEAT | Değişiklik | Doğrulama |
+|------|-----------|-----------|
+| FEAT-015 | Kart asgari-ödeme tuzağı: sadece asgari ödeme senaryosu (kaç ay + toplam faiz). Asla-bitmez (asgari<faiz) → kritik sarmal; ≥12 ay → uyarı. `calculate_min_payment_trap` + cockpit + koç + Cockpit.jsx | test_min_payment_trap.py (12) |
+| FEAT-027 | Alacak yaşlandırma (AR aging): 13 dağınık alacağı vade-yaşına göre grupla (60+/31-60/1-30 gecikmiş · vadesiz kör nokta); en_riskli önce kovala. `calculate_receivables_aging` + cockpit + koç + Cockpit.jsx | test_receivables_aging.py (7) |
+| FEAT-014 | Kredi konsolidasyon simülatörü (nötr, tavsiye değil): (1) assumption-free eşik = ağırlıklı ort. oran; (2) what-if annüite (oran+vade → taksit/faiz). `calculate_consolidation_baseline`/`simulate_consolidation` + `GET /api/debt-strategy/consolidation` + DebtStrategy.jsx formu | test_consolidation.py (12) |
+
+Borç-stratejisi yüzeyi artık kapsamlı: snowball/avalanche (mevcut) + borçsuzluk tarihi
+(FEAT-012) + faiz sızıntısı (FEAT-013) + asgari tuzağı (FEAT-015) + konsolidasyon (FEAT-014);
+alacak tarafı yaşlandırma (FEAT-027). `collect_debts` bu metrikler arasında paylaşımlı (tek sorgu).
+Metrik-tutarlılık gözlemle doğrulandı: borç özgürlük (avalanche, rollover) vs asgari tuzağı
+(izole min-only) FARKLI senaryolar → çelişki değil (#124-tarzı bug yok). Koç context ~946 token
+(tüm bloklarla) — Groq TPM darboğazı sistem prompt'undan, context'ten değil.

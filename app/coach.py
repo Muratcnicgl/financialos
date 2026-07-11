@@ -676,11 +676,18 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
 
     net_deger_tam = cockpit.get('net_deger_tam', cockpit['net_deger'])
     alacaklar_toplami = cockpit.get('alacaklar_toplami', 0)
+    borclar_toplami = cockpit.get('borclar_toplami', 0)  # BUG #116: kişisel payable
 
-    if alacaklar_toplami > 0:
+    if alacaklar_toplami > 0 or borclar_toplami > 0:
+        # BUG #116: Tam Net Değer hem alacağı (+) hem kişisel borcu (−) içerir (simetrik, realist).
+        detay = []
+        if alacaklar_toplami > 0:
+            detay.append(f"+{_fmt(alacaklar_toplami)} TL alacak")
+        if borclar_toplami > 0:
+            detay.append(f"−{_fmt(borclar_toplami)} TL kişisel borç")
         net_deger_block = (
-            f"  - Görülen Net Değer : {_fmt(cockpit['net_deger'])} TL (operasyonel, alacaksız)\n"
-            f"  - Tam Net Değer     : {_fmt(net_deger_tam)} TL (stratejik, +{_fmt(alacaklar_toplami)} TL alacak dahil)"
+            f"  - Görülen Net Değer : {_fmt(cockpit['net_deger'])} TL (operasyonel, alacak/borç hariç)\n"
+            f"  - Tam Net Değer     : {_fmt(net_deger_tam)} TL (stratejik, {', '.join(detay)} dahil)"
         )
     else:
         net_deger_block = f"  - Net Değer         : {_fmt(cockpit['net_deger'])} TL"

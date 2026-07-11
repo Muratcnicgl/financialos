@@ -104,6 +104,12 @@ kapsam-güdümlü test BİRLİKTE gerekir — biri diğerinin kaçırdığını 
   varsayımla değiştirilmedi; kullanıcı kararı — `net_deger_tam += -ödenmemiş_payable` simetrik/
   finansal-doğru olur (öneri), ama kullanıcının dashboard'unda kişisel IOU'ları net değerden
   düşmek isteyip istemediği ürün kararıdır.
+  → ✅ **ÇÖZÜLDÜ (BUG #116):** simetrik + finansal-doğru + realist-etik yönünde uygulandı:
+  `net_deger_tam = net_deger + alacaklar − kişisel_borçlar`. **ŞEFFAF** yapıldı: `borclar_toplami`
+  cockpit'e eklendi (alacaklar_toplami ile simetrik) ve koç "Tam Net Değer" bloğu hem +alacak
+  hem −kişisel-borç detayını gösteriyor (gizli değişiklik değil). Net-değer korunumu artık her
+  iki yönde tutuyor (borç ödemesi net-nötr). Tersine çevrilebilir (tek işaretli değişiklik).
+  Kullanıcı kişisel IOU'ları net değerden düşmek istemezse geri alınır.
 
 ## Vizyon değeri (denetim sonrası, aynı turda)
 Kurucu vizyona hizmet eden eklemeler: **A1 kart son ödeme reminder (#096)**, **A3 aylık özet

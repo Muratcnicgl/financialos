@@ -486,6 +486,28 @@ def _calculate_total_receivables(user_id: int, db: Session) -> float:
     return round(total, 2)
 
 
+def _calculate_total_payables(user_id: int, db: Session) -> float:
+    """
+    Tüm ödenmemiş kişisel BORÇLARIN toplamı (direction=payable, is_paid=False).
+
+    BUG #116 fix: Tam Net Değer, alacakları (varlık) sayarken kişisel borçları (yükümlülük)
+    saymıyordu → net değeri fazla-iyimser gösteriyordu (realist-koç etiğiyle çelişki). Simetri:
+    net_deger_tam = net_deger + alacaklar − borçlar. Banka borçları (kart/kredi) zaten
+    net_deger'de düşülüyor; bu yalnız KİŞİSEL payable'ları kapsar (Efe'ye borç gibi).
+    """
+    debts = (
+        db.query(PersonalDebt)
+        .filter(
+            PersonalDebt.user_id == user_id,
+            PersonalDebt.direction == DebtDirection.payable,
+            PersonalDebt.is_paid == False,
+        )
+        .all()
+    )
+    total = sum(d.amount or 0.0 for d in debts)
+    return round(total, 2)
+
+
 def _get_next_due_date(today: date, day_of_month: int) -> date:
     """Bu ay day_of_month geçtiyse gelecek ayın tarihini döndür."""
     last_day = monthrange(today.year, today.month)[1]
@@ -883,7 +905,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # BUG #006 fix: Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
     # Efe takvimi gibi sözleşmeli alacaklar varlık olarak sayılır.
     alacaklar_toplami = _calculate_total_receivables(user_id, db)
-    net_deger_tam = round(net_deger + alacaklar_toplami, 2)
+    borclar_toplami = _calculate_total_payables(user_id, db)  # BUG #116: kişisel payable
+    # Simetri + finansal doğruluk: alacaklar varlık (+), kişisel borçlar yükümlülük (−).
+    net_deger_tam = round(net_deger + alacaklar_toplami - borclar_toplami, 2)
 
     # Günlük limit
     days_remaining = get_month_remaining_days(today)
@@ -947,7 +971,8 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         # BUG #006 fix: iki net değer metriği
         "net_deger": net_deger,                        # Görülen (operasyonel)
         "net_deger_tam": net_deger_tam,                # Tam (stratejik)
-        "alacaklar_toplami": alacaklar_toplami,        # Transparency
+        "alacaklar_toplami": alacaklar_toplami,        # Transparency (net_deger_tam'a +)
+        "borclar_toplami": borclar_toplami,            # BUG #116: kişisel payable (net_deger_tam'dan −)
         "daily_limit": daily_limit,
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,

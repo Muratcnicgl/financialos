@@ -61,14 +61,11 @@ def test_113_alacak_tahsili_net_deger_korunur(db):
     assert abs(after - before) < 0.01, f"tahsilat net-değeri değiştirdi: {before} -> {after}"
 
 
-def test_kisisel_payable_net_degere_dahil_DEGIL_asimetri(db):
+def test_116_borc_odemesi_net_deger_korunur(db):
     """
-    BULGU (flag, tasarım kararı bekliyor): net_deger_tam kişisel ALACAĞI (receivable) varlık
-    sayıyor ama kişisel BORCU (payable) yükümlülük saymıyor (rules_engine:886 = net_deger +
-    alacaklar; payable HİÇ düşülmüyor). Yani borcu ödemek net_deger_tam'ı tutar kadar düşürür
-    (borç zaten sayılmadığı için "önce" değer şişkindi). Bu test MEVCUT davranışı sabitler ve
-    asimetriyi görünür kılar. Not: uygulamanın asıl borçları BANKA borçları (kart/kredi) ve
-    onlar DOĞRU düşülüyor (net_deger:881); kişisel payable ikincil.
+    BUG #116 fix: net_deger_tam artık kişisel payable'ı yükümlülük sayıyor (simetri). Bu yüzden
+    borç ödemesi net-NÖTR: önceden payable net değeri düşürüyordu (−1000), ödeme nakdi düşürür
+    (−1000) ama payable yükümlülüğü kalkar (+1000) → net değişim SIFIR.
     """
     db.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=5000.0))
     db.add(PersonalDebt(user_id=1, counterparty="Efe", direction=DebtDirection.payable,
@@ -79,8 +76,19 @@ def test_kisisel_payable_net_degere_dahil_DEGIL_asimetri(db):
     p = _pending(db, "mark_debt_paid", {"debt_id": db.query(PersonalDebt).first().id})
     execute_pending_action(db, p.id, 1)
     after = _net_tam(db)
-    # MEVCUT model: payable net_deger_tam'da yok → ödeme onu tutar kadar düşürür.
-    assert abs((before - after) - 1000.0) < 0.01
+    assert abs(after - before) < 0.01, f"borç ödemesi net-nötr olmalı: {before} -> {after}"
+
+
+def test_116_odenmemis_payable_net_degeri_dusor(db):
+    """Ödenmemiş kişisel borç net_deger_tam'ı azaltır (yükümlülük) — realist, şişkin değil."""
+    db.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=5000.0))
+    db.commit()
+    net_borcsuz = _net_tam(db)
+    db.add(PersonalDebt(user_id=1, counterparty="Efe", direction=DebtDirection.payable,
+                        amount=1000.0, is_paid=False, due_date=date(2026, 5, 15)))
+    db.commit()
+    net_borclu = _net_tam(db)
+    assert abs((net_borcsuz - net_borclu) - 1000.0) < 0.01
 
 
 def test_add_transaction_expense_net_deger_dusor(db):

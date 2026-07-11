@@ -30,6 +30,10 @@ GÜNCELLEMELER:
   edilen NAKİT KRİZİ (bakiye < 0) kritik alert olur. Sistem artık ANLIK durumu değil, GELECEK
   insolvency'yi kriz OLMADAN önce uyarıyor ("hayatta kalma > yatırım" vizyonu). Forecast kart
   döngüsünü içermez → yanlış-pozitif yok (yalnızca düzenli akış bile negatife düşerse uyarır).
+- FEAT-009 (Copilot "Safe to Spend" ilhamı): _calculate_safe_to_spend — cockpit'e `guvenli_harcama`
+  metriği. Bugün, forecast ufkunda hiçbir gün bakiye buffer altına düşmeden harcanabilecek en büyük
+  tutar = max(0, lowest_balance - buffer). Forecast'i #121 ile aynı summary'den türetir (tek hesap).
+  Kart-hariç taban; kart-ayarlı daily_limit ile birlikte okunur.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -706,36 +710,40 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
     return alerts
 
 
-def _detect_cashflow_crunch(
+def _cashflow_forecast_summary(
     user_id: int, today: date, db: Session, horizon_days: int = 90,
 ) -> Optional[Dict]:
     """
-    BUG #121 (DEVRİMSEL — İLERİYE DÖNÜK ÖDEME-GÜCÜ): generate_forecast ile önümüzdeki
-    horizon_days içinde projekte edilen NAKİT KRİZİ'ni (crunch: bakiye < 0) yakalar ve
-    kritik alert üretir. Diğer tüm alert/hatırlatmalar ANLIK/kısa-vade durumu gösterir;
-    bu, GELECEK insolvency'yi kriz OLMADAN önce uyarır — "hayatta kalma > yatırım" kök
-    vizyonunun en güçlü hali (kriz henüz önlenebilirken müdahale şansı).
-
-    Kapsam sınırı (cashflow.py): forecast kredi KARTI döngüsünü ve tek-seferlik işlemleri
-    İÇERMEZ. Bu yüzden yanlış-POZİTİF üretmez — yalnızca düzenli gelir/gider + kredi taksiti
-    + kişisel borç akışı bile sıfırın altına düşüyorsa uyarır. Kart-kaynaklı krizler ayrıca
-    #096 (son ödeme) / #027 (limit) ile uyarıldığından kapsam boşluğu güvenli tarafta kalır.
+    generate_forecast summary'sini güvenli döner (hata → None; forecast asla cockpit'i
+    düşürmesin). `today` ENJEKTE edilir → generate_cockpit'in bugünü ile TUTARLI
+    (backfill/test dahil). Hem nakit krizi (#121) hem güvenli-harcama (FEAT-009) buradan
+    türetilir — generate_cockpit forecast'i BİR KEZ hesaplar.
     """
     try:
         from app.cashflow import generate_forecast  # lazy: döngüsel import riskini sıfırla
-        # today ENJEKTE edilir → generate_cockpit'in bugünü ile TUTARLI (backfill/test dahil).
         fc = generate_forecast(db, user_id, horizon_days=horizon_days, today=today)
-    except Exception as e:  # forecast asla cockpit'i düşürmesin (savunmacı)
+    except Exception as e:
         logger.warning("nakit akış öngörüsü hesaplanamadı user_id=%s: %s", user_id, e)
         return None
+    return fc.get("summary")
 
-    s = fc.get("summary", {})
-    if s.get("crunch_count", 0) <= 0:
+
+def _crunch_alert_from_summary(
+    summary: Optional[Dict], horizon_days: int = 90,
+) -> Optional[Dict]:
+    """
+    BUG #121 (DEVRİMSEL — İLERİYE DÖNÜK ÖDEME-GÜCÜ): forecast summary'sinden projekte
+    NAKİT KRİZİ'ni (crunch: bakiye < 0) kritik alert'e çevirir. GELECEK insolvency'yi kriz
+    OLMADAN önce uyarır — "hayatta kalma > yatırım" vizyonu.
+
+    Kapsam sınırı (cashflow.py): forecast kredi KARTI döngüsünü İÇERMEZ → yanlış-POZİTİF yok
+    (yalnızca düzenli akış bile negatife düşerse uyarır; kart krizleri #096/#027 kapsar).
+    """
+    if not summary or summary.get("crunch_count", 0) <= 0:
         return None
-
-    first_crunch = s["crunch_dates"][0]
-    lowest = s.get("lowest_balance", 0.0)
-    lowest_date = s.get("lowest_date", first_crunch)
+    first_crunch = summary["crunch_dates"][0]
+    lowest = summary.get("lowest_balance", 0.0)
+    lowest_date = summary.get("lowest_date", first_crunch)
     return {
         "seviye": "kritik",
         "baslik": "Nakit krizi öngörüsü",
@@ -747,6 +755,31 @@ def _detect_cashflow_crunch(
         # grounding: projekte edilen tutar cockpit'te numerik olarak izlenebilir olsun (#120 dersi)
         "tutar": abs(lowest),
     }
+
+
+def _detect_cashflow_crunch(
+    user_id: int, today: date, db: Session, horizon_days: int = 90,
+) -> Optional[Dict]:
+    """Geriye-uyumlu sarıcı (#121 testleri bunu doğrudan çağırır)."""
+    summary = _cashflow_forecast_summary(user_id, today, db, horizon_days)
+    return _crunch_alert_from_summary(summary, horizon_days)
+
+
+def _calculate_safe_to_spend(summary: Optional[Dict], buffer: float = 0.0) -> float:
+    """
+    FEAT-009 (Copilot "Safe to Spend" ilhamı, kopya değil): BUGÜN, önümüzdeki forecast
+    ufkunda HİÇBİR günün nakit bakiyesi `buffer`'ın altına düşmeden güvenle harcanabilecek
+    EN BÜYÜK tutar. Matematik: bugün X harcamak tüm gelecek bakiyeleri X düşürür →
+    kısıt lowest_balance - X >= buffer → X <= lowest_balance - buffer.
+
+    Kapsam: forecast kredi KARTI döngüsünü İÇERMEZ (cashflow.py) → bu "kart ödemesi hariç"
+    bir TABANDIR; kart-ayarlı daily_limit (reel_butce) ile BİRLİKTE okunmalı. Düzenli akışı
+    bile negatife düşen (Murat gibi) durumda 0 döner — realist, asla iyimser değil.
+    """
+    if not summary:
+        return 0.0
+    lowest = summary.get("lowest_balance", 0.0)
+    return round(max(0.0, lowest - buffer), 2)
 
 
 def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List[Dict]:
@@ -1084,12 +1117,15 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # kaldığından ayrı DB helper'ı; kritik gecikmeler listenin başına alınır).
     overdue_alerts = _collect_overdue_debts(user_id, today, db)
     kritik_front = [a for a in overdue_alerts if a["seviye"] == "kritik"]
-    # BUG #121: ileriye dönük nakit krizi öngörüsü — kritik, gecikmelerden hemen sonra.
-    crunch_alert = _detect_cashflow_crunch(user_id, today, db)
+    # BUG #121 + FEAT-009: forecast'i BİR KEZ hesapla; hem nakit krizi alert'i hem
+    # güvenli-harcama metriğini aynı summary'den türet (çift hesaplama yok).
+    cashflow_summary = _cashflow_forecast_summary(user_id, today, db)
+    crunch_alert = _crunch_alert_from_summary(cashflow_summary)  # kritik, gecikmelerden sonra
     if crunch_alert:
         kritik_front.append(crunch_alert)
     alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"]
+    guvenli_harcama = _calculate_safe_to_spend(cashflow_summary)  # FEAT-009
 
     return {
         "date": today.isoformat(),
@@ -1108,6 +1144,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "alacaklar_toplami": alacaklar_toplami,        # Transparency (net_deger_tam'a +)
         "borclar_toplami": borclar_toplami,            # BUG #116: kişisel payable (net_deger_tam'dan −)
         "daily_limit": daily_limit,
+        "guvenli_harcama": guvenli_harcama,  # FEAT-009: kart-hariç ileriye-dönük güvenli harcama tabanı
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

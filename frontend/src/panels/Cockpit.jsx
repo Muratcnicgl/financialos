@@ -325,6 +325,25 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
+      {/* FEAT-027: alacak yaşlandırma — gecikmiş alacakları vade-yaşına göre önceliklendir */}
+      {data.alacak_yaslanma?.gecikmis_adet > 0 && (
+        <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
+          <Users className="w-4 h-4 text-warn-500 shrink-0 mt-0.5" />
+          <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
+            <div>
+              <span className="font-semibold">{data.alacak_yaslanma.gecikmis_adet} gecikmiş alacak</span>{' '}
+              <span className="font-numeric font-semibold text-warn-600 dark:text-warn-400">{formatTL(data.alacak_yaslanma.toplam_gecikmis)} TL</span>
+              <span className="text-zinc-400 dark:text-zinc-500"> / {data.alacak_yaslanma.adet} alacak</span>
+            </div>
+            {data.alacak_yaslanma.en_riskli?.length > 0 && (
+              <div className="text-zinc-400 dark:text-zinc-500 text-xs">
+                Önce kovala: {data.alacak_yaslanma.en_riskli.map((k) => `${k.kim} ${formatTL(k.tutar)} TL (${k.gecikme_gun}g)`).join(' · ')}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* FEAT-015: kart asgari-ödeme tuzağı — sadece asgari ödeme senaryosu (görünmez maliyet) */}
       {data.asgari_tuzagi?.kartlar?.length > 0 && (
         <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">

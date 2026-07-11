@@ -867,6 +867,25 @@ Statü: {cockpit['statu']}
     except Exception as e:
         logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
 
+    # ALACAK YAŞLANDIRMA (FEAT-027): 13 dağınık alacağı vade-yaşına göre gruplar → hangi
+    # alacağın peşine ÖNCE düşüleceğini netleştirir. Nakit dar; zamanında tahsilat kritik.
+    ay_ag = cockpit.get("alacak_yaslanma") or {}
+    if ay_ag.get("gecikmis_adet", 0) > 0:
+        risk_s = "; ".join(
+            f"{k['kim']} {_fmt(k['tutar'])} TL ({k['gecikme_gun']}g)"
+            for k in ay_ag.get("en_riskli", [])
+        )
+        context += (
+            f"\n\n## ALACAK YAŞLANDIRMA ({ay_ag['adet']} alacak, "
+            f"{ay_ag['gecikmis_adet']} gecikmiş = {_fmt(ay_ag['toplam_gecikmis'])} TL)\n"
+            f"  - En riskli (en çok geciken önce): {risk_s}\n"
+            f"  - Nakit dar — önce en eski gecikeni tahsil et (solvency-kritik)."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend(
+            [ay_ag["toplam"], ay_ag["toplam_gecikmis"]]
+            + [k["tutar"] for k in ay_ag.get("en_riskli", [])]
+        )
+
     # KART ASGARİ ÖDEME TUZAĞI (FEAT-015): kart SADECE asgari ödemeyle kaç ay + toplam faiz.
     # Kart %99.8 doluyken "görünmez maliyeti görünür yap" — realist koçun kritik farkındalığı.
     at = cockpit.get("asgari_tuzagi") or {}

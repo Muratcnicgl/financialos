@@ -175,11 +175,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** Account investment tipine alt-tür + fund_tracker manuel fiyat/tazelik mekanizması yeniden kullanılır. rules_engine net değere ekler. Nötr, tavsiye yok.
 - **Etki:** Orta · **Efor:** M
 
-### [FEAT-027] Alacak yaşlandırma (aging) raporu
+### [FEAT-027] Alacak yaşlandırma (aging) raporu ✅ UYGULANDI (12 Tem 2026)
 - **Değer/Fırsat:** 13 dağınık alacağı vade yaşına göre gruplar (0-30 / 31-60 / 60+ gün gecikmiş) ve toplam riski gösterir; hangi alacağın peşine düşüleceğini netleştirir.
 - **Kaynak/İlham:** Muhasebe accounts-receivable aging; alacak takibi.
 - **Nasıl (mimari):** rules_engine PersonalDebt (receivable, is_paid=False) üzerinde due_date yaşlandırması; reports çıktısı. Salt okuma.
 - **Etki:** Yüksek · **Efor:** S
+- **Durum:** `calculate_receivables_aging` (rules_engine, saf) — kovalar (öncelik: en çok geciken önce) 60+ / 31-60 / 1-30 gün gecikmiş · vadesi gelmemiş · tarihsiz (kör nokta). Boş kova atlanır; `en_riskli` = en çok geciken 3 kalem. Cockpit `alacak_yaslanma` + koç context block (grounding'e tanıtıldı, koç Kural 12 "zamanında tahsil et") + Cockpit.jsx kartı. `_collect_overdue_debts` per-kalem alert'ini GRUPLU stratejik özetle tamamlar. 7 test.
 
 ### [FEAT-028] Alacak hatırlatma mesaj taslağı
 - **Değer/Fırsat:** Vadesi gelen bir alacak için gönderilmeye hazır nazik hatırlatma mesajı taslar ("Efe, geçen ay konuştuğumuz 2.500 TL..."). Tahsilatın sosyal sürtünmesini azaltır.

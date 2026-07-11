@@ -1320,6 +1320,78 @@ def calculate_envelopes(user_id: int, today: date, db: Session) -> Dict:
     }
 
 
+# FEAT-027: alacak yaşlandırma kova sınırları (gün, gecikme). Muhasebe AR-aging standardı.
+_AGING_BUCKETS = (
+    (61, "60+ gün gecikmiş"),
+    (31, "31-60 gün gecikmiş"),
+    (1, "1-30 gün gecikmiş"),
+)
+
+
+def calculate_receivables_aging(user_id: int, today: date, db: Session) -> Optional[Dict]:
+    """
+    FEAT-027 (alacak yaşlandırma / AR aging): ödenmemiş alacakları (Murat'ın 13 dağınık
+    alacağı) vade yaşına göre gruplar — hangi alacağın peşine ÖNCE düşüleceğini netleştirir.
+    Nakit dar; zamanında tahsilat solvency-kritik (koç Kural 12). Salt okuma.
+
+    Kovalar (öncelik: en çok geciken önce): 60+ / 31-60 / 1-30 gün gecikmiş · vadesi
+    gelmemiş · tarihsiz. Boş kova atlanır. `en_riskli` = en çok geciken 3 kalem. Alacak
+    yoksa None. Gecikme = (today - due_date).gün; due_date None → "tarihsiz" (kör nokta).
+    """
+    debts = db.query(PersonalDebt).filter(
+        PersonalDebt.user_id == user_id,
+        PersonalDebt.direction == DebtDirection.receivable,
+        PersonalDebt.is_paid == False,  # noqa: E712
+    ).all()
+    if not debts:
+        return None
+
+    # etiket → kalem listesi (sıralı kova düzenini korumak için ayrı ordered anahtar listesi)
+    _order = [lbl for _, lbl in _AGING_BUCKETS] + ["vadesi gelmemiş", "tarihsiz"]
+    kova_map: Dict[str, List[Dict]] = {lbl: [] for lbl in _order}
+    gecikmis_kalemler: List[Dict] = []
+
+    for d in debts:
+        if d.due_date is None:
+            etiket, gecikme = "tarihsiz", 0
+        else:
+            gecikme = (today - d.due_date).days
+            if gecikme >= 1:
+                etiket = next(lbl for gun, lbl in _AGING_BUCKETS if gecikme >= gun)
+            else:
+                etiket = "vadesi gelmemiş"
+        kalem = {
+            "kim": d.counterparty,
+            "tutar": round(float(d.amount), 2),
+            "gecikme_gun": gecikme,
+            "due_date": d.due_date.isoformat() if d.due_date else None,
+            "aciklama": d.description or "",
+        }
+        kova_map[etiket].append(kalem)
+        if gecikme >= 1:
+            gecikmis_kalemler.append(kalem)
+
+    kovalar = [
+        {
+            "etiket": lbl,
+            "adet": len(kova_map[lbl]),
+            "tutar": round(sum(k["tutar"] for k in kova_map[lbl]), 2),
+            "kalemler": sorted(kova_map[lbl], key=lambda k: -k["gecikme_gun"]),
+        }
+        for lbl in _order if kova_map[lbl]
+    ]
+    toplam = round(sum(float(d.amount) for d in debts), 2)
+    toplam_gecikmis = round(sum(k["tutar"] for k in gecikmis_kalemler), 2)
+    return {
+        "toplam": toplam,
+        "adet": len(debts),
+        "toplam_gecikmis": toplam_gecikmis,
+        "gecikmis_adet": len(gecikmis_kalemler),
+        "kovalar": kovalar,
+        "en_riskli": sorted(gecikmis_kalemler, key=lambda k: -k["gecikme_gun"])[:3],
+    }
+
+
 def calculate_interest_leak(user_id: int, db: Session) -> Dict:
     """
     FEAT-013 (faiz sızıntısı sayacı): kredi + kart borçlarının AYLIK faiz maliyeti. Murat'ın
@@ -1679,6 +1751,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     _zarf_taahhut = sum(max(0.0, z["kalan"]) for z in zarflar_durumu["zarflar"])
     atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
     faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
+    alacak_yaslanma = calculate_receivables_aging(user_id, today, db)  # FEAT-027
     # FEAT-022: finansal sağlık skoru (şeffaf composite)
     _aylik_gelir = float(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
         RecurringIncome.user_id == user_id, RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
@@ -1732,6 +1805,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "zarflar": zarflar_durumu,  # FEAT-001: kategori bütçe zarfları durumu
         "atanmamis_nakit": atanmamis_nakit,  # FEAT-002: zarflara taahhüt edilmemiş "boşta" nakit
         "faiz_sizintisi": faiz_sizintisi,  # FEAT-013: aylık/yıllık faiz maliyeti (kredi+kart)
+        "alacak_yaslanma": alacak_yaslanma,  # FEAT-027: alacakların vade-yaşı grupları (None=alacak yok)
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru
         "borc_ozgurluk": borc_ozgurluk,  # FEAT-012: borçsuz olma tarihi + kalan faiz (None=borç yok)
         "asgari_tuzagi": asgari_tuzagi,  # FEAT-015: kart asgari-ödemeyle kaç ay + toplam faiz (None=kart yok)

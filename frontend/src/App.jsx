@@ -215,6 +215,11 @@ function AppContent() {
 
       <footer className="flex-shrink-0 max-w-6xl mx-auto px-4 py-3 text-center text-xs text-zinc-500">
         FinancialOS · 160 IQ stratejist finansal koç · v0.1.0
+        {' · '}
+        <a href="/api/user/export" download="financialos-verim.json"
+           className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
+          Verimi indir
+        </a>
       </footer>
 
       {showPalette && (

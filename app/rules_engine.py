@@ -343,6 +343,11 @@ def simulate_partial_sale(
     Returns:
         satis_tutari, kalan_lot, kalan_deger, satis_maliyeti, brut_kar, stopaj, net_kar
     """
+    # RULE-008: giriş doğrulaması — negatif/sıfır lot, negatif fiyat/maliyet nonsense üretir.
+    if lots_to_sell <= 0:
+        raise ValueError(f"Satılacak lot pozitif olmalı (verilen: {lots_to_sell}).")
+    if current_price < 0 or cost_per_lot < 0:
+        raise ValueError(f"Fiyat/maliyet negatif olamaz (fiyat={current_price}, maliyet={cost_per_lot}).")
     if lots_to_sell > lot_count:
         raise ValueError(f"Satılacak lot ({lots_to_sell}) mevcut lottan ({lot_count}) fazla.")
 

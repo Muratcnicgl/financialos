@@ -7,10 +7,10 @@ import {
 } from 'lucide-react';
 import {
   incomesApi, expensesApi, debtsApi, accountsApi,
-  formatTL, formatDate,
+  formatTL, formatDate, todayLocalISO, currentYearMonthLocal,
 } from '../api.js';
 
-const CURRENT_YEAR_MONTH = new Date().toISOString().slice(0, 7); // "2026-05"
+const CURRENT_YEAR_MONTH = currentYearMonthLocal(); // "2026-05" — LOCAL (gece vardiyası TZ güvenliği)
 const EXPENSE_CATEGORIES = ['abonelik', 'fatura', 'kira', 'sigorta', 'internet', 'telefon', 'diger'];
 
 /**
@@ -147,7 +147,7 @@ export default function IncomeDebt() {
   const handleMarkPaid = async (debt) => {
     await debtsApi.update(debt.id, {
       is_paid: true,
-      paid_date: new Date().toISOString().slice(0, 10),
+      paid_date: todayLocalISO(),
     });
     handleRefresh();
   };
@@ -862,7 +862,7 @@ function DebtFormModal({ debt, onClose, onSave }) {
         description: description.trim() || null,
         due_date: dueDate || null,
         is_paid: isPaid,
-        paid_date: isPaid ? (paidDate || new Date().toISOString().slice(0, 10)) : null,
+        paid_date: isPaid ? (paidDate || todayLocalISO()) : null,
       }, isNew);
     } catch (e) {
       setError(e.message);
@@ -952,7 +952,7 @@ function DebtFormModal({ debt, onClose, onSave }) {
             <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ödeme tarihi</label>
             <input
               type="date"
-              value={paidDate || new Date().toISOString().slice(0, 10)}
+              value={paidDate || todayLocalISO()}
               onChange={(e) => setPaidDate(e.target.value)}
               className="input"
             />

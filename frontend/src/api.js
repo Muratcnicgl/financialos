@@ -173,7 +173,7 @@ export const debtsApi = {
   // 'Odendi' kisayolu — paid_date set ederek
   markPaid: (id, date = null) => request(`/api/debts/${id}`, {
     method: 'PUT',
-    body: { paid_date: date || new Date().toISOString().slice(0, 10) },
+    body: { paid_date: date || todayLocalISO() },
   }),
 };
 
@@ -413,4 +413,23 @@ export function signClass(value) {
   return value > 0
     ? 'text-positive-600 dark:text-positive-400'
     : 'text-negative-600 dark:text-negative-400';
+}
+
+/**
+ * Bugünün LOCAL tarihi "YYYY-MM-DD".
+ * `new Date().toISOString().slice(0,10)` UTC tarihi verir → Türkiye'de (+3) gece
+ * 00:00-03:00 arası BİR GÜN GERİ kayar. Murat gece vardiyası çalıştığından geç saatte
+ * girilen paid_date/transaction_date bir gün önceye kaydolabiliyordu — bu onu düzeltir.
+ */
+export function todayLocalISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Bugünün LOCAL yıl-ayı "YYYY-MM" (aynı saat-dilimi güvenliği). */
+export function currentYearMonthLocal() {
+  return todayLocalISO().slice(0, 7);
 }

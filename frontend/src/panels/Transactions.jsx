@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   transactionsApi, accountsApi,
-  formatTL, formatDate, signClass,
+  formatTL, formatDate, signClass, todayLocalISO,
 } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
 
@@ -504,7 +504,7 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
   const [description, setDescription] = useState(txn?.description || '');
   const [accountId, setAccountId] = useState(txn?.account_id?.toString() || '');
   const [transactionDate, setTransactionDate] = useState(
-    txn?.transaction_date || new Date().toISOString().slice(0, 10)
+    txn?.transaction_date || todayLocalISO()
   );
   const [isCardExpense, setIsCardExpense] = useState(txn?.is_card_expense || false);
 

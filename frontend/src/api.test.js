@@ -4,8 +4,11 @@
  * her panelde kullanılıyor ama test edilmemişti. formatDate saat-dilimi sağlamlığı
  * (date-only string bir gün kaymamalı) özellikle PROJE.md'nin uyardığı bug sınıfı.
  */
-import { describe, it, expect } from 'vitest';
-import { formatTL, formatTLSuffix, formatPercent, formatDate, signClass } from './api.js';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import {
+  formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
+  todayLocalISO, currentYearMonthLocal,
+} from './api.js';
 
 describe('formatTL', () => {
   it('TR formatı: nokta binlik, virgül ondalık', () => {
@@ -74,5 +77,26 @@ describe('signClass', () => {
     expect(signClass(0)).toContain('zinc');
     expect(signClass(null)).toContain('zinc');
     expect(signClass(NaN)).toContain('zinc');
+  });
+});
+
+describe('todayLocalISO / currentYearMonthLocal — gece vardiyası TZ güvenliği', () => {
+  const origTZ = process.env.TZ;
+  afterEach(() => { vi.useRealTimers(); process.env.TZ = origTZ; });
+
+  it('Türkiye gece 01:30 (UTC 22:30 önceki gün) → LOCAL bugünü döner, geri KAYMAZ', () => {
+    process.env.TZ = 'Europe/Istanbul';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-11T22:30:00Z'));  // 01:30 May 12 Istanbul
+    expect(todayLocalISO()).toBe('2026-05-12');
+    // Eski (buggy) UTC yaklaşımı yanlış günü verirdi — regresyon kanıtı:
+    expect(new Date().toISOString().slice(0, 10)).toBe('2026-05-11');
+  });
+
+  it('ay sınırında currentYearMonthLocal LOCAL ayı döner', () => {
+    process.env.TZ = 'Europe/Istanbul';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-31T22:30:00Z'));  // 01:30 Jun 1 Istanbul
+    expect(currentYearMonthLocal()).toBe('2026-06');
   });
 });

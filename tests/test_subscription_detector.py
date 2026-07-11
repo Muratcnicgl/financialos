@@ -130,6 +130,21 @@ def test_ozet_toplamlar(db):
 # HTTP endpoint — GET /api/subscriptions
 # ============================================================
 
+def test_cockpit_abonelik_yuku(db):
+    """FEAT-006: generate_cockpit toplam abonelik yükünü (aylık/yıllık/adet) sunar."""
+    from app.rules_engine import generate_cockpit
+    from app.models import Account, AccountType
+    _monthly_series(db, "Netflix", 59.99, n=3)
+    _monthly_series(db, "Spotify", 49.99, n=3)
+    db.add(Account(user_id=1, name="E", account_type=AccountType.cash, balance=1000.0))
+    db.commit()
+    cockpit = generate_cockpit(1, TODAY, db)
+    yuku = cockpit["abonelik_yuku"]
+    assert yuku["adet"] == 2
+    assert yuku["aylik"] == round(59.99 + 49.99, 2)
+    assert yuku["yillik"] == round((59.99 + 49.99) * 12, 2)
+
+
 def test_subscriptions_endpoint():
     """Endpoint 200 + tespit edilen abonelik + özet döner (bugüne göreli tarihler)."""
     from fastapi.testclient import TestClient

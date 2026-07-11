@@ -1172,14 +1172,11 @@ def detect_subscriptions(
     }
 
 
-def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[Dict]:
-    """
-    FEAT-007 (Rocket Money price-creep alert ilhamı): tespit edilen aboneliklerde tutar
-    ARTMIŞSA sessiz zam uyarısı üretir (salt görünürlük, uyarı seviyesi). Yalnızca artış
-    (yeni > eski) uyarılır — düşüş değil. detect_subscriptions'ı yeniden kullanır.
-    """
+def _subscription_price_alerts_from_result(sub_result: Dict) -> List[Dict]:
+    """FEAT-007: detect_subscriptions SONUCUNDAN sessiz zam uyarılarını türetir (saf).
+    Yalnızca artış (yeni > eski) uyarılır — düşüş değil."""
     alerts: List[Dict] = []
-    for s in detect_subscriptions(user_id, today, db)["abonelikler"]:
+    for s in sub_result.get("abonelikler", []):
         eski = s.get("eski_tutar", 0.0)
         yeni = s.get("yeni_tutar", 0.0)
         if s.get("fiyat_degisti") and yeni > eski > 0:
@@ -1194,6 +1191,11 @@ def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[D
                 "tutar": yeni,  # grounding: yeni tutar cockpit'te izlenebilir
             })
     return alerts
+
+
+def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[Dict]:
+    """Geriye-uyumlu sarıcı (mevcut testler bunu doğrudan çağırır)."""
+    return _subscription_price_alerts_from_result(detect_subscriptions(user_id, today, db))
 
 
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
@@ -1355,9 +1357,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     crunch_alert = _crunch_alert_from_summary(cashflow_summary)  # kritik, gecikmelerden sonra
     if crunch_alert:
         kritik_front.append(crunch_alert)
-    # FEAT-007 abonelik zammı + FEAT-005 kategori aşım öngörüsü (uyarı) — kritik olmayan kuyruk.
-    sub_price_alerts = _subscription_price_alerts(user_id, today, db)
-    overspend_alerts = _category_overspend_alerts(user_id, today, db)
+    # FEAT-006/007: abonelikleri BİR KEZ tespit et → hem zam uyarıları hem toplam yük.
+    sub_result = detect_subscriptions(user_id, today, db)
+    sub_price_alerts = _subscription_price_alerts_from_result(sub_result)  # FEAT-007
+    overspend_alerts = _category_overspend_alerts(user_id, today, db)      # FEAT-005
     alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts + overspend_alerts
     # #125: KARARLI önem sıralaması — tüm 'kritik' kalemler tüm 'uyari'lardan önce (iç sıra korunur).
@@ -1386,6 +1389,11 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "daily_limit": daily_limit,
         "guvenli_harcama": guvenli_harcama,  # FEAT-009: kart-hariç ileriye-dönük güvenli harcama tabanı
         "nakit_runway_gun": nakit_runway_gun,  # FEAT-010: gelirsiz nakit kaç gün yeter (None=belirsiz)
+        "abonelik_yuku": {  # FEAT-006: aylık/yıllık toplam abonelik yükü (Rocket Money headline)
+            "aylik": sub_result["aylik_toplam"],
+            "yillik": sub_result["yillik_toplam"],
+            "adet": sub_result["adet"],
+        },
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

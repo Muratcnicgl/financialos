@@ -861,6 +861,16 @@ Statü: {cockpit['statu']}
     except Exception as e:
         logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
 
+    # ABONELİK YÜKÜ (FEAT-006): tespit edilen tekrarlayan aboneliklerin aylık/yıllık toplamı.
+    ay = cockpit.get("abonelik_yuku") or {}
+    if ay.get("adet", 0) > 0:
+        context += (
+            f"\n\n## ABONELİK YÜKÜ ({ay['adet']} tespit edildi)\n"
+            f"  - Aylık {_fmt(ay['aylik'])} TL · Yıllık {_fmt(ay['yillik'])} TL "
+            f"(kullanılmayan varsa iptal fırsatı — nakit dar)"
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend([ay["aylik"], ay["yillik"]])
+
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
     # Wave-1 enjeksiyonu (is_active + priority enum + created_at) deprecated.

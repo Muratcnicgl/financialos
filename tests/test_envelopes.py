@@ -156,3 +156,20 @@ def test_feat002_zarf_yoksa_tum_nakit(db):
     db.commit()
     c = generate_cockpit(1, TODAY, db)
     assert c["atanmamis_nakit"] == 5000.0    # zarf yok → tüm nakit boşta
+
+
+def test_zarf_koc_contextine_duser(db):
+    """FEAT-001/002 koç entegrasyonu: zarf varsa context'te BÜTÇE ZARFLARI + atanmamış nakit."""
+    from app.coach import _build_context_message
+    from app.models import Account, AccountType
+    from datetime import date as _date, timedelta
+    db.add(Account(user_id=1, name="E", account_type=AccountType.cash, balance=3000.0))
+    today = _date.today()
+    _env(db, "market", 2000)
+    # bu ayın harcaması (context date.today() kullanır)
+    db.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=500.0,
+                       category="market", transaction_date=today))
+    db.commit()
+    context, _ = _build_context_message(db, 1)
+    assert "BÜTÇE ZARFLARI" in context
+    assert "Atanmamış" in context

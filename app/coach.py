@@ -862,6 +862,22 @@ Statü: {cockpit['statu']}
     except Exception as e:
         logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
 
+    # BÜTÇE ZARFLARI (FEAT-001/002): zarf durumu + atanmamış nakit ("Ready to Assign").
+    zd = cockpit.get("zarflar") or {}
+    if zd.get("zarflar"):
+        asan = [z for z in zd["zarflar"] if z.get("asildi")]
+        asan_s = (" · AŞAN: " + ", ".join(f"{z['category']} ({_fmt(z['harcanan'])}/{_fmt(z['butce'])})" for z in asan[:3])) if asan else ""
+        context += (
+            f"\n\n## BÜTÇE ZARFLARI\n"
+            f"  - Toplam bütçe {_fmt(zd['toplam_butce'])} TL, harcanan {_fmt(zd['toplam_harcanan'])} TL, "
+            f"kalan {_fmt(zd['toplam_kalan'])} TL{asan_s}\n"
+            f"  - Atanmamış (boşta) nakit: {_fmt(cockpit.get('atanmamis_nakit', 0))} TL "
+            f"(YNAB 'her liraya görev' — atanmamış para kolay harcanır)"
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend(
+            [zd["toplam_butce"], zd["toplam_harcanan"], zd["toplam_kalan"], cockpit.get("atanmamis_nakit", 0)]
+        )
+
     # ABONELİK YÜKÜ (FEAT-006): tespit edilen tekrarlayan aboneliklerin aylık/yıllık toplamı.
     ay = cockpit.get("abonelik_yuku") or {}
     if ay.get("adet", 0) > 0:

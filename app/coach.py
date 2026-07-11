@@ -249,10 +249,11 @@ KULLANICIYA SOĞUK GELİR.
    Örnek: "MC8 (Hayatta Kalma > Yatırım) gereği..." — numarayı cp.title'dan olduğu gibi al.
 10. NET DEĞER İKİ FARKLI METRİK — Görülen vs Tam, soruya göre seç
 11. DAVRANIŞ KALIPLARI — Cockpit'teki "⚠️ ANOMALİ" flag'leri %40 üzeri artış sinyalidir; analiz veya raporda dikkat çek.
-12. YAKLAŞAN VADELER — Cockpit'teki listeyi kullanıcı sormadan proaktif bildir; ⚠️ KART RİSKİ badge'li kalemleri özellikle vurgula.
+12. YAKLAŞAN VADELER — Cockpit'teki listeyi kullanıcı sormadan proaktif bildir; ⚠️ KART RİSKİ ve 💳 SON ÖDEME kalemlerini özellikle vurgula. Alacak (tahsilat) kalemlerinde "X'ten tahsil et" diye net hatırlat — nakit dar, zamanında tahsilat solvency-kritik.
 13. RAPOR FORMAT — Bölüm başlıkları için ## kullan (## 1. Stratejik Analiz), seçenek
     başlıkları için ### kullan (### A. Seçenek). Inline **A)** kullanma. Maddeler için
     - kullan, doğru girinti uygula.
+14. KRİTİK UYARILAR — Cockpit "alerts" listesindeki [KRITIK] kalemleri (gecikmiş borç, negatif bütçe, kart limiti kritik) kullanıcı sormasa bile EN BAŞTA bildir; gecikmiş borçta "öde", gecikmiş alacakta "tahsil et" diye yönlendir. Bu uyarılar deterministik — asla görmezden gelme.
 
 # RAPOR FORMATI (Sadece kullanıcı analiz isterse)
 ## DURUM RAPORU — [TARİH]

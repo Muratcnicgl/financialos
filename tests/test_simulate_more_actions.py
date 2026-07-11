@@ -115,3 +115,25 @@ def test_sim_desteklenmeyen_aksiyon(db):
     res = simulate_action(db, 1, "teleport_money", {},
                           horizons_days=(0,), base_date=BASE)
     assert res["ok"] is False
+
+
+def test_sim_projeksiyonda_payable_vadesinde_nakitten_duser(db):
+    """
+    İleri projeksiyon (T+30): vadesi ufuk içinde olan ÖDENMEMİŞ borç, nakitten düşülür
+    (branch 427-428 — sınır testinde alacak kolu vardı, borç kolu yoktu; işaret kilidi).
+    """
+    from datetime import timedelta
+    cash = _cash(db, 10000.0)
+    due = BASE + timedelta(days=15)   # T+30 ufku içinde
+    d = PersonalDebt(user_id=1, counterparty="Kirveci", direction=DebtDirection.payable,
+                     amount=3000.0, is_paid=False, due_date=due)
+    db.add(d); db.commit(); db.refresh(d)
+
+    # T+0'da nakdi sabitle (aksiyon etkisi izole), sonra T+30'a projekte et.
+    res = simulate_action(db, 1, "update_account_balance",
+                          {"account_id": cash.id, "new_balance": 10000.0},
+                          horizons_days=(0, 30), base_date=BASE)
+    assert res["ok"] is True
+    t0, t30 = res["snapshots"][0], res["snapshots"][1]
+    assert t0["nakit_kasa"] == 10000.0
+    assert t30["nakit_kasa"] == 7000.0    # borç vadesinde düştü

@@ -1577,7 +1577,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # Statü cümlesi
     if reel_butce < 0:
         statu = "Reel bütçe negatif — kart borcu nakdi aşıyor. Hayatta kalma modu."
-    elif kart_borcu / max(nakit, 1) > 2:
+    elif nakit > 0 and kart_borcu / nakit > 2:  # RULE-009: max(nakit,1) çarpıtması yerine nakit>0 guard
         statu = "Kart borcu nakdin iki katından fazla. Likidite baskısı yüksek."
     elif daily_limit < 100:
         statu = f"Ay sonuna {days_remaining} gün, günlük limit {daily_limit:.0f} TL. Sıkı dönem."

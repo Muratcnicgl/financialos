@@ -715,6 +715,7 @@ Statü: {cockpit['statu']}
   - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
   - Bugün harcamazsan : yarınki limit {_fmt(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))} TL/gün (zikzak: biriken güç)
   - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (FEAT-009: 90 gün öngörü tabanı, KART HARİÇ — gelecekteki yükümlülükler düşülünce bugün gerçekten güvenle harcanabilir)
+  - Nakit runway      : {cockpit.get('nakit_runway_gun') if cockpit.get('nakit_runway_gun') is not None else '—'} gün (gelirsiz mevcut nakit son 30g harcama hızıyla kaç gün yeter)
 
 ## Hesaplar
 {accounts_text}

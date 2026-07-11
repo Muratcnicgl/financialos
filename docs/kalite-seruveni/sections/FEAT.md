@@ -71,11 +71,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Yüksek · **Efor:** M
 - **Durum:** `_calculate_safe_to_spend` (rules_engine) — `guvenli_harcama = max(0, lowest_forecast_balance - buffer)`; #121 forecast summary'sinden paylaşımlı (tek hesap). Cockpit kutusu + koç context'i + 8 test. Kapsam notu: kart döngüsü hariç (kart-ayarlı daily_limit ile birlikte okunur). Bağımlı: BUG #121 (ileriye dönük nakit krizi).
 
-### [FEAT-010] Nakit runway (kaç gün dayanır)
+### [FEAT-010] Nakit runway (kaç gün dayanır) ✅ UYGULANDI (11 Tem 2026)
 - **Değer/Fırsat:** "Hiç gelir gelmezse mevcut nakit kaç gün yeter" göstergesi; belirsizlik/işsizlik kaygısını somut sayıya indirger.
 - **Kaynak/İlham:** Maybe Finance / startup runway kavramı.
 - **Nasıl (mimari):** cashflow'da ortalama günlük net çıkış × mevcut likit bakiye; Cockpit metriği. Salt hesap.
 - **Etki:** Orta · **Efor:** S
+- **Durum:** `_calculate_cash_runway` — `nakit_runway_gun = nakit / (son 30g gider / 30)`; nakit çağırandan (re-query yok), gider yoksa None. Cockpit kutusu (Clock, <30g kırmızı) + koç context. 5 test. İleriye-dönük solvency üçlüsünü (#121 kriz + FEAT-009 safe-to-spend + FEAT-010 runway) tamamlar.
 
 ### [FEAT-011] Maaş-öncesi tükeniş erken uyarısı
 - **Değer/Fırsat:** Mevcut harcama hızıyla bir sonraki maaştan önce bakiyenin sıfırın altına ineceği günü önceden bildirir ve kaç TL kısılması gerektiğini söyler.

@@ -40,6 +40,8 @@ GÜNCELLEMELER:
 - FEAT-005 (Copilot/YNAB projected spending): _category_overspend_alerts — ay-içi harcama hızıyla
   her giderin ay-sonu projeksiyonu geçen ayı belirgin aşacaksa erken uyarı (envelope bütçe gerekmez,
   geçen ay yumuşak referans). Ay başında (< 5 gün) gürültü nedeniyle atlanır. Top-2 → cockpit alerts.
+- FEAT-010 (startup runway kavramı): _calculate_cash_runway — cockpit'e `nakit_runway_gun`: mevcut
+  nakit, son 30g harcama hızıyla gelirsiz kaç gün yeter (nakit / günlük burn). None = belirsiz.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -798,6 +800,32 @@ def _calculate_safe_to_spend(summary: Optional[Dict], buffer: float = 0.0) -> fl
     return round(max(0.0, lowest - buffer), 2)
 
 
+def _calculate_cash_runway(
+    user_id: int, today: date, db: Session, nakit: float, window_days: int = 30,
+) -> Optional[int]:
+    """
+    FEAT-010 (startup "runway" kavramı): mevcut likit nakit, son window_days harcama hızıyla
+    HİÇ gelir gelmezse kaç GÜN yeter. runway = nakit / (son N gün gider / N). Belirsizlik/
+    işsizlik kaygısını somut sayıya indirger. Salt hesap; `nakit` çağırandan gelir (re-query yok).
+
+    Dönüş: gün sayısı (int); nakit ≤ 0 → 0; son dönemde hiç gider yoksa → None (belirsiz/sonsuz).
+    """
+    if nakit <= 0:
+        return 0
+    start = today - timedelta(days=window_days)
+    spent = db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_type == TransactionType.expense,
+        Transaction.transaction_date >= start,
+        Transaction.transaction_date <= today,
+    ).scalar() or 0.0
+    spent = float(spent)
+    if spent <= 0:
+        return None
+    daily_burn = spent / window_days
+    return int(nakit / daily_burn)
+
+
 def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List[Dict]:
     """
     Son 30 gün vs önceki 30 günlük gider kalıplarını hesaplar.
@@ -1318,6 +1346,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts + overspend_alerts
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary)  # FEAT-009
+    nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
 
     return {
         "date": today.isoformat(),
@@ -1337,6 +1366,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "borclar_toplami": borclar_toplami,            # BUG #116: kişisel payable (net_deger_tam'dan −)
         "daily_limit": daily_limit,
         "guvenli_harcama": guvenli_harcama,  # FEAT-009: kart-hariç ileriye-dönük güvenli harcama tabanı
+        "nakit_runway_gun": nakit_runway_gun,  # FEAT-010: gelirsiz nakit kaç gün yeter (None=belirsiz)
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

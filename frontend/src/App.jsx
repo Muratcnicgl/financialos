@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target,
+  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank,
 } from 'lucide-react';
 import { healthApi } from './api.js';
 import { ToastProvider } from './components/Toast.jsx';
@@ -18,6 +18,7 @@ import Reports from './panels/Reports.jsx';
 import Cashflow from './panels/Cashflow.jsx';
 import DebtStrategy from './panels/DebtStrategy.jsx';
 import Goals from './panels/Goals.jsx';
+import Budget from './panels/Budget.jsx';
 
 const TABS = [
   { id: 'cockpit',     label: 'Cockpit',         icon: Activity      },
@@ -30,6 +31,7 @@ const TABS = [
   { id: 'cashflow',    label: 'Akış',             icon: Waves        },
   { id: 'debtstrategy', label: 'Borç Stratejisi', icon: CreditCard  },
   { id: 'goals',        label: 'Hedefler',        icon: Target      },
+  { id: 'budget',       label: 'Bütçe',           icon: PiggyBank   },
 ];
 
 function useTheme() {
@@ -207,6 +209,7 @@ function AppContent() {
           {activeTab === 'cashflow' && <Cashflow />}
           {activeTab === 'debtstrategy' && <DebtStrategy />}
           {activeTab === 'goals' && <Goals />}
+          {activeTab === 'budget' && <Budget />}
         </div>
       </main>
 

@@ -162,6 +162,17 @@ export const expensesApi = {
 };
 
 // =============================================================
+// ENVELOPES — kategori bütçe zarfları (FEAT-001)
+// =============================================================
+
+export const envelopesApi = {
+  list:   () => request('/api/envelopes'),                        // {envelopes, durum}
+  create: (data) => request('/api/envelopes', { method: 'POST', body: data }),
+  update: (id, data) => request(`/api/envelopes/${id}`, { method: 'PUT', body: data }),
+  delete: (id) => request(`/api/envelopes/${id}`, { method: 'DELETE' }),
+};
+
+// =============================================================
 // DEBTS (4)
 // =============================================================
 

@@ -9,6 +9,11 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #127 fix (STEP-E retry açığı): Zayıf sağlayıcı gerçekleşmiş eylemi düz metinle
+  onaylayıp propose_action'ı unutabiliyordu (cevap ne boş ne sahte-niyet → eski koşul
+  retry'ı kaçırıyordu; eval'de 2/8 action senaryosu böyle düşüyordu). Retry tetikleyicisine
+  has_realized_action(user_message) eklendi → mesajda açık gerçekleşmiş-eylem fiili varsa
+  (aldım/ödedim/harcadım) propose zorlanır. Nötr cümlede uydurma riski YOK (fiil guard'ı).
 - BUG #095 fix (KURAL SIFIR sağlamlaştırma): propose_action ön-filtresi genişletildi.
   is_question artık analiz fiillerini de (değerlendir/özetle/yorumla/karşılaştır/göster/
   hesapla) yakalar; ayrı should_offer_propose_tool gelecek-zaman/niyet ifadesinde
@@ -2060,10 +2065,18 @@ class CoachEngine:
             # BUG #095: retry SADECE propose_action sunulması gereken durumda zorlanır.
             # Gelecek/niyet ifadesinde (offer_propose=False) zorla propose_action = uydurma
             # eylem riski (KURAL SIFIR ihlali) — bu yüzden `and offer_propose` guard'ı.
+            # BUG #127 fix: Zayıf sağlayıcı (gpt-oss/gemini) gerçekleşmiş eylemi DÜZ METİNLE
+            # onaylayıp propose_action'ı UNUTABİLİR (eval'de 2/8 action senaryosu böyle düştü).
+            # Bu durumda cevap ne boş ne sahte-niyet — eski koşul retry'ı KAÇIRIYORDU. Mesajda
+            # AÇIK gerçekleşmiş-eylem fiili (aldım/ödedim/harcadım...) varsa retry'ı ayrıca tetikle.
+            # has_realized_action guard'ı sayesinde nötr cümlede ("hava güzel") uydurma riski YOK.
+            _orig_empty_or_fake = (
+                not (llm_response.text or "").strip()
+                or bool(_FAKE_NIYET_RE.search(llm_response.text or ""))
+            )
             if (not proposed_actions and not account_unclear and not date_unclear
                     and offer_propose
-                    and (not (llm_response.text or "").strip()
-                         or _FAKE_NIYET_RE.search(llm_response.text or ""))):
+                    and (_orig_empty_or_fake or has_realized_action(user_message))):
                 logger.warning(f"BUG #045/#043 retry tetiklendi: {user_message!r}")
                 try:
                     retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
@@ -2116,7 +2129,11 @@ class CoachEngine:
                     if retry_actions:
                         proposed_actions = retry_actions
                         llm_response = retry_response
-                    elif not account_unclear:
+                    elif not account_unclear and _orig_empty_or_fake:
+                        # BUG #127: Generic "hazırlanamadı" yönlendirmesini SADECE orijinal cevap
+                        # boş/sahte-niyet iken yaz. has_realized_action ile tetiklenip orijinal
+                        # metin substantif ise onu KORU → aşağıdaki _postprocess_report sahte-
+                        # tamamlama temizliği + hesap-belirsiz clarify akışı doğru mesajı üretsin.
                         llm_response.text = (
                             "Aksiyon hazırlanamadı. Mesajını biraz farklı şekilde tekrar gönder, "
                             "örneğin: '240 TL yemek kart'."

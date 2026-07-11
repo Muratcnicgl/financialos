@@ -286,6 +286,48 @@ def test_bos_cevap_retry_ile_propose_uretir(db):
     assert "[RETRY" in prov.systems[1]                   # 2. çağrı retry prompt'u aldı
 
 
+def test_gerceklesmis_eylem_duz_metinle_gecistirilirse_retry(db):
+    """
+    BUG #127: Zayıf sağlayıcı gerçekleşmiş eylemi DÜZ (boş değil, sahte-niyet değil) METİNLE
+    onaylayıp propose_action'ı UNUTUR. Eski koşul (boş VEYA sahte-niyet) retry'ı kaçırıyordu.
+    Mesajda açık gerçekleşmiş-eylem fiili ("aldım") olduğu için retry ZORLANMALI → pending oluşur.
+    """
+    session, u = db
+    cash = session.query(Account).filter_by(
+        user_id=u.id, account_type=AccountType.cash).first()
+    propose_tc = {
+        "name": "propose_action",
+        "input": {
+            "action_type": "add_transaction",
+            "payload": {"amount": 240, "transaction_type": "expense",
+                        "account_id": cash.id, "category": "market"},
+            "summary": "240 TL market",
+        },
+    }
+    # 1. çağrı: substantif ama tool YOK (ne boş ne sahte-niyet ne sahte-tamamlama)
+    prov = SequencedProvider([
+        ("Market alışverişi bütçende dikkat edilecek bir kalem.", []),
+        ("240 TL market kaydediyorum.", [propose_tc]),
+    ])
+    res = CoachEngine(provider=prov).chat(session, u.id, "240 TL market aldım kartla", include_cockpit=False)
+    assert prov.calls == 2                               # BUG #127: retry düz-metinde de tetiklendi
+    assert len(res["proposed_actions"]) == 1
+    assert "[RETRY" in prov.systems[1]
+
+
+def test_notr_cumlede_duz_metin_retry_tetiklemez(db):
+    """
+    BUG #127 güvenlik yüzü: gerçekleşmiş-eylem fiili YOKSA düz metin retry TETİKLEMEZ —
+    aksi halde nötr cümleye ("bugün yorgunum") uydurma aksiyon riski doğardı. offer_propose
+    True olsa bile (soru/gelecek değil) fiil guard'ı sayesinde tek çağrı kalır.
+    """
+    session, u = db
+    prov = SequencedProvider([("Anladım, dinlenmeye çalış.", [])])
+    res = CoachEngine(provider=prov).chat(session, u.id, "Bugün çok yorgunum", include_cockpit=False)
+    assert prov.calls == 1                               # retry YOK
+    assert res["proposed_actions"] == []
+
+
 def test_retry_de_bos_kalirsa_yonlendirme_mesaji(db):
     """Hem 1. hem 2. çağrı boş → pending yok → 'Aksiyon hazırlanamadı' yönlendirmesi."""
     session, u = db

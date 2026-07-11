@@ -170,6 +170,30 @@ def test_hesap_belirsiz_override_soru_sorar(db):
     assert "kaydettim" not in res["reply"].lower()
 
 
+def test_tarih_belirsiz_override_yonlendirir(db):
+    """
+    Summary'de tarih var ama payload'da transaction_date yok → TARIH_BELIRSIZ →
+    date_unclear=True → pending oluşmaz, reply tarih yönlendirmesidir.
+    (Hesap kelimesi 'kartla' verilir ki önce HESAP_BELIRSIZ tetiklenmesin.)
+    """
+    session, u = db
+    cash = session.query(Account).filter_by(
+        user_id=u.id, account_type=AccountType.cash).first()
+    prov = ScriptedProvider(text="Kaydettim.", tool_calls=[{
+        "name": "propose_action",
+        "input": {
+            "action_type": "add_transaction",
+            "payload": {"amount": 500, "transaction_type": "expense",
+                        "account_id": cash.id, "category": "yemek"},  # transaction_date YOK
+            "summary": "3 Mayıs'ta 500 TL yemek",  # summary'de tarih VAR
+        },
+    }])
+    res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım kartla", include_cockpit=False)
+    assert res["proposed_actions"] == []
+    assert "Tarih" in res["reply"]
+    assert "kaydettim" not in res["reply"].lower()
+
+
 # ============================================================
 # save_insight tool path — LLM save_insight çağırırsa CoachInsight satırı yazılır
 # ============================================================

@@ -53,8 +53,7 @@ class DebtOut(DebtBase):
     paid_date: Optional[date]
     created_at: UtcDateTime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
 
 
 # ============================================================

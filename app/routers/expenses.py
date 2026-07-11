@@ -56,8 +56,7 @@ class ExpenseOut(ExpenseBase):
     created_at: UtcDateTime
     last_triggered_year_month: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
 
 
 # ============================================================

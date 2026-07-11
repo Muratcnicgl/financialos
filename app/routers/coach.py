@@ -138,8 +138,8 @@ class HistoryItem(BaseModel):
     created_at: UtcDateTime
     actions: List[ActionDTO] = []  # BUG #046: pending aksiyonlar (history reload)
 
-    class Config:
-        from_attributes = True
+    # BUG #118 fix: Pydantic V2 stili (app/PROJE.md kuralı — V1 `class Config` deprecated).
+    model_config = {"from_attributes": True}
 
 
 class ResetResponse(BaseModel):

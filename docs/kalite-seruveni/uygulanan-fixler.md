@@ -94,3 +94,49 @@ Muhasebe + Zikzak + kart son ödeme + Borç Çığı). Denetim kaydı: `dosya-de
 - Numaralandırma: BUG #059→#109 bu iki turda. ADR-026 (önceki #025).
 - Her fix `dersler-gemini.md` 7 meta-dersine ve kök vizyona hizmet ediyor.
 - Deterministik kalite backlog'u TÜKENDI; sonraki faz: gerçek kullanım (Wave-2 disiplini) veya kullanıcı yönlendirmesi.
+
+## SESSION-3 (11-12 Tem 2026) — FEAT katmanı + eval-driven + zayıf-sağlayıcı sertleştirme
+
+Deterministik P0 backlog'u tükendiğinden bu tur **vizyon-ilhamlı FEAT katmanı** (wave3-vision;
+YNAB/Copilot/Actual/Maybe'den KOPYALAMADAN ilham) + eval-driven koç ölçümü + gözlem-güdümlü
+bug avı. Süit **287 → 601 yeşil** (+~314 test, 1 skip). `main` dokunulmadı, tek yazarlı.
+
+**FEAT (kanıt-temelli, hepsi test + koç context entegrasyonu):**
+| FEAT | Değişiklik | Doğrulama |
+|------|-----------|-----------|
+| FEAT-001/002 | Kategori bütçe zarfları (envelope) + atanmamış nakit ("Ready to Assign"); yeni Envelope tablosu (create_all-safe), CRUD router, Bütçe paneli | test_envelopes.py; koç context "BÜTÇE ZARFLARI" |
+| FEAT-003 | Birikim zarfları (sinking funds) — aylık gereken katkı; GoalRead.@computed_field (şema/DB değişmez) | test_sinking_fund.py |
+| FEAT-005 | Kategori bütçe aşım öngörüsü (zarf-farkında erken uyarı) | test_category_overspend.py |
+| FEAT-006/007 | Abonelik tespiti + "düzenli gidere çevir" döngüsü + cockpit yük görünürlüğü | test_subscription_*.py |
+| FEAT-009 | Safe-to-Spend (kart-farkında, Copilot ilhamı) | test_safe_to_spend.py |
+| FEAT-010 | Nakit runway (gelirsiz kaç gün) — kredi taksitleri dahil | test_cash_runway.py |
+| FEAT-012 | Borçsuz olma tarihi (Borç Çığı çıktısından) | test_debt_freedom_metric.py |
+| FEAT-013 | Faiz sızıntısı sayacı (aylık/yıllık/günlük borç faizi) | test_interest_leak.py |
+| FEAT-021/024 | Net değer ayrıştırması + enflasyon-düzeltilmiş reel net değer; Net Değer Analizi paneli | test_networth_attribution.py, test_real_networth.py |
+| FEAT-022 | Şeffaf finansal sağlık skoru (0-100 composite, bileşenler görünür) | test_health_score.py + property |
+| LLM-004 | Koç eval harness (deterministik, judge-LLM'siz) + eval_runner (izole canlı ölçüm) | test_coach_eval.py; canlı: 6/8 |
+
+**Bug/kural (gözlem + property + canlı-eval bulguları):**
+| ID | Kök-neden | Doğrulama |
+|----|-----------|-----------|
+| BUG #121 | Nakit krizi öngörüsü kritik alert'e çevrilmiyordu (ileriye-dönük insolvency) | test_cashflow_crunch_alert.py |
+| BUG #122 | Alert tutarları nokta-ondalık ("74.99 TL") grounding'i delip Türkçe tutarsızdı → _tl() | test_tl_format_grounding.py |
+| BUG #123 | Safe-to-Spend kart borcunu düşmüyordu → tehlikeli iyimserlik (gözlem-yakalandı) | test_safe_to_spend.py |
+| BUG #124 | Runway kredi taksitini saymıyordu → crunch ile çelişki (gözlem-yakalandı) | test_cash_runway.py |
+| BUG #125 | Alert önem sıralaması kararsızdı → kararlı stable-sort (kritikler önce) | test_metric_coherence.py |
+| BUG #126 | Alert yorgunluğu → uyarılar top-3, kritikler korunur, gizli_uyari_sayisi | test_metric_coherence.py |
+| BUG #127 | Zayıf sağlayıcı gerçekleşmiş eylemi düz metinle geçiştirip propose'u unutuyordu → STEP-E retry has_realized_action ile genişletildi | test_coach_behavior_contract.py (düz-metin + nötr-guard) |
+| RULE-008 | simulate_partial_sale giriş doğrulaması | test_partial_sale_validation.py |
+| RULE-009 | Statü likidite oranı nakit>0 guard | test_rules |
+| RULE-010/011 | payoff_date gerçek takvim ayı + enjekte today; asla-bitmeyen borçta None | test_debt_payoff_date.py |
+| BE-009 | chat hatası ham detay sızdırmaz + loglanır | test_coach_chat_endpoint.py |
+| — | Sağlık skoru denormal-bölen round(inf) overflow'u (property test yakaladı) | test_metric_properties.py |
+| SEC/KVKK | Tüm veriyi dışa aktar (GET /api/user/export) — egemenlik/veri taşınabilirliği | test_data_export.py |
+
+**Canlı eval bulguları (dış kısıt, kod defekti değil):** Groq/Cerebras deprecated model 404'leri
+düzeltildi (gpt-oss-120b). Groq free tier 8000 TPM Türkçe prompt'u (~8400 tok) karşılamıyor →
+her çağrı 413 verip fallback'e düşüyor (fonksiyonel çalışır, round-trip israfı). Detay: memory
+`reference_groq_tpm_limiti`. Eval action gap'i (2/8) canlı-sağlayıcı erişilebilirliği kaynaklı;
+gating deterministik doğrulandı (propose SUNULUYOR), #127 retry'ı bunu sertleştirdi.
+
+**Golden:** test_founding_scenario + test_e2e_journey (uçtan-uca yeni yüzey entegrasyonu).

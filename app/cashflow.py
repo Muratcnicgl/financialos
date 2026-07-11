@@ -235,6 +235,7 @@ def generate_forecast(
     account_id: Optional[int] = None,
     include: Optional[set[str]] = None,
     crunch_threshold: float = 0.0,
+    today: Optional[date] = None,
 ) -> dict:
     """
     Nakit akışı tahmini üretir.
@@ -247,6 +248,8 @@ def generate_forecast(
     account_id       : None = tüm nakit hesaplar; int = tek hesap
     include          : filtre chipsleri; None = hepsi dahil
     crunch_threshold : bu tutarın (TL) altına düşen günler crunch=True
+    today            : projeksiyon başlangıcı (None = date.today()). Enjekte edilebilir —
+                       generate_cockpit'in `today`'siyle TUTARLILIK + deterministik test için.
 
     Dönüş: {horizon_days, start_date, end_date, currency,
              days: [ForecastDay], summary: dict, sankey: dict}
@@ -254,7 +257,7 @@ def generate_forecast(
     if include is None:
         include = VALID_INCLUDE.copy()
 
-    today = date.today()
+    today = today or date.today()
     end = today + timedelta(days=horizon_days - 1)
 
     # --- Başlangıç bakiyesi: nakit hesaplar ---

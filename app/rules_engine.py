@@ -26,6 +26,10 @@ GÜNCELLEMELER:
 - BUG #120: _collect_overdue_debts — vadesi GEÇMİŞ ödenmemiş borç/alacaklar alert olur.
   Hatırlatmalar sadece 0-7 gün ileri baktığından vade geçince kalem sessizce kayboluyordu;
   gecikmiş yükümlülük (kritik) / tahsil edilmemiş alacak (uyarı) artık kokpit alerts'ine düşer.
+- BUG #121 (DEVRİMSEL): _detect_cashflow_crunch — generate_forecast (90 gün) ile projekte
+  edilen NAKİT KRİZİ (bakiye < 0) kritik alert olur. Sistem artık ANLIK durumu değil, GELECEK
+  insolvency'yi kriz OLMADAN önce uyarıyor ("hayatta kalma > yatırım" vizyonu). Forecast kart
+  döngüsünü içermez → yanlış-pozitif yok (yalnızca düzenli akış bile negatife düşerse uyarır).
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -38,10 +42,13 @@ GÜNCELLEMELER:
 """
 
 import os
+import logging
 from datetime import date, datetime, timedelta
 from calendar import monthrange
 from typing import List, Dict, Optional, Tuple
 import re
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
@@ -699,6 +706,49 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
     return alerts
 
 
+def _detect_cashflow_crunch(
+    user_id: int, today: date, db: Session, horizon_days: int = 90,
+) -> Optional[Dict]:
+    """
+    BUG #121 (DEVRİMSEL — İLERİYE DÖNÜK ÖDEME-GÜCÜ): generate_forecast ile önümüzdeki
+    horizon_days içinde projekte edilen NAKİT KRİZİ'ni (crunch: bakiye < 0) yakalar ve
+    kritik alert üretir. Diğer tüm alert/hatırlatmalar ANLIK/kısa-vade durumu gösterir;
+    bu, GELECEK insolvency'yi kriz OLMADAN önce uyarır — "hayatta kalma > yatırım" kök
+    vizyonunun en güçlü hali (kriz henüz önlenebilirken müdahale şansı).
+
+    Kapsam sınırı (cashflow.py): forecast kredi KARTI döngüsünü ve tek-seferlik işlemleri
+    İÇERMEZ. Bu yüzden yanlış-POZİTİF üretmez — yalnızca düzenli gelir/gider + kredi taksiti
+    + kişisel borç akışı bile sıfırın altına düşüyorsa uyarır. Kart-kaynaklı krizler ayrıca
+    #096 (son ödeme) / #027 (limit) ile uyarıldığından kapsam boşluğu güvenli tarafta kalır.
+    """
+    try:
+        from app.cashflow import generate_forecast  # lazy: döngüsel import riskini sıfırla
+        # today ENJEKTE edilir → generate_cockpit'in bugünü ile TUTARLI (backfill/test dahil).
+        fc = generate_forecast(db, user_id, horizon_days=horizon_days, today=today)
+    except Exception as e:  # forecast asla cockpit'i düşürmesin (savunmacı)
+        logger.warning("nakit akış öngörüsü hesaplanamadı user_id=%s: %s", user_id, e)
+        return None
+
+    s = fc.get("summary", {})
+    if s.get("crunch_count", 0) <= 0:
+        return None
+
+    first_crunch = s["crunch_dates"][0]
+    lowest = s.get("lowest_balance", 0.0)
+    lowest_date = s.get("lowest_date", first_crunch)
+    return {
+        "seviye": "kritik",
+        "baslik": "Nakit krizi öngörüsü",
+        "mesaj": (
+            f"{horizon_days} gün içinde nakit sıfırın altına düşüyor "
+            f"(ilk kriz {first_crunch}, en düşük {lowest:,.2f} TL @ {lowest_date}). "
+            f"Alacakları öne al veya gideri ertele — kriz henüz ÖNLENEBİLİR."
+        ),
+        # grounding: projekte edilen tutar cockpit'te numerik olarak izlenebilir olsun (#120 dersi)
+        "tutar": abs(lowest),
+    }
+
+
 def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List[Dict]:
     """
     Son 30 gün vs önceki 30 günlük gider kalıplarını hesaplar.
@@ -1033,7 +1083,12 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # BUG #120: vadesi geçmiş borç/alacak gecikme uyarıları (detect_alerts scalar-saf
     # kaldığından ayrı DB helper'ı; kritik gecikmeler listenin başına alınır).
     overdue_alerts = _collect_overdue_debts(user_id, today, db)
-    alerts = [a for a in overdue_alerts if a["seviye"] == "kritik"] + alerts + \
+    kritik_front = [a for a in overdue_alerts if a["seviye"] == "kritik"]
+    # BUG #121: ileriye dönük nakit krizi öngörüsü — kritik, gecikmelerden hemen sonra.
+    crunch_alert = _detect_cashflow_crunch(user_id, today, db)
+    if crunch_alert:
+        kritik_front.append(crunch_alert)
+    alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"]
 
     return {

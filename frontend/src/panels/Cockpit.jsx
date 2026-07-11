@@ -274,6 +274,18 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
+      {/* FEAT-013: faiz sızıntısı — borç faiz maliyeti (sarsıcı realist sinyal) */}
+      {data.faiz_sizintisi?.aylik_toplam > 0 && (
+        <div className="card p-3 flex items-center gap-2 text-sm border-negative-200 dark:border-negative-800/50">
+          <AlertTriangle className="w-4 h-4 text-negative-500 shrink-0" />
+          <span className="text-zinc-600 dark:text-zinc-300">
+            Faize giden:{' '}
+            <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatTL(data.faiz_sizintisi.aylik_toplam)} TL</span>/ay
+            <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(data.faiz_sizintisi.yillik_toplam)} TL/yıl · günde {formatTL(data.faiz_sizintisi.gunluk)} TL)</span>
+          </span>
+        </div>
+      )}
+
       {/* Uyarılar */}
       {data.alerts && data.alerts.length > 0 && (
         <div className="space-y-2">

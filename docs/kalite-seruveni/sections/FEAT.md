@@ -12,13 +12,13 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 
 ---
 
-### [FEAT-001] Zarf bütçe (envelope budgeting)
+### [FEAT-001] ✅ UYGULANDI Zarf bütçe (envelope budgeting)
 - **Değer/Fırsat:** Kategori bazlı aylık zarf; her kategoriye tutar ayrılır, harcama zarftan düşer, zarf biterse görünür şekilde bloklanır/uyarır. Günlük 62 TL limitinin üstüne kategori disiplini ekler.
 - **Kaynak/İlham:** YNAB / Actual Budget zarf yöntemi.
 - **Nasıl (mimari):** Yeni EnvelopeAllocation tablosu + rules_engine'de zarf bakiyesi hesabı; Transactions kaydı zarfı düşürür. Cockpit'e zarf durumu chip'i. Zarf aşımında LLM açıklar, kullanıcı transfer'i propose_action ile onaylar.
 - **Etki:** Yüksek · **Efor:** L
 
-### [FEAT-002] Atanmamış nakit göstergesi ("her liraya görev")
+### [FEAT-002] ✅ UYGULANDI Atanmamış nakit göstergesi ("her liraya görev")
 - **Değer/Fırsat:** Nakit kasadaki henüz bir zarfa/hedefe atanmamış tutarı tek sayı olarak gösterir; "boşta para" psikolojik olarak harcanır, atanınca korunur.
 - **Kaynak/İlham:** YNAB "Ready to Assign" / "give every dollar a job".
 - **Nasıl (mimari):** rules_engine generate_cockpit'e `atanmamis_nakit = nakit - (zarflar + hedef allocation)` metriği. FEAT-001 zarflarına bağlı; salt hesap.

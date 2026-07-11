@@ -871,6 +871,16 @@ Statü: {cockpit['statu']}
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([ay["aylik"], ay["yillik"]])
 
+    # FAİZ SIZINTISI (FEAT-013): kredi+kart borçlarının aylık faiz maliyeti — sarsıcı realist sinyal.
+    fs = cockpit.get("faiz_sizintisi") or {}
+    if fs.get("aylik_toplam", 0) > 0:
+        context += (
+            f"\n\n## FAİZ SIZINTISI (borç faiz maliyeti)\n"
+            f"  - Aylık {_fmt(fs['aylik_toplam'])} TL · Yıllık {_fmt(fs['yillik_toplam'])} TL faize gidiyor "
+            f"(her gün {_fmt(fs['gunluk'])} TL). Borç eritme = bu sızıntıyı durdurmak."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend([fs["aylik_toplam"], fs["yillik_toplam"]])
+
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
     # Wave-1 enjeksiyonu (is_active + priority enum + created_at) deprecated.

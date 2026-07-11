@@ -52,6 +52,9 @@ GÜNCELLEMELER:
   yerine). CRUD: /api/envelopes.
 - FEAT-002 (YNAB "Ready to Assign"): cockpit'e `atanmamis_nakit = nakit - Σ max(0, zarf_kalan)`.
   Zarflara henüz taahhüt edilmemiş "boşta" nakit; negatif = aşırı-bütçeleme. Zarf yoksa = tüm nakit.
+- FEAT-013 (faiz sızıntısı sayacı): calculate_interest_leak — kredi+kart borçlarının AYLIK faiz
+  maliyeti (borç × aylık_oran/100). Cockpit'e `faiz_sizintisi` {kalemler, aylik/yillik/gunluk}.
+  "Her ay faize kaç TL kaptırıyorsun" — Murat'ın 5-kredi durumunda sarsıcı realist metrik.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -1262,6 +1265,42 @@ def calculate_envelopes(user_id: int, today: date, db: Session) -> Dict:
     }
 
 
+def calculate_interest_leak(user_id: int, db: Session) -> Dict:
+    """
+    FEAT-013 (faiz sızıntısı sayacı): kredi + kart borçlarının AYLIK faiz maliyeti. Murat'ın
+    5 kredi + dolu kartında "her ay faize kaç TL kaptırıyorsun" görünür olur — realist koçun
+    en sarsıcı metriklerinden. Salt hesap: aylık_faiz = borç × (aylık_faiz_oranı/100).
+    interest_rate yoksa (None) o hesap atlanır. Emanet/yatırım hariç.
+    """
+    accs = db.query(Account).filter(
+        Account.user_id == user_id,
+        Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
+    ).all()
+    kalemler: List[Dict] = []
+    aylik_toplam = 0.0
+    for a in accs:
+        borc = float(a.balance or 0.0)
+        oran = float(a.interest_rate or 0.0)
+        if borc <= 0 or oran <= 0:
+            continue
+        aylik = round(borc * oran / 100.0, 2)
+        aylik_toplam += aylik
+        kalemler.append({
+            "ad": a.name,
+            "borc": round(borc, 2),
+            "aylik_oran": oran,
+            "aylik_faiz": aylik,
+        })
+    kalemler.sort(key=lambda k: -k["aylik_faiz"])  # en çok sızdıran önce
+    aylik_toplam = round(aylik_toplam, 2)
+    return {
+        "kalemler": kalemler,
+        "aylik_toplam": aylik_toplam,
+        "yillik_toplam": round(aylik_toplam * 12, 2),
+        "gunluk": round(aylik_toplam / 30.0, 2),
+    }
+
+
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     """
     Tüm cockpit verisini üretir — frontend ve LLM bu çıktıdan beslenir.
@@ -1445,6 +1484,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # Taahhüt = zarfların kalan (harcanmamış) pozitif bütçesi. Negatif atanmamış = aşırı-bütçeleme.
     _zarf_taahhut = sum(max(0.0, z["kalan"]) for z in zarflar_durumu["zarflar"])
     atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
+    faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
 
     return {
         "date": today.isoformat(),
@@ -1472,6 +1512,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         },
         "zarflar": zarflar_durumu,  # FEAT-001: kategori bütçe zarfları durumu
         "atanmamis_nakit": atanmamis_nakit,  # FEAT-002: zarflara taahhüt edilmemiş "boşta" nakit
+        "faiz_sizintisi": faiz_sizintisi,  # FEAT-013: aylık/yıllık faiz maliyeti (kredi+kart)
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

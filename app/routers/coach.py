@@ -307,10 +307,13 @@ def chat(
         )
         tool_calls_count = len(result.get("proposed_actions") or [])
     except Exception as e:
+        # BE-009 fix: graceful degradation (chat UX için 200) AMA ham hata (str(e)) kullanıcıya
+        # SIZDIRILMAZ — güvenlik/profesyonellik. Gerçek hata error_msg olarak LOGLANIR (izlenebilir).
         success = False
         error_msg = str(e)
+        logger.error("coach chat başarısız user_id=%s: %s", user.id, e, exc_info=True)
         result = {
-            "reply": f"Koc cevap veremedi: {e}",
+            "reply": "Koç şu an cevap veremedi (sağlayıcılar meşgul olabilir). Birazdan tekrar dene.",
             "proposed_actions": [],
             "cockpit_snapshot": None,
         }

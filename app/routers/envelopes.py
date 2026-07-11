@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.serializers import UtcDateTime
 from app.dependencies import get_db, get_current_user
-from app.models import User, Envelope
+from app.models import User, Envelope, Account, AccountType
 from app.rules_engine import calculate_envelopes
 
 router = APIRouter(prefix="/api/envelopes", tags=["envelopes"])
@@ -54,9 +54,15 @@ def list_envelopes(
 ):
     """Zarfları BU AY durumuyla döner: kayıtlar + calculate_envelopes özeti (harcanan/kalan/aşıldı)."""
     kayitlar = db.query(Envelope).filter(Envelope.user_id == user.id).order_by(Envelope.category).all()
+    durum = calculate_envelopes(user.id, date.today(), db)
+    # FEAT-002 (Ready to Assign): zarflara taahhüt edilmemiş nakit
+    nakit = sum(float(a.balance) for a in db.query(Account).filter(
+        Account.user_id == user.id, Account.account_type == AccountType.cash).all())
+    taahhut = sum(max(0.0, z["kalan"]) for z in durum["zarflar"])
     return {
         "envelopes": [EnvelopeOut.model_validate(e).model_dump() for e in kayitlar],
-        "durum": calculate_envelopes(user.id, date.today(), db),
+        "durum": durum,
+        "atanmamis_nakit": round(nakit - taahhut, 2),
     }
 
 

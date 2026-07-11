@@ -50,6 +50,8 @@ GÜNCELLEMELER:
   Yeni Envelope tablosu (create_all-safe); harcanan = bu ayın Transaction toplamı (ayrı allocation
   yok). Cockpit'e `zarflar`. FEAT-005 entegre: zarf varsa aşım öngörüsü GERÇEK bütçeye göre (geçen ay
   yerine). CRUD: /api/envelopes.
+- FEAT-002 (YNAB "Ready to Assign"): cockpit'e `atanmamis_nakit = nakit - Σ max(0, zarf_kalan)`.
+  Zarflara henüz taahhüt edilmemiş "boşta" nakit; negatif = aşırı-bütçeleme. Zarf yoksa = tüm nakit.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -1439,6 +1441,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary, kart_borcu=kart_borcu)  # FEAT-009 + #123 kart-farkındalığı
     nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
     zarflar_durumu = calculate_envelopes(user_id, today, db)  # FEAT-001
+    # FEAT-002 (YNAB "Ready to Assign" / her liraya görev): zarflara henüz taahhüt edilmemiş nakit.
+    # Taahhüt = zarfların kalan (harcanmamış) pozitif bütçesi. Negatif atanmamış = aşırı-bütçeleme.
+    _zarf_taahhut = sum(max(0.0, z["kalan"]) for z in zarflar_durumu["zarflar"])
+    atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
 
     return {
         "date": today.isoformat(),
@@ -1465,6 +1471,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
             "adet": sub_result["adet"],
         },
         "zarflar": zarflar_durumu,  # FEAT-001: kategori bütçe zarfları durumu
+        "atanmamis_nakit": atanmamis_nakit,  # FEAT-002: zarflara taahhüt edilmemiş "boşta" nakit
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

@@ -134,3 +134,25 @@ def test_cockpit_zarflar_alani(db):
     c = generate_cockpit(1, TODAY, db)
     assert "zarflar" in c
     assert c["zarflar"]["zarflar"][0]["category"] == "market"
+
+
+def test_feat002_atanmamis_nakit(db):
+    """FEAT-002: atanmamış = nakit - Σ max(0, zarf kalan). market 1000 bütçe, 400 harcanmış
+    → kalan 600 taahhüt; nakit 1000 → atanmamış 400."""
+    from app.rules_engine import generate_cockpit
+    from app.models import Account, AccountType
+    db.add(Account(user_id=1, name="E", account_type=AccountType.cash, balance=1000.0))
+    _env(db, "market", 1000)
+    _exp(db, "market", 400.0)
+    db.commit()
+    c = generate_cockpit(1, TODAY, db)
+    assert c["atanmamis_nakit"] == 400.0    # 1000 nakit - 600 zarf taahhüt
+
+
+def test_feat002_zarf_yoksa_tum_nakit(db):
+    from app.rules_engine import generate_cockpit
+    from app.models import Account, AccountType
+    db.add(Account(user_id=1, name="E", account_type=AccountType.cash, balance=5000.0))
+    db.commit()
+    c = generate_cockpit(1, TODAY, db)
+    assert c["atanmamis_nakit"] == 5000.0    # zarf yok → tüm nakit boşta

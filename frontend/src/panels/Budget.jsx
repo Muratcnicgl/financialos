@@ -69,6 +69,19 @@ export default function Budget() {
 
   return (
     <div className="space-y-4">
+      {/* Ready to Assign (FEAT-002) — YNAB "her liraya görev" */}
+      {data?.atanmamis_nakit !== undefined && (
+        <div className="card p-4 border-brand-200 dark:border-brand-800/50 bg-brand-50/50 dark:bg-brand-950/20">
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">Boşta nakit (henüz zarfa atanmamış)</p>
+          <p className={`font-numeric text-2xl font-bold ${data.atanmamis_nakit < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-brand-700 dark:text-brand-400'}`}>
+            {formatTL(data.atanmamis_nakit)} TL
+          </p>
+          {data.atanmamis_nakit < 0 && (
+            <p className="text-xs text-negative-600 dark:text-negative-400 mt-0.5">Aşırı bütçeleme — nakdinden fazlasını zarflara ayırdın.</p>
+          )}
+        </div>
+      )}
+
       {/* Özet */}
       <div className="card p-4 flex items-center gap-3">
         <Wallet className="w-5 h-5 text-brand-600 dark:text-brand-400" />

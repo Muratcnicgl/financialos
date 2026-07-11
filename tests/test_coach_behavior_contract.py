@@ -35,6 +35,32 @@ class ScriptedProvider:
         )
 
 
+class SequencedProvider:
+    """Her chat() çağrısında sıradaki (text, tool_calls) yanıtı döner — retry (2. çağrı)
+    davranışını deterministik test etmek için. Liste biterse son yanıtı tekrar döner."""
+    NAME = "Sequenced"
+    model = "sequenced-1"
+    last_used_provider = "sequenced"
+
+    def __init__(self, responses):
+        self.responses = responses          # [(text, tool_calls), ...]
+        self.calls = 0
+        self.systems = []                    # her çağrının system_prompt'u
+        self.received_tools_per_call = []    # her çağrıda sunulan tool isimleri
+
+    def chat(self, system_prompt, messages, tools):
+        self.systems.append(system_prompt)
+        self.received_tools_per_call.append([t.get("name") for t in (tools or [])])
+        idx = min(self.calls, len(self.responses) - 1)
+        text, tcs = self.responses[idx]
+        self.calls += 1
+        return LLMResponse(
+            text=text, tool_calls=list(tcs or []),
+            usage={"input_tokens": 10, "output_tokens": 5},
+            provider_used="sequenced", model_name="sequenced-1",
+        )
+
+
 @pytest.fixture
 def db():
     engine = create_engine("sqlite:///:memory:")
@@ -229,3 +255,55 @@ def test_confidence_marker_kullaniciya_sizmaz(db):
     assert "CONFIDENCE" not in res["reply"]
     assert "[" not in res["reply"]
     assert "Kart borcun kontrol altında." in res["reply"]
+
+
+# ============================================================
+# Öz-düzeltme retry — BUG #043/#045 (propose) ve BUG #049 (soru)
+# ============================================================
+
+def test_bos_cevap_retry_ile_propose_uretir(db):
+    """
+    Gerçekleşmiş eylem bildirildi (offer_propose=True) ama 1. LLM çağrısı BOŞ döndü →
+    retry tetiklenir → 2. çağrı propose_action döner → pending oluşur.
+    2. çağrının system_prompt'unda [RETRY ...] talimatı bulunmalı.
+    """
+    session, u = db
+    cash = session.query(Account).filter_by(
+        user_id=u.id, account_type=AccountType.cash).first()
+    propose_tc = {
+        "name": "propose_action",
+        "input": {
+            "action_type": "add_transaction",
+            "payload": {"amount": 500, "transaction_type": "expense",
+                        "account_id": cash.id, "category": "yemek"},
+            "summary": "500 TL yemek",
+        },
+    }
+    prov = SequencedProvider([("", []), ("500 TL kaydediyorum.", [propose_tc])])
+    res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım nakitten", include_cockpit=False)
+    assert prov.calls == 2                               # retry gerçekten çalıştı
+    assert len(res["proposed_actions"]) == 1
+    assert "[RETRY" in prov.systems[1]                   # 2. çağrı retry prompt'u aldı
+
+
+def test_retry_de_bos_kalirsa_yonlendirme_mesaji(db):
+    """Hem 1. hem 2. çağrı boş → pending yok → 'Aksiyon hazırlanamadı' yönlendirmesi."""
+    session, u = db
+    prov = SequencedProvider([("", []), ("", [])])
+    res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım nakitten", include_cockpit=False)
+    assert prov.calls == 2
+    assert res["proposed_actions"] == []
+    assert "hazırlanamadı" in res["reply"].lower()
+
+
+def test_soru_bos_cevap_retry_ile_metin_uretir(db):
+    """
+    BUG #049: Kullanıcı SORU sordu ama 1. çağrı boş döndü → soru-retry (tools=[]) →
+    2. çağrı metin döner. Retry'da HİÇ tool sunulmaz (save_insight dahil).
+    """
+    session, u = db
+    prov = SequencedProvider([("", []), ("Kart borcun kontrol altında.", [])])
+    res = CoachEngine(provider=prov).chat(session, u.id, "Kart borcum ne durumda?", include_cockpit=False)
+    assert prov.calls == 2
+    assert "Kart borcun kontrol altında." in res["reply"]
+    assert prov.received_tools_per_call[1] == []         # retry'da tool yok

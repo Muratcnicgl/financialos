@@ -1193,7 +1193,10 @@ class GeminiProvider(LLMProvider):
 # ============================================================
 
 class GroqProvider(LLMProvider):
-    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    # Groq 17 Haz 2026'da llama-3.3-70b-versatile'i DEPRECATE etti (404). Önerilen halef:
+    # openai/gpt-oss-120b (tool-calling'de güçlü). Eval bunu yakaladı: eski model → Groq düşer,
+    # zayıf Gemini'ye kalıyordu → gerçekleşmiş eylemde propose_action kaçıyordu.
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
     NAME = "Groq"
 
     def __init__(self, api_key: str, model: Optional[str] = None):

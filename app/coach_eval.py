@@ -133,8 +133,9 @@ def format_report(report: Dict) -> str:
         f"Kriter : {report['check_pass']}/{report['check_total']} (%{report['pass_rate']})",
         "",
     ]
+    # ASCII-safe işaretler: ✓/✗ Windows cp1254 konsolunda UnicodeEncodeError veriyordu (eval_runner çöküyordu).
     for r in report["scenarios"]:
-        mark = "✓" if r["passed"] else "✗"
-        detay = " ".join(f"{k}={'✓' if v else '✗'}" for k, v in r["scores"].items())
-        lines.append(f"  {mark} {r['name']}: {detay}")
+        mark = "PASS" if r["passed"] else "FAIL"
+        detay = " ".join(f"{k}={'+' if v else '-'}" for k, v in r["scores"].items())
+        lines.append(f"  [{mark}] {r['name']}: {detay}")
     return "\n".join(lines)

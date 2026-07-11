@@ -55,6 +55,9 @@ GÜNCELLEMELER:
 - FEAT-013 (faiz sızıntısı sayacı): calculate_interest_leak — kredi+kart borçlarının AYLIK faiz
   maliyeti (borç × aylık_oran/100). Cockpit'e `faiz_sizintisi` {kalemler, aylik/yillik/gunluk}.
   "Her ay faize kaç TL kaptırıyorsun" — Murat'ın 5-kredi durumunda sarsıcı realist metrik.
+- FEAT-022 (finansal sağlık skoru): calculate_health_score — 0-100 ŞEFFAF composite (ödeme gücü,
+  faiz yükü, nakit tamponu, kart sağlığı, bütçe uyumu). Bileşenler görünür (kara kutu değil).
+  Cockpit'e `saglik_skoru` {skor, seviye, bilesenler}. Tüm solvency sinyallerini tek sayıda özetler.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -1301,6 +1304,50 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
     }
 
 
+def calculate_health_score(
+    *, reel_butce: float, kart_borcu: float, kart_limit: float, aylik_faiz: float,
+    aylik_gelir: float, runway_gun, crunch_var: bool, zarf_asan, zarf_var: bool,
+) -> Dict:
+    """
+    FEAT-022 (finansal sağlık skoru): 0-100 composite. ŞEFFAF — bileşenler görünür (kara kutu
+    değil, realist etik). Veri olmayan bileşen atlanır; skor = mevcut bileşenlerin ortalaması.
+
+    Bileşenler (her biri 0-100):
+      Ödeme gücü   : crunch→20, reel_butce≥0→100, negatif→40
+      Faiz yükü    : 1 - (aylık faiz / aylık gelir); %30 gelir faize giderse 0
+      Nakit tamponu: runway/90 (90 gün+ → 100)
+      Kart sağlığı : 1 - kullanım oranı (borç/limit)
+      Bütçe uyumu  : aşan zarf yoksa 100; her aşan -25
+    """
+    bilesenler: List[Dict] = []
+
+    if crunch_var:
+        s = 20
+    elif reel_butce >= 0:
+        s = 100
+    else:
+        s = 40
+    bilesenler.append({"ad": "Ödeme gücü", "puan": s})
+
+    if aylik_gelir > 0:
+        oran = aylik_faiz / aylik_gelir
+        bilesenler.append({"ad": "Faiz yükü", "puan": max(0, min(100, round(100 - oran * 333)))})
+
+    if runway_gun is not None:
+        bilesenler.append({"ad": "Nakit tamponu", "puan": max(0, min(100, round(runway_gun / 90 * 100)))})
+
+    if kart_limit > 0:
+        util = kart_borcu / kart_limit
+        bilesenler.append({"ad": "Kart sağlığı", "puan": max(0, min(100, round((1 - util) * 100)))})
+
+    if zarf_var:
+        bilesenler.append({"ad": "Bütçe uyumu", "puan": 100 if zarf_asan == 0 else max(0, 100 - zarf_asan * 25)})
+
+    skor = round(sum(b["puan"] for b in bilesenler) / len(bilesenler)) if bilesenler else 50
+    seviye = "iyi" if skor >= 70 else "orta" if skor >= 40 else "kritik"
+    return {"skor": skor, "seviye": seviye, "bilesenler": bilesenler}
+
+
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     """
     Tüm cockpit verisini üretir — frontend ve LLM bu çıktıdan beslenir.
@@ -1485,6 +1532,16 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     _zarf_taahhut = sum(max(0.0, z["kalan"]) for z in zarflar_durumu["zarflar"])
     atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
     faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
+    # FEAT-022: finansal sağlık skoru (şeffaf composite)
+    _aylik_gelir = float(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
+        RecurringIncome.user_id == user_id, RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
+    saglik_skoru = calculate_health_score(
+        reel_butce=reel_butce, kart_borcu=kart_borcu,
+        kart_limit=sum((a.credit_limit or 0) for a in accounts if a.account_type == AccountType.credit_card),
+        aylik_faiz=faiz_sizintisi["aylik_toplam"], aylik_gelir=_aylik_gelir,
+        runway_gun=nakit_runway_gun, crunch_var=crunch_alert is not None,
+        zarf_asan=zarflar_durumu["asan_adet"], zarf_var=len(zarflar_durumu["zarflar"]) > 0,
+    )
 
     return {
         "date": today.isoformat(),
@@ -1513,6 +1570,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "zarflar": zarflar_durumu,  # FEAT-001: kategori bütçe zarfları durumu
         "atanmamis_nakit": atanmamis_nakit,  # FEAT-002: zarflara taahhüt edilmemiş "boşta" nakit
         "faiz_sizintisi": faiz_sizintisi,  # FEAT-013: aylık/yıllık faiz maliyeti (kredi+kart)
+        "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

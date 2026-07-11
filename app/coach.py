@@ -871,6 +871,15 @@ Statü: {cockpit['statu']}
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([ay["aylik"], ay["yillik"]])
 
+    # FİNANSAL SAĞLIK SKORU (FEAT-022): 0-100 şeffaf composite — bileşenleriyle.
+    hs = cockpit.get("saglik_skoru") or {}
+    if hs.get("bilesenler"):
+        bilesen_s = ", ".join(f"{b['ad']} {b['puan']}" for b in hs["bilesenler"])
+        context += (
+            f"\n\n## FİNANSAL SAĞLIK SKORU: {hs['skor']}/100 ({hs['seviye']})\n"
+            f"  - Bileşenler: {bilesen_s}"
+        )
+
     # FAİZ SIZINTISI (FEAT-013): kredi+kart borçlarının aylık faiz maliyeti — sarsıcı realist sinyal.
     fs = cockpit.get("faiz_sizintisi") or {}
     if fs.get("aylik_toplam", 0) > 0:

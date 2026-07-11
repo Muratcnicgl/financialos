@@ -211,6 +211,31 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       </div>
 
+      {/* FEAT-022: finansal sağlık skoru — şeffaf composite capstone */}
+      {data.saglik_skoru && (() => {
+        const sk = data.saglik_skoru;
+        const barCls = sk.seviye === 'iyi' ? 'bg-positive-500' : sk.seviye === 'orta' ? 'bg-warn-500' : 'bg-negative-500';
+        const txtCls = sk.seviye === 'iyi' ? 'text-positive-600 dark:text-positive-400' : sk.seviye === 'orta' ? 'text-warn-600 dark:text-warn-400' : 'text-negative-600 dark:text-negative-400';
+        return (
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Finansal Sağlık</span>
+              <span className={`font-numeric font-bold text-2xl ${txtCls}`}>
+                {sk.skor}<span className="text-sm text-zinc-400 dark:text-zinc-500">/100</span>
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+              <div className={`h-full rounded-full ${barCls}`} style={{ width: `${sk.skor}%` }} />
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {sk.bilesenler.map((b) => (
+                <span key={b.ad} className="chip chip-neutral text-[10px]">{b.ad} {b.puan}</span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Günlük limit kutusu */}
       <div className="card p-5 border-brand-200 dark:border-brand-800/50 bg-brand-50/50 dark:bg-brand-950/20">
         <div>

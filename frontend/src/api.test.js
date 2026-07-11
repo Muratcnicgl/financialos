@@ -1,0 +1,78 @@
+/**
+ * api.js saf yardımcı fonksiyonları — para/yüzde/tarih/işaret formatlama.
+ * Frontend'in ilk test kilidi (kalite serüveni TEST kategorisi). Bu fonksiyonlar
+ * her panelde kullanılıyor ama test edilmemişti. formatDate saat-dilimi sağlamlığı
+ * (date-only string bir gün kaymamalı) özellikle PROJE.md'nin uyardığı bug sınıfı.
+ */
+import { describe, it, expect } from 'vitest';
+import { formatTL, formatTLSuffix, formatPercent, formatDate, signClass } from './api.js';
+
+describe('formatTL', () => {
+  it('TR formatı: nokta binlik, virgül ondalık', () => {
+    expect(formatTL(1234.56)).toBe('1.234,56');
+    expect(formatTL(0)).toBe('0,00');
+    expect(formatTL(-99.5)).toBe('-99,50');
+  });
+  it('compact modda ondalıksız yuvarlar', () => {
+    expect(formatTL(1234.56, { compact: true })).toBe('1.235');
+  });
+  it('geçersiz değerde tire döner', () => {
+    expect(formatTL(null)).toBe('—');
+    expect(formatTL(undefined)).toBe('—');
+    expect(formatTL(NaN)).toBe('—');
+  });
+});
+
+describe('formatTLSuffix', () => {
+  it('TL soneki ekler', () => {
+    expect(formatTLSuffix(1234.56)).toBe('1.234,56 TL');
+  });
+  it('geçersizde tire (sonek yok)', () => {
+    expect(formatTLSuffix(null)).toBe('—');
+  });
+});
+
+describe('formatPercent', () => {
+  it('pozitifte + işareti', () => {
+    expect(formatPercent(36.3)).toBe('+%36,30');
+  });
+  it('negatifte + yok', () => {
+    expect(formatPercent(-5)).toBe('%-5,00');
+  });
+  it('showSign=false ile + bastırılır', () => {
+    expect(formatPercent(36.3, { showSign: false })).toBe('%36,30');
+  });
+  it('geçersizde tire', () => {
+    expect(formatPercent(null)).toBe('—');
+  });
+});
+
+describe('formatDate — saat-dilimi sağlam', () => {
+  it('date-only string bir gün KAYMAZ (TZ bağımsız)', () => {
+    // UTC-batı TZ'lerde 'new Date("2026-05-11")' 10 Mayıs gösterirdi; local parse ile 11 kalır.
+    expect(formatDate('2026-05-11')).toBe('11 May');
+    expect(formatDate('2026-01-01')).toBe('1 Oca');
+    expect(formatDate('2026-12-31')).toBe('31 Ara');
+  });
+  it('withYear ile yıl ekler', () => {
+    expect(formatDate('2026-05-11', { withYear: true })).toBe('11 May 2026');
+  });
+  it('boş/null → tire', () => {
+    expect(formatDate(null)).toBe('—');
+    expect(formatDate('')).toBe('—');
+  });
+});
+
+describe('signClass', () => {
+  it('pozitif → positive class', () => {
+    expect(signClass(5)).toContain('positive');
+  });
+  it('negatif → negative class', () => {
+    expect(signClass(-5)).toContain('negative');
+  });
+  it('sıfır/geçersiz → nötr zinc', () => {
+    expect(signClass(0)).toContain('zinc');
+    expect(signClass(null)).toContain('zinc');
+    expect(signClass(NaN)).toContain('zinc');
+  });
+});

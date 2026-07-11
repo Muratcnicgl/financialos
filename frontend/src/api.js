@@ -393,7 +393,12 @@ const TURKISH_MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
                               'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 export function formatDate(isoStr, { withYear = false } = {}) {
   if (!isoStr) return '—';
-  const d = new Date(isoStr);
+  // Date-only ("YYYY-MM-DD") string'i LOCAL parse et: 'new Date("2026-05-11")' UTC gece-yarısı
+  // demektir, UTC-batı saat dilimlerinde bir gün geri kayar. 'T00:00:00' eklemek (Reports.jsx'in
+  // zaten kullandığı desen) gösterilen günü saat diliminden BAĞIMSIZ kılar. Datetime string'lere
+  // (T içerenler) dokunma — kendi tz suffix'leri (UtcDateTime +00:00) var.
+  const local = isoStr.length === 10 && !isoStr.includes('T') ? isoStr + 'T00:00:00' : isoStr;
+  const d = new Date(local);
   if (isNaN(d.getTime())) return isoStr;
   const day = d.getDate();
   const month = TURKISH_MONTHS_SHORT[d.getMonth()];

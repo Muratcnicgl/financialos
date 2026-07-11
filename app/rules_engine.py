@@ -55,6 +55,8 @@ GÜNCELLEMELER:
 - FEAT-013 (faiz sızıntısı sayacı): calculate_interest_leak — kredi+kart borçlarının AYLIK faiz
   maliyeti (borç × aylık_oran/100). Cockpit'e `faiz_sizintisi` {kalemler, aylik/yillik/gunluk}.
   "Her ay faize kaç TL kaptırıyorsun" — Murat'ın 5-kredi durumunda sarsıcı realist metrik.
+- FEAT-012 (borçsuzluk tarihi): generate_cockpit'e `borc_ozgurluk` {kalan_ay, borcsuz_tarih,
+  toplam_faiz, asla_bitmez} — avalanche calc'tan (min ödemeyle). Murat'ın borç serüveninin hedefi.
 - FEAT-024 (enflasyon-düzeltilmiş net değer): calculate_real_networth — nominal net değer değişimi
   vs enflasyona göre deflate edilmiş REEL değişim (Türkiye'de servet enflasyonla erir; borçlu için
   tersine erime lehte). GET /api/reports/real-net-worth. Enflasyon .env INFLATION_ANNUAL (varsayılan %40).
@@ -1631,6 +1633,21 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         runway_gun=nakit_runway_gun, crunch_var=crunch_alert is not None,
         zarf_asan=zarflar_durumu["asan_adet"], zarf_var=len(zarflar_durumu["zarflar"]) > 0,
     )
+    # FEAT-012: borçsuzluk tarihi — Murat'ın borç serüveninin motive edici hedefi (avalanche calc).
+    borc_ozgurluk = None
+    try:
+        from app.debt_strategy import collect_debts, calc_avalanche, MAX_MONTHS
+        _dbts = collect_debts(db, user_id)
+        if _dbts:
+            _av = calc_avalanche(_dbts, extra_monthly=0.0)
+            borc_ozgurluk = {
+                "kalan_ay": _av.months_to_freedom,
+                "borcsuz_tarih": _av.payoff_date.isoformat() if _av.payoff_date else None,
+                "toplam_faiz": _av.total_interest_paid,
+                "asla_bitmez": _av.months_to_freedom >= MAX_MONTHS,
+            }
+    except Exception as e:
+        logger.warning("borç özgürlüğü hesaplanamadı user_id=%s: %s", user_id, e)
 
     return {
         "date": today.isoformat(),
@@ -1660,6 +1677,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "atanmamis_nakit": atanmamis_nakit,  # FEAT-002: zarflara taahhüt edilmemiş "boşta" nakit
         "faiz_sizintisi": faiz_sizintisi,  # FEAT-013: aylık/yıllık faiz maliyeti (kredi+kart)
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru
+        "borc_ozgurluk": borc_ozgurluk,  # FEAT-012: borçsuz olma tarihi + kalan faiz (None=borç yok)
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

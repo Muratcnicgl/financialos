@@ -3,7 +3,7 @@ import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Banknote, Calculator, Scale, ScaleIcon, AlertTriangle,
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
-  Eye, Telescope, Bell, Waves, ArrowRight,
+  Eye, Telescope, Bell, Waves, ArrowRight, Target,
 } from 'lucide-react';
 import {
   cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
@@ -295,6 +295,20 @@ export default function Cockpit({ setActiveTab }) {
             {data.abonelik_yuku.adet} abonelik ·{' '}
             <span className="font-numeric font-semibold">{formatTL(data.abonelik_yuku.aylik)} TL</span>/ay
             <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(data.abonelik_yuku.yillik)} TL/yıl)</span>
+          </span>
+        </div>
+      )}
+
+      {/* FEAT-012: borçsuz olma tarihi — Murat'ın borç serüveninin motive edici hedefi */}
+      {data.borc_ozgurluk && (
+        <div className="card p-3 flex items-center gap-2 text-sm">
+          <Target className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
+          <span className="text-zinc-600 dark:text-zinc-300">
+            {data.borc_ozgurluk.asla_bitmez
+              ? 'Minimum ödemelerle borç makul sürede kapanmıyor — ek ödeme şart.'
+              : <>Borçsuzluk: <span className="font-semibold">{data.borc_ozgurluk.kalan_ay} ay</span>
+                  {data.borc_ozgurluk.borcsuz_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (≈{formatDate(data.borc_ozgurluk.borcsuz_tarih)})</span>}
+                  <span className="text-zinc-400 dark:text-zinc-500"> · kalan faiz {formatTL(data.borc_ozgurluk.toplam_faiz)} TL</span></>}
           </span>
         </div>
       )}

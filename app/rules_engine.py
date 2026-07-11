@@ -1234,6 +1234,44 @@ def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[D
     return _subscription_price_alerts_from_result(detect_subscriptions(user_id, today, db))
 
 
+# FEAT-015: kart asgari-ödeme tuzağı uyarı eşiği. 12 ay = min-only'nin "kuyruk" sınırı;
+# altında zaten hızlı kapanır, üstünde faiz sızıntısı stratejik uyarıyı hak eder.
+_MIN_TRAP_ALERT_MONTHS = 12
+
+
+def _min_payment_trap_alerts(trap: Optional[Dict]) -> List[Dict]:
+    """
+    FEAT-015: asgari-ödeme tuzağı uyarısı. Kart SADECE asgari ödemeyle ASLA kapanmıyorsa
+    (asgari < aylık faiz → borç sarmalı) KRİTİK; uzun kuyruk (≥12 ay) ise stratejik UYARI.
+    Yalnızca EN KÖTÜ kart bildirilir (alert yorgunluğu #126 — gürültü yok). Salt sunum.
+    """
+    if not trap or not trap.get("kartlar"):
+        return []
+    worst = trap["en_yuksek_faiz"]
+    if worst.get("asla_bitmez"):
+        return [{
+            "seviye": "kritik",
+            "baslik": "Kart asgari ödeme sarmalı",
+            "mesaj": (
+                f"{worst['ad']} kartı SADECE asgari ödemeyle ASLA kapanmaz — asgari ödeme aylık "
+                f"faizin altında, borç büyüyor. Asgarinin belirgin üstüne öde."
+            ),
+            "tutar": worst["bakiye"],  # grounding: bakiye cockpit'te (asgari_tuzagi) izlenebilir
+        }]
+    if worst.get("ay", 0) >= _MIN_TRAP_ALERT_MONTHS:
+        return [{
+            "seviye": "uyari",
+            "baslik": "Kart asgari ödeme tuzağı",
+            "mesaj": (
+                f"{worst['ad']} kartını yalnız asgariyle ödersen {worst['ay']} ay sürünür ve "
+                f"{_tl(worst['toplam_faiz'])} TL faiz ödersin (biter {worst['payoff_tarih']}). "
+                f"Asgarinin üstüne ekle — süre ve faiz hızla düşer."
+            ),
+            "tutar": worst["toplam_faiz"],  # grounding: toplam_faiz cockpit'te izlenebilir
+        }]
+    return []
+
+
 def calculate_envelopes(user_id: int, today: date, db: Session) -> Dict:
     """
     FEAT-001 (YNAB/Actual Budget zarf yöntemi): aktif bütçe zarflarının BU AY durumu.
@@ -1607,8 +1645,21 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     sub_result = detect_subscriptions(user_id, today, db)
     sub_price_alerts = _subscription_price_alerts_from_result(sub_result)  # FEAT-007
     overspend_alerts = _category_overspend_alerts(user_id, today, db)      # FEAT-005
+    # FEAT-012/015: borçları BİR KEZ topla → hem asgari-ödeme tuzağı uyarısı (FEAT-015) hem
+    # borçsuzluk tarihi (FEAT-012, aşağıda) aynı listeden türetilir (çift collect_debts yok).
+    _dbts = []
+    asgari_tuzagi = None
+    trap_alerts: List[Dict] = []
+    try:
+        from app.debt_strategy import collect_debts as _collect_debts, calculate_min_payment_trap
+        _dbts = _collect_debts(db, user_id)
+        asgari_tuzagi = calculate_min_payment_trap(_dbts, today=today)  # FEAT-015
+        trap_alerts = _min_payment_trap_alerts(asgari_tuzagi)
+    except Exception as e:
+        logger.warning("asgari ödeme tuzağı hesaplanamadı user_id=%s: %s", user_id, e)
     alerts = kritik_front + alerts + \
-             [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts + overspend_alerts
+             [a for a in overdue_alerts if a["seviye"] != "kritik"] + \
+             sub_price_alerts + overspend_alerts + trap_alerts
     # #125: KARARLI önem sıralaması — tüm 'kritik' kalemler tüm 'uyari'lardan önce (iç sıra korunur).
     # detect_alerts kritik/uyari'yi karıştırıyordu; Murat en ciddi sinyali her zaman en başta görsün.
     _SEV = {"kritik": 0, "uyari": 1}
@@ -1639,10 +1690,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         zarf_asan=zarflar_durumu["asan_adet"], zarf_var=len(zarflar_durumu["zarflar"]) > 0,
     )
     # FEAT-012: borçsuzluk tarihi — Murat'ın borç serüveninin motive edici hedefi (avalanche calc).
+    # _dbts yukarıda FEAT-015 için BİR KEZ toplandı (collect_debts tekrar çağrılmaz).
     borc_ozgurluk = None
     try:
-        from app.debt_strategy import collect_debts, calc_avalanche, MAX_MONTHS
-        _dbts = collect_debts(db, user_id)
+        from app.debt_strategy import calc_avalanche, MAX_MONTHS
         if _dbts:
             _av = calc_avalanche(_dbts, extra_monthly=0.0)
             borc_ozgurluk = {
@@ -1683,6 +1734,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "faiz_sizintisi": faiz_sizintisi,  # FEAT-013: aylık/yıllık faiz maliyeti (kredi+kart)
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru
         "borc_ozgurluk": borc_ozgurluk,  # FEAT-012: borçsuz olma tarihi + kalan faiz (None=borç yok)
+        "asgari_tuzagi": asgari_tuzagi,  # FEAT-015: kart asgari-ödemeyle kaç ay + toplam faiz (None=kart yok)
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,
         "carried_forward": carried_forward,

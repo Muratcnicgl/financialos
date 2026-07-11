@@ -867,6 +867,28 @@ Statü: {cockpit['statu']}
     except Exception as e:
         logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
 
+    # KART ASGARİ ÖDEME TUZAĞI (FEAT-015): kart SADECE asgari ödemeyle kaç ay + toplam faiz.
+    # Kart %99.8 doluyken "görünmez maliyeti görünür yap" — realist koçun kritik farkındalığı.
+    at = cockpit.get("asgari_tuzagi") or {}
+    if at.get("kartlar"):
+        t_lines = []
+        for k in at["kartlar"][:2]:
+            if k.get("asla_bitmez"):
+                t_lines.append(f"  - {k['ad']}: yalnız asgariyle ASLA kapanmaz (asgari < faiz, borç büyüyor)")
+            else:
+                t_lines.append(
+                    f"  - {k['ad']}: yalnız asgariyle {k['ay']} ay, toplam {_fmt(k['toplam_faiz'])} TL faiz "
+                    f"(biter {k['payoff_tarih']})"
+                )
+        context += (
+            "\n\n## KART ASGARİ ÖDEME TUZAĞI (sadece asgari ödeme senaryosu)\n"
+            + "\n".join(t_lines)
+            + "\n  - Asgarinin üstüne her ek ödeme süreyi ve toplam faizi hızla düşürür."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend(
+            [k["toplam_faiz"] for k in at["kartlar"]] + [k["bakiye"] for k in at["kartlar"]]
+        )
+
     # BÜTÇE ZARFLARI (FEAT-001/002): zarf durumu + atanmamış nakit ("Ready to Assign").
     zd = cockpit.get("zarflar") or {}
     if zd.get("zarflar"):

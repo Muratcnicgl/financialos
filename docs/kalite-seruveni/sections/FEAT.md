@@ -102,11 +102,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** simulation_engine'e "consolidation" senaryosu (RAM kopyası, gerçek DB'ye dokunmaz) + debt_strategy amortisman. Kullanıcı faiz/vade girer, sistem hesaplar.
 - **Etki:** Yüksek · **Efor:** M
 
-### [FEAT-015] Kart asgari-ödeme tuzağı göstergesi
+### [FEAT-015] Kart asgari-ödeme tuzağı göstergesi ✅ UYGULANDI (12 Tem 2026)
 - **Değer/Fırsat:** "Sadece asgari ödersen bu kart 11 yılda kapanır ve X TL faiz ödersin" uyarısı. Kart %99.8 doluyken kritik farkındalık.
 - **Kaynak/İlham:** ABD kredi kartı ekstrelerindeki zorunlu "minimum payment warning".
 - **Nasıl (mimari):** debt_strategy'de asgari-ödeme-only senaryosu; detect_alerts uyarısı. LLM açıklar. Salt hesap.
 - **Etki:** Yüksek · **Efor:** S
+- **Durum:** `calculate_min_payment_trap` (debt_strategy, saf) — her kart için `_simulate([kart],[id], extra=0)` azalan %25 asgari (TR) trajektorisi (mevcut motor; BUG #079 azalan-min + RULE-011 asla-bitmez korumalı). Kredi HARİÇ (kart-spesifik kavram). `_min_payment_trap_alerts`: asla-bitmez (asgari<faiz, eşik %33.3) → KRİTİK "sarmal"; ≥12 ay uzun kuyruk → UYARI (yalnız en kötü kart, #126 alert-yorgunluğu). Cockpit `asgari_tuzagi` + koç context block + grounding (`_coach_extra_numbers`) + Cockpit.jsx kartı. Murat kanonik: Ziraat 22 ay / 2.318 TL faiz. 12 test. `collect_debts` FEAT-012 ile paylaşımlı (tek sorgu).
 
 ### [FEAT-016] Kart kullanım oranı (utilization) + kredi sağlığı
 - **Değer/Fırsat:** Kart borcu/limit oranını (%99.8) ve iyileşme trendini gösterir; limit yönetimi ve borç azaltma ilerlemesini tek metrikte izler.

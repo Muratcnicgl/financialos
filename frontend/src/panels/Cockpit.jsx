@@ -325,6 +325,25 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
+      {/* FEAT-015: kart asgari-ödeme tuzağı — sadece asgari ödeme senaryosu (görünmez maliyet) */}
+      {data.asgari_tuzagi?.kartlar?.length > 0 && (
+        <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
+          <AlertTriangle className="w-4 h-4 text-warn-500 shrink-0 mt-0.5" />
+          <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
+            {data.asgari_tuzagi.kartlar.slice(0, 2).map((k, i) => (
+              <div key={i}>
+                {k.asla_bitmez
+                  ? <><span className="font-semibold">{k.ad}</span>: yalnız asgariyle <span className="font-semibold text-negative-600 dark:text-negative-400">asla kapanmaz</span> (asgari &lt; faiz)</>
+                  : <><span className="font-semibold">{k.ad}</span> asgari-ödeme tuzağı: <span className="font-semibold">{k.ay} ay</span> · faiz{' '}
+                      <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatTL(k.toplam_faiz)} TL</span>
+                      {k.payoff_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (biter ≈{formatDate(k.payoff_tarih)})</span>}</>}
+              </div>
+            ))}
+            <div className="text-zinc-400 dark:text-zinc-500 text-xs">Asgarinin üstüne her ek ödeme süreyi ve toplam faizi hızla düşürür.</div>
+          </div>
+        </div>
+      )}
+
       {/* Uyarılar */}
       {data.alerts && data.alerts.length > 0 && (
         <div className="space-y-2">

@@ -363,6 +363,48 @@ def compare_strategies(
     }
 
 
+def calculate_min_payment_trap(
+    debts: List[DebtItem], today: Optional[date] = None,
+) -> Optional[dict]:
+    """
+    FEAT-015 (kart asgari-ödeme tuzağı): her KREDİ KARTI için SADECE asgari ödeme yapılırsa
+    kaç ay sürünür + toplam ne kadar FAİZ ödenir. Kart %99.8 doluyken küçük görünen asgari
+    ödeme aylarca faiz sızdırır — "görünmez maliyeti görünür yap" (realist koç) metriği.
+
+    Salt hesap: her kart için `_simulate([kart], [id], extra=0)` → azalan %25 asgari (TR)
+    trajektorisi (mevcut motor; BUG #079 azalan-min + RULE-011 asla-bitmez korumalı). Kredi
+    HARİÇ — asgari tuzağı kart-spesifik kavram (krediler zaten sabit taksitli, seçim yok).
+
+    Dönüş: kart yoksa None. Aksi halde {kartlar: [...], toplam_faiz}. Her kart:
+    ay, toplam_faiz, toplam_odeme, payoff_tarih, asla_bitmez. `en_yuksek_faiz` en çok
+    sızdıran kart (uyarı için). Kartlar toplam faize göre azalan sıralı.
+    """
+    cards = [d for d in debts if d.account_type == 'credit_card' and d.balance > 0]
+    if not cards:
+        return None
+    kartlar = []
+    for c in cards:
+        r = _simulate([c], [c.account_id], 0.0, today=today)
+        asla_bitmez = r.months_to_freedom >= MAX_MONTHS
+        kartlar.append({
+            "account_id": c.account_id,
+            "ad": c.name,
+            "bakiye": round(c.balance, 2),
+            "aylik_oran": round(c.interest_rate_monthly, 2),
+            "ay": r.months_to_freedom,
+            "toplam_faiz": r.total_interest_paid,
+            "toplam_odeme": r.total_paid,
+            "payoff_tarih": r.payoff_date.isoformat() if r.payoff_date else None,
+            "asla_bitmez": asla_bitmez,
+        })
+    kartlar.sort(key=lambda k: -k["toplam_faiz"])  # en çok sızdıran önce
+    return {
+        "kartlar": kartlar,
+        "toplam_faiz": round(sum(k["toplam_faiz"] for k in kartlar), 2),
+        "en_yuksek_faiz": kartlar[0],
+    }
+
+
 def _result_to_dict(r: StrategyResult) -> dict:
     """StrategyResult -> JSON-serializeable dict (schedule haric)."""
     return {

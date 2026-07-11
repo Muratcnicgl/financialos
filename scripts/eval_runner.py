@@ -35,7 +35,13 @@ def _canonical_db():
 
 
 def main() -> None:
-    provider = build_provider()
+    try:
+        provider = build_provider()
+    except Exception as e:
+        print(f"Sağlayıcı kurulamadı: {e}")
+        print("İpucu: .env'de LLM_PROVIDER + ilgili API key ayarla "
+              "(ör. LLM_PROVIDER=groq, GROQ_API_KEY=...). Yerel/offline için LLM_PROVIDER=ollama.")
+        raise SystemExit(1)
     print(f"Sağlayıcı: {getattr(provider, 'NAME', type(provider).__name__)}\n")
     engine = CoachEngine(provider=provider)
     db = _canonical_db()

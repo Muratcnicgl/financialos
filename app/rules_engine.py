@@ -531,7 +531,9 @@ def _collect_upcoming_reminders(
     """
     A1: 0-7 gün içinde vadesi gelen olaylar.
     - RecurringIncome/Expense: last_triggered_year_month != bu_ay AND day_of_month 0-7 gün
-    - PersonalDebt payable: due_date 0-7 gün, is_paid=False
+    - PersonalDebt payable: due_date 0-7 gün, is_paid=False (borç öde)
+    - PersonalDebt receivable: due_date 0-7 gün, is_paid=False (BUG #119: Efe'den tahsil et)
+    - Kredi kartı SON ÖDEME: payment_day 0-7 gün + kart borcu > 0 (BUG #096)
     Sıralama: card_risk önce, sonra days_until.
     """
     REMINDER_DAYS = 7

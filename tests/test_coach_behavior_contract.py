@@ -138,3 +138,70 @@ def test_propose_action_happy_path_pending_olusur(db):
     res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım nakitten", include_cockpit=False)
     assert len(res["proposed_actions"]) == 1
     assert res["proposed_actions"][0]["action_type"] == "add_transaction"
+
+
+# ============================================================
+# account_unclear override (BUG #042) — gider hesabı belirsizse propose oluşmaz,
+# koç net cevap yerine yönlendirme sorusu döner
+# ============================================================
+
+def test_hesap_belirsiz_override_soru_sorar(db):
+    """
+    Gider bildirildi ama hesap anahtar kelimesi yok → propose_action HESAP_BELIRSIZ
+    fırlatır → account_unclear=True → pending oluşmaz, reply yönlendirme sorusudur.
+    ScriptedProvider'ın verdiği net metin ("kaydettim") override edilir.
+    """
+    session, u = db
+    cash = session.query(Account).filter_by(
+        user_id=u.id, account_type=AccountType.cash).first()
+    prov = ScriptedProvider(text="Harcamanı kaydettim.", tool_calls=[{
+        "name": "propose_action",
+        "input": {
+            "action_type": "add_transaction",
+            "payload": {"amount": 500, "transaction_type": "expense",
+                        "account_id": cash.id, "category": "yemek"},
+            "summary": "500 TL yemek",
+        },
+    }])
+    # "500 harcadım" — hesap kelimesi (kart/nakit) YOK
+    res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım", include_cockpit=False)
+    assert res["proposed_actions"] == []
+    assert "Hangi hesaptan" in res["reply"]
+    assert "kaydettim" not in res["reply"].lower()
+
+
+# ============================================================
+# save_insight tool path — LLM save_insight çağırırsa CoachInsight satırı yazılır
+# ============================================================
+
+def test_save_insight_kalici_hafizaya_yazar(db):
+    """save_insight tool_call'u → CoachInsight satırı DB'ye upsert edilir."""
+    from app.models import CoachInsight
+    session, u = db
+    prov = ScriptedProvider(text="Not aldım.", tool_calls=[{
+        "name": "save_insight",
+        "input": {
+            "content": "Murat nöbet günleri yemek harcamasını artırıyor",
+            "category": "davranis",
+            "priority": "normal",
+            "dedup_key": "nobet_yemek",
+        },
+    }])
+    CoachEngine(provider=prov).chat(session, u.id, "Nöbet günleri daha çok yiyorum", include_cockpit=False)
+    row = session.query(CoachInsight).filter_by(user_id=u.id, dedup_key="nobet_yemek").first()
+    assert row is not None
+    assert "nöbet" in row.content.lower()
+
+
+# ============================================================
+# Confidence marker — [CONFIDENCE: X] kullanıcıya sızmaz (strip edilir)
+# ============================================================
+
+def test_confidence_marker_kullaniciya_sizmaz(db):
+    """LLM yanıtındaki [CONFIDENCE: 0.85] işareti reply'dan temizlenir."""
+    session, u = db
+    prov = ScriptedProvider(text="[CONFIDENCE: 0.85] Kart borcun kontrol altında.")
+    res = CoachEngine(provider=prov).chat(session, u.id, "durum nedir?", include_cockpit=False)
+    assert "CONFIDENCE" not in res["reply"]
+    assert "[" not in res["reply"]
+    assert "Kart borcun kontrol altında." in res["reply"]

@@ -84,7 +84,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** cashflow crunch tespitini maaş döngüsüne bağlar; detect_alerts'e proaktif uyarı. LLM açıklar, gerekirse harcama kısma önerisi (aksiyon değil).
 - **Etki:** Yüksek · **Efor:** S
 
-### [FEAT-012] Borçsuzluk tarihi + kartopu zaman çizelgesi
+### [FEAT-012] Borçsuzluk tarihi + kartopu zaman çizelgesi ✅ UYGULANDI
 - **Değer/Fırsat:** "Bu tempoyla 14 Mart 2028'de borçsuzsun" tek tarih + aylık ilerleme çizelgesi. 5 kredi + kart yükünde en güçlü motivasyon aracı.
 - **Kaynak/İlham:** Debt payoff psychology (Ramsey momentum), Undebt.it payoff date.
 - **Nasıl (mimari):** debt_strategy zaten snowball/avalanche simüle ediyor; çıktıya borçsuzluk tarihi + aylık kalan-borç serisi eklenir. LLM açıklar.

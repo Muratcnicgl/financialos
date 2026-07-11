@@ -48,25 +48,25 @@
 - **Etki:** Orta · **Efor:** L
 - **Not:** 4 lot @3.616 + 2 lot @5.000 alıp 4 lot satınca stopaj farkı yüzlerce TL. [Vanguard — FIFO Cost Basis]
 
-### [RULE-008] `simulate_partial_sale` giriş doğrulaması eksik (negatif/sıfır lot)
+### [RULE-008] `simulate_partial_sale` giriş doğrulaması eksik (negatif/sıfır lot) ✅ UYGULANDI
 - **Sorun:** `lots_to_sell > lot_count` kontrol var ama `lots_to_sell <= 0`, negatif fiyat, `cost_per_lot<0` yok.
 - **Kanıt:** `app/rules_engine.py:272-273`
 - **Aksiyon:** `if lots_to_sell <= 0 or current_price < 0: raise ValueError`
 - **Etki:** Düşük · **Efor:** S
 
-### [RULE-009] Kart kullanım/status oranında `max(nakit, 1)` tabanı çarpıtıyor
+### [RULE-009] Kart kullanım/status oranında `max(nakit, 1)` tabanı çarpıtıyor ✅ UYGULANDI
 - **Sorun:** `kart_borcu / max(nakit, 1)`; nakit 0–1 TL veya negatifse oran yanlış (0.5 TL nakit → payda 1; negatif nakit → negatif oran).
 - **Kanıt:** `app/rules_engine.py:744` ve `:851`
 - **Aksiyon:** `if nakit <= 0` özel dalı; oranı None/"sonsuz baskı" işaretle.
 - **Etki:** Düşük · **Efor:** S
 
-### [RULE-010] `debt_strategy` payoff tarihi 30 günlük ay yaklaşımı
+### [RULE-010] `debt_strategy` payoff tarihi 30 günlük ay yaklaşımı ✅ UYGULANDI
 - **Sorun:** `payoff = date.today() + timedelta(days=month * 30)` — 12 ay=360 gün ≠ 365. Uzun vadede haftalar kayar; `date.today()` fonksiyonu saf olmaktan çıkarır (test edilemez).
 - **Kanıt:** `app/debt_strategy.py:216`
 - **Aksiyon:** Gerçek takvim ay ilerlemesi (`_advance_month`); `today` parametresini enjekte et.
 - **Etki:** Orta · **Efor:** M
 
-### [RULE-011] `months_to_freedom == MAX_MONTHS` "özgürlük" gibi dönüyor (asla bitmez maskeleniyor)
+### [RULE-011] `months_to_freedom == MAX_MONTHS` "özgürlük" gibi dönüyor (asla bitmez maskeleniyor) ✅ UYGULANDI
 - **Sorun:** Faiz > ödeme olunca borç hiç bitmez ama `months_to_freedom` 600 döner ve payoff_date hesaplanır → çağıran "50 yılda biter" sanar.
 - **Kanıt:** `app/debt_strategy.py:150, 216-227`; `goal_engine.py:107` kısmen koruyor.
 - **Aksiyon:** `never_pays_off: bool` bayrağı; MAX_MONTHS'ta `payoff_date=None`.

@@ -307,3 +307,26 @@ def test_soru_bos_cevap_retry_ile_metin_uretir(db):
     assert prov.calls == 2
     assert "Kart borcun kontrol altında." in res["reply"]
     assert prov.received_tools_per_call[1] == []         # retry'da tool yok
+
+
+def test_retry_llm_patlarsa_istek_cokmemeli(db):
+    """
+    Dayanıklılık sözleşmesi: 1. çağrı boş → retry tetiklenir ama retry LLM çağrısı
+    exception fırlatır → coach çökmez, orijinal (boş) cevaba düşüp yanıt üretir.
+    """
+    class FlakyRetryProvider:
+        NAME = "Flaky"; model = "flaky-1"; last_used_provider = "flaky"
+        def __init__(self):
+            self.calls = 0
+        def chat(self, system_prompt, messages, tools):
+            self.calls += 1
+            if self.calls == 1:
+                return LLMResponse(text="", tool_calls=[], usage=None,
+                                   provider_used="flaky", model_name="flaky-1")
+            raise RuntimeError("retry sağlayıcı düştü")
+
+    session, u = db
+    prov = FlakyRetryProvider()
+    res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım nakitten", include_cockpit=False)
+    assert prov.calls == 2                    # retry denendi
+    assert isinstance(res["reply"], str) and res["reply"]   # çökmedi, bir yanıt var

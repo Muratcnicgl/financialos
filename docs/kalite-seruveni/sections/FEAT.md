@@ -37,11 +37,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** rules_engine'de gelir/gider FIFO eşleştirmesiyle saf hesap; Cockpit metriği. Sadece okuma.
 - **Etki:** Orta · **Efor:** M
 
-### [FEAT-005] Kategori bütçe aşım tahmini
+### [FEAT-005] Kategori bütçe aşım tahmini ✅ UYGULANDI (11 Tem 2026)
 - **Değer/Fırsat:** Ay ortasında mevcut harcama hızıyla hangi kategorinin ay sonunda bütçeyi aşacağını önceden söyler ("bu gidişle market zarfı 8 gün erken bitecek").
 - **Kaynak/İlham:** Copilot / YNAB projected spending.
 - **Nasıl (mimari):** rules_engine'de kategori günlük ortalama × kalan gün projeksiyonu (mevcut _calculate_category_patterns altyapısını genişletir). LLM açıklar; aksiyon yok.
 - **Etki:** Yüksek · **Efor:** M
+- **Durum:** `_category_overspend_alerts` — ay-içi hız × kalan gün projeksiyonu vs GEÇEN AY (envelope bütçe YOK, geçen ay yumuşak referans → FEAT-001 bağımlılığı aşıldı). > geçen ay ×1.15 ise uyarı; ay başı (< 5 gün) gürültü atlanır; top-2 → cockpit alerts (koç Kural 14). 6 test.
 
 ### [FEAT-006] Abonelik denetçisi ✅ UYGULANDI (11 Tem 2026, detection+endpoint)
 - **Değer/Fırsat:** İşlem geçmişinden aynı tutarlı tekrarlayan ödemeleri (Netflix, Spotify, üyelik) otomatik tespit eder, toplam aylık/yıllık abonelik yükünü çıkarır. Kullanılmayanı işaretler.

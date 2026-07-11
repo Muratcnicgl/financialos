@@ -37,6 +37,9 @@ GÜNCELLEMELER:
 - FEAT-006/007 (Rocket Money/Monarch ilhamı): detect_subscriptions — işlem geçmişinde tekrarlayan
   abonelikleri tespit (medyan aralık + farklı-tutar ≤ 2 ayırt edicisi). _subscription_price_alerts
   aboneliğin tutarı arttıysa (sessiz zam) uyarı üretir → cockpit alerts. GET /api/subscriptions.
+- FEAT-005 (Copilot/YNAB projected spending): _category_overspend_alerts — ay-içi harcama hızıyla
+  her giderin ay-sonu projeksiyonu geçen ayı belirgin aşacaksa erken uyarı (envelope bütçe gerekmez,
+  geçen ay yumuşak referans). Ay başında (< 5 gün) gürültü nedeniyle atlanır. Top-2 → cockpit alerts.
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -898,6 +901,51 @@ def _month_bounds(year: int, month: int) -> Tuple[date, date]:
     return date(year, month, 1), date(year, month, last)
 
 
+def _category_overspend_alerts(
+    user_id: int, today: date, db: Session,
+    min_days: int = 5, over_ratio: float = 1.15, top_n: int = 2,
+) -> List[Dict]:
+    """
+    FEAT-005 (Copilot/YNAB "projected spending"): ay-içi mevcut harcama HIZIYLA her giderin
+    ay-sonu projeksiyonunu geçen ayın aynı kategorisiyle kıyaslar; belirgin aşacaklar için
+    ERKEN uyarı ("bu gidişle market geçen ayı %30 aşacak"). Envelope bütçe gerekmez — geçen ay
+    yumuşak referans. Salt okuma. Ay başında (< min_days) projeksiyon gürültülü → atlanır.
+    """
+    days_in_month = monthrange(today.year, today.month)[1]
+    days_elapsed = today.day
+    if days_elapsed < min_days:
+        return []
+
+    curr = _month_aggregates(db, user_id, date(today.year, today.month, 1), today)
+    prev_year, prev_month = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+    ps, pe = _month_bounds(prev_year, prev_month)
+    prev_by_cat = {c["category"]: c["total"] for c in _month_aggregates(db, user_id, ps, pe)["expense_categories"]}
+
+    warnings: List[Dict] = []
+    for c in curr["expense_categories"]:
+        mtd = c["total"]
+        prev_total = prev_by_cat.get(c["category"], 0.0)
+        if prev_total <= 0 or mtd <= 0:
+            continue  # geçen ay referansı yok → yeni-kategori gürültüsü elenir
+        projected = round(mtd / days_elapsed * days_in_month, 2)
+        if projected > prev_total * over_ratio:
+            asim_pct = round((projected - prev_total) / prev_total * 100, 1)
+            warnings.append({
+                "seviye": "uyari",
+                "baslik": f"Kategori aşım öngörüsü: {c['category']}",
+                "mesaj": (
+                    f"{c['category']} bu gidişle ay sonu ~{_tl(projected)} TL olur "
+                    f"(geçen ay {_tl(prev_total)} TL, %{asim_pct} fazla). Hız kes."
+                ),
+                "tutar": projected,        # grounding
+                "_proj": projected,        # sıralama için (dışa sızmaz sorun değil)
+            })
+    warnings.sort(key=lambda w: -w["_proj"])
+    for w in warnings:
+        w.pop("_proj", None)
+    return warnings[:top_n]
+
+
 def _month_aggregates(db: Session, user_id: int, start: date, end: date) -> Dict:
     """Bir takvim ayının gelir/gider/net + gider kategori dağılımı (saf okuma)."""
     rows = db.query(
@@ -1264,10 +1312,11 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     crunch_alert = _crunch_alert_from_summary(cashflow_summary)  # kritik, gecikmelerden sonra
     if crunch_alert:
         kritik_front.append(crunch_alert)
-    # FEAT-007: abonelik zammı (uyarı) — kritik olmayan kuyruğa eklenir.
+    # FEAT-007 abonelik zammı + FEAT-005 kategori aşım öngörüsü (uyarı) — kritik olmayan kuyruk.
     sub_price_alerts = _subscription_price_alerts(user_id, today, db)
+    overspend_alerts = _category_overspend_alerts(user_id, today, db)
     alerts = kritik_front + alerts + \
-             [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts
+             [a for a in overdue_alerts if a["seviye"] != "kritik"] + sub_price_alerts + overspend_alerts
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary)  # FEAT-009
 
     return {

@@ -1425,15 +1425,15 @@ def calculate_health_score(
         s = 40
     bilesenler.append({"ad": "Ödeme gücü", "puan": s})
 
-    if aylik_gelir > 0:
-        oran = aylik_faiz / aylik_gelir
+    if aylik_gelir > 1:  # anlamlı gelir eşiği: denormal/sıfıra-yakın bölen → inf overflow'u ele
+        oran = min(aylik_faiz / aylik_gelir, 10.0)  # oran cap: aşırı değerde round(inf) çökmesin
         bilesenler.append({"ad": "Faiz yükü", "puan": max(0, min(100, round(100 - oran * 333)))})
 
     if runway_gun is not None:
         bilesenler.append({"ad": "Nakit tamponu", "puan": max(0, min(100, round(runway_gun / 90 * 100)))})
 
     if kart_limit > 0:
-        util = kart_borcu / kart_limit
+        util = min(kart_borcu / kart_limit, 1.0)  # cap: denormal limitte inf→round çökmesin; >limit zaten 0
         bilesenler.append({"ad": "Kart sağlığı", "puan": max(0, min(100, round((1 - util) * 100)))})
 
     if zarf_var:

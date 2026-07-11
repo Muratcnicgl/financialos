@@ -47,7 +47,7 @@ def test_zam_uyarisi_uretir(db):
     a = alerts[0]
     assert a["seviye"] == "uyari"
     assert "Spotify" in a["baslik"]
-    assert "74.99" in a["mesaj"]      # rules_engine alert konvansiyonu: {:,.2f} (nokta ondalık, #120 ile tutarlı)
+    assert "74,99" in a["mesaj"]      # BUG #122: Türkçe para formatı (virgül ondalık)
     assert a["tutar"] == 74.99
 
 

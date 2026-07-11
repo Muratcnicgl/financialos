@@ -57,6 +57,16 @@ import re
 
 logger = logging.getLogger(__name__)
 
+
+def _tl(x: float) -> str:
+    """
+    Türkçe para formatı: 1234.56 -> '1.234,56' (nokta binlik, virgül ondalık).
+    BUG #122: alert/mesaj tutarları eskiden '{:,.2f}' ile NOKTA ondalık ("74.99 TL")
+    üretiyordu — hem Türkçe UI ile tutarsız hem de grounding bug'ı: koç bunu echo edince
+    _TL_NUM_RE noktayı binlik sanıp "74" okuyor, yanlış-pozitif "izlenemeyen tutar" veriyordu.
+    """
+    return f"{x:,.2f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 from app.models import (
@@ -234,7 +244,7 @@ def evaluate_credit_card_strategy(
         gun_kaldi = payment_day_eff - today.day
         mesaj = (
             f"Son ödeme tarihine {gun_kaldi} gün kaldı ({payment_day_eff}'i). "
-            f"{current_debt:.2f} TL borç hazırlığı yapılmalı."
+            f"{_tl(current_debt)} TL borç hazırlığı yapılmalı."
         )
     else:
         durum = "kesim_dikkat"
@@ -700,14 +710,14 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
             alerts.append({
                 "seviye": "kritik",
                 "baslik": f"Gecikmiş borç: {d.counterparty}",
-                "mesaj": f"{d.counterparty}'a {d.amount:,.2f} TL borç {gecikme} gün gecikti — öde.",
+                "mesaj": f"{d.counterparty}'a {_tl(d.amount)} TL borç {gecikme} gün gecikti — öde.",
                 "tutar": d.amount,
             })
         else:
             alerts.append({
                 "seviye": "uyari",
                 "baslik": f"Gecikmiş alacak: {d.counterparty}",
-                "mesaj": f"{d.counterparty} {d.amount:,.2f} TL {gecikme} gün gecikti — tahsil et.",
+                "mesaj": f"{d.counterparty} {_tl(d.amount)} TL {gecikme} gün gecikti — tahsil et.",
                 "tutar": d.amount,
             })
     return alerts
@@ -752,7 +762,7 @@ def _crunch_alert_from_summary(
         "baslik": "Nakit krizi öngörüsü",
         "mesaj": (
             f"{horizon_days} gün içinde nakit sıfırın altına düşüyor "
-            f"(ilk kriz {first_crunch}, en düşük {lowest:,.2f} TL @ {lowest_date}). "
+            f"(ilk kriz {first_crunch}, en düşük {_tl(lowest)} TL @ {lowest_date}). "
             f"Alacakları öne al veya gideri ertele — kriz henüz ÖNLENEBİLİR."
         ),
         # grounding: projekte edilen tutar cockpit'te numerik olarak izlenebilir olsun (#120 dersi)
@@ -1087,7 +1097,7 @@ def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[D
                 "seviye": "uyari",
                 "baslik": f"Abonelik zammı: {s['isim']}",
                 "mesaj": (
-                    f"{s['isim']} {eski:,.2f} → {yeni:,.2f} TL'ye çıkmış "
+                    f"{s['isim']} {_tl(eski)} → {_tl(yeni)} TL'ye çıkmış "
                     f"(%{artis_pct} artış). Hâlâ kullanıyor musun?"
                 ),
                 "tutar": yeni,  # grounding: yeni tutar cockpit'te izlenebilir
@@ -1317,7 +1327,7 @@ def detect_alerts(
             alerts.append({
                 "seviye": "kritik",
                 "baslik": "Kart kullanım oranı %95 üzeri",
-                "mesaj": f"Kart {kullanim:.1f}% dolu. Yeni harcama riskli, kalan limit {kart_limit - kart_borcu:.2f} TL.",
+                "mesaj": f"Kart {kullanim:.1f}% dolu. Yeni harcama riskli, kalan limit {_tl(kart_limit - kart_borcu)} TL.",
             })
         elif kullanim >= 80:
             alerts.append({
@@ -1331,7 +1341,7 @@ def detect_alerts(
         alerts.append({
             "seviye": "kritik",
             "baslik": "Reel bütçe negatif",
-            "mesaj": f"Beklenen gelirle birlikte bile bütçe {reel_butce:.2f} TL. Kart borcu nakdi aşıyor.",
+            "mesaj": f"Beklenen gelirle birlikte bile bütçe {_tl(reel_butce)} TL. Kart borcu nakdi aşıyor.",
         })
 
     # 3. Nakit çok düşük
@@ -1339,7 +1349,7 @@ def detect_alerts(
         alerts.append({
             "seviye": "uyari",
             "baslik": "Nakit çok düşük",
-            "mesaj": f"Kasada {nakit:.2f} TL. Acil durum tamponu yok.",
+            "mesaj": f"Kasada {_tl(nakit)} TL. Acil durum tamponu yok.",
         })
 
     # 4. 7 gün içinde büyük ödeme var mı?
@@ -1354,7 +1364,7 @@ def detect_alerts(
         alerts.append({
             "seviye": "uyari",
             "baslik": f"7 gün içinde büyük ödeme: {p['ad']}",
-            "mesaj": f"{p['tarih']} tarihinde {p['tutar']:.2f} TL — nakitin %{(p['tutar'] / max(nakit, 1)) * 100:.0f}'i.",
+            "mesaj": f"{p['tarih']} tarihinde {_tl(p['tutar'])} TL — nakitin %{(p['tutar'] / max(nakit, 1)) * 100:.0f}'i.",
         })
 
     return alerts

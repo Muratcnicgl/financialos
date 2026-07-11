@@ -107,7 +107,13 @@ export default function Cockpit({ setActiveTab }) {
   // BUG #006 fix: Yeni alanlar (eski cockpit response'i ile geriye uyumlu olsun diye fallback)
   const netDegerTam = data.net_deger_tam ?? data.net_deger;
   const alacaklarToplami = data.alacaklar_toplami ?? 0;
+  const borclarToplami = data.borclar_toplami ?? 0;   // BUG #116: kişisel borç (net_deger_tam'dan −)
   const alacaklarVar = alacaklarToplami > 0;
+  // Tam Net Değer alt-yazısı: hem +alacak hem −kişisel-borç şeffaf gösterilir (#116)
+  const netTamDetay = [
+    alacaklarToplami > 0 ? `+${formatTL(alacaklarToplami)} TL alacak` : null,
+    borclarToplami > 0 ? `−${formatTL(borclarToplami)} TL kişisel borç` : null,
+  ].filter(Boolean).join(', ');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -198,9 +204,9 @@ export default function Cockpit({ setActiveTab }) {
             value={netDegerTam}
             variant={netDegerTam >= 0 ? 'positive' : 'negative'}
             icon={Telescope}
-            subtitle={alacaklarVar
-              ? `+${formatTL(alacaklarToplami)} TL alacak dahil`
-              : 'Alacak yok, görülen ile aynı'}
+            subtitle={netTamDetay
+              ? `${netTamDetay} dahil`
+              : 'Alacak/borç yok, görülen ile aynı'}
           />
         </div>
       </div>

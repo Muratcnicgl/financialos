@@ -28,7 +28,6 @@ data/*.db-shm
 data/*.backup_*
 
 # === asistan araci ===
-.asistan/
 
 # === IDE ===
 .idea/
@@ -57,3 +56,9 @@ build/
 dist/
 eval_out.txt
 backups/
+
+
+# .claude: settings ignore, ama proje-ozel skill + rules commit'lenir (M2)
+.asistan/*
+!.asistan/skills/
+!.asistan/rules/

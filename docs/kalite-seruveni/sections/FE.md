@@ -22,7 +22,7 @@
 - **Aksiyon:** Tek `components/Modal.jsx` (dialog+Escape+focus trap+scroll kilidi); tüm paneller geçsin.
 - **Etki:** Yüksek · **Efor:** M
 
-### [FE-005] Row toggle/mark-paid handler'larında try/catch yok — sessiz rejection
+### [FE-005] Row toggle/mark-paid handler'larında try/catch yok — sessiz rejection ✅ UYGULANDI (12 Tem 2026, IncomeDebt)
 - **Kanıt:** `IncomeDebt.jsx:123-126,135-138,147-153`; `RedLines.jsx:121-124`
 - **Aksiyon:** try/catch+toast (IncomeDebt useToast ekle) veya TanStack mutation.
 - **Etki:** Orta · **Efor:** S

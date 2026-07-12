@@ -90,10 +90,11 @@
 - **Aksiyon:** Tüm SQLEnum'lerde `values_callable` standardize (değer bazlı saklama).
 - **Etki:** Düşük · **Efor:** S
 
-### [DATA-018] `Transaction.account_id` nullable — gelir/gider hesapsız yazılabiliyor
+### [DATA-018] `Transaction.account_id` nullable — gelir/gider hesapsız yazılabiliyor ✅ UYGULANDI (12 Tem 2026, API katmanı)
 - **Kanıt:** `app/models.py:227`; karşı `RecurringExpense.account_id:211` nullable=False
 - **Aksiyon:** İş kuralına göre CHECK ("expense ⇒ account_id NOT NULL") veya nullable=False.
 - **Etki:** Orta · **Efor:** S
+- **Durum:** POST /api/transactions artık HER create'te (yalnız quick-text değil) varsayılan hesaba düşer (kart-gideri→kart, aksi→nakit); yine de account_id çözülemezse **400** ("yetim"/bakiyesiz işlem oluşmaz). Eskiden nakit hesabı olmayan kullanıcının hesapsız işlemi sessizce bakiyeye dokunmadan yazılıyordu. Model nullable korunur (goal-rule eşleşmesi + iç akışlar için) — enforcement API katmanında. 3 test (hesapsız→400, otomatik-atama→201+bakiye düşer, geçersiz→404). Not: model-seviyesi CHECK/Alembic migrasyon gerektirir (proje create_all, ertelendi).
 
 ### [DATA-019] `CoachInsight.status` nullable=True ama default var — üç-değerli mantık kirliliği
 - **Kanıt:** `app/models.py:432`

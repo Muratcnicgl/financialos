@@ -241,24 +241,25 @@ def create_transaction(
         if not data.get("description"):
             data["description"] = parsed["description"] or data["quick_text"]
 
-        # Default hesap secimi
-        if not data.get("account_id"):
-            if data.get("is_card_expense"):
-                acc = (
-                    db.query(Account)
-                    .filter(Account.user_id == user.id,
-                            Account.account_type == AccountType.credit_card)
-                    .first()
-                )
-            else:
-                acc = (
-                    db.query(Account)
-                    .filter(Account.user_id == user.id,
-                            Account.account_type == AccountType.cash)
-                    .first()
-                )
-            if acc:
-                data["account_id"] = acc.id
+    # Default hesap seçimi — DATA-018: yalnız quick-text için DEĞİL, HER create için (account_id
+    # verilmemişse) varsayılan hesaba düş. Böylece hem UX korunur hem "yetim" işlem üretilmez.
+    if not data.get("account_id"):
+        if data.get("is_card_expense"):
+            acc = (
+                db.query(Account)
+                .filter(Account.user_id == user.id,
+                        Account.account_type == AccountType.credit_card)
+                .first()
+            )
+        else:
+            acc = (
+                db.query(Account)
+                .filter(Account.user_id == user.id,
+                        Account.account_type == AccountType.cash)
+                .first()
+            )
+        if acc:
+            data["account_id"] = acc.id
 
     # Zorunlu alanlar
     if not data.get("transaction_type"):
@@ -269,16 +270,21 @@ def create_transaction(
     auto_update = data.pop("auto_update_balance", True)
     data.pop("quick_text", None)
 
-    # Account bul
-    account = None
-    if data.get("account_id"):
-        account = (
-            db.query(Account)
-            .filter(Account.id == data["account_id"], Account.user_id == user.id)
-            .first()
+    # Account bul — DATA-018: her işlem bir hesabı ETKİLEMELİ (bakiyesiz "yetim" işlem yok).
+    # Varsayılan hesap seçimi (yukarıda) uygun hesap bulamadıysa account_id None kalır →
+    # eskiden bakiyeye dokunmayan yanıltıcı bir işlem oluşuyordu. Artık reddedilir.
+    if not data.get("account_id"):
+        raise HTTPException(
+            status_code=400,
+            detail="Hesap belirtilmedi ve uygun varsayılan hesap yok. Önce bir nakit/kart hesabı ekle ya da account_id belirt.",
         )
-        if not account:
-            raise HTTPException(status_code=404, detail="Hesap bulunamadi")
+    account = (
+        db.query(Account)
+        .filter(Account.id == data["account_id"], Account.user_id == user.id)
+        .first()
+    )
+    if not account:
+        raise HTTPException(status_code=404, detail="Hesap bulunamadi")
 
     # Transaction kaydi olustur
     txn = Transaction(user_id=user.id, **data)

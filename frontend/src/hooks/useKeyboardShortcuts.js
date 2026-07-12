@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 
-const TAB_IDS = ['cockpit', 'coach', 'accounts', 'transactions', 'incomedebt', 'redlines', 'reports'];
+// FE-007: App'teki 11 sekmenin tümü (Cmd+1-9 doğrudan; 10/11 = goals/budget palette'ten).
+const TAB_IDS = ['cockpit', 'coach', 'accounts', 'transactions', 'incomedebt', 'redlines',
+                 'reports', 'cashflow', 'debtstrategy', 'goals', 'budget'];
 
 function isInputFocused() {
   const tag = document.activeElement?.tagName;
@@ -28,8 +30,8 @@ export function useKeyboardShortcuts({ setActiveTab, onHelp, onPalette }) {
         return;
       }
 
-      // Cmd/Ctrl+1..6 → panel geçişi (input focus'tayken de aktif)
-      if (ctrl && e.key >= '1' && e.key <= '7') {
+      // Cmd/Ctrl+1..9 → panel geçişi (input focus'tayken de aktif; 10/11 palette'ten)
+      if (ctrl && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
         const idx = parseInt(e.key, 10) - 1;
         if (TAB_IDS[idx]) setActiveTab(TAB_IDS[idx]);

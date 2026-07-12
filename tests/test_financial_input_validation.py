@@ -104,3 +104,19 @@ def test_http_islem_negatif_dostca_reddedilir(client):
     r = client.post("/api/transactions",
                     json={"transaction_type": "expense", "amount": -200, "account_id": 1})
     assert r.status_code in (400, 422)
+
+
+@pytest.mark.parametrize("qt", ["1e308 yemek", "Infinity market", "nan kahve"])
+def test_http_quick_text_non_finite_reddedilir(client, qt):
+    """
+    quick_text tutarı Pydantic şemasını ATLAR (create'te amount None gelip handler'da parse
+    edilir) → SEC-032 boşluğu. Parser sonlu/üst-sınır doğrulamalı, DB'ye sızmamalı (400).
+    """
+    r = client.post("/api/transactions", json={"quick_text": qt})
+    assert r.status_code == 400, r.text
+
+
+def test_http_quick_text_mesru_kabul(client):
+    r = client.post("/api/transactions", json={"quick_text": "100 yemek", "account_id": 1})
+    assert r.status_code in (200, 201), r.text
+    assert math.isfinite(r.json()["amount"]) and r.json()["amount"] == 100.0

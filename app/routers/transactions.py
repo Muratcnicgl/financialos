@@ -9,6 +9,7 @@ NOTLAR:
   geri cevirir.
 """
 
+import math
 import re
 from datetime import date
 from typing import Optional, Literal
@@ -226,8 +227,15 @@ def _parse_quick_text(text: str) -> dict:
         amount = float(parts[0].replace(",", "."))
     except ValueError:
         raise ValueError(f"Gecerli tutar bulunamadi: '{parts[0]}'")
+    # SEC-032: quick_text tutarı Pydantic şema doğrulamasını ATLAR (create'te amount None gelip
+    # burada doldurulur) → sonlu/üst-sınır kontrolü BURADA yapılmalı; aksi halde "1e308 yemek"
+    # veya "Infinity market" DB'ye sızıp rules_engine matematiğini bozar (nan `<=0`'ı da atlar).
+    if not math.isfinite(amount):
+        raise ValueError("Tutar sonlu bir sayı olmalı")
     if amount <= 0:
         raise ValueError("Tutar pozitif olmali")
+    if amount > 1e12:  # schema_types._FIN_MAX ile aynı üst sınır (taşma/çöp değer)
+        raise ValueError("Tutar makul üst sınırı (1e12) aşıyor")
 
     rest = " ".join(parts[1:]).strip() if len(parts) > 1 else ""
     if not rest:

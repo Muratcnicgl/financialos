@@ -104,3 +104,34 @@ def test_kenar_portfoy_baglam_cokmez(setup):
         assert isinstance(cockpit, dict)
     finally:
         s.close()
+
+
+# ---- FEAT-017 kilometre taşı: taze band geçişi koç bağlamında kutlanır ----
+
+def test_yeni_milestone_koc_baglaminda_kutlanir():
+    """Taze band geçişinde (%25) koç context'inde 'KİLOMETRE TAŞI' kutlama bloğu görünmeli."""
+    from datetime import date, timedelta
+    from app.models import NetWorthSnapshot, RecurringIncome
+    eng = create_engine("sqlite:///:memory:",
+                        connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(eng)
+    s = sessionmaker(bind=eng)()
+    today = date(2026, 7, 12)
+    try:
+        s.add(User(id=1, name="murat"))
+        # bugünkü borç: kredi 74k (guncel). baseline 100k, dünkü 80k → band 10→25 taze geçiş.
+        s.add(Account(user_id=1, name="Kredi", account_type=AccountType.loan, balance=74000,
+                      monthly_payment=3000, remaining_installments=25,
+                      next_payment_date=today + timedelta(days=5)))
+        s.add(NetWorthSnapshot(user_id=1, snapshot_date=today - timedelta(days=30), net_worth_seen=0,
+                               net_worth_full=0, cash=0, card_debt=0, loan_debt=100000,
+                               investment_value=0, receivables=0))
+        s.add(NetWorthSnapshot(user_id=1, snapshot_date=today - timedelta(days=1), net_worth_seen=0,
+                               net_worth_full=0, cash=0, card_debt=0, loan_debt=80000,
+                               investment_value=0, receivables=0))
+        s.commit()
+        context, cockpit = _build_context_message(s, 1)
+        assert cockpit["borc_ilerleme"]["yeni_milestone"] == 25
+        assert "KİLOMETRE TAŞI" in context
+    finally:
+        s.close()

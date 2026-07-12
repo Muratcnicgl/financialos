@@ -204,6 +204,11 @@ def create_allocation(
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    # DATA-028: 0 tutarlı allocation ANLAMSIZ (progress'e etkisi yok, gürültü). Negatif GEÇERLİ
+    # (cash_target için çekim/withdrawal). Yalnız tam-sıfırı reddet.
+    if payload.amount == 0:
+        raise HTTPException(status_code=422, detail="Allocation tutarı 0 olamaz.")
+
     # BUG #072 fix (P0-13/P0-14): allocation tutarı gerçek transaction tutarıyla sınırlanır.
     # Aksi halde 10 TL'lik işlem "1.000.000 TL katkı" olarak bağlanıp (sanal zenginlik) veya
     # aynı tx birden fazla goal'e tam tutarla bağlanıp (çift-sayım) goal progress'i şişiriyordu.

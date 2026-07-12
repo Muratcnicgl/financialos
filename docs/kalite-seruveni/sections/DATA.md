@@ -142,10 +142,11 @@
 - **Aksiyon:** Koşullu CHECK (credit_card ⇒ credit_limit NOT NULL, statement_day 1-31).
 - **Etki:** Orta · **Efor:** M
 
-### [DATA-028] `GoalAllocation` amount=0 engellenmiyor
+### [DATA-028] `GoalAllocation` amount=0 engellenmiyor ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `app/models.py:813,828`
 - **Aksiyon:** `CheckConstraint("amount <> 0")`.
 - **Etki:** Düşük · **Efor:** S
+- **Durum:** `POST /api/goals/{id}/allocations` 0 tutarı reddeder (422 — progress'e etkisiz gürültü). Negatif GEÇERLİ (cash_target withdrawal). API-katmanı enforcement (CHECK/migrasyon değil). 2 test (0→422, negatif→201).
 
 ### [DATA-029] Recurring dedup `last_triggered_year_month` String(7) format guard yok
 - **Sorun:** "2026-5" veya "May-26" yazılırsa dedup kırılır → mükerrer propose_action.

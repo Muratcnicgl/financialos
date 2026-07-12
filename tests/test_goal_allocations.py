@@ -58,6 +58,16 @@ def test_gecerli_allocation_201(client, db_session):
     assert r.status_code == 201
 
 
+def test_data028_sifir_tutar_422(client, db_session):
+    """DATA-028: 0 tutarlı allocation anlamsız (gürültü) → 422. Negatif (çekim) geçerli kalır."""
+    g = _goal(db_session); t = _tx(db_session, amount=1000.0)
+    assert client.post(f"/api/goals/{g.id}/allocations",
+                       json={"transaction_id": t.id, "amount": 0}).status_code == 422
+    # negatif (withdrawal) hâlâ geçerli
+    assert client.post(f"/api/goals/{g.id}/allocations",
+                       json={"transaction_id": t.id, "amount": -200.0}).status_code == 201
+
+
 def test_072_tx_tutarini_asan_allocation_422(client, db_session):
     g = _goal(db_session); t = _tx(db_session, amount=1000.0)
     r = client.post(f"/api/goals/{g.id}/allocations",

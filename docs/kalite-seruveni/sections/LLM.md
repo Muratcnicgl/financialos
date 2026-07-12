@@ -32,7 +32,7 @@
 - **Aksiyon:** ApiCallLog'a input/output token + `est_cost_usd`; provider fiyat tablosu; `/usage`'a aylık maliyet.
 - **Etki:** Orta · **Efor:** M
 
-### [LLM-007] usage/provider_used/model_name sadece Groq'ta set ediliyor
+### [LLM-007] usage/provider_used/model_name sadece Groq'ta set ediliyor ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `coach.py:801,953,1064,1115` (yok) vs `1018-1020` (Groq)
 - **Aksiyon:** Her provider usage çıkarsın (Anthropic `usage.input/output_tokens`, Gemini `usage_metadata`, OpenAI-uyumlu `usage`); provider_used/model_name kendi set etsin.
 - **Etki:** Yüksek · **Efor:** S · **Not:** LLM-005/006'nın ön koşulu.

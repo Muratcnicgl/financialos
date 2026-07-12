@@ -592,6 +592,18 @@ def _is_request_too_large(exc: Exception) -> bool:
     return False
 
 
+def _openai_compat_usage(response) -> Optional[Dict]:
+    """LLM-007: OpenAI-uyumlu yanıttan (Groq/Cerebras/OpenRouter/Ollama) usage çıkarır.
+    Trace + maliyet takibi için her sağlayıcı model_name/usage set etmeli (yalnız Groq değil)."""
+    u = getattr(response, "usage", None)
+    if not u:
+        return None
+    return {
+        "input_tokens": getattr(u, "prompt_tokens", None),
+        "output_tokens": getattr(u, "completion_tokens", None),
+    }
+
+
 def _call_with_retry(fn, *args, max_attempts: int = 3, base_delay: float = 1.0, **kwargs):
     last_exc = None
     for attempt in range(1, max_attempts + 1):
@@ -1141,7 +1153,16 @@ class AnthropicProvider(LLMProvider):
             elif block.type == "tool_use":
                 tool_calls.append({"name": block.name, "input": block.input})
 
-        return LLMResponse(text="\n".join(text_parts).strip(), tool_calls=tool_calls)
+        # LLM-007: Anthropic usage (input/output_tokens) + model_name/provider_used.
+        _au = getattr(response, "usage", None)
+        _ausage = None
+        if _au is not None:
+            _ausage = {
+                "input_tokens": getattr(_au, "input_tokens", None),
+                "output_tokens": getattr(_au, "output_tokens", None),
+            }
+        return LLMResponse(text="\n".join(text_parts).strip(), tool_calls=tool_calls,
+                           usage=_ausage, provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1293,7 +1314,16 @@ class GeminiProvider(LLMProvider):
                 detail="hem text hem tool_calls bos",
             )
 
-        return LLMResponse(text=result_text, tool_calls=tool_calls)
+        # LLM-007: Gemini usage_metadata → usage; her sağlayıcı model_name/usage set etmeli.
+        _um = getattr(response, "usage_metadata", None)
+        _gusage = None
+        if _um is not None:
+            _gusage = {
+                "input_tokens": getattr(_um, "prompt_token_count", None),
+                "output_tokens": getattr(_um, "candidates_token_count", None),
+            }
+        return LLMResponse(text=result_text, tool_calls=tool_calls,
+                           usage=_gusage, provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1409,7 +1439,9 @@ class CerebrasProvider(LLMProvider):
                     except Exception:
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls)
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=_openai_compat_usage(response),
+                           provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1460,7 +1492,9 @@ class OpenRouterProvider(LLMProvider):
                     except Exception:
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls)
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=_openai_compat_usage(response),
+                           provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1523,7 +1557,9 @@ class OllamaProvider(LLMProvider):
                     except Exception:
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls)
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=_openai_compat_usage(response),
+                           provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)

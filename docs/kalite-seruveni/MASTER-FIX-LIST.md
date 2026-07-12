@@ -329,7 +329,7 @@ P0-1 (#069), P0-2 (#068), P0-3 (#079), P0-4 (#081), P0-5 (#066), P0-6 (#064), **
 ## P2 — Kalite / Temizlik / Konvansiyon (Kesin)
 
 - **[P2-1] Legacy `session.query()` yaygin (138+ kullanim)** — app/PROJE.md SQLAlchemy 2.x kuralini ihlal. Kaynak: CI-007, DP-002, RAC-002, RCH-004, RDE-004, RRE-004, RT-003, SC-002, BE-018, DATA-031. Yeni kod `select()` zorunlu, sik dokunulanlar kademeli goc.
-- **[P2-2] Olu kod / baglanmamis ozellikler** — `parse_gg_command`+`GG_PATTERN` (RE-002/RE-003/RE-004/RE-005/RE-006), `try_auto_fetch_*` (FT-006), `schemas.py` buyuk cogunlugu (SH-001, BE-020), `reasoning_trace.close()` no-op (RT-005), `_compute_cash_target` target==0 dali (GE-009). Kaldir veya bagla.
+- **[P2-2] Olu kod / baglanmamis ozellikler** — `parse_gg_command`+`GG_PATTERN` (RE-002/RE-003/RE-004/RE-005/RE-006), ~~`try_auto_fetch_*` (FT-006)~~ **✅ M4'te BAGLANDI (Improvement #028 kapandi — pytefas cron)**, `schemas.py` buyuk cogunlugu (SH-001, BE-020), `reasoning_trace.close()` no-op (RT-005), `_compute_cash_target` target==0 dali (GE-009). Kaldir veya bagla.
 - **[P2-3] `cockpit_dict.get("uyarilar")` yanlis anahtar → RULE_CHECK trace olu** — "alerts" olmali. Kaynak: CO-004.
 - **[P2-4] `_upsert_insight_absolute` guncelleme yolunda last_evidence_at dokunulmuyor** → siralama bozuk. Kaynak: CI-004. Ayrica CI-008 (dedup title'a duyarli), CI-009 (max() tie gece'ye onyargili).
 - **[P2-5] Limit parametreleri ust-sinirsiz** — `?limit=-1`/`999999`. Kaynak: RAT-006, RCO-007, RTR-009, RCH-006.

@@ -259,3 +259,12 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 |----|-----------|-----------|-------|
 | M3.1 | `scripts/cleanup_orphan_traces.py`: test-kullanıcı (user_id=2 test_user_decision_rhythm) + dangling-orphan (user_id=3) temizliği. R3: memory "20 yetim user_id=2" yanlıştı (2=test 56, 3=orphan 20). Backup'lı, idempotent, tüm user-scoped tablo | 82 satır silindi (76 trace+4 insight+1 goal+1 user); sadece Murat kaldı; tekrar=0 | ✅ |
 | M3.2 / ADR-028 | Koç fiilen Gemini-only gerçeği belgelendi (ADR-002 yapısı korunur). D1: OpenRouter araştırması (research-log.md) — Wave-3 fallback adayı | ADR-028 + research-log yazıldı | ✅ |
+
+## Milestone 4 — Fiyat otomasyonu (Improvement #028 / FT-006 kapanış)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| M4 / #028 / FT-006 | `app/price_providers/` (router: get_fund_price pytefas-reuse + 4h TTL cache + record_investment_price PriceHistory idempotent + dispatch) + scheduler cron `fetch_investment_prices_job` (02:45) — `try_auto_fetch_*` ölü koddan CANLI'ya bağlandı | Canlı: TLY=7277.90, 2/2 hesap güncel, PriceHistory satırı | ✅ |
+| M4 / ADR-029 | Sağlayıcı stratejisi belgelendi. **OTONOM KARAR (kategori-b):** charter "borsapy birincil" premisi R3 ile REDDEDİLDİ (borsapy TEFAS 404); pytefas birincil (tek çalışan) | ADR-029 + research-log K10 | ✅ |
+| M4 test | `tests/test_price_providers.py` (5) + `tests/test_scheduler_price_job.py` (2) — ağsız, monkeypatch, izole in-memory | 781 passed (774→781, +7) | ✅ |
+| M4 / backfill | `scripts/backfill_prices_all_accounts.py` — geçmiş PriceHistory doldurma (idempotent, iş günü) | script hazır | ✅ |

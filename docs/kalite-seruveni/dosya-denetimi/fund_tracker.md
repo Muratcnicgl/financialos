@@ -30,11 +30,12 @@
 - **Aksiyon:** `except Exception as e: logger.debug(f"EMK fallback basarisiz {fund_code} {check_date}: {e}"); continue`
 - **Onem:** Dusuk · **Guven:** Kesin
 
-### [FT-006] try_auto_fetch_fund_price / try_auto_fetch_stock_price hicbir yerden cagrilmiyor (olu kod)
+### [FT-006] try_auto_fetch_fund_price / try_auto_fetch_stock_price hicbir yerden cagrilmiyor (olu kod) ✅ UYGULANDI (12 Tem 2026, M4 / Improvement #028)
 - **Sorun:** Repo genelinde grep dogruladi: `try_auto_fetch_fund_price(` ve `try_auto_fetch_stock_price(` sadece tanimlandiklari yerde geciyor (satir 209, 270), hicbir router/executor bu fonksiyonlari cagirmiyor. `requirements.txt`'teki `pytefas==0.3.0`, `yfinance==0.2.48`, `borsapy>=0.8.7` bagimliliklari da bu olu kod ile birlikte kullanilmiyor (kurulum/CVE yuzeyini gereksiz genisletiyor). Docstring'ler "V2'de aktive edilecek" diyerek bunu bilerek birakildigini belirtiyor, yani bu bir "bug" degil bilinen bir ara-durum ama denetim kapsaminda not edilmeli.
 - **Kanit:** satir 7, 14, 209, 270-281; grep sonucu (repo genelinde baska cagiran yok)
 - **Aksiyon:** V2 aktivasyonu planlanmiyorsa fonksiyonlari ve ilgili bagimliliklari kaldirmayi, planlaniyorsa bir hedef tarihi/ADR referansini docstring'e eklemeyi degerlendir.
-- **Onem:** Dusuk · **Guven:** Kesin
+- **COZUM (M4):** V2 aktivasyonu YAPILDI, "kaldir" yolu SECILMEDI. `try_auto_fetch_fund_price` artik CANLI bagli: `app/price_providers/router.py:get_fund_price` bu fonksiyonu reuse eder (pytefas — R3 ile tek CALISAN saglayici, canli TLY=7277.90 dogrulandi). Zincir: APScheduler cron `fetch_investment_prices_job` (gece 02:45) → `fetch_for_account` → `get_fund_price` → `record_investment_price` (PriceHistory + current_price). `try_auto_fetch_stock_price` gelecek BIST icin `get_stock_price`'a baglandi (multi-asset ADR-031'e kadar best-effort). Artik olu kod DEGIL. ADR-029 + `tests/test_price_providers.py` + `tests/test_scheduler_price_job.py` (7 test). **borsapy R3 ile REDDEDILDI (TEFAS API 404)** — pytefas birincil.
+- **Onem:** Dusuk · **Guven:** Kesin · **Durum:** ✅ COZULDU (Improvement #028 KAPANDI)
 
 ### [FT-007] is_price_stale / get_price_age_text negatif yas (gelecekteki timestamp) durumunu ele almiyor
 - **Sorun:** `last_update` DB'de gelecekte bir tarih olursa (saat senkron hatasi, manuel veri bozulmasi, testte yanlis tarih girisi vb.) `age = datetime.utcnow() - last_update` negatif cikar. `is_price_stale` bu durumda `age > timedelta(24h)` False doner (stale degil) — kabul edilebilir bir sonuc. Ama `get_price_age_text` icin `seconds < 60` kontrolu negatif saniyeleri de yakalar ve "az once" doner — kullaniciya yanlis/kafa karistirici bir mesaj ("az once" ama aslinda gelecekte bir tarih) gosterilir. Dusuk olasilikli kenar durum ama sessizce yanlis sonuc uretiyor, herhangi bir guard/log yok.

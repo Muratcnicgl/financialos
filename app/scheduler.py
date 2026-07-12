@@ -207,6 +207,41 @@ async def nightly_trace_cleanup_job() -> None:
         db.close()
 
 
+async def fetch_investment_prices_job() -> None:
+    """
+    Günlük yatırım fiyat çekimi (M4 / ADR-029). Tüm `investment` hesaplarının fiyatını
+    çeker (fund_code → TEFAS/pytefas), `Account.current_price` + `PriceHistory` günceller.
+    Idempotent (ADR-012 kompozit PK). Gece **02:45** — nightly_batch (03:00) ÖNCESİ, böylece
+    batch analizi/cockpit taze fiyatla çalışır. TEFAS ~18:00 yayınladığından sabah dünün fiyatı.
+    """
+    from app.price_providers import fetch_for_account, record_investment_price
+    from app.models import Account, AccountType
+    db = SessionLocal()
+    try:
+        accounts = db.query(Account).filter(Account.account_type == AccountType.investment).all()
+        updated = 0
+        for acc in accounts:
+            try:
+                res = fetch_for_account(acc)
+            except Exception:
+                logger.exception("[price] %s (%s) çekim hatası", acc.name, acc.fund_code)
+                res = None
+            if res:
+                price, source = res
+                record_investment_price(db, acc, price, source)
+                updated += 1
+                logger.info("[price] %s (%s) = %s [%s]", acc.name, acc.fund_code, price, source)
+            else:
+                logger.warning("[price] %s (%s): fiyat çekilemedi (elle giriş gerekebilir)",
+                               acc.name, acc.fund_code)
+        logger.info("[price] %d/%d yatırım hesabı güncellendi", updated, len(accounts))
+    except Exception:
+        db.rollback()
+        logger.exception("[price] fetch_investment_prices_job başarısız")
+    finally:
+        db.close()
+
+
 def start_scheduler() -> AsyncIOScheduler:
     """Lifespan startup'tan cagirilir."""
     global _scheduler
@@ -215,6 +250,13 @@ def start_scheduler() -> AsyncIOScheduler:
 
     _scheduler = AsyncIOScheduler(timezone="Europe/Istanbul")
 
+    _scheduler.add_job(
+        fetch_investment_prices_job,
+        CronTrigger(hour=2, minute=45),
+        id="fetch_investment_prices",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
     _scheduler.add_job(
         nightly_batch_job,
         CronTrigger(hour=3, minute=0),

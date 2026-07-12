@@ -2,10 +2,11 @@
 
 > wave3-vision'ın LangGraph/DSPy önerileri tekrarlanmadı; DSPy'siz/LangGraph'sız uygulanabilir ara adımlara somutlandı. Rules Engine/LLM ayrımı korunur.
 
-### [LLM-001] AnthropicProvider modeli güncel değil + adaptive thinking yok
+### [LLM-001] AnthropicProvider modeli güncel değil + adaptive thinking yok ✅ KISMEN (12 Tem 2026: model güncel)
 - **Kanıt:** `app/coach.py:767` `DEFAULT_MODEL="claude-opus-4-7"`; `:785-791` thinking yok
 - **Aksiyon:** `claude-opus-4-8`; analiz çağrılarında `thinking={"type":"adaptive"}`+`output_config={"effort":"high"}`, bildirimde `effort="low"`. `budget_tokens` EKLEME (400 hatası).
 - **Etki:** Yüksek · **Efor:** S
+- **Durum:** DEFAULT_MODEL claude-opus-4-7→claude-opus-4-8 (en yeni/yetkin; eskisi 404 riski). Adaptive thinking (analiz→effort high, bildirim→low) follow-up: analiz/bildirim ayrımı + API param gerektirir.
 
 ### [LLM-002] Prompt caching yok — V3 mega-prompt her çağrıda tam fiyat
 - **Kanıt:** `app/coach.py:785-791,1562-1566`

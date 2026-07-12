@@ -1119,7 +1119,8 @@ class LLMProvider(ABC):
 # ============================================================
 
 class AnthropicProvider(LLMProvider):
-    DEFAULT_MODEL = "claude-opus-4-7"
+    # LLM-001: güncel Claude (opus-4-7 eskiydi; en yeni/yetkin varsayılan). LLM_MODEL ile ezilir.
+    DEFAULT_MODEL = "claude-opus-4-8"
     NAME = "Anthropic"
 
     def __init__(self, api_key: str, model: Optional[str] = None):

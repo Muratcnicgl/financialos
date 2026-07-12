@@ -62,3 +62,7 @@ backups/
 .asistan/*
 !.asistan/skills/
 !.asistan/rules/
+
+# asistan araci gecici calisma dosyalari
+scratchpad/
+scratchpad_cov.txt

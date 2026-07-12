@@ -346,3 +346,10 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 |----|-----------|-----------|-------|
 | P1-25 / BUG #152 | `_to_anthropic_messages` adapter — internal tool-history → Anthropic content-block (tool_use/tool_result); AnthropicProvider._raw_chat kullanıyor | test_p1_25 | ✅ |
 | **P1 ÖZET** | **27/27 kapandı** (16 pre-CLOSED + 11 M6 fix/decided); 19 BUG (#131-152) + 2 canlı migration + 25 test | 806 test yeşil | ✅ |
+
+## Milestone 8 — Wave-3 Backlog Haritalama (2026-07-13)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| W3-BACKLOG | `wave-3-backlog.md` — 7 kaynak tarama, 68 madde + 4 big-package, top-35 seçim | 2 denetim ajanı + R3 | ✅ |
+| OTONOM KARAR M8 | Premise düzeltmeleri (kategori-a KOZMETİK değil, R3-doğrulama): (1) #059/#060/#062 tanımları yanlış→gerçek kapalı; (2) P2-1 AÇIK (db.query 183×, session.query değil); (3) DATA-003/004 KAPALI (FK pragma ON, database.py:49); (4) create_all ADR-013 ihlali yok. Gerekçe: R3 disk>rapor — denetim section'ları bayat, koda karşı doğrulandı | grep + database.py:49 okuma | ✅ |

@@ -72,6 +72,27 @@ def test_crunch_varsa_runway_kisa(db):
         f"crunch varken runway kısa olmalı (kredi-farkında), {c['nakit_runway_gun']} bulundu"
 
 
+def test_utilization_saglik_skoruyla_tutarli(db):
+    """
+    FEAT-016 invariant: kart_kullanim.oran ile sağlık skoru 'Kart sağlığı' bileşeni AYNI
+    tanımdan türer (borç/limit) — birbirini yalanlayamaz. #124-sınıfı çelişki koruması:
+    kart_sagligi_puan == round(100 - min(oran, 100)). Ayrıca oran = borç/limit*100.
+    """
+    db.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=4276.0))
+    db.add(Account(user_id=1, name="Ziraat", account_type=AccountType.credit_card,
+                   balance=11976.0, credit_limit=12000.0))  # %99.8
+    db.commit()
+    c = generate_cockpit(1, TODAY, db)
+    ku = c["kart_kullanim"]
+    assert ku is not None and ku["band"] == "kritik"
+    assert ku["oran"] == 99.8
+    # sağlık skoru bileşeni aynı orandan türemeli
+    kart_bilesen = next(b for b in c["saglik_skoru"]["bilesenler"] if b["ad"] == "Kart sağlığı")
+    beklenen = round(100 - min(ku["oran"], 100))
+    assert abs(kart_bilesen["puan"] - beklenen) <= 1, \
+        f"utilization ({ku['oran']}) ile sağlık kart-bileşeni ({kart_bilesen['puan']}) çelişiyor"
+
+
 def test_alert_siralamasi_kritik_once(db):
     """#125: karışık seviyeli senaryoda TÜM kritik kalemler TÜM uyarılardan önce gelir."""
     db.add(Account(user_id=1, name="Enpara", account_type=AccountType.cash, balance=4276.0))

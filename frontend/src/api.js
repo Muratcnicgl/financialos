@@ -315,6 +315,11 @@ export const debtStrategyApi = {
     request('/api/debt-strategy/consolidation', {
       params: { rate, term },
     }),
+  // FEAT-030: satın alma fırsat maliyeti — amount'ı harcamak vs borca ödemek
+  opportunityCost: ({ amount }) =>
+    request('/api/debt-strategy/opportunity-cost', {
+      params: { amount },
+    }),
 };
 
 // =============================================================

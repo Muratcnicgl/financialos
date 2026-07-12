@@ -195,11 +195,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** FEAT-003 sinking fund + cashflow forecast'a yıllık olay tipi; scheduler hatırlatma. propose_action ile ödeme kaydı onaylanır.
 - **Etki:** Orta · **Efor:** M
 
-### [FEAT-030] Satın alma fırsat maliyeti simülatörü
+### [FEAT-030] Satın alma fırsat maliyeti simülatörü ✅ UYGULANDI (12 Tem 2026)
 - **Değer/Fırsat:** "Bu 8.000 TL'yi harcarsam vs karta yatırırsam" karşılaştırması: borçsuzluk tarihine ve faize etkisini gösterir. İmpuls harcamayı somut maliyetle yavaşlatır.
 - **Kaynak/İlham:** Opportunity cost (davranışsal finans); what-if.
 - **Nasıl (mimari):** simulation_engine'de harcama-vs-borç-ödeme senaryosu (RAM kopyası) + debt_strategy. LLM açıklar; aksiyon opsiyonel.
 - **Etki:** Orta · **Efor:** M
+- **Durum:** `simulate_purchase_opportunity_cost` (debt_strategy, saf): baseline avalanche vs amount'ı EN YÜKSEK FAİZLİ borca ŞİMDİ ödeyince yeniden avalanche → fark (kaç ay geç + kaç TL fazla faiz). Assumption-free (mevcut avalanche motoru; dataclasses.replace ile RAM kopyası). `GET /api/debt-strategy/opportunity-cost?amount` (borç yoksa 404, amount≤0 → 422). DebtStrategy.jsx "Harcama Fırsat Maliyeti" formu. Murat kanonik: 8000 TL harcamak = ~1517 TL fazla faiz. 8 test. İnvariant: borca ödeme toplam faizi ARTIRMAZ (faiz_tasarrufu ≥ 0). collect_debts paylaşımlı.
 
 ### [FEAT-031] Harcama tetikleyici / duygu etiketi günlüğü
 - **Değer/Fırsat:** İşleme opsiyonel bağlam/duygu etiketi (stres, sıkıntı, kutlama) eklenir; koç zamanla "stresliyken market harcaman 2x" gibi desenleri ortaya çıkarır.

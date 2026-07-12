@@ -15,7 +15,10 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.debt_strategy import compare_strategies, collect_debts, simulate_consolidation
+from app.debt_strategy import (
+    compare_strategies, collect_debts, simulate_consolidation,
+    simulate_purchase_opportunity_cost,
+)
 from app.models import User
 
 logger = logging.getLogger(__name__)
@@ -112,4 +115,26 @@ def consolidation(
     if result is None:
         raise HTTPException(status_code=404, detail="Konsolidasyon için en az iki aktif borç gerekir.")
     logger.info("consolidation sim user_id=%s rate=%.2f term=%d", current_user.id, rate, term)
+    return result
+
+
+@router.get("/opportunity-cost")
+def opportunity_cost(
+    amount: float = Query(
+        ..., gt=0.0, le=10_000_000.0,
+        description="Harcamayı düşündüğün tutar (TL) — borca ödemenin alternatif maliyeti",
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    FEAT-030: `amount` TL'yi harcamak vs en yüksek faizli borca ödemek — borçsuzluk tarihine
+    ve toplam faize etkisi. İmpuls harcamayı somut maliyetle yavaşlatan nötr what-if aracı
+    (harcama emri değil). Aktif borç yoksa 404.
+    """
+    debts = collect_debts(db, current_user.id)
+    result = simulate_purchase_opportunity_cost(debts, amount)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Fırsat maliyeti için aktif borç gerekir.")
+    logger.info("opportunity-cost sim user_id=%s amount=%.2f", current_user.id, amount)
     return result

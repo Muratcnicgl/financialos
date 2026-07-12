@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine } from 'lucide-react';
+import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart } from 'lucide-react';
 import { debtStrategyApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 
@@ -171,6 +171,76 @@ function ConsolidationSimulator({ debts }) {
   );
 }
 
+// FEAT-030: satın alma fırsat maliyeti — bir harcamayı en yüksek faizli borca ödemenin
+// alternatif maliyeti (impuls harcama deterrent). Nötr what-if, harcama emri değil.
+function OpportunityCost({ hasDebt }) {
+  const toast = useToast();
+  const [amount, setAmount] = useState('');
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    const a = Number(amount);
+    if (!(a > 0)) { toast.error('Geçerli bir tutar gir.'); return; }
+    try {
+      setBusy(true);
+      setResult(await debtStrategyApi.opportunityCost({ amount: a }));
+    } catch (e) {
+      toast.error(`Fırsat maliyeti hesaplanamadı: ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!hasDebt) return null;
+
+  return (
+    <div className="card p-5 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-md bg-warn-600/20 flex-shrink-0">
+          <ShoppingCart className="w-5 h-5 text-warn-300" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-zinc-100">Harcama Fırsat Maliyeti</h3>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Bir harcamayı en yüksek faizli borcuna ödemek yerine yapmanın gerçek maliyeti —
+            borçsuzluk ne kadar gecikir, ne kadar fazla faiz. Nötr araç, harcama önerisi değil.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-xs text-zinc-400">
+          Harcama tutarı (TL)
+          <input type="number" step="100" min="0" value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="block mt-1 w-40 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
+        </label>
+        <button onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5" />}
+          Hesapla
+        </button>
+      </div>
+
+      {result && (
+        <div className="rounded-lg border border-warn-600/50 bg-warn-950/30 p-4 text-sm text-zinc-200 space-y-1">
+          <div>
+            <span className="font-semibold">{TL(result.harcama)}</span> harcarsan, bu parayı{' '}
+            <span className="font-semibold">{result.hedef_borc}</span> borcuna ödemek yerine:
+          </div>
+          <div>
+            → <span className="font-semibold text-warn-300">{TL(result.faiz_tasarrufu)}</span> fazla faiz ödersin
+            {result.ay_kazanci > 0 && <> ve borçsuzluk <span className="font-semibold">{result.ay_kazanci} ay</span> gecikir</>}.
+          </div>
+          <div className="text-xs text-zinc-400">
+            Öde: {result.odersen_ay} ay / {TL(result.odersen_faiz)} faiz · Harca: {result.baseline_ay} ay / {TL(result.baseline_faiz)} faiz
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DebtStrategy() {
   const toast = useToast();
   const [extraMonthly, setExtraMonthly] = useState(0);
@@ -316,6 +386,9 @@ export default function DebtStrategy() {
 
       {/* FEAT-014: konsolidasyon what-if simülatörü */}
       <ConsolidationSimulator debts={data.debts} />
+
+      {/* FEAT-030: harcama fırsat maliyeti */}
+      <OpportunityCost hasDebt={data.debts.length > 0} />
     </div>
   );
 }

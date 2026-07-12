@@ -22,7 +22,7 @@ Mimari notlar:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
@@ -432,6 +432,46 @@ def simulate_consolidation(
         "yeni_toplam_odeme": round(toplam_odeme, 2),
         # eşik kıyası: yeni oran ağırlıklı ortalamadan düşükse konsolidasyon FAİZ oranı olarak avantajlı
         "oran_avantajli": new_rate_monthly < base["agirlikli_ort_oran"],
+    }
+
+
+def simulate_purchase_opportunity_cost(
+    debts: List[DebtItem], amount: float, today: Optional[date] = None,
+) -> Optional[dict]:
+    """
+    FEAT-030 (satın alma fırsat maliyeti): `amount` TL'yi HARCAMAK vs onu EN YÜKSEK FAİZLİ
+    borca ödemek — borçsuzluk tarihine ve toplam faize etkisi. İmpuls harcamayı somut maliyetle
+    yavaşlatan realist araç (nötr what-if, "alma/harcama" emri değil).
+
+    Yöntem: baseline = avalanche(extra=0). Karşı-senaryo: amount, avalanche'ın hedefleyeceği
+    en yüksek faizli borçtan ŞİMDİ düşülür (sanki bugün ödedin) → yeniden avalanche. Fark =
+    harcamanın gerçek maliyeti (kaç ay geç + kaç TL fazla faiz). Salt hesap; borç yoksa None.
+    """
+    active = [d for d in debts if d.balance > 0]
+    if not active or amount <= 0:
+        return None
+    baseline = calc_avalanche(active, extra_monthly=0.0, today=today)
+    # amount'ı en yüksek faizli borca uygula (avalanche önceliği); bakiyeden fazlası boşa gitmez
+    target = max(active, key=lambda d: d.interest_rate_monthly)
+    applied = min(amount, target.balance)
+    reduced = [replace(d, balance=d.balance - applied) if d.account_id == target.account_id else d
+               for d in active]
+    with_payment = calc_avalanche(reduced, extra_monthly=0.0, today=today)
+
+    faiz_tasarrufu = round(baseline.total_interest_paid - with_payment.total_interest_paid, 2)
+    ay_kazanci = baseline.months_to_freedom - with_payment.months_to_freedom
+    return {
+        "harcama": round(amount, 2),
+        "hedef_borc": target.name,          # amount'ın ödeneceği en yüksek faizli borç
+        "uygulanan": round(applied, 2),     # amount > bakiye ise bakiye kadarı
+        "baseline_ay": baseline.months_to_freedom,
+        "baseline_faiz": baseline.total_interest_paid,
+        "odersen_ay": with_payment.months_to_freedom,
+        "odersen_faiz": with_payment.total_interest_paid,
+        "faiz_tasarrufu": faiz_tasarrufu,   # harcarsan KAYBEDİLEN faiz tasarrufu
+        "ay_kazanci": ay_kazanci,           # harcarsan GECİKEN borçsuzluk (ay)
+        "baseline_payoff": baseline.payoff_date.isoformat() if baseline.payoff_date else None,
+        "odersen_payoff": with_payment.payoff_date.isoformat() if with_payment.payoff_date else None,
     }
 
 

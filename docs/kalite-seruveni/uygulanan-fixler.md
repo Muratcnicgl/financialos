@@ -193,3 +193,28 @@ otonom yapılmadı. Eval DB kasıtlı minimal (davranışı provider-boyutundan 
 
 **Golden tamamlandı:** test_founding_scenario Murat'ın alacaklarıyla genişletildi → yeni
 borç/alacak metrikleri (asgari tuzağı/aging/konsolidasyon) + grounding kurucu manzarada kilitli.
+
+### SESSION-3 doğruluk taraması (12 Tem 2026, süit 671→690) — RULE/DATA/LLM long-tail
+
+FEAT + deterministik İLK ADIM (FEAT-041) sonrası, gözlem/backlog ile GERÇEK finansal-doğruluk
+bug'ları avlandı (edge/cosmetic değil — birincil yolu etkileyenler öncelikli).
+
+| ID | Bug (gerçek etki) | Doğrulama |
+|----|-------------------|-----------|
+| FEAT-041 | Deterministik "İLK ADIM" — sinyaller tek en-yüksek-etkili hamleye (temerrüt>kriz>tahsilat>fırsat>stabil). Öncelik LLM yargısına değil KODA → sağlayıcı-bağımsız. Fırsat likidite-güvenli (runway≥30). | test_next_action.py (10) |
+| FEAT-017 | Borç ödeme ilerlemesi (momentum, Ramsey) — en eski snapshot'tan azalma. | test_debt_progress.py (7) |
+| FEAT-030 spillover / BUG #129 | Fırsat maliyeti amount'ı avalanche sırasında dağıtır (fazlasını boşa atmıyor); property test yakaladı. | test_debt_metric_properties.py |
+| RULE-016 | Stale next_payment_date remaining'i tüketip gelecek taksitleri gizliyordu → crunch/safe-to-spend TEHLİKELİ İYİMSER. Geçmiş-vadeli bugüne çekilir. | test_cashflow.py (+2) |
+| RULE-020 | Kategori kalıpları cari pencerede üst sınır yok → GELECEK işlemler sızıp sahte anomali. `<= today` eklendi. | test_category_patterns.py |
+| RULE-014 | goal_engine para Decimal(str(float)) kirli ondalık → baseline. `_money()` quantize. | goal testleri |
+| RULE-015 | Cash hedef tamamlanma int() truncation → iyimser. math.ceil. | projection testleri |
+| BE-010 | 6 sessiz except:pass → loglama (goal_engine except'i #066'yı gizliyordu). | süit |
+| BE-025 | Fallback modda günlük-limit BLOCK koruması ölüydü + usage %0. provider_used loglanır. | test_usage_tracking.py |
+| LLM-007 | usage/model_name/provider_used yalnız Groq'ta → tüm sağlayıcılarda (gerçek Gemini için trace kördü). | test_provider_metadata.py |
+| LLM-001 | Anthropic modeli claude-opus-4-7→4-8 (güncel). | import |
+| DATA-018 | Hesapsız "yetim" işlem (bakiye etkilemeyen) → varsayılan hesap her create'te + yoksa 400. | test_transaction_account_guard.py |
+| DATA-020/028/029, SEC-006/009, RESIL-004/008, #127/#128 | Seed FK, 0-allocation, recurring ay-sınırı, mesaj sınırı, error truncate, graceful degradation, circuit breaker, annüite guard | ilgili testler |
+
+**Ertelenen (bilinçli):** RULE-003/004/005 (kart-döngüsü edge, Murat'ın statement_day=2 → etkilenmez,
+cohesive M), RULE-018/019 (simülasyon ikincil-yol, kısa ufukta minör), RULE-017 (gün sürüklenmesi
+minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğruluk bug'ları tükendi.

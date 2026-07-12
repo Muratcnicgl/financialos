@@ -278,3 +278,4 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M5 OTONOM-2 (kat-b) | Pydantic condecimal ATLANDI — floatify sınırı B1'i daha temiz karşılıyor (condecimal Decimal'i JSON'a iterdi) | schemas float, hedef karşılandı | ✅ |
 | M5 / money.py | D()/ZERO/q2/q4/floatify + `float(para)`→D() (rules 22+ae+router+ft) + json default=float (5) | drift-yok kanıtı (test_decimal_precision 8) | ✅ |
 | M5 Faz G | **CANLI DB upgrade YAPILMADI** — head `fec73e5343e5`, onay bekliyor | canlı balance hala `real` | ⏸️ ONAY |
+| M5 Faz H+I | **CANLI upgrade UYGULANDI** (2026-07-13, Murat onayı): backup+`alembic upgrade head` `fec73e5343e5`→`38360f856577`; canlı balance NUMERIC(19,4)/Decimal, cockpit sağlam, JSON-safe | tag `milestone-5-decimal-migration` push | ✅ M5 KAPANDI |

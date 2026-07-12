@@ -227,3 +227,13 @@ bug'ları avlandı (edge/cosmetic değil — birincil yolu etkileyenler öncelik
 **Ertelenen (bilinçli):** RULE-003/004/005 (kart-döngüsü edge, Murat'ın statement_day=2 → etkilenmez,
 cohesive M), RULE-018/019 (simülasyon ikincil-yol, kısa ufukta minör), RULE-017 (gün sürüklenmesi
 minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğruluk bug'ları tükendi.
+
+---
+
+## Goal Charter Yürütme (Wave-2 Kapanış) — M1
+
+| ID | Değişiklik | Dosya | Doğrulama | Durum |
+|----|-----------|-------|-----------|-------|
+| M1 / ADR-013 | Envelope (FEAT-001) + WishlistItem (FEAT-032) tabloları create_all ile eklenmişti, migration yoktu. Migration `fec73e5343e5` yazıldı (inspector-guard'lı, idempotent); down_revision f3dda4d3996d. Canlı DB'ye `alembic upgrade head` → iki tablo yaratıldı | `alembic/versions/fec73e5343e5_*.py`, `scripts/test_fresh_db_migration.py` | Canlı DB 20→22 tablo (envelopes+wishlist_items VAR), head fec73e5343e5. Fresh-db senaryo testi GEÇTİ. pytest 774 passed | ✅ |
+| M1 / merge | `kalite-seruveni` (210 commit) → `main` `--no-ff` merge (e5a7d35) + origin'e push. 3 günlük iş GitHub'da güvende. Rollback tag `pre-kalite-seruveni-merge` push edildi | git main | origin/main=e5a7d35, pytest 774 passed | ✅ |
+| M1 / bulgu | **Migration zinciri sıfırdan-şema değil** (baseline STAMP; taban create_all ile). Bomboş DB'de upgrade çöker (`NoSuchTableError: coach_insights`). ADR-013 kısmen gerçekleşmiş → M6/DATA backlog adayı: baseline'ı gerçek create_table'a çevir | `alembic/versions/fa46373f4ca8_*.py` | `scripts/test_fresh_db_migration.py` gerçek senaryoyu test eder | 📋 not |

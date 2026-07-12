@@ -268,3 +268,13 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M4 / ADR-029 | Sağlayıcı stratejisi belgelendi. **OTONOM KARAR (kategori-b):** charter "borsapy birincil" premisi R3 ile REDDEDİLDİ (borsapy TEFAS 404); pytefas birincil (tek çalışan) | ADR-029 + research-log K10 | ✅ |
 | M4 test | `tests/test_price_providers.py` (5) + `tests/test_scheduler_price_job.py` (2) — ağsız, monkeypatch, izole in-memory | 781 passed (774→781, +7) | ✅ |
 | M4 / backfill | `scripts/backfill_prices_all_accounts.py` — geçmiş PriceHistory doldurma (idempotent, iş günü) | script hazır | ✅ |
+
+## Milestone 5 — Decimal göçü (Faz A-F, Faz G onay kapısı)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| M5 / ADR-030 | 20 para kolonu Float→Numeric(19,4); iç aritmetik Decimal, public sınır floatify (B1 JSON float) | 789 test (781→789); canlı KOPYA upgrade OK | ✅ Faz A-F |
+| M5 OTONOM-1 (kat-c) | interest_rate/lot_count/confidence_score para DEĞİL → Float kaldı (körlemesine sweep semantik yanlış) | 3 kolon Float, 20 Numeric | ✅ |
+| M5 OTONOM-2 (kat-b) | Pydantic condecimal ATLANDI — floatify sınırı B1'i daha temiz karşılıyor (condecimal Decimal'i JSON'a iterdi) | schemas float, hedef karşılandı | ✅ |
+| M5 / money.py | D()/ZERO/q2/q4/floatify + `float(para)`→D() (rules 22+ae+router+ft) + json default=float (5) | drift-yok kanıtı (test_decimal_precision 8) | ✅ |
+| M5 Faz G | **CANLI DB upgrade YAPILMADI** — head `fec73e5343e5`, onay bekliyor | canlı balance hala `real` | ⏸️ ONAY |

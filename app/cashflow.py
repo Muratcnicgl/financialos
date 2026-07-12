@@ -155,16 +155,22 @@ def _expand_loan_payments(
 
     events: list[ForecastEvent] = []
     current = account.next_payment_date
+    # RULE-016 fix: STALE (geçmiş) next_payment_date remaining'i BOŞA HARCAMASIN. Eskiden
+    # geçmiş occurrence'lar (current >= start False) atlanıyor ama idx'i tüketiyordu → 4 taksit
+    # kalan + 6 ay eski tarihli kredi forecast'ta 0 gelecek ödeme gösteriyordu (yükümlülük
+    # HAFİFE görünüp crunch/safe-to-spend'i iyimser yapıyordu). Geçmiş-vadeliyi bugüne çek:
+    # remaining taksit tümü gelecek yükümlülük olarak projelenir (aya ötelenmez, kaybolmaz).
+    if current < start:
+        current = start
     idx = 0
     while current <= end and idx < remaining:
-        if current >= start:
-            events.append(ForecastEvent(
-                current,
-                -(account.monthly_payment),
-                f"{account.name} taksiti",
-                "loan_payment",
-                account.id,
-            ))
+        events.append(ForecastEvent(
+            current,
+            -(account.monthly_payment),
+            f"{account.name} taksiti",
+            "loan_payment",
+            account.id,
+        ))
         current = _advance_month(current)
         idx += 1
     return events

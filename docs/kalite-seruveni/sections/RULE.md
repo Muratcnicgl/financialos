@@ -96,7 +96,7 @@
 - **Aksiyon:** `math.ceil`; hız için gerçek katkı-günü sayısı veya EWMA.
 - **Etki:** Düşük · **Efor:** S
 
-### [RULE-016] `_expand_loan_payments` geçmiş `next_payment_date`'te taksit sayacını boşa harcıyor
+### [RULE-016] `_expand_loan_payments` geçmiş `next_payment_date`'te taksit sayacını boşa harcıyor ✅ UYGULANDI (12 Tem 2026)
 - **Sorun:** Döngü `idx < remaining` sınırlı; geçmiş occurrence'lar atlanırken `idx` yine artar → horizon içindeki gelecek taksitler eksik üretilebilir.
 - **Kanıt:** `app/cashflow.py:157-170`
 - **Aksiyon:** Kürsörü `max(next_payment_date, ilgili ay)`'a kaydır ya da geçmişte `idx` artırma.

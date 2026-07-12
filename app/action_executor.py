@@ -62,6 +62,7 @@ from app.models import (
     PendingAction, ActionStatus,
 )
 from app.rules_engine import simulate_partial_sale
+from app.money import D, ZERO  # ADR-030: para Decimal (DB Numeric kolonlarına Decimal yazılır)
 
 
 # BUG #025/#026 fix: Kart kategorileri (QUICK_KEYWORDS'deki is_card=True olanlar)
@@ -208,7 +209,7 @@ def propose_action(
                 Account.user_id == user_id,
             ).first()
             if card and card.credit_limit:
-                amount = float(payload.get("amount", 0))
+                amount = D(payload.get("amount", 0))
                 projected = card.balance + amount
                 if projected > card.credit_limit:
                     overage = round(projected - card.credit_limit, 2)
@@ -532,26 +533,26 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
     db.add(txn)
 
     # Bakiye otomatik güncellensin mi?
-    balance_diff = 0.0
+    balance_diff = ZERO
     if payload.get("auto_update_balance") and account_id:
         if txn_type == "income":
             # BUG #103 fix: karta gelen gelir (iade/cashback/chargeback) BORCU AZALTIR;
             # nakit/yatırıma gelen gelir varlığı artırır. Eskiden kart için de += yapıp
             # borcu YANLIŞLIKLA artırıyordu (gider'in simetriği eksikti).
             if account.account_type == AccountType.credit_card:
-                account.balance -= float(amount)  # kart borcu azalır
-                balance_diff = -float(amount)
+                account.balance -= D(amount)  # kart borcu azalır
+                balance_diff = -D(amount)
             else:
-                account.balance += float(amount)
-                balance_diff = float(amount)
+                account.balance += D(amount)
+                balance_diff = D(amount)
         elif txn_type == "expense":
             # Kart harcamasıysa kart borcunu artır, nakitse nakti azalt
             if account.account_type == AccountType.credit_card:
-                account.balance += float(amount)  # Kart borcu büyür
-                balance_diff = float(amount)
+                account.balance += D(amount)  # Kart borcu büyür
+                balance_diff = D(amount)
             else:
-                account.balance -= float(amount)
-                balance_diff = -float(amount)
+                account.balance -= D(amount)
+                balance_diff = -D(amount)
         account.updated_at = datetime.utcnow()
 
     db.commit()
@@ -718,7 +719,7 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
     inv.current_price = actual_price
     inv.last_price_update = datetime.utcnow()
     inv.updated_at = datetime.utcnow()
-    credit_account.balance += sim["net_eline_gecen"]
+    credit_account.balance += D(sim["net_eline_gecen"])  # ADR-030: bakiye Decimal += float sim → D()
     credit_account.updated_at = datetime.utcnow()
 
     db.commit()

@@ -111,6 +111,7 @@ from app.models import (
     TransactionType, PersonalDebt, DebtDirection, MasterCheckpoint, Envelope,
     NetWorthSnapshot,
 )
+from app.money import D, ZERO, floatify  # ADR-030: iç aritmetik Decimal, public sınır float(floatify)
 
 # ============================================================
 # A3 ROLLING PATTERN SABİTLERİ
@@ -189,7 +190,7 @@ def apply_shadow_accounting(
     cash: float,
     expected_income: float,
     card_debt: float,
-    loan_payments_this_month: float = 0.0,  # BUG #030 fix
+    loan_payments_this_month=ZERO,  # BUG #030 fix · ADR-030: Decimal default (para)
 ) -> float:
     """
     Reel Bütçe = Nakit + Düzenli Gelir - Kart Borcu - Ay Sonu Kredi Taksitleri
@@ -320,8 +321,8 @@ def calculate_investment_pnl(
     Returns:
         toplam_maliyet, guncel_deger, brut_kar, getiri_yuzde
     """
-    toplam_maliyet = round(lot_count * cost_per_lot, 2)
-    guncel_deger = round(lot_count * current_price, 2)
+    toplam_maliyet = round(D(lot_count) * D(cost_per_lot), 2)  # ADR-030: lot(float)+para→Decimal
+    guncel_deger = round(D(lot_count) * D(current_price), 2)
     brut_kar = round(guncel_deger - toplam_maliyet, 2)
     getiri_yuzde = round((brut_kar / toplam_maliyet) * 100, 2) if toplam_maliyet > 0 else 0.0
 
@@ -359,19 +360,20 @@ def simulate_partial_sale(
     if lots_to_sell > lot_count:
         raise ValueError(f"Satılacak lot ({lots_to_sell}) mevcut lottan ({lot_count}) fazla.")
 
-    satis_tutari = round(lots_to_sell * current_price, 2)
-    satis_maliyeti = round(lots_to_sell * cost_per_lot, 2)
+    # ADR-030: para Decimal aritmetiği. lot adedi/oran (float) → D() ile Decimal'e çekilir.
+    satis_tutari = round(D(lots_to_sell) * D(current_price), 2)
+    satis_maliyeti = round(D(lots_to_sell) * D(cost_per_lot), 2)
     brut_kar = round(satis_tutari - satis_maliyeti, 2)
 
     # Stopaj sadece kar üzerinden alınır, zarar varsa stopaj yok
-    stopaj = round(brut_kar * stopaj_orani, 2) if brut_kar > 0 else 0.0
+    stopaj = round(brut_kar * D(stopaj_orani), 2) if brut_kar > 0 else ZERO
     net_kar = round(brut_kar - stopaj, 2)
     net_eline_gecen = round(satis_tutari - stopaj, 2)
 
-    kalan_lot = round(lot_count - lots_to_sell, 4)
-    kalan_deger = round(kalan_lot * current_price, 2)
+    kalan_lot = round(lot_count - lots_to_sell, 4)          # lot adedi salt miktar → float kalır
+    kalan_deger = round(D(kalan_lot) * D(current_price), 2)
 
-    return {
+    return floatify({  # ADR-030/B1: iç Decimal hesap, public sınır float
         "satilan_lot": lots_to_sell,
         "satis_tutari": satis_tutari,
         "satis_maliyeti": satis_maliyeti,
@@ -382,7 +384,7 @@ def simulate_partial_sale(
         "net_eline_gecen": net_eline_gecen,
         "kalan_lot": kalan_lot,
         "kalan_deger": kalan_deger,
-    }
+    })
 
 
 # ============================================================
@@ -412,7 +414,7 @@ def _calculate_expected_income_until_eom(
     # _collect_upcoming_reminders (rules_engine:508) zaten bu guard'ı kullanıyor; tutarlılaştırıldı.
     year_month = today.strftime("%Y-%m")
 
-    total = 0.0
+    total = ZERO
     upcoming = []
     for inc in incomes:
         if inc.last_triggered_year_month == year_month:  # BUG #086: bu ay nakde geçti, çift sayma
@@ -821,7 +823,7 @@ def _detect_cashflow_crunch(
     return _crunch_alert_from_summary(summary, horizon_days)
 
 
-def _calculate_safe_to_spend(summary: Optional[Dict], kart_borcu: float = 0.0, buffer: float = 0.0) -> float:
+def _calculate_safe_to_spend(summary: Optional[Dict], kart_borcu=ZERO, buffer=ZERO) -> float:
     """
     FEAT-009 (Copilot "Safe to Spend" ilhamı, kopya değil): BUGÜN, gelecekteki yükümlülükler
     hesaba katılınca güvenle harcanabilecek EN BÜYÜK tutar. Matematik: bugün X harcamak tüm
@@ -837,7 +839,7 @@ def _calculate_safe_to_spend(summary: Optional[Dict], kart_borcu: float = 0.0, b
     if not summary:
         return 0.0
     lowest = summary.get("lowest_balance", 0.0)
-    return round(max(0.0, lowest - kart_borcu - buffer), 2)
+    return round(max(ZERO, D(lowest) - D(kart_borcu) - D(buffer)), 2)  # ADR-030: Decimal
 
 
 def _calculate_cash_runway(
@@ -853,7 +855,7 @@ def _calculate_cash_runway(
     if nakit <= 0:
         return 0
     start = today - timedelta(days=window_days)
-    spent = float(db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+    spent = D(db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
         Transaction.user_id == user_id,
         Transaction.transaction_type == TransactionType.expense,
         Transaction.transaction_date >= start,
@@ -863,16 +865,16 @@ def _calculate_cash_runway(
     # BUG #124 (tutarlılık): gelirsiz senaryoda kredi TAKSİTLERİ de cash'i eritir → günlük
     # burn'e dahil et. Aksi halde runway (sadece harcama) aynı kredilerin ürettiği nakit-krizi
     # öngörüsüyle ÇELİŞİR (uçtan-uca gözlem: runway 300 gün derken crunch "10 gün sonra kriz").
-    loan_monthly = float(db.query(func.coalesce(func.sum(Account.monthly_payment), 0)).filter(
+    loan_monthly = D(db.query(func.coalesce(func.sum(Account.monthly_payment), 0)).filter(
         Account.user_id == user_id,
         Account.account_type == AccountType.loan,
         Account.remaining_installments > 0,
     ).scalar() or 0.0)
 
-    daily_burn = spent / window_days + loan_monthly / 30.0
+    daily_burn = spent / window_days + loan_monthly / 30  # ADR-030: para Decimal / int
     if daily_burn <= 0:
         return None  # ne harcama ne taksit → belirsiz/sonsuz
-    return int(nakit / daily_burn)
+    return int(D(nakit) / daily_burn)  # ADR-030: nakit Decimal / burn Decimal
 
 
 def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List[Dict]:
@@ -918,15 +920,15 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
     patterns = []
     for row in rows:
         category, prev_30d, curr_30d, _ = row
-        prev_30d = float(prev_30d or 0)
-        curr_30d = float(curr_30d or 0)
+        prev_30d = D(prev_30d or 0)
+        curr_30d = D(curr_30d or 0)
         # division-by-zero koruması: prev=0 → yeni kategori, change_pct=None
         change_pct: Optional[float] = (
             round((curr_30d - prev_30d) / prev_30d * 100, 1)
             if prev_30d > 0 else None
         )
         anomaly_flag: bool = (
-            curr_30d > prev_30d * ANOMALY_THRESHOLD
+            curr_30d > prev_30d * D(ANOMALY_THRESHOLD)  # ADR-030: para Decimal * eşik D()
             if prev_30d > 0
             else curr_30d > 0  # yeni kategori → anomali say
         )
@@ -957,7 +959,7 @@ def _collect_recent_transactions(user_id: int, db: Session, limit: int = 8) -> L
         result.append({
             "tarih": t.transaction_date.isoformat() if t.transaction_date else None,
             "tip": t.transaction_type.value,
-            "tutar": round(float(t.amount), 2),
+            "tutar": round(D(t.amount), 2),
             "kategori": t.category or "(kategorisiz)",
             "aciklama": t.description or "",
         })
@@ -1001,7 +1003,7 @@ def _category_overspend_alerts(
     ps, pe = _month_bounds(prev_year, prev_month)
     prev_by_cat = {c["category"]: c["total"] for c in _month_aggregates(db, user_id, ps, pe)["expense_categories"]}
     # FEAT-001: aktif zarf bütçeleri (varsa gerçek referans)
-    envelopes = {e.category: float(e.monthly_amount) for e in db.query(Envelope).filter(
+    envelopes = {e.category: D(e.monthly_amount) for e in db.query(Envelope).filter(
         Envelope.user_id == user_id, Envelope.is_active == True).all()}  # noqa: E712
 
     warnings: List[Dict] = []
@@ -1017,7 +1019,7 @@ def _category_overspend_alerts(
         if ref <= 0:
             continue  # referans yok → yeni-kategori gürültüsü elenir
         projected = round(mtd / days_elapsed * days_in_month, 2)
-        if projected > ref * over_ratio:
+        if projected > D(ref) * D(over_ratio):  # ADR-030: para Decimal, oran D()
             asim_pct = round((projected - ref) / ref * 100, 1)
             warnings.append({
                 "seviye": "uyari",
@@ -1052,19 +1054,19 @@ def _month_aggregates(db: Session, user_id: int, start: date, end: date) -> Dict
         func.coalesce(Transaction.category, "(kategorisiz)"),
     ).all()
 
-    total_income = 0.0
-    total_expense = 0.0
+    total_income = ZERO
+    total_expense = ZERO
     tx_count = 0
     expense_by_cat: Dict[str, Dict] = {}
     for r in rows:
         tx_count += r.cnt
         if r.ttype == TransactionType.income:
-            total_income += float(r.total)
+            total_income += D(r.total)
         else:
-            total_expense += float(r.total)
+            total_expense += D(r.total)
             expense_by_cat[r.category] = {
                 "category": r.category,
-                "total": round(float(r.total), 2),
+                "total": round(D(r.total), 2),
                 "count": r.cnt,
             }
 
@@ -1183,7 +1185,7 @@ def detect_subscriptions(
         gaps_sorted = sorted(gaps)
         median_gap = gaps_sorted[len(gaps_sorted) // 2]
 
-        amounts = [round(float(t.amount), 2) for t in items]
+        amounts = [round(D(t.amount), 2) for t in items]
         distinct = set(amounts)
         if len(distinct) > _SUB_MAX_DISTINCT_AMOUNTS:
             continue  # değişken harcama (market vb.) — abonelik değil
@@ -1209,13 +1211,13 @@ def detect_subscriptions(
         })
 
     subscriptions.sort(key=lambda s: -s["aylik_maliyet"])
-    aylik_toplam = round(sum(s["aylik_maliyet"] for s in subscriptions), 2)
-    return {
+    aylik_toplam = round(sum((D(s["aylik_maliyet"]) for s in subscriptions), ZERO), 2)
+    return floatify({  # ADR-030/B1: iç Decimal, public sınır float
         "abonelikler": subscriptions,
         "aylik_toplam": aylik_toplam,
         "yillik_toplam": round(aylik_toplam * 12, 2),
         "adet": len(subscriptions),
-    }
+    })
 
 
 def _subscription_price_alerts_from_result(sub_result: Dict) -> List[Dict]:
@@ -1415,11 +1417,11 @@ def calculate_envelopes(user_id: int, today: date, db: Session) -> Dict:
     spent_by_cat = {c["category"]: c["total"] for c in curr["expense_categories"]}
 
     zarflar: List[Dict] = []
-    toplam_butce = toplam_harcanan = 0.0
+    toplam_butce = toplam_harcanan = ZERO
     asan = 0
     for e in envs:
-        butce = float(e.monthly_amount)
-        harcanan = float(spent_by_cat.get(e.category, 0.0))
+        butce = D(e.monthly_amount)
+        harcanan = D(spent_by_cat.get(e.category, 0.0))
         asildi = harcanan > butce
         if asildi:
             asan += 1
@@ -1434,13 +1436,13 @@ def calculate_envelopes(user_id: int, today: date, db: Session) -> Dict:
             "asildi": asildi,
         })
     zarflar.sort(key=lambda z: -z["yuzde"])  # en dolu/aşan önce
-    return {
+    return floatify({  # ADR-030/B1: iç Decimal, public sınır float
         "zarflar": zarflar,
         "toplam_butce": round(toplam_butce, 2),
         "toplam_harcanan": round(toplam_harcanan, 2),
         "toplam_kalan": round(toplam_butce - toplam_harcanan, 2),
         "asan_adet": asan,
-    }
+    })
 
 
 # FEAT-027: alacak yaşlandırma kova sınırları (gün, gecikme). Muhasebe AR-aging standardı.
@@ -1485,7 +1487,7 @@ def calculate_receivables_aging(user_id: int, today: date, db: Session) -> Optio
                 etiket = "vadesi gelmemiş"
         kalem = {
             "kim": d.counterparty,
-            "tutar": round(float(d.amount), 2),
+            "tutar": round(D(d.amount), 2),
             "gecikme_gun": gecikme,
             "due_date": d.due_date.isoformat() if d.due_date else None,
             "aciklama": d.description or "",
@@ -1503,7 +1505,7 @@ def calculate_receivables_aging(user_id: int, today: date, db: Session) -> Optio
         }
         for lbl in _order if kova_map[lbl]
     ]
-    toplam = round(sum(float(d.amount) for d in debts), 2)
+    toplam = round(sum(D(d.amount) for d in debts), 2)
     toplam_gecikmis = round(sum(k["tutar"] for k in gecikmis_kalemler), 2)
     return {
         "toplam": toplam,
@@ -1527,13 +1529,13 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
         Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
     ).all()
     kalemler: List[Dict] = []
-    aylik_toplam = 0.0
+    aylik_toplam = ZERO
     for a in accs:
-        borc = float(a.balance or 0.0)
+        borc = D(a.balance or 0.0)
         oran = float(a.interest_rate or 0.0)
         if borc <= 0 or oran <= 0:
             continue
-        aylik = round(borc * oran / 100.0, 2)
+        aylik = round(borc * D(oran) / 100, 2)  # ADR-030: borc Decimal, oran (%) → D()
         aylik_toplam += aylik
         kalemler.append({
             "ad": a.name,
@@ -1547,7 +1549,7 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
         "kalemler": kalemler,
         "aylik_toplam": aylik_toplam,
         "yillik_toplam": round(aylik_toplam * 12, 2),
-        "gunluk": round(aylik_toplam / 30.0, 2),
+        "gunluk": round(aylik_toplam / 30, 2),  # ADR-030: para Decimal / int
     }
 
 
@@ -1591,7 +1593,7 @@ def calculate_debt_progress(
     gun = (today - earliest.snapshot_date).days
     if gun < 7:
         return None  # anlamlı trend için en az bir hafta
-    baslangic_borc = float(earliest.card_debt) + float(earliest.loan_debt)
+    baslangic_borc = D(earliest.card_debt) + D(earliest.loan_debt)
     if baslangic_borc <= 0:
         return None
     odendi = round(baslangic_borc - guncel_borc, 2)   # + = ilerleme, − = borç büyüdü
@@ -1606,12 +1608,12 @@ def calculate_debt_progress(
             NetWorthSnapshot.snapshot_date < today,
         ).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
         if prev is not None:
-            prev_odendi = baslangic_borc - (float(prev.card_debt) + float(prev.loan_debt))
+            prev_odendi = baslangic_borc - (D(prev.card_debt) + D(prev.loan_debt))
             prev_band = _debt_milestone_band(round(prev_odendi / baslangic_borc * 100, 1))
             if milestone > prev_band:   # band bu snapshot aralığında ARTTI → taze kutlama
                 yeni_milestone = milestone
 
-    return {
+    return floatify({  # ADR-030/B1: public sınır float
         "baslangic_tarih": earliest.snapshot_date.isoformat(),
         "gun": gun,
         "baslangic_borc": round(baslangic_borc, 2),
@@ -1621,7 +1623,7 @@ def calculate_debt_progress(
         "ilerleme": odendi > 0,
         "milestone": milestone,            # ulaşılan en yüksek band (0/10/25/50/75)
         "yeni_milestone": yeni_milestone,  # taze geçiş → koç kutlar (yoksa None)
-    }
+    })
 
 
 # FEAT-016: kredi kartı kullanım oranı bantları (kredi-skoru davranışında genel eşikler).
@@ -1649,8 +1651,8 @@ def calculate_card_utilization(
     if accounts is None:
         accounts = db.query(Account).filter(Account.user_id == user_id).all()
     cards = [a for a in accounts if a.account_type == AccountType.credit_card]
-    toplam_limit = sum(float(c.credit_limit or 0) for c in cards)
-    toplam_borc = sum(float(c.balance or 0) for c in cards)
+    toplam_limit = sum(D(c.credit_limit or 0) for c in cards)
+    toplam_borc = sum(D(c.balance or 0) for c in cards)
     if not cards or toplam_limit <= 0:
         return None
 
@@ -1671,7 +1673,7 @@ def calculate_card_utilization(
     if earliest:
         gun = (today - earliest.snapshot_date).days
         if gun >= 7:
-            oran_onceki = round(float(earliest.card_debt) / toplam_limit * 100, 1)
+            oran_onceki = round(D(earliest.card_debt) / toplam_limit * 100, 1)
             trend = {
                 "baslangic_tarih": earliest.snapshot_date.isoformat(),
                 "gun": gun,
@@ -1680,7 +1682,7 @@ def calculate_card_utilization(
                 "iyilesme": oran < oran_onceki,
             }
 
-    saglikli_borc_hedefi = round(toplam_limit * _UTIL_HEALTHY / 100, 2)
+    saglikli_borc_hedefi = round(toplam_limit * D(_UTIL_HEALTHY) / 100, 2)  # ADR-030: limit Decimal * oran D()
     kalan_limit = round(toplam_limit - toplam_borc, 2)
     if band == "kritik":
         mesaj = (
@@ -1698,7 +1700,7 @@ def calculate_card_utilization(
     else:
         mesaj = f"Kart kullanımın %{oran} — sağlıklı aralıkta (%30 altı). Tamponun korunuyor."
 
-    return {
+    return floatify({  # ADR-030/B1: public sınır float
         "oran": oran,
         "band": band,
         "toplam_borc": round(toplam_borc, 2),
@@ -1709,7 +1711,7 @@ def calculate_card_utilization(
         "kart_adet": len(cards),
         "trend": trend,
         "mesaj": mesaj,
-    }
+    })
 
 
 def calculate_real_networth(
@@ -1735,11 +1737,11 @@ def calculate_real_networth(
     if gun < 1:
         return None
 
-    factor = (1 + annual_inflation) ** (gun / 365.0)   # dönem enflasyon faktörü
-    reel_guncel = latest.net_worth_full / factor        # başlangıç TL'si cinsinden
+    factor = (1 + annual_inflation) ** (gun / 365.0)   # dönem enflasyon faktörü (oran, float)
+    reel_guncel = latest.net_worth_full / D(factor)     # ADR-030: net_worth Decimal / faktör D()
     nominal_degisim = latest.net_worth_full - earliest.net_worth_full
     reel_degisim = reel_guncel - earliest.net_worth_full
-    return {
+    return floatify({  # ADR-030/B1: public sınır float
         "baslangic_tarih": earliest.snapshot_date.isoformat(),
         "gun": gun,
         "baslangic_net": round(earliest.net_worth_full, 2),
@@ -1749,7 +1751,7 @@ def calculate_real_networth(
         "reel_degisim": round(reel_degisim, 2),
         "enflasyon_etkisi": round(reel_degisim - nominal_degisim, 2),  # enflasyonun aşındırdığı/erittiği
         "yillik_enflasyon": annual_inflation,
-    }
+    })
 
 
 def calculate_networth_attribution(user_id: int, today: date, db: Session) -> Optional[Dict]:
@@ -1847,11 +1849,11 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # Hesapları çek
     accounts = db.query(Account).filter(Account.user_id == user_id).all()
 
-    nakit = 0.0
-    kart_borcu = 0.0
-    yatirim_deger = 0.0
-    emanet_deger = 0.0
-    kredi_borcu = 0.0
+    nakit = ZERO
+    kart_borcu = ZERO
+    yatirim_deger = ZERO
+    emanet_deger = ZERO
+    kredi_borcu = ZERO
     accounts_detail = []
 
     investment_pnl_list = []
@@ -1862,7 +1864,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         # deger (6 * 5223.81 = 31.342,86) arasindaki 4 kurus tutarsizligi
         # frontend'den gozukmez.
         if acc.account_type == AccountType.investment and acc.lot_count and acc.current_price:
-            display_balance = round(acc.lot_count * acc.current_price, 2)
+            display_balance = round(D(acc.lot_count) * acc.current_price, 2)  # ADR-030: lot(float)→D
         else:
             display_balance = acc.balance
 
@@ -1889,7 +1891,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
             detail["kalan_taksit"] = acc.remaining_installments
             detail["sonraki_taksit"] = acc.next_payment_date.isoformat() if acc.next_payment_date else None
         elif acc.account_type == AccountType.investment:
-            value = (acc.lot_count or 0) * (acc.current_price or 0)
+            value = D(acc.lot_count or 0) * D(acc.current_price or 0)  # ADR-030: lot(float)+fiyat→D
             if acc.is_emanet:
                 emanet_deger += value
             else:
@@ -2031,14 +2033,15 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     zarflar_durumu = calculate_envelopes(user_id, today, db)  # FEAT-001
     # FEAT-002 (YNAB "Ready to Assign" / her liraya görev): zarflara henüz taahhüt edilmemiş nakit.
     # Taahhüt = zarfların kalan (harcanmamış) pozitif bütçesi. Negatif atanmamış = aşırı-bütçeleme.
-    _zarf_taahhut = sum(max(0.0, z["kalan"]) for z in zarflar_durumu["zarflar"])
+    # ADR-030: zarflar_durumu public-float; iç Decimal math için D() ile geri çek (2dp, kayıpsız)
+    _zarf_taahhut = sum((D(max(0.0, z["kalan"])) for z in zarflar_durumu["zarflar"]), ZERO)
     atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
     faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
     alacak_yaslanma = calculate_receivables_aging(user_id, today, db)  # FEAT-027
     borc_ilerleme = calculate_debt_progress(user_id, today, db, kart_borcu + kredi_borcu)  # FEAT-017
     kart_kullanim = calculate_card_utilization(user_id, today, db, accounts)  # FEAT-016 (accounts re-query yok)
     # FEAT-022: finansal sağlık skoru (şeffaf composite)
-    _aylik_gelir = float(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
+    _aylik_gelir = D(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
         RecurringIncome.user_id == user_id, RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
     saglik_skoru = calculate_health_score(
         reel_butce=reel_butce, kart_borcu=kart_borcu,
@@ -2116,7 +2119,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # FEAT-041: deterministik "İLK ADIM" — tüm sinyalleri tek en-yüksek-etkili hamleye indir
     # (tüm dict hazır olduktan SONRA; alerts/aging/nakit hepsini okur). Koç bunu açıklar, türetmez.
     result["sonraki_eylem"] = recommend_next_action(result)
-    return result
+    return floatify(result)  # ADR-030/B1: iç aritmetik Decimal, public cockpit float serialize
 
 
 # ============================================================
@@ -2172,7 +2175,7 @@ def detect_alerts(
         p for p in upcoming_payments
         if p.get("tip") == "kredi_taksit"
         and date.fromisoformat(p["tarih"]) <= week_horizon
-        and p.get("tutar", 0) > nakit * 0.5
+        and D(p.get("tutar", 0)) > nakit / 2  # ADR-030: para Decimal karşılaştırma (nakit/2)
     ]
     for p in big_payments:
         alerts.append({
@@ -2217,7 +2220,7 @@ def parse_gg_command(text: str) -> Optional[Dict]:
 
     source = (match.group("source") or "kart").lower()
     amount_str = match.group("amount").replace(",", ".")
-    amount = float(amount_str)
+    amount = D(amount_str)
     category = match.group("category").strip().lower()
 
     return {

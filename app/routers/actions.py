@@ -365,7 +365,7 @@ def edit_action(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Payload gecersiz: {e}")
 
-    pending.payload = json.dumps(new_payload, ensure_ascii=False)
+    pending.payload = json.dumps(new_payload, ensure_ascii=False, default=float)
     pending.summary = body.summary
     db.commit()
     db.refresh(pending)

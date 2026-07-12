@@ -102,5 +102,5 @@ def compute_snapshot_hash(snapshot: CockpitSnapshot) -> str:
     snapshot_at hash'e DAHIL EDILMEZ — ayni mali durum icin ayni hash uretilsin.
     """
     hashable = {k: v for k, v in snapshot.items() if k != "snapshot_at"}
-    payload = json.dumps(hashable, sort_keys=True, separators=(",", ":"))
+    payload = json.dumps(hashable, sort_keys=True, separators=(",", ":"), default=float)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]

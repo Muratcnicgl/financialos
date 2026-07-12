@@ -145,7 +145,7 @@ def _save_or_update_insight(
     Saf Karma A invalidation kontrolu kayittan sonra otomatik yapilir.
     """
     now = datetime.utcnow()  # DB alanlari timezone-naive UTC
-    source_refs_json = json.dumps(source_refs, ensure_ascii=False)
+    source_refs_json = json.dumps(source_refs, ensure_ascii=False, default=float)  # ADR-030: Decimal→float JSON sınırı
 
     if is_supporting_evidence:
         evidence_increment = 1
@@ -413,7 +413,7 @@ def _upsert_insight_absolute(
     _save_or_update_insight'in inkremental mantigi bu use-case'e uymadigi icin ayri helper.
     """
     now = datetime.utcnow()
-    source_refs_json = json.dumps(source_refs, ensure_ascii=False)
+    source_refs_json = json.dumps(source_refs, ensure_ascii=False, default=float)  # ADR-030: Decimal→float JSON sınırı
 
     existing = db.execute(
         select(CoachInsight).where(
@@ -1808,7 +1808,7 @@ def extract_explicit_red_line_k1(db: Session, user_id: int) -> dict:
                     priority=ERL_DOMINANT_PRIORITY,
                 )
 
-                existing_refs_map[title] = json.dumps(refs_list)
+                existing_refs_map[title] = json.dumps(refs_list, default=float)  # ADR-030: Decimal→float
 
                 if title not in seen_titles_this_run:
                     seen_titles_this_run.add(title)

@@ -54,7 +54,7 @@ def test_job_updates_all_investment_accounts(monkeypatch):
     invs = check.query(Account).filter(Account.account_type == AccountType.investment).all()
     assert len(invs) == 2
     for a in invs:
-        assert a.current_price == pytest.approx(7277.904)  # current_price Float denormalize
+        assert float(a.current_price) == pytest.approx(7277.904)  # ADR-030: current_price Numeric(Decimal)
         assert a.last_price_update is not None
     # nakit dokunulmadı
     cash = check.query(Account).filter(Account.account_type == AccountType.cash).first()
@@ -95,6 +95,6 @@ def test_job_survives_fetch_failure(monkeypatch):
     check = Session()
     good = check.query(Account).filter(Account.fund_code == "TLY").first()
     bad = check.query(Account).filter(Account.fund_code == "ZZZ").first()
-    assert good.current_price == pytest.approx(10.0)
+    assert float(good.current_price) == pytest.approx(10.0)
     assert bad.current_price is None  # çekilemeyen dokunulmadı
     check.close()

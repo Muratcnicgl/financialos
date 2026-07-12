@@ -42,7 +42,7 @@ def test_abonelik_recurring_e_cevrilir(client, db):
     })
     assert r.status_code == 201
     exp = db.query(RecurringExpense).filter_by(name="Netflix").first()
-    assert exp is not None and exp.amount == 59.99 and exp.day_of_month == 15
+    assert exp is not None and float(exp.amount) == 59.99 and exp.day_of_month == 15  # ADR-030: amount Numeric(Decimal)
     assert exp.category == "abonelik"
 
 

@@ -40,7 +40,7 @@ def test_record_writes_price_history_and_updates_cache(db_session, test_user):
     is_new = record_investment_price(db_session, acc, Decimal("7277.9040"), PriceSource.TEFAS.value)
 
     assert is_new is True
-    assert acc.current_price == pytest.approx(7277.904)  # current_price Float denormalize cache
+    assert float(acc.current_price) == pytest.approx(7277.904)  # ADR-030: current_price Numeric(Decimal)
     assert acc.last_price_update is not None
     rows = db_session.query(PriceHistory).filter(PriceHistory.fund_code == "TLY").all()
     assert len(rows) == 1
@@ -61,7 +61,7 @@ def test_record_is_idempotent_same_day_source(db_session, test_user):
     rows = db_session.query(PriceHistory).filter(PriceHistory.fund_code == "TLY").all()
     assert len(rows) == 1  # tek satır kaldı
     assert rows[0].close_price == Decimal("200.0")  # üzerine yazıldı (close_price Numeric)
-    assert acc.current_price == pytest.approx(200.0)  # current_price Float
+    assert float(acc.current_price) == pytest.approx(200.0)  # ADR-030: current_price Numeric(Decimal)
 
 
 def test_get_fund_price_caches_underlying_call(monkeypatch):

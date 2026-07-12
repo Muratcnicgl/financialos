@@ -151,25 +151,25 @@ class Account(Base):
     account_type = Column(SQLEnum(AccountType), nullable=False)
 
     # Ortak alanlar
-    balance = Column(Float, default=0.0, nullable=False)  # Nakit/yatırım: pozitif | Kart/kredi: borç (pozitif)
+    balance = Column(Numeric(19, 4), default=0.0, nullable=False)  # Nakit/yatırım: pozitif | Kart/kredi: borç (pozitif)
     notes = Column(Text, nullable=True)
 
     # === Kredi kartı alanları ===
-    credit_limit = Column(Float, nullable=True)
+    credit_limit = Column(Numeric(19, 4), nullable=True)
     statement_day = Column(Integer, nullable=True)  # Ayın hangi günü kesim (örn: 2)
     payment_day = Column(Integer, nullable=True)    # Ayın hangi günü son ödeme (örn: 12)
 
     # === Kredi alanları ===
     interest_rate = Column(Float, nullable=True)         # Aylık faiz oranı (%)
-    monthly_payment = Column(Float, nullable=True)       # Aylık taksit
+    monthly_payment = Column(Numeric(19, 4), nullable=True)       # Aylık taksit
     remaining_installments = Column(Integer, nullable=True)
     next_payment_date = Column(Date, nullable=True)
 
     # === Yatırım alanları ===
     fund_code = Column(String(20), nullable=True)        # TEFAS kodu (örn: TLY)
     lot_count = Column(Float, nullable=True)             # Lot sayısı
-    cost_per_lot = Column(Float, nullable=True)          # Lot başı maliyet
-    current_price = Column(Float, nullable=True)         # Son güncel fiyat
+    cost_per_lot = Column(Numeric(19, 4), nullable=True)          # Lot başı maliyet
+    current_price = Column(Numeric(19, 4), nullable=True)         # Son güncel fiyat
     last_price_update = Column(DateTime, nullable=True)
     is_emanet = Column(Boolean, default=False, nullable=False)  # ⚠️ Dokunulmaz emanet
 
@@ -190,7 +190,7 @@ class RecurringIncome(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(100), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(19, 4), nullable=False)
     day_of_month = Column(Integer, nullable=False)  # Ayın kaçında gelir (1-31)
     is_active = Column(Boolean, default=True, nullable=False)
     notes = Column(Text, nullable=True)
@@ -207,7 +207,7 @@ class RecurringExpense(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(100), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(19, 4), nullable=False)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)  # zorunlu: kart mı nakit mi
     category = Column(String(50), nullable=True)        # "abonelik", "fatura", "kira" vb.
     day_of_month = Column(Integer, nullable=False)       # Ayın kaçında ödenir (1-31)
@@ -275,7 +275,7 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     transaction_type = Column(SQLEnum(TransactionType), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(19, 4), nullable=False)
     category = Column(String(50), nullable=True)         # yiyecek, ulaşım, fatura vb.
     description = Column(Text, nullable=True)
     transaction_date = Column(Date, nullable=False, default=date.today)
@@ -302,7 +302,7 @@ class PersonalDebt(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     counterparty = Column(String(100), nullable=False)  # Örn: "Efe"
     direction = Column(SQLEnum(DebtDirection), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(19, 4), nullable=False)
     description = Column(Text, nullable=True)
     due_date = Column(Date, nullable=True)
     is_paid = Column(Boolean, default=False, nullable=False)
@@ -420,10 +420,10 @@ class ActionHistory(Base):
     error_message = Column(Text, nullable=True)
 
     # Onceki/sonraki finansal anlik goruntu (kiyaslama icin)
-    net_worth_before = Column(Float, nullable=True)
-    net_worth_after = Column(Float, nullable=True)
-    cash_before = Column(Float, nullable=True)
-    cash_after = Column(Float, nullable=True)
+    net_worth_before = Column(Numeric(19, 4), nullable=True)
+    net_worth_after = Column(Numeric(19, 4), nullable=True)
+    cash_before = Column(Numeric(19, 4), nullable=True)
+    cash_after = Column(Numeric(19, 4), nullable=True)
 
     # Geri al zinciri
     reverted_at = Column(DateTime, nullable=True)
@@ -550,13 +550,13 @@ class NetWorthSnapshot(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     snapshot_date = Column(Date, nullable=False)
 
-    net_worth_seen = Column(Float, nullable=False)       # Görülen (operasyonel, alacaksız)
-    net_worth_full = Column(Float, nullable=False)       # Tam (stratejik, alacaklı)
-    cash = Column(Float, nullable=False)
-    card_debt = Column(Float, nullable=False)
-    loan_debt = Column(Float, nullable=False)
-    investment_value = Column(Float, nullable=False)
-    receivables = Column(Float, nullable=False, default=0.0)
+    net_worth_seen = Column(Numeric(19, 4), nullable=False)       # Görülen (operasyonel, alacaksız)
+    net_worth_full = Column(Numeric(19, 4), nullable=False)       # Tam (stratejik, alacaklı)
+    cash = Column(Numeric(19, 4), nullable=False)
+    card_debt = Column(Numeric(19, 4), nullable=False)
+    loan_debt = Column(Numeric(19, 4), nullable=False)
+    investment_value = Column(Numeric(19, 4), nullable=False)
+    receivables = Column(Numeric(19, 4), nullable=False, default=0.0)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

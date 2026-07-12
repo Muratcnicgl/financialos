@@ -292,7 +292,7 @@ def persist_premortem(
         )
     ).scalar_one_or_none()
 
-    scenarios_json = json.dumps([s.model_dump() for s in result.scenarios], ensure_ascii=False)
+    scenarios_json = json.dumps([s.model_dump() for s in result.scenarios], ensure_ascii=False, default=float)
     now = datetime.now(timezone.utc)
 
     if existing:

@@ -22,6 +22,7 @@ from app.serializers import utc_isoformat  # BUG #092: datetime UTC suffix
 # SEC-032: işlem tutarı SONLU olmalı (inf/NaN/taşma reddedilir); ≤0 kontrolü handler'daki
 # manuel doğrulamada (dostça Türkçe mesaj + quick_text modu) kalır → FinansOptBakiye (sign-agnostik sonlu).
 from app.schema_types import FinansOptBakiye
+from app.money import D  # ADR-030: para Decimal coercion
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType,
 )
@@ -106,6 +107,7 @@ def _apply_to_balance(account: Account, txn_type, amount: float, reverse: bool =
         return
 
     sign = -1 if reverse else 1
+    amount = D(amount)  # ADR-030: bakiye Numeric(Decimal); amount (float payload) → Decimal
 
     # Enum normalization (hem string hem enum gelebilir)
     atype = account.account_type

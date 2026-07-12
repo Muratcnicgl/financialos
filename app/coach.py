@@ -509,7 +509,7 @@ def _to_openai_messages(messages: List[Dict]) -> List[Dict]:
                     "type": "function",
                     "function": {
                         "name": tc["name"],
-                        "arguments": json.dumps(tc.get("args", {}), ensure_ascii=False),
+                        "arguments": json.dumps(tc.get("args", {}), ensure_ascii=False, default=float),
                     },
                 }
                 for i, tc in enumerate(tc_data)
@@ -2124,7 +2124,7 @@ class CoachEngine:
             user_id=user_id,
             role=role,
             content=content or "",
-            tool_calls_json=json.dumps(tool_calls, ensure_ascii=False) if tool_calls else None,
+            tool_calls_json=json.dumps(tool_calls, ensure_ascii=False, default=float) if tool_calls else None,
             tool_call_id=tool_call_id,
             pending_action_ids_json=json.dumps(pending_action_ids) if pending_action_ids else None,
         )

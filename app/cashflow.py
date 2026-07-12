@@ -29,6 +29,7 @@ from app.models import (
     PersonalDebt, DebtDirection,
     RecurringIncome, RecurringExpense,
 )
+from app.money import D, ZERO  # ADR-030: para Decimal akar
 
 
 # ============================================================
@@ -60,8 +61,8 @@ class ForecastDay:
         self.date = d
         self.opening_balance = round(opening, 2)
         self.closing_balance = opening
-        self.inflows = 0.0
-        self.outflows = 0.0
+        self.inflows = ZERO   # ADR-030: para Decimal
+        self.outflows = ZERO
         self.events: list[ForecastEvent] = []
         self.crunch = False
 
@@ -198,9 +199,9 @@ def _build_sankey(events: list[ForecastEvent]) -> dict:
 
     for ev in events:
         if ev.amount > 0:
-            source_totals[ev.label] = source_totals.get(ev.label, 0.0) + ev.amount
+            source_totals[ev.label] = source_totals.get(ev.label, ZERO) + ev.amount
         elif ev.amount < 0:
-            sink_totals[ev.label] = sink_totals.get(ev.label, 0.0) + abs(ev.amount)
+            sink_totals[ev.label] = sink_totals.get(ev.label, ZERO) + abs(ev.amount)
 
     if not source_totals and not sink_totals:
         return {"nodes": [], "links": []}
@@ -286,7 +287,7 @@ def generate_forecast(
     )
     if account_id is not None:
         cash_q = cash_q.filter(Account.id == account_id)
-    opening_balance = sum(acc.balance for acc in cash_q.all())
+    opening_balance = sum((D(acc.balance) for acc in cash_q.all()), ZERO)  # ADR-030: Decimal (float/Decimal dayanıklı)
 
     # --- Olayları topla ---
     all_events: list[ForecastEvent] = []

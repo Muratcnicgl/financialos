@@ -52,6 +52,6 @@ def test_satis_sonrasi_balance_current_price_tutarli(db):
     # kalan 6 lot; current_price taze piyasa (120) olmalı → balance == 6*120
     assert inv.lot_count == 6
     assert inv.current_price == 120.0
-    assert inv.balance == pytest.approx(6 * 120.0)
+    assert float(inv.balance) == pytest.approx(6 * 120.0)  # ADR-030: balance Numeric(Decimal)
     # tutarlılık: balance == lot_count * current_price (cockpit/sim ile uyumlu)
-    assert inv.balance == pytest.approx(inv.lot_count * inv.current_price)
+    assert float(inv.balance) == pytest.approx(float(inv.lot_count) * float(inv.current_price))  # ADR-030

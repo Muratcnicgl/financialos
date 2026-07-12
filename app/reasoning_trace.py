@@ -79,7 +79,7 @@ class _StepProxy:
 
     def set_action_input(self, value: dict):
         """Yardimci: dict -> JSON string (mc_rules_applied paterni)."""
-        self.action_input_json = json.dumps(value, ensure_ascii=False)
+        self.action_input_json = json.dumps(value, ensure_ascii=False, default=float)
 
 
 class TraceRecorder:

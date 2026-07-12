@@ -21,6 +21,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.models import Account, AccountType
+from app.money import D  # ADR-030: para Decimal coercion
 
 logger = logging.getLogger(__name__)
 
@@ -130,11 +131,11 @@ def update_fund_price_manual(
     old_price = account.current_price
     lot_count = account.lot_count or 0
 
-    old_value = round((old_price or 0) * lot_count, 2)
-    new_value = round(new_price * lot_count, 2)
+    old_value = round(D(old_price or 0) * D(lot_count), 2)  # ADR-030: fiyat(Decimal)*lot(float)→D
+    new_value = round(D(new_price) * D(lot_count), 2)
 
     # Güncelle
-    account.current_price = new_price
+    account.current_price = D(new_price)
     account.last_price_update = datetime.utcnow()
     # balance'ı da güncelle (yatırım için balance = lot * fiyat)
     account.balance = new_value

@@ -189,6 +189,7 @@ dayanıklılık + kullanıcıyı etkileyen doğruluk + veri-egemenliği tamlığ
 | BE-010 | 6 sessiz `except: pass` → tanılanabilir loglama (goal_engine except'i #066'da AttributeError gizliyordu) | süit yeşil |
 | SEC-006 | coach mesajı max_length=4000 (sağlayıcı token/maliyet koruması; büyük yapıştırma zinciri patlatmasın) | test_coach_chat_endpoint.py (+2) |
 | SEC-032 | Finansal float alanları sonlu olmalı: paylaşılan schema_types (allow_inf_nan=False + üst sınır 1e12) accounts/transactions/debts/incomes/expenses'e uygulandı → inf/NaN/taşma(1e308) girişte reddedilir (round(inf) rules_engine sızıntısı kesildi). İşlem ≤0 dostça mesajı korundu | test_financial_input_validation.py (21) |
+| SEC-032b | İKİNCİ savunma (propose→execute yolu): action_executor `_parse_finite` helper'ı ile para-hareketi handler'ları (update_balance/sell_investment/add_transaction/update_fund_price) nan/inf payload'ı reddeder — NaN eskiden `<=0`/`>lot` guard'larını atlayıp DB'ye yazılabiliyordu (nan bakiye/lot cockpit matematiğini bozar). Mutasyon YOK, status=failed | test_execute_pending_action.py (+3) |
 | KVKK | Veri export tamlığı: eylem/karar/hedef-izleme + koç-şeffaflık kayıtları eklendi (18 tablo). TAMLIK invariant testi | test_data_export.py (+2) |
 
 **Provider gerçeği (memory: reference_groq_tpm_limiti):** Zengin veride koç isteği ~8000+ token →

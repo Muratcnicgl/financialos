@@ -163,3 +163,50 @@ def test_execute_baska_kullanici_bulunamaz(db):
     res = execute_pending_action(db, p.id, 2)      # user 2, user 1'in aksiyonu
     assert res["success"] is False
     assert "bulunamadi" in (res.get("error") or "").lower()
+
+
+# ============================================================
+# SEC-032 — para-hareketi handler'ları non-finite payload'ı reddeder (DB bozulmaz)
+# ============================================================
+import math  # noqa: E402
+
+
+def test_update_balance_nan_reddedilir_bakiye_degismez(db):
+    acc = Account(id=1, user_id=1, name="Nakit", account_type=AccountType.cash, balance=5000.0)
+    db.add(acc); db.commit()
+    p = _pending(db, "update_account_balance",
+                 {"account_id": 1, "new_balance": float("nan")})
+    res = execute_pending_action(db, p.id, 1)
+    assert res["success"] is False
+    db.refresh(acc)
+    assert acc.balance == 5000.0                    # mutasyon YOK
+    assert math.isfinite(acc.balance)
+    db.refresh(p)
+    assert p.status == ActionStatus.failed
+
+
+def test_add_transaction_inf_reddedilir(db):
+    acc = Account(id=1, user_id=1, name="Nakit", account_type=AccountType.cash, balance=5000.0)
+    db.add(acc); db.commit()
+    p = _pending(db, "add_transaction",
+                 {"transaction_type": "expense", "amount": float("inf"), "account_id": 1})
+    res = execute_pending_action(db, p.id, 1)
+    assert res["success"] is False
+    db.refresh(acc)
+    assert acc.balance == 5000.0                    # bakiye dokunulmadı
+
+
+def test_sell_investment_nan_lots_reddedilir_lot_degismez(db):
+    """NaN lots eskiden `<=0` ve `>lot` guard'larını atlayıp DB'ye nan yazabilirdi."""
+    inv = Account(id=1, user_id=1, name="TLY", account_type=AccountType.investment,
+                  lot_count=10.0, cost_per_lot=100.0, current_price=120.0, balance=1200.0)
+    cash = Account(id=2, user_id=1, name="Nakit", account_type=AccountType.cash, balance=0.0)
+    db.add_all([inv, cash]); db.commit()
+    p = _pending(db, "sell_investment",
+                 {"investment_id": 1, "lots_to_sell": float("nan"), "credit_to_account_id": 2})
+    res = execute_pending_action(db, p.id, 1)
+    assert res["success"] is False
+    db.refresh(inv); db.refresh(cash)
+    assert inv.lot_count == 10.0                     # lot dokunulmadı
+    assert cash.balance == 0.0                       # nakit dokunulmadı
+    assert math.isfinite(inv.lot_count)

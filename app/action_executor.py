@@ -34,11 +34,27 @@ GÜNCELLEMELER:
 
 import json
 import logging
+import math
 from datetime import datetime, date
 from typing import Dict, Optional
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_finite(value) -> Optional[float]:
+    """
+    SEC-032 (para-hareketi katmanı): LLM payload'ındaki sayısal alanı SONLU float'a çevirir.
+    Geçersiz (sayısal değil) / inf / NaN → None. En yüksek-riskli handler'lar (bakiye, satış,
+    fiyat) bunu kullanır — NaN `<=0` ve `>lot` guard'larının İKİSİNİ de atlayıp DB'ye
+    yazılabiliyordu (nan bakiye/lot → cockpit matematiğini bozar). Giriş şeması (schema_types)
+    ilk savunma; bu, propose_action→execute yolundaki ikinci savunmadır.
+    """
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
 
 from app.models import (
     Account, AccountType, Transaction, TransactionType,
@@ -444,8 +460,11 @@ def _execute_update_account_balance(db: Session, user_id: int, payload: Dict) ->
             "message": f"'{account.name}' emanet hesap (MC1). Bakiye degistirilemez.",
         }
 
+    _nb = _parse_finite(new_balance)  # SEC-032: nan/inf bakiye DB'ye yazılmasın
+    if _nb is None:
+        return {"success": False, "message": "new_balance sonlu bir sayı olmalı."}
     old_balance = account.balance
-    account.balance = float(new_balance)
+    account.balance = _nb
     account.updated_at = datetime.utcnow()
     db.commit()
 
@@ -477,6 +496,9 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
     amount = payload.get("amount")
     if txn_type not in ("income", "expense", "transfer") or amount is None:
         return {"success": False, "message": "transaction_type ve amount gerekli."}
+    amount = _parse_finite(amount)  # SEC-032: nan/inf tutar bakiyeyi/cockpit'i bozar
+    if amount is None or amount <= 0:
+        return {"success": False, "message": "amount sonlu ve pozitif olmalı."}
 
     txn_date = payload.get("transaction_date")
     if txn_date:
@@ -501,7 +523,7 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
         user_id=user_id,
         account_id=account_id,
         transaction_type=TransactionType(txn_type),
-        amount=float(amount),
+        amount=amount,  # SEC-032: yukarıda _parse_finite ile sonlu+pozitif doğrulandı
         category=payload.get("category"),
         description=payload.get("description"),
         transaction_date=txn_date,
@@ -642,7 +664,9 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
             ),
         }
 
-    lots = float(lots)
+    lots = _parse_finite(lots)  # SEC-032: nan lots `<=0`/`>lot` guard'larını atlayıp DB'yi bozardı
+    if lots is None:
+        return {"success": False, "message": "lots_to_sell sonlu bir sayı olmalı."}
     if lots <= 0:
         return {"success": False, "message": "lots_to_sell sifirdan buyuk olmali."}
     if lots > (inv.lot_count or 0):
@@ -656,7 +680,10 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
             "message": "cost_per_lot veya current_price eksik — satis simulasyonu yapilamaz.",
         }
 
-    actual_price = float(payload.get("actual_price") or inv.current_price)
+    _ap = payload.get("actual_price")
+    actual_price = _parse_finite(_ap) if _ap is not None else inv.current_price
+    if actual_price is None or not math.isfinite(actual_price):  # SEC-032
+        return {"success": False, "message": "actual_price sonlu bir sayı olmalı."}
 
     # Stopaj hesabı (Rules Engine'i kullanıyoruz — LLM hesaplamasın)
     sim = simulate_partial_sale(
@@ -722,7 +749,10 @@ def _execute_update_fund_price(db: Session, user_id: int, payload: Dict) -> Dict
     if account_id is None or new_price is None:
         return {"success": False, "message": "account_id ve new_price gerekli."}
 
-    return update_fund_price_manual(db, account_id, float(new_price), user_id=user_id)  # BUG #115
+    _np = _parse_finite(new_price)  # SEC-032: nan/inf fiyat lot*fiyat matematiğini bozar
+    if _np is None:
+        return {"success": False, "message": "new_price sonlu bir sayı olmalı."}
+    return update_fund_price_manual(db, account_id, _np, user_id=user_id)  # BUG #115
 
 
 def _execute_add_master_checkpoint(db: Session, user_id: int, payload: Dict) -> Dict:

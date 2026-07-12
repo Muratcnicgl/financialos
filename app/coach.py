@@ -1003,11 +1003,19 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     # BORÇ ÖDEME İLERLEMESİ (FEAT-017): başlangıçtan beri momentum — motivasyon (Ramsey).
     bi = cockpit.get("borc_ilerleme") or {}
     if bi.get("ilerleme"):  # yalnız gerçek ilerlemede (borç azaldı) motive et
+        # KİLOMETRE TAŞI: taze band geçişi varsa AÇIKÇA kutla (diskret kutlama > sürekli metrik).
+        milestone_line = ""
+        if bi.get("yeni_milestone"):
+            milestone_line = (
+                f"\n  - 🏆 KİLOMETRE TAŞI: Borcunu %{bi['yeni_milestone']} azalttın! Bunu "
+                f"COŞKUYLA kutla — Murat'ın borç serüveninde gerçek bir dönüm noktası."
+            )
         context += (
             f"\n\n## BORÇ ÖDEME İLERLEMESİ (momentum — motive et)\n"
             f"  - {bi['baslangic_tarih']}'ten beri {_fmt(bi['odendi'])} TL borç ödedin "
             f"(%{bi['yuzde']} azalma, {bi['baslangic_borc']:.0f}→{bi['guncel_borc']:.0f}). "
             f"Bu ivmeyi vurgula — davranışsal momentum borç bitirmenin #1 faktörü."
+            f"{milestone_line}"
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([bi["odendi"], bi["baslangic_borc"]])
 

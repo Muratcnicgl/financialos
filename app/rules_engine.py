@@ -1555,6 +1555,19 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
 _INFLATION_ANNUAL = float(os.getenv("INFLATION_ANNUAL", "0.40"))
 
 
+# FEAT-017: borç azaltma kilometre taşları (Ramsey: DİSKRET kutlama sürekli metrikten daha
+# motive edicidir). Yüksekten düşüğe kontrol edilir; ulaşılan EN YÜKSEK band döner.
+_DEBT_MILESTONES = (75, 50, 25, 10)
+
+
+def _debt_milestone_band(yuzde: float) -> int:
+    """Verilen borç-azaltma %'sinin ulaştığı en yüksek kilometre taşı (0 = <%10)."""
+    for m in _DEBT_MILESTONES:
+        if yuzde >= m:
+            return m
+    return 0
+
+
 def calculate_debt_progress(
     user_id: int, today: date, db: Session, guncel_borc: float,
 ) -> Optional[Dict]:
@@ -1566,6 +1579,10 @@ def calculate_debt_progress(
 
     Not: pozitif = ilerleme (borç azaldı); negatif = borç büyüdü (realist koç bunu da dürüstçe
     yansıtır). Sadece anlamlı geçmişte (≥7 gün) döner — gürültü/aynı-gün sıçraması olmasın.
+
+    KİLOMETRE TAŞI: `milestone` = ulaşılan en yüksek band (%10/25/50/75), `yeni_milestone` =
+    en son snapshot'tan BUGÜNE band ARTTIYSA o band (taze geçiş → koç kutlar), yoksa None.
+    Diskret kutlama sürekli metrikten daha motive edici (Ramsey), ama sadece GERÇEK geçişte.
     """
     earliest = db.query(NetWorthSnapshot).filter(
         NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
@@ -1578,14 +1595,32 @@ def calculate_debt_progress(
     if baslangic_borc <= 0:
         return None
     odendi = round(baslangic_borc - guncel_borc, 2)   # + = ilerleme, − = borç büyüdü
+    yuzde = round(odendi / baslangic_borc * 100, 1)
+    milestone = _debt_milestone_band(yuzde)
+
+    # Taze geçiş tespiti: bugünden ÖNCEKİ en son snapshot'ın band'ı ile karşılaştır.
+    yeni_milestone = None
+    if milestone > 0:
+        prev = db.query(NetWorthSnapshot).filter(
+            NetWorthSnapshot.user_id == user_id,
+            NetWorthSnapshot.snapshot_date < today,
+        ).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+        if prev is not None:
+            prev_odendi = baslangic_borc - (float(prev.card_debt) + float(prev.loan_debt))
+            prev_band = _debt_milestone_band(round(prev_odendi / baslangic_borc * 100, 1))
+            if milestone > prev_band:   # band bu snapshot aralığında ARTTI → taze kutlama
+                yeni_milestone = milestone
+
     return {
         "baslangic_tarih": earliest.snapshot_date.isoformat(),
         "gun": gun,
         "baslangic_borc": round(baslangic_borc, 2),
         "guncel_borc": round(guncel_borc, 2),
         "odendi": odendi,
-        "yuzde": round(odendi / baslangic_borc * 100, 1),
+        "yuzde": yuzde,
         "ilerleme": odendi > 0,
+        "milestone": milestone,            # ulaşılan en yüksek band (0/10/25/50/75)
+        "yeni_milestone": yeni_milestone,  # taze geçiş → koç kutlar (yoksa None)
     }
 
 

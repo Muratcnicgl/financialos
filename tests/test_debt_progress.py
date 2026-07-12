@@ -85,3 +85,54 @@ def test_cockpit_borc_ilerleme_alani(db):
     r = generate_cockpit(1, TODAY, db)
     assert r["borc_ilerleme"] is not None
     assert r["borc_ilerleme"]["odendi"] == 4000.0         # 12000 → 8000
+
+
+# ============================================================
+# FEAT-017 kilometre taşı (milestone) — diskret kutlama
+# ============================================================
+
+from app.rules_engine import _debt_milestone_band  # noqa: E402
+
+
+def test_milestone_band_esikleri():
+    assert _debt_milestone_band(9.9) == 0
+    assert _debt_milestone_band(10) == 10
+    assert _debt_milestone_band(24.9) == 10
+    assert _debt_milestone_band(25) == 25
+    assert _debt_milestone_band(50) == 50
+    assert _debt_milestone_band(80) == 75
+    assert _debt_milestone_band(100) == 75  # 75 en yüksek band (100 borçsuzluk ayrı kutlanır)
+
+
+def test_milestone_ulasilan_band(db):
+    # başlangıç 100k borç, bugün 70k → %30 azalma → band 25
+    _snap(db, TODAY - timedelta(days=30), card=0, loan=100000)
+    r = calculate_debt_progress(1, TODAY, db, 70000)
+    assert r["yuzde"] == 30.0
+    assert r["milestone"] == 25
+
+
+def test_yeni_milestone_taze_gecis(db):
+    # en eski: 100k. önceki snapshot (dün): 80k → %20 → band 10. bugün: 74k → %26 → band 25.
+    # band 10→25 ARTTI → yeni_milestone = 25 (taze geçiş kutlanır).
+    _snap(db, TODAY - timedelta(days=30), card=0, loan=100000)   # baseline
+    _snap(db, TODAY - timedelta(days=1), card=0, loan=80000)      # önceki: %20 → band 10
+    r = calculate_debt_progress(1, TODAY, db, 74000)             # bugün: %26 → band 25
+    assert r["milestone"] == 25
+    assert r["yeni_milestone"] == 25
+
+
+def test_yeni_milestone_yok_ayni_band(db):
+    # önceki ve bugün aynı band (ikisi de %25+) → taze geçiş YOK
+    _snap(db, TODAY - timedelta(days=30), card=0, loan=100000)   # baseline
+    _snap(db, TODAY - timedelta(days=1), card=0, loan=70000)      # önceki: %30 → band 25
+    r = calculate_debt_progress(1, TODAY, db, 68000)             # bugün: %32 → band 25
+    assert r["milestone"] == 25
+    assert r["yeni_milestone"] is None
+
+
+def test_milestone_yok_dusuk_ilerleme(db):
+    _snap(db, TODAY - timedelta(days=30), card=0, loan=100000)
+    r = calculate_debt_progress(1, TODAY, db, 95000)   # %5 → band 0
+    assert r["milestone"] == 0
+    assert r["yeni_milestone"] is None

@@ -273,9 +273,14 @@ def _mark_recurring_triggered(db: Session, pending: PendingAction, payload: Dict
     if not getattr(pending, "source_recurring_id", None):
         return
     from app.models import RecurringIncome, RecurringExpense
+    # DATA-029: dedup anahtarı ÖNCE payload'ın transaction_date'inden (yerel iş-günü) türetilir —
+    # trigger_due bunu HER ZAMAN yerel date.today() ile koyar, CHECK tarafı da yerel date.today()
+    # kullanır → tutarlı, ay-sınırında çift-tetik YOK. Fallback (transaction_date yoksa) da yerel
+    # date.today() olmalı (utcnow DEĞİL) — TR (UTC+3) ay sınırında UTC/yerel ay farkı doğurmasın.
     td = payload.get("transaction_date")
+    _local = date.today()
     ym = td[:7] if isinstance(td, str) and len(td) >= 7 else \
-        f"{datetime.utcnow().year}-{datetime.utcnow().month:02d}"
+        f"{_local.year}-{_local.month:02d}"
     if pending.source_recurring_type == "income":
         rec = db.query(RecurringIncome).filter(RecurringIncome.id == pending.source_recurring_id).first()
     elif pending.source_recurring_type == "expense":

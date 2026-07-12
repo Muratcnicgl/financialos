@@ -114,7 +114,7 @@
 - **Aksiyon:** `interest = balance*(rate/100); balance += interest - payment`.
 - **Etki:** Orta · **Efor:** M
 
-### [RULE-019] Simülasyon kartı hiç ödemiyor → net değer projeksiyonu tutarsız
+### [RULE-019] Simülasyon kartı hiç ödemiyor → net değer projeksiyonu tutarsız ✅ UYGULANDI (12 Tem 2026)
 - **Sorun:** Kredi taksitleri nakitten düşülür ama kart borcu/faizi sabit bırakılır — asimetrik.
 - **Kanıt:** `app/simulation_engine.py:403-408`
 - **Aksiyon:** Kart son ödemesini upcoming_payment olarak modelle veya net_worth deltasında kart faizini işle; asimetriyi belgele.

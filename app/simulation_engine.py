@@ -418,6 +418,31 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
                 f"(faiz +{interest:,.2f}, kalan borc {a.balance:,.2f}, taksit {a.remaining_installments})"
             )
 
+    # 2b. RULE-019: Kart asgari ödemesi — sim kartı HİÇ ödemiyordu → net değer projeksiyonu
+    # tutarsız (kart borcu donuk kalıp cash düşmüyordu). Kart döngüsü: ödeme gününde faiz
+    # tahakkuk + TR asgari (%25, min 50 TL) ödeme. Kart %99.8 doluyken 90 günde borç ~yarıya
+    # iner — bunu modellememek what-if net değerini ciddi biçimde eksik gösteriyordu.
+    _CARD_MIN_RATIO = 0.25
+    for a in world.accounts:
+        if a.account_type != "credit_card" or a.balance <= 0.01 or not a.payment_day:
+            continue
+        _ldom = monthrange(start.year, start.month)[1]
+        _card_next = date(start.year, start.month, min(a.payment_day, _ldom))
+        for pay_date in _next_payment_in_window(_card_next, start, end):
+            if a.balance <= 0.01:
+                break
+            interest = a.balance * ((a.interest_rate or 0.0) / 100.0)
+            a.balance += interest
+            min_pay = min(max(a.balance * _CARD_MIN_RATIO, 50.0), a.balance)
+            cash = _find_default_cash_account(world)
+            if cash:
+                cash.balance -= min_pay
+            a.balance = max(0.0, a.balance - min_pay)
+            world.event_log.append(
+                f"[{pay_date}] KART ASGARI: {a.name} -{min_pay:,.2f} "
+                f"(faiz +{interest:,.2f}, kalan borc {a.balance:,.2f})"
+            )
+
     # 3. Efe & diger kisi alacaklari/borclari
     for d in world.debts:
         if d.paid_date:

@@ -118,3 +118,25 @@ def test_rule018_faizsiz_kredi_tam_anapara():
     w = _cash_only_world(accounts_extra=[loan])
     _project_forward(w, 30)
     assert abs(loan.balance - 9000.0) < 0.01
+
+
+def test_rule019_kart_asgari_odemesi_projeksiyonda():
+    """RULE-019: sim kartı asgari ödemeyle eritir (donuk DEĞİL). 12000 kart, %4.25 faiz,
+    ödeme günü 12 → 90 günde 3 asgari ödeme (faiz+%25) ile borç ~yarıya iner, cash düşer."""
+    card = AccountSnap(id=2, name="Kart", account_type="credit_card", balance=12000.0,
+                       credit_limit=12000.0, payment_day=12, interest_rate=4.25)
+    w = _cash_only_world(accounts_extra=[card])
+    w.accounts[0].balance = 20000.0                 # nakit (asgari ödemeler buradan)
+    _project_forward(w, 90)
+    assert card.balance < 12000.0                    # eskiden donuk 12000 idi
+    assert card.balance < 7000.0                     # ~5736 (asgari %25 × 3 ay)
+    assert w.accounts[0].balance < 20000.0           # cash asgari ödemelerle azaldı
+
+
+def test_rule019_odeme_gunu_yoksa_kart_donuk():
+    """payment_day None → kart döngüsü modellenmez (veri eksik, dokunma)."""
+    card = AccountSnap(id=2, name="Kart", account_type="credit_card", balance=12000.0,
+                       credit_limit=12000.0, payment_day=None, interest_rate=4.25)
+    w = _cash_only_world(accounts_extra=[card])
+    _project_forward(w, 90)
+    assert card.balance == 12000.0

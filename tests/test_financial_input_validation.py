@@ -27,6 +27,7 @@ from app.models import Base, User, Account, AccountType
 from app.routers.accounts import AccountCreate
 from app.routers.debts import DebtCreate
 from app.routers.incomes import IncomeCreate
+from app.routers.fund_price import FundPriceUpdate
 
 
 # ---- ŞEMA seviyesi: inf/NaN reddedilir --------------------------------------
@@ -53,6 +54,13 @@ def test_borc_tutari_gecersiz_sema_reddeder(bad):
 def test_gelir_tutari_gecersiz_sema_reddeder(bad):
     with pytest.raises(ValidationError):
         IncomeCreate(name="Maas", amount=bad, day_of_month=15)
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("nan"), 1e308, -1, 0])
+def test_fon_fiyati_gecersiz_sema_reddeder(bad):
+    """SEC-032: fon fiyatı inf → lot*inf=inf bakiye (yatırım hesabını bozar) → reddedilmeli."""
+    with pytest.raises(ValidationError):
+        FundPriceUpdate(account_id=1, new_price=bad)
 
 
 def test_mesru_deger_sema_kabul_eder():

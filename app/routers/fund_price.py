@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User, Account, AccountType
+from app.schema_types import FinansTutar  # SEC-032: sonlu/pozitif fiyat (inf → lot*inf=inf bakiye)
 from app.fund_tracker import (
     get_tefas_url,
     update_fund_price_manual,
@@ -38,7 +39,7 @@ router = APIRouter(prefix="/api/fund-price", tags=["fund_price"])
 
 class FundPriceUpdate(BaseModel):
     account_id: int = Field(..., description="Yatirim hesabinin id'si")
-    new_price: float = Field(..., gt=0)
+    new_price: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır (inf/1e308 → inf bakiye önlenir)
 
 
 class FundPriceUpdateResponse(BaseModel):

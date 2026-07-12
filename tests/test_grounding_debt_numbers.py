@@ -69,3 +69,22 @@ def test_uydurulan_tutar_yakalanir(db):
     g = check_grounding("Beklenmedik 88.888 TL borç var.", cockpit)
     assert g["ok"] is False
     assert 88888.0 in g["unverified"]
+
+
+def test_utilization_tutarlari_grounded(db):
+    """
+    FEAT-016: koç kart utilization TL tutarlarını (toplam borç/limit, %30 sağlıklı borç hedefi)
+    yazınca grounding DOĞRULAMALI — bu sayılar _build_context_message'da _coach_extra_numbers'a
+    kaydedilir (kart %99.8 → kritik bant → blok aktif). Aksi halde meşru hedef "izlenemeyen"
+    sanılıp confidence düşerdi.
+    """
+    context, cockpit = _build_context_message(db, 1)
+    ku = cockpit["kart_kullanim"]
+    assert ku is not None and ku["band"] == "kritik"
+    reply = (
+        f"Kart kullanımın %{ku['oran']}. Toplam borç {_tl(ku['toplam_borc'])} TL, "
+        f"limit {_tl(ku['toplam_limit'])} TL. %30'a inmek için borç "
+        f"{_tl(ku['saglikli_borc_hedefi'])} TL seviyesine düşmeli."
+    )
+    g = check_grounding(reply, cockpit)
+    assert g["ok"] is True, f"utilization tutarları grounding'de izlenemedi: {g['unverified']}"

@@ -99,6 +99,19 @@ def test_firsat_bosta_nakit_karta(db):
     assert a["tutar"] == 5000.0          # min(8000 boşta, 5000 kart borcu)
 
 
+def test_firsat_nakit_darken_bastirlir(db):
+    """GÜVENLİK: runway<30 (nakit dar) iken boşta nakit olsa bile fırsat (karta öde) çıkmaz —
+    yakın likiditeyi riske atmaz → stabil'e düşer."""
+    _cash(db, 8000); _card(db, 5000)
+    # son 30 günde yüksek harcama → runway kısa (8000 / ~500/gün ≈ 16 gün < 30)
+    for i in range(30):
+        db.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=500.0,
+                           category="market", transaction_date=TODAY - timedelta(days=i)))
+    a = _act(db)
+    assert a["tip"] != "firsat"          # dar nakitte cash-tüketen öneri yok
+    assert a["tip"] == "stabil"
+
+
 def test_stabil_borc_var_acil_yok(db):
     """Boşta nakit eşik altı + kart borcu var + acil yok → stabil (limite sadık kal)."""
     _cash(db, 300); _card(db, 5000)      # 300 boşta < 500 eşik

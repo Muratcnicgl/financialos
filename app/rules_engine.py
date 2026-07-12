@@ -1298,9 +1298,14 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
         }
 
     # 4. FIRSAT — boşta nakit + kart borcu + kriz YOK → karta öde (faiz sızıntısını durdur).
+    # GÜVENLİK: yalnız nakit BOL iken öner (runway None=gidersiz/sonsuz veya ≥30 gün). Nakit
+    # dar iken (runway<30) boşta görünen nakdi karta yatırmak yakın likidite ihtiyacını riske
+    # atabilir — realist koç dar nakitte cash-tüketen tavsiye vermez (crunch yoksa bile).
     atanmamis = cockpit.get("atanmamis_nakit", 0) or 0
     kart_borcu = cockpit.get("kart_borcu", 0) or 0
-    if atanmamis >= _IDLE_CASH_ACTION_MIN and kart_borcu > 0:
+    runway = cockpit.get("nakit_runway_gun")
+    nakit_bol = runway is None or runway >= 30
+    if atanmamis >= _IDLE_CASH_ACTION_MIN and kart_borcu > 0 and nakit_bol:
         odenebilir = round(min(atanmamis, kart_borcu), 2)
         fs = cockpit.get("faiz_sizintisi") or {}
         gerekce = f"{_tl(atanmamis)} TL boşta nakdin var, kart borcun {_tl(kart_borcu)} TL."

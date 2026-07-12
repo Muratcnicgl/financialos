@@ -1570,6 +1570,94 @@ def calculate_debt_progress(
     }
 
 
+# FEAT-016: kredi kartı kullanım oranı bantları (kredi-skoru davranışında genel eşikler).
+# %30 altı "sağlıklı" — kredi notunda en ağır tek faktörlerden biri kullanım oranıdır.
+_UTIL_HEALTHY: float = 30.0
+_UTIL_HIGH: float = 70.0
+_UTIL_CRITICAL: float = 90.0
+
+
+def calculate_card_utilization(
+    user_id: int, today: date, db: Session, accounts: Optional[List] = None,
+) -> Optional[Dict]:
+    """
+    FEAT-016: Kredi kartı KULLANIM ORANI (utilization) + iyileşme trendi + kredi-sağlık bandı.
+
+    Oran = toplam kart borcu / toplam kart limiti. Kredi notu davranışında en ağır tek
+    faktörlerden biridir; %30 altı sağlıklı sayılır. Murat %99.8'de → notu baskılıyor, her
+    ödenen TL oranı düşürür. `saglikli_borc_hedefi` = %30'a inmek için borç seviyesi (somut çapa).
+
+    Trend: en eski NetWorthSnapshot'ın kart borcu, GÜNCEL toplam limitle oranlanır (limit
+    stabil varsayımı — kart limiti nadiren değişir) → bugünün oranıyla karşılaştırılır. ≥7 gün
+    geçmiş gerekir. Salt hesap; kart yoksa veya toplam limit 0 ise None. `accounts` verilirse
+    re-query yapılmaz (generate_cockpit zaten çekmiştir).
+    """
+    if accounts is None:
+        accounts = db.query(Account).filter(Account.user_id == user_id).all()
+    cards = [a for a in accounts if a.account_type == AccountType.credit_card]
+    toplam_limit = sum(float(c.credit_limit or 0) for c in cards)
+    toplam_borc = sum(float(c.balance or 0) for c in cards)
+    if not cards or toplam_limit <= 0:
+        return None
+
+    oran = round(toplam_borc / toplam_limit * 100, 1)
+    if oran >= _UTIL_CRITICAL:
+        band = "kritik"
+    elif oran >= _UTIL_HIGH:
+        band = "yuksek"
+    elif oran >= _UTIL_HEALTHY:
+        band = "orta"
+    else:
+        band = "saglikli"
+
+    # İyileşme trendi — limit stabil varsayımıyla geçmiş kart borcunu bugünkü limitle oranla.
+    trend = None
+    earliest = db.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
+    if earliest:
+        gun = (today - earliest.snapshot_date).days
+        if gun >= 7:
+            oran_onceki = round(float(earliest.card_debt) / toplam_limit * 100, 1)
+            trend = {
+                "baslangic_tarih": earliest.snapshot_date.isoformat(),
+                "gun": gun,
+                "baslangic_oran": oran_onceki,
+                "degisim": round(oran - oran_onceki, 1),  # negatif = iyileşme (oran düştü)
+                "iyilesme": oran < oran_onceki,
+            }
+
+    saglikli_borc_hedefi = round(toplam_limit * _UTIL_HEALTHY / 100, 2)
+    kalan_limit = round(toplam_limit - toplam_borc, 2)
+    if band == "kritik":
+        mesaj = (
+            f"Kart kullanımın %{oran} — neredeyse dolu. Kredi notunu baskılar ve acil "
+            f"nakit tamponun yok. %30'a inmek için borç {_tl(saglikli_borc_hedefi)} TL "
+            f"seviyesine düşmeli; her ödediğin TL oranı doğrudan iyileştirir."
+        )
+    elif band == "yuksek":
+        mesaj = (
+            f"Kart kullanımın %{oran} — yüksek. %30 altı sağlıklı sayılır; "
+            f"{_tl(saglikli_borc_hedefi)} TL borç seviyesi hedef."
+        )
+    elif band == "orta":
+        mesaj = f"Kart kullanımın %{oran} — sağlıklı eşiğe (%30) yakın, iyi yoldasın."
+    else:
+        mesaj = f"Kart kullanımın %{oran} — sağlıklı aralıkta (%30 altı). Tamponun korunuyor."
+
+    return {
+        "oran": oran,
+        "band": band,
+        "toplam_borc": round(toplam_borc, 2),
+        "toplam_limit": round(toplam_limit, 2),
+        "kalan_limit": kalan_limit,
+        "saglikli_esik": _UTIL_HEALTHY,
+        "saglikli_borc_hedefi": saglikli_borc_hedefi,
+        "kart_adet": len(cards),
+        "trend": trend,
+        "mesaj": mesaj,
+    }
+
+
 def calculate_real_networth(
     user_id: int, today: date, db: Session, annual_inflation: Optional[float] = None,
 ) -> Optional[Dict]:
@@ -1894,6 +1982,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
     alacak_yaslanma = calculate_receivables_aging(user_id, today, db)  # FEAT-027
     borc_ilerleme = calculate_debt_progress(user_id, today, db, kart_borcu + kredi_borcu)  # FEAT-017
+    kart_kullanim = calculate_card_utilization(user_id, today, db, accounts)  # FEAT-016 (accounts re-query yok)
     # FEAT-022: finansal sağlık skoru (şeffaf composite)
     _aylik_gelir = float(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
         RecurringIncome.user_id == user_id, RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
@@ -1939,6 +2028,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "daily_limit": daily_limit,
         "guvenli_harcama": guvenli_harcama,  # FEAT-009: kart-hariç ileriye-dönük güvenli harcama tabanı
         "nakit_runway_gun": nakit_runway_gun,  # FEAT-010: gelirsiz nakit kaç gün yeter (None=belirsiz)
+        "kart_kullanim": kart_kullanim,  # FEAT-016: kart utilization oranı + trend + kredi-sağlık bandı (None=kart yok)
         "abonelik_yuku": {  # FEAT-006: aylık/yıllık toplam abonelik yükü (Rocket Money headline)
             "aylik": sub_result["aylik_toplam"],
             "yillik": sub_result["yillik_toplam"],

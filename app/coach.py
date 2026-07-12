@@ -1011,6 +1011,29 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([bi["odendi"], bi["baslangic_borc"]])
 
+    # KART KULLANIM ORANI (FEAT-016): utilization + kredi-sağlık bandı + trend. Murat'ın
+    # kartı neredeyse dolu → kredi notunu baskılıyor; %30 hedef somut çapa. Yalnız yüksek/kritik
+    # bantta koça taşınır (sağlıklıysa gürültü yapma).
+    ku = cockpit.get("kart_kullanim") or {}
+    if ku.get("band") in ("yuksek", "kritik"):
+        trend_s = ""
+        tr = ku.get("trend")
+        if tr:
+            yon = "iyileşiyor" if tr["iyilesme"] else "kötüleşiyor"
+            trend_s = (f" Trend: {tr['gun']} günde %{tr['baslangic_oran']}→%{ku['oran']} "
+                       f"({yon}, {tr['degisim']:+.1f} puan).")
+        context += (
+            f"\n\n## KART KULLANIM ORANI (kredi sağlığı)\n"
+            f"  - Kullanım %{ku['oran']} ({ku['band']}). Toplam borç {_fmt(ku['toplam_borc'])} / "
+            f"limit {_fmt(ku['toplam_limit'])} TL. %30 sağlıklı eşiğe inmek için borç "
+            f"{_fmt(ku['saglikli_borc_hedefi'])} TL seviyesine düşmeli.{trend_s} "
+            f"Kredi notunda en ağır faktörlerden — her ödenen TL oranı doğrudan düşürür."
+        )
+        _kn = [ku["oran"], ku["toplam_borc"], ku["toplam_limit"], ku["saglikli_borc_hedefi"]]
+        if tr:
+            _kn.extend([tr["baslangic_oran"], abs(tr["degisim"])])
+        cockpit.setdefault("_coach_extra_numbers", []).extend(_kn)
+
     # BÜTÇE ZARFLARI (FEAT-001/002): zarf durumu + atanmamış nakit ("Ready to Assign").
     zd = cockpit.get("zarflar") or {}
     if zd.get("zarflar"):

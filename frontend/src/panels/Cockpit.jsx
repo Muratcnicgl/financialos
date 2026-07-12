@@ -351,6 +351,39 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
+      {/* FEAT-016: kart kullanım oranı (utilization) + kredi sağlığı — yalnız yüksek/kritik bantta */}
+      {data.kart_kullanim && ['yuksek', 'kritik'].includes(data.kart_kullanim.band) && (() => {
+        const ku = data.kart_kullanim;
+        const pct = Math.min(100, ku.oran);
+        const barColor = ku.band === 'kritik' ? 'bg-negative-500' : 'bg-warn-500';
+        const txtColor = ku.band === 'kritik' ? 'text-negative-600 dark:text-negative-400' : 'text-warn-600 dark:text-warn-400';
+        const tr = ku.trend;
+        return (
+          <div className="card p-3 space-y-2 text-sm border-negative-200 dark:border-negative-800/50">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+              <span className="text-zinc-600 dark:text-zinc-300">
+                Kart kullanımı{' '}
+                <span className={`font-numeric font-semibold ${txtColor}`}>%{ku.oran}</span>
+                <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(ku.toplam_borc)} / {formatTL(ku.toplam_limit)} TL)</span>
+              </span>
+              {tr && (
+                <span className={`ml-auto text-xs font-numeric ${tr.iyilesme ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
+                  {tr.iyilesme ? '↓' : '↑'} {tr.degisim > 0 ? '+' : ''}{tr.degisim} puan / {tr.gun}g
+                </span>
+              )}
+            </div>
+            <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+              <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Sağlıklı eşik %30 — borç <span className="font-numeric">{formatTL(ku.saglikli_borc_hedefi)} TL</span> seviyesine inmeli.
+              Kullanım oranı kredi notunda en ağır faktörlerden; her ödenen TL doğrudan düşürür.
+            </p>
+          </div>
+        );
+      })()}
+
       {/* FEAT-027: alacak yaşlandırma — gecikmiş alacakları vade-yaşına göre önceliklendir */}
       {data.alacak_yaslanma?.gecikmis_adet > 0 && (
         <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">

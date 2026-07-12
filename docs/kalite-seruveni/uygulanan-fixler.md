@@ -178,6 +178,7 @@ dayanıklılık + kullanıcıyı etkileyen doğruluk + veri-egemenliği tamlığ
 
 | ID | Değişiklik | Doğrulama |
 |----|-----------|-----------|
+| FEAT-016 | Kart utilization: toplam borç/limit oranı + band (saglikli/orta/yuksek/kritik) + %30 sağlıklı borç hedefi (somut çapa) + trend (en eski snapshot kart borcu ÷ güncel limit, ≥7g). Koç yalnız yuksek/kritik'te uyarır; Cockpit çubuk kartı. Murat'ın #1 problemi (maxed kart) tek metrikte | test_card_utilization.py (9) |
 | FEAT-034 | Otomatik kategori: gider + kategori boşsa açıklamadan türetir (Migros→alisveris). MERCHANT_KEYWORDS + QUICK_KEYWORDS, kelime-sınırı token eşleşmesi (substring değil → "sokak" yanlış pozitifi yok). Kullanıcının açık seçimini ezmez. UI ipucu | test_auto_categorization.py (9) |
 | FEAT-032 | İstek listesi / 24-saat impuls bekleme: WishlistItem + router (add/list/resolve, scheduler yok — 24h "hazır" türetilir) + koç bağlamı + export + Wishlist.jsx. Borç-batık için davranışsal impuls-lever | test_wishlist.py |
 | FEAT-030 | Satın alma fırsat maliyeti: amount'ı harcamak vs en yüksek faizli borca ödemek (borçsuzluk + faiz farkı). Avalanche RAM kopyası; assumption-free. + endpoint + DebtStrategy.jsx formu | test_opportunity_cost.py (8) |

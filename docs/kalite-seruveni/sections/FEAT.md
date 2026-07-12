@@ -110,11 +110,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Yüksek · **Efor:** S
 - **Durum:** `calculate_min_payment_trap` (debt_strategy, saf) — her kart için `_simulate([kart],[id], extra=0)` azalan %25 asgari (TR) trajektorisi (mevcut motor; BUG #079 azalan-min + RULE-011 asla-bitmez korumalı). Kredi HARİÇ (kart-spesifik kavram). `_min_payment_trap_alerts`: asla-bitmez (asgari<faiz, eşik %33.3) → KRİTİK "sarmal"; ≥12 ay uzun kuyruk → UYARI (yalnız en kötü kart, #126 alert-yorgunluğu). Cockpit `asgari_tuzagi` + koç context block + grounding (`_coach_extra_numbers`) + Cockpit.jsx kartı. Murat kanonik: Ziraat 22 ay / 2.318 TL faiz. 12 test. `collect_debts` FEAT-012 ile paylaşımlı (tek sorgu).
 
-### [FEAT-016] Kart kullanım oranı (utilization) + kredi sağlığı
+### [FEAT-016] Kart kullanım oranı (utilization) + kredi sağlığı ✅ UYGULANDI (12 Tem 2026)
 - **Değer/Fırsat:** Kart borcu/limit oranını (%99.8) ve iyileşme trendini gösterir; limit yönetimi ve borç azaltma ilerlemesini tek metrikte izler.
 - **Kaynak/İlham:** Credit utilization (kredi skoru davranışı), Monarch credit tracking.
 - **Nasıl (mimari):** rules_engine'de Account.balance / credit_limit; Cockpit metriği + NetWorthSnapshot benzeri zaman serisi. Salt okuma.
 - **Etki:** Orta · **Efor:** S
+- **Uygulama:** `calculate_card_utilization` (rules_engine, saf) — toplam kart borcu/limit, band (saglikli<30<orta<70<yuksek<90<kritik), `saglikli_borc_hedefi` (%30'a inmek için borç seviyesi = somut çapa), trend (en eski NetWorthSnapshot kart borcu ÷ GÜNCEL limit — limit stabil varsayımı; ≥7 gün). Cockpit `kart_kullanim` + koç context bloğu (yalnız yuksek/kritik → gürültü yok; grounding'e oran/hedef/trend tanıtıldı) + Cockpit.jsx utilization çubuğu (band rengi + trend oku). 9 test. Not: mevcut per-kart `kullanim_orani` yalnız kart-döngüsü detayındaydı; bu agregat + trend + kredi-sağlık çerçevesi ekler.
 
 ### [FEAT-017] Borçsuzluk milestone rozetleri ✅ UYGULANDI (12 Tem 2026, ilerleme metriği)
 - **Değer/Fırsat:** "İlk kredi kapandı", "toplam borç %25 azaldı", "kart 5 hane altına indi" gibi eşiklerde kutlama/rozet; kartopu momentumunu davranışsal olarak besler.

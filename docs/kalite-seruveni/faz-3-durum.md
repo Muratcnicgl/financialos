@@ -55,8 +55,13 @@
 ### ✅ DÜZELTİLDİ (M6 artım 8)
 - **P1-24** evaluate_credit_card_strategy cockpit'e BAĞLANDI (util-guard'lı, `rules_engine.py` `kart_stratejisi`, BUG #147-151). **OTONOM KARAR (kategori-c):** "wire-as-is" Murat'ın %98.5 dolu kartına "float silah" ZARARLI tavsiyesi verirdi → **utilization-guard** (yüksek kullanımda "borç azalt, harcama YAPMA" uyarır). RULE-003 (modulo→gerçek tarih) + RULE-004 (statement_day_eff) düzeltildi; RULE-005 R3 ile DOĞRULANDI (erken-statement'ta `today.day>1` doğru — geri alındı). Canlı: Murat kartı %98.5→güvenli uyarı. Test `test_p1_24_*` + 7 card_strategy.
 
-### 🔧 OPEN — kalan (son P1)
-- **P1-25** AnthropicProvider tool-history adapter (fallback provider, Gemini birincil → düşük öncelik).
+### ✅ DÜZELTİLDİ (M6 artım 9) — **P1 TAMAMLANDI** 🎯
+- **P1-25** AnthropicProvider tool-history adapter — `_to_anthropic_messages` (`coach.py`, BUG #152): internal tool-aware history → Anthropic content-block (tool_use/tool_result); eskiden raw OpenAI-şema gönderiliyordu. `_raw_chat` adaptörü kullanıyor. Test `test_p1_25_*`.
+
+## ✅ P1 DURUMU: 27/27 KAPANDI
+- **16 zaten CLOSED** (Faz 2'de kapanmış, MASTER-FIX-LIST bayat-açıktı): P1-2/3/6/9/11/12/14/16/17/18/21/26 + doğrulananlar.
+- **11 M6'da fixed/decided:** P1-1/4/5/7/8/10/15/19/20/22/23/24/25/27 + P1-13 (OTONOM KARAR: tasarım-sınırı).
+- Toplam **19 BUG (#131-#152)** + 2 canlı migration (Decimal M5 + enum P1-15) + 25 yeni test (tests/security/). 806 test yeşil.
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

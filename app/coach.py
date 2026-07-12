@@ -526,6 +526,57 @@ def _to_openai_messages(messages: List[Dict]) -> List[Dict]:
     return result
 
 
+def _to_anthropic_messages(messages: List[Dict]) -> List[Dict]:
+    """
+    BUG #152 fix (P1-25): Internal tool-aware history'yi ANTHROPIC content-block formatına çevir.
+    Eskiden AnthropicProvider raw internal mesajları (`tool_calls_json`/`tool_call_id` alanları,
+    role="tool") olduğu gibi gönderiyordu → Anthropic API bu OpenAI-şemasını anlamıyor. Diğer
+    provider'lar `_to_openai_messages` kullanıyor; Anthropic'in kendi adaptörü yoktu.
+    - assistant + tool_calls_json → [{"type":"text"}, {"type":"tool_use","id","name","input"}]
+    - role="tool" → user mesajında [{"type":"tool_result","tool_use_id","content"}]
+    Boş-içerikli düz mesajlar atlanır (Anthropic boş content'i reddeder).
+    """
+    out: List[Dict] = []
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content") or ""
+
+        if role == "tool":
+            out.append({"role": "user", "content": [{
+                "type": "tool_result",
+                "tool_use_id": m.get("tool_call_id", ""),
+                "content": content or "(bos)",
+            }]})
+
+        elif role == "assistant" and m.get("tool_calls_json"):
+            blocks: List[Dict] = []
+            if content:
+                blocks.append({"type": "text", "text": content})
+            try:
+                tcs = json.loads(m["tool_calls_json"])
+            except Exception:
+                tcs = []
+            for i, tc in enumerate(tcs):
+                if not tc.get("name"):
+                    continue
+                blocks.append({
+                    "type": "tool_use",
+                    "id": tc.get("id", f"call_{i}"),
+                    "name": tc["name"],
+                    "input": tc.get("args", {}),
+                })
+            if not blocks:
+                blocks = [{"type": "text", "text": content or "(bos)"}]
+            out.append({"role": "assistant", "content": blocks})
+
+        else:
+            if not content:
+                continue  # Anthropic boş content'i reddeder → düz boş mesajı atla
+            out.append({"role": "user" if role == "user" else "assistant", "content": content})
+
+    return out
+
+
 # ============================================================
 # 3. RETRY YARDIMCI
 # ============================================================
@@ -1200,7 +1251,7 @@ class AnthropicProvider(LLMProvider):
             max_tokens=4096,
             system=system_prompt,
             tools=anthropic_tools,
-            messages=messages,
+            messages=_to_anthropic_messages(messages),  # BUG #152 (P1-25): tool-aware adapter
         )
 
         text_parts = []

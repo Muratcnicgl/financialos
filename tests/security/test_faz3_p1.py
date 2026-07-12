@@ -171,3 +171,35 @@ def test_p1_24_high_utilization_suppresses_float_advice():
                                              current_debt=2000.0, credit_limit=12000.0)
     assert saglikli["durum"] == "vade_avantaji"
     assert "stratejik" in saglikli["mesaj"].lower()
+
+
+# --- P1-25: AnthropicProvider tool-history adapter (OpenAI-şema → Anthropic content-block) ---
+
+def test_p1_25_to_anthropic_messages_converts_tool_history():
+    import json
+    from app.coach import _to_anthropic_messages
+    internal = [
+        {"role": "user", "content": "TLY sat"},
+        {"role": "assistant", "content": "Satıyorum",
+         "tool_calls_json": json.dumps([{"id": "call_1", "name": "propose_action",
+                                         "args": {"lots": 4}}])},
+        {"role": "tool", "tool_call_id": "call_1", "content": "action_id=5, status=pending"},
+        {"role": "assistant", "content": ""},  # boş düz mesaj → atlanmalı
+    ]
+    out = _to_anthropic_messages(internal)
+
+    # boş düz mesaj atlandı → 3 mesaj
+    assert len(out) == 3
+    # user metin
+    assert out[0] == {"role": "user", "content": "TLY sat"}
+    # assistant tool_use content-block (id/name/input)
+    assert out[1]["role"] == "assistant"
+    blocks = out[1]["content"]
+    assert {"type": "text", "text": "Satıyorum"} in blocks
+    tool_use = next(b for b in blocks if b["type"] == "tool_use")
+    assert tool_use["id"] == "call_1" and tool_use["name"] == "propose_action"
+    assert tool_use["input"] == {"lots": 4}
+    # tool result → user mesajında tool_result block, eşleşen tool_use_id
+    assert out[2]["role"] == "user"
+    tr = out[2]["content"][0]
+    assert tr["type"] == "tool_result" and tr["tool_use_id"] == "call_1"

@@ -339,3 +339,10 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ID | Değişiklik | Doğrulama | Durum |
 |----|-----------|-----------|-------|
 | P1-24 / BUG #147-151 | evaluate_credit_card_strategy cockpit'e bağlandı. **OTONOM KARAR:** util-guard (near-full kartta "float silah" zararlı → "borç azalt" uyarır). RULE-003 (gerçek tarih) + RULE-004 (eff) fix; RULE-005 R3 ile doğru bulundu (geri alındı) | test_p1_24 + 7 card_strategy + canlı | ✅ |
+
+## Milestone 6 — artım 9 (P1-25) — P1 TAMAMLANDI
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-25 / BUG #152 | `_to_anthropic_messages` adapter — internal tool-history → Anthropic content-block (tool_use/tool_result); AnthropicProvider._raw_chat kullanıyor | test_p1_25 | ✅ |
+| **P1 ÖZET** | **27/27 kapandı** (16 pre-CLOSED + 11 M6 fix/decided); 19 BUG (#131-152) + 2 canlı migration + 25 test | 806 test yeşil | ✅ |

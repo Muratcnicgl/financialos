@@ -108,7 +108,7 @@
 - **Aksiyon:** Orijinal `day_of_month`'ı taşı, her ay `min(day_of_month, last)` (cashflow `_month_occurrences` bunu doğru yapıyor — pattern'i taşı).
 - **Etki:** Orta · **Efor:** M
 
-### [RULE-018] Simülasyon kredi taksitini %100 anapara sayıyor (faiz yok)
+### [RULE-018] Simülasyon kredi taksitini %100 anapara sayıyor (faiz yok) ✅ UYGULANDI (12 Tem 2026)
 - **Sorun:** `a.balance = max(0.0, a.balance - a.monthly_payment)` — taksitin faiz kısmı düşülmüyor, tamamı bakiyeden iniyor. Kalan borç gerçekte daha yavaş azalır; net değer iyimser.
 - **Kanıt:** `app/simulation_engine.py:375`
 - **Aksiyon:** `interest = balance*(rate/100); balance += interest - payment`.

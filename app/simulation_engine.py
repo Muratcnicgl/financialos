@@ -51,6 +51,7 @@ class AccountSnap:
     payment_day: Optional[int] = None
     monthly_payment: Optional[float] = None
     remaining_installments: Optional[int] = None
+    interest_rate: Optional[float] = None   # RULE-018: aylık faiz oranı (%/ay) — sim amortismanı için
     next_payment_date: Optional[date] = None
     fund_code: Optional[str] = None
     lot_count: Optional[float] = None
@@ -143,6 +144,7 @@ def _load_world(db: Session, user_id: int, as_of: date) -> WorldSnap:
             payment_day=a.payment_day,
             monthly_payment=float(a.monthly_payment) if a.monthly_payment else None,
             remaining_installments=a.remaining_installments,
+            interest_rate=float(a.interest_rate) if a.interest_rate else None,  # RULE-018
             next_payment_date=a.next_payment_date,
             fund_code=a.fund_code,
             lot_count=float(a.lot_count) if a.lot_count else None,
@@ -404,12 +406,16 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
             cash = _find_default_cash_account(world)
             if cash:
                 cash.balance -= a.monthly_payment
-            a.balance = max(0.0, a.balance - a.monthly_payment)
+            # RULE-018: taksit ödemesi ÖNCE faizi karşılar, kalanı anaparayı düşürür (gerçek
+            # amortisman). Eskiden taksit %100 anapara sayılıyordu → sim borcu gerçekten
+            # olduğundan hızlı eritip net değer projeksiyonunu İYİMSER gösteriyordu.
+            interest = a.balance * ((a.interest_rate or 0.0) / 100.0)
+            a.balance = max(0.0, a.balance + interest - a.monthly_payment)
             if a.remaining_installments:
                 a.remaining_installments = max(0, a.remaining_installments - 1)
             world.event_log.append(
                 f"[{pay_date}] KREDI TAKSITI: {a.name} -{a.monthly_payment:,.2f} "
-                f"(kalan borc {a.balance:,.2f}, taksit {a.remaining_installments})"
+                f"(faiz +{interest:,.2f}, kalan borc {a.balance:,.2f}, taksit {a.remaining_installments})"
             )
 
     # 3. Efe & diger kisi alacaklari/borclari

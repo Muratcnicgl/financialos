@@ -97,3 +97,24 @@ def test_alacak_sinir_gununde_cift_sayilmaz():
     _project_forward(single, 90)
 
     assert chained.cash_total() == single.cash_total() == 8000.0
+
+
+def test_rule018_kredi_taksiti_faiz_tahakkuk_eder():
+    """RULE-018: sim kredi taksiti faizi karşılar, kalanı anaparayı düşürür (100% anapara DEĞİL).
+    10000 borç, %5/ay faiz, 1000 taksit → faiz 500, bakiye 10000+500-1000=9500 (eskiden 9000)."""
+    loan = AccountSnap(id=2, name="Kredi", account_type="loan", balance=10000.0,
+                       monthly_payment=1000.0, interest_rate=5.0, remaining_installments=20,
+                       next_payment_date=date(2026, 5, 10))
+    w = _cash_only_world(accounts_extra=[loan])
+    _project_forward(w, 30)
+    assert abs(loan.balance - 9500.0) < 0.01     # faiz tahakkuk etti (iyimser 9000 DEĞİL)
+
+
+def test_rule018_faizsiz_kredi_tam_anapara():
+    """interest_rate None/0 → eski davranış (taksit tümü anapara)."""
+    loan = AccountSnap(id=2, name="Kredi", account_type="loan", balance=10000.0,
+                       monthly_payment=1000.0, interest_rate=None, remaining_installments=20,
+                       next_payment_date=date(2026, 5, 10))
+    w = _cash_only_world(accounts_extra=[loan])
+    _project_forward(w, 30)
+    assert abs(loan.balance - 9000.0) < 0.01

@@ -298,3 +298,11 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 |----|-----------|-----------|-------|
 | P1-1 / BUG #136 | goals 6 datetime alanı `UtcDateTime` (GoalRead/AllocationRead/RuleRead) — naive→UTC suffix, JS 3h kayması önlendi | 795 test | ✅ |
 | P1-22 / BUG #137 | `load_cached_premortem` — aynı cockpit_snapshot_hash → LLM'siz cache dönüşü (maliyet/gecikme tasarrufu) | test_p1_22 (hit/miss) | ✅ |
+
+## Milestone 6 — artım 3 (P1-5, P1-13, P1-19)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-5 / BUG #139 | explicit_red_line finansal-anchor: mutlak_red/niyet_beyani/kesin_red için finansal anahtar-kelime şartı ("asla o filmi izlemem" artık kırmızı-çizgi değil) | test_p1_5 | ✅ |
+| P1-19 / BUG #138 | net_worth_delta ölü param kaldırıldı (link_premortem_outcome) — spekülatif kolon eklemeden | test güncellendi | ✅ |
+| P1-13 | OTONOM KARAR (kategori-b): transfer bakiye no-op = tasarım-sınırı, bug değil (geçerli sınıflandırma; çift-hesap transfer Wave-3) | belgelendi | ✅ |

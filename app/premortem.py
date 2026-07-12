@@ -359,17 +359,21 @@ def link_premortem_outcome(
     action_history_id: int,
     success: bool,
     message: str,
-    net_worth_delta: Optional[float] = None,
 ) -> Optional[DecisionJournal]:
     """
     Aksiyon yurutuldukten sonra premortem DJ kaydina outcome yazar.
+
+    BUG #138 fix (P1-19): eskiden `net_worth_delta` parametresi alinip HIC KULLANILMIYORDU
+    (olu parametre — govde yalnizca actual_outcome/outcome_score yaziyor, delta'ya deger yok).
+    DecisionJournal'da karsilik kolon da yoktu. Spekulatif kolon eklemek yerine (meta-ders 10:
+    yapilabilir != yapilmali) olu parametre kaldirildi; premortem-kalibrasyon (tahmin vs gercek)
+    tuketicisiyle birlikte Wave-3'te eklenebilir.
 
     Args:
         pending_action_id : Yurutulen PendingAction.id
         action_history_id : Yeni olusan ActionHistory.id — DJ.related_action_id'ye yazilir
         success           : execute_pending_action sonucu
         message           : Handler'in dondurdugu Turkce ozet
-        net_worth_delta   : Karar oncesi/sonrasi net deger farki (opsiyonel)
 
     Returns:
         Guncellenen DJ; premortem cagirilmamis aksiyon icin None.

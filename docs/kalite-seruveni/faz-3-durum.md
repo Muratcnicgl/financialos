@@ -35,8 +35,13 @@
 - **P1-1** goals datetime UTC — GoalRead/GoalAllocationRead/GoalRuleRead 6 datetime alanı `UtcDateTime` (`schemas.py`, BUG #136); naive suffix'siz ISO → JS 3 saat kaymasını önler.
 - **P1-22** premortem cache — `load_cached_premortem` (aynı cockpit_snapshot_hash → LLM'siz cache dönüşü, `premortem.py`+router, BUG #137); cockpit değişmediyse tekrar LLM çağrısı YOK (maliyet/gecikme). Test `test_p1_22_*` (hit/miss).
 
+### ✅ DÜZELTİLDİ (M6 artım 3)
+- **P1-5** explicit_red_line finansal-anchor — mutlak_red/niyet_beyani/kesin_red için içerikte finansal anahtar-kelime şartı (`coach_insights.py` ERL_FINANCIAL_RE, BUG #139); "asla o filmi izlemem" artık kırmızı-çizgi DEĞİL. Test `test_p1_5_*`.
+- **P1-19** net_worth_delta ölü param kaldırıldı (`premortem.py` link_premortem_outcome, BUG #138) — spekülatif kolon eklemeden (meta-ders 10); calibration Wave-3'e.
+- **P1-13** ~~transfer no-op~~ → **OTONOM KARAR (kategori-b): tasarım-sınırı, "bug" değil.** transfer geçerli sınıflandırma tipi (goal allocation + pattern exclusion testlerinde YOĞUN kullanılıyor); tek-hesap modelde bakiye-nötr savunulabilir. API'den kaldırmak özellikleri bozar. Çift-hesap transfer (destinasyon) Wave-3 kapsamı.
+
 ### 🔧 OPEN — kalan (sonraki M6 artımları)
-- **P1-4** coach_insights dormant sweep (decision_rhythm + mc_reference top-3-dışı) · **P1-5** explicit_red_line regex finansal-anchor · **P1-8** evaluate_rules_for_transaction ölü kod (bağla/kaldır) · **P1-13** transfer no-op (API'den kaldır/implement) · **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-19** net_worth_delta yazılmıyor (kaldır/kolon) · **P1-24** evaluate_credit_card_strategy ölü kod · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite (float falsy→None, mark_debt guard, sell price/emanet).
+- **P1-4** coach_insights dormant sweep (decision_rhythm + mc_reference top-3-dışı) · **P1-8** evaluate_rules_for_transaction ölü kod (bağla/kaldır) · **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-24** evaluate_credit_card_strategy ölü kod · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite (float falsy→None, mark_debt guard, sell price/emanet).
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

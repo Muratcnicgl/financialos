@@ -93,3 +93,19 @@ def test_p1_22_premortem_cache_hit_and_miss(db_session, test_user):
     assert load_cached_premortem(db_session, pa, test_user.id, "HASH_B") is None
     # boş hash → MISS
     assert load_cached_premortem(db_session, pa, test_user.id, "") is None
+
+
+# --- P1-5: explicit red-line finansal-anchor (finans-dışı cümle yakalanmaz) ---
+
+def test_p1_5_red_line_requires_financial_anchor():
+    from app.coach_insights import ERL_PATTERNS, ERL_FINANCIAL_RE, ERL_ANCHOR_REQUIRED
+    mutlak = next(p for p in ERL_PATTERNS if p["category"] == "mutlak_red")["pattern"]
+
+    finans_disi = "asla o filmi izlemem"
+    finansal = "asla kredi cekmem"
+    # desen ikisini de yakalar (gramer aynı)...
+    assert mutlak.search(finans_disi) and mutlak.search(finansal)
+    # ...ama finansal anchor gate yalnızca finansal olanı geçirir
+    assert "mutlak_red" in ERL_ANCHOR_REQUIRED
+    assert ERL_FINANCIAL_RE.search(finans_disi) is None        # film → kırmızı çizgi DEĞİL
+    assert ERL_FINANCIAL_RE.search(finansal) is not None       # kredi → EVET

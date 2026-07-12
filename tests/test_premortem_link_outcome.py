@@ -89,7 +89,6 @@ def test_link_outcome_basarili_aksiyon(db_session, test_user):
         action_history_id=99,
         success=True,
         message="Bakiye guncellendi: 5000 TL",
-        net_worth_delta=100.0,
     )
 
     assert result is not None
@@ -116,7 +115,6 @@ def test_link_outcome_basarisiz_aksiyon(db_session, test_user):
         action_history_id=77,
         success=False,
         message="Hata: yetersiz bakiye",
-        net_worth_delta=-200.0,
     )
 
     assert result is not None

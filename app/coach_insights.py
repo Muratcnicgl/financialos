@@ -1685,6 +1685,19 @@ ERL_PERIOD_DAYS = 90
 ERL_MAX_MESSAGE_LEN = 200      # Cok uzun mesajlar K2'ye birakilir
 ERL_DOMINANT_PRIORITY = 15     # EN YUKSEK - kirmizi cizgi en kritik sinyal
 
+# BUG #139 fix (P1-5): mutlak_red/niyet_beyani/kesin_red desenleri finansal alanla
+# ANCHOR'LI DEGILDI → "asla o filmi izlemem" gibi finans-disi cumleler de kirmizi-cizgi
+# insight'ina donusuyordu ("%0 false positive" iddiasiyla celisik). Bu kategoriler icin
+# icerikte finansal baglam ANAHTAR KELIMESI zorunlu. (vaat = finansal fiil zaten; acik_sinir
+# = kullanici acikca "kirmizi cizgi" diyor → anchor gerekmez.)
+ERL_FINANCIAL_RE = re.compile(
+    r"\b(?:para|nakit|kart|kredi|borç|borc|harca|harcama|tl|lira|taksit|faiz|kumar|bahis|"
+    r"yatırım|yatirim|fon|hesap|öde|ode|tasarruf|bütçe|butce|kripto|hisse|altın|altin|"
+    r"döviz|doviz|limit|maaş|maas|fatura|abonelik|zarf)\w*\b",
+    re.IGNORECASE | re.UNICODE,
+)
+ERL_ANCHOR_REQUIRED = {"mutlak_red", "niyet_beyani", "kesin_red"}
+
 
 def _erl_extract_match_text(match, full_text: str, max_len: int = 80) -> str:
     """Match etrafindaki kisa baglami cikar (insight title icin)."""
@@ -1763,6 +1776,11 @@ def extract_explicit_red_line_k1(db: Session, user_id: int) -> dict:
 
                 match = pattern.search(content)
                 if not match:
+                    continue
+
+                # BUG #139 (P1-5): anchor gerektiren kategorilerde finansal baglam yoksa ATLA
+                # ("asla o filmi izlemem" → kirmizi cizgi DEGIL; "asla kredi cekmem" → EVET).
+                if category in ERL_ANCHOR_REQUIRED and not ERL_FINANCIAL_RE.search(content):
                     continue
 
                 excerpt = _erl_extract_match_text(match, content)

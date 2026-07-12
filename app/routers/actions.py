@@ -294,8 +294,7 @@ def approve_action(
             action_history_id=history_entry.id,
             success=result.get("success", False),
             message=result.get("message", ""),
-            net_worth_delta=float(net_worth_after or 0.0) - float(net_worth_before or 0.0),
-        )
+        )  # BUG #138 (P1-19): net_worth_delta ölü paramdı, kaldırıldı
     except Exception as e:
         logger.warning(f"premortem outcome link basarisiz (sessiz, aksiyon zaten executed): {e}")
 

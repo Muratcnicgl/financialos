@@ -2,14 +2,14 @@
 
 > EN KRİTİK BOYUT. Aşağıda RULE-001, RULE-002, RULE-003/004/005 gibi **canlı hatalar** var — gerçek para kararlarını etkiler. Rules Engine DB'ye yazmaz kuralı korunur.
 
-### [RULE-001] `_matches` account_type kriteri hiçbir zaman eşleşmiyor (enum str bug) — CANLI HATA
+### [RULE-001] `_matches` account_type kriteri hiçbir zaman eşleşmiyor (enum str bug) — CANLI HATA ✅ UYGULANDI (BUG #059)
 - **Sorun:** `str(acc.account_type)` bir Python enum'ında `"AccountType.cash"` döner, criteria düz `"cash"` bekler → karşılaştırma HER ZAMAN False. Aynı dosyada `tx_type` için 102. satırda `.value` doğru kullanılmış ve yorumda tuzak uyarılmış; account_type dalı bu dersi uygulamamış.
 - **Kanıt:** `app/goal_rules.py:130` (`if str(acc.account_type) not in allowed`)
 - **Aksiyon:** `acc.account_type.value` kullan (satır 102 ile tutarlı).
 - **Etki:** Yüksek · **Efor:** S
 - **Not:** `account_type: "cash"` kriterli bir GoalRule hiçbir işlemi yakalamaz — kural sessizce ölü. `test_goal_rules.py` account_type criteria'sını test etmediği için kaçmış.
 
-### [RULE-002] Kart asgari ödemesi başlangıç bakiyesine sabitleniyor (yanlış amortisman)
+### [RULE-002] Kart asgari ödemesi başlangıç bakiyesine sabitleniyor (yanlış amortisman) ✅ UYGULANDI (BUG #079)
 - **Sorun:** Kart min ödemesi `collect_debts`'te bir kez `balance * 0.25` hesaplanıp tüm simülasyon boyunca sabit tutuluyor. Gerçekte asgari ödeme her ay güncel bakiyenin %'sidir (azalır). Sabit tutmak kartı gerçekte olduğundan hızlı kapatır.
 - **Kanıt:** `app/debt_strategy.py:104` + `_simulate` içinde min_pay yeniden hesaplanmıyor (`app/debt_strategy.py:171`)
 - **Aksiyon:** Kart için her ay `min_pay = max(state[aid] * MIN_CARD_PAYMENT_RATIO, floor)` yeniden hesapla; `DebtItem.min_payment`'ı kart tipinde "oran" olarak sakla.

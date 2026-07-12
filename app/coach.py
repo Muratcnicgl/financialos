@@ -2373,6 +2373,9 @@ class CoachEngine:
                 "cockpit_snapshot": cockpit_dict,
                 "coach_memory_id": last_assistant.id if last_assistant else None,
                 "grounding": grounding,  # LLM-003: {ok, checked, unverified}
+                # BE-025: fallback zincirinde İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcı (gemini/groq/...)
+                # → router bunu loglar ki günlük kota (Gemini) doğru izlensin, nominal "fallback" değil.
+                "provider_used": getattr(llm_response, "provider_used", None),
             }
         finally:
             recorder.close()

@@ -152,8 +152,20 @@ class ResetResponse(BaseModel):
 # YARDIMCILAR
 # ============================================================
 
-# Gemini ucretsiz limit (1500 ist/gun). Provider degisirse ileride dinamik yapariz.
+# BE-025: Sağlayıcı GÜNLÜK çağrı limitleri (ücretsiz kademe). Gemini günlük 1500 ist/gün.
+# Groq/Cerebras TPM (dakika-başı token) limitli — GÜNLÜK limit yok → % anlamsız (None).
 GEMINI_DAILY_LIMIT = 1500
+PROVIDER_DAILY_LIMITS = {"gemini": GEMINI_DAILY_LIMIT}
+
+
+def _daily_constrained_provider(provider: str) -> str:
+    """
+    BE-025: Günlük-kota bakımından raporlanacak FİİLİ kısıtlayıcı sağlayıcı. `fallback`
+    modda circuit breaker gpt-oss'u (Groq/Cerebras, TPM) eleyince fiili birincil Gemini olur
+    → günlük kota onun. Bu yüzden fallback/gemini → 'gemini' raporlanır (eskiden 'fallback'
+    için hep %0 dönüyordu → günlük-limit koruması FALLBACK'te ÖLÜYDÜ). Diğer sağlayıcılar kendisi.
+    """
+    return "gemini" if provider in ("fallback", "gemini") else provider
 
 
 def _today_call_count(db: Session, user_id: int, provider: str) -> int:
@@ -170,11 +182,16 @@ def _today_call_count(db: Session, user_id: int, provider: str) -> int:
 
 
 def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
-    count = _today_call_count(db, user_id, provider)
-    pct = round((count / GEMINI_DAILY_LIMIT) * 100, 1) if provider == "gemini" else 0.0
+    target = _daily_constrained_provider(provider)
+    count = _today_call_count(db, user_id, target)
+    limit = PROVIDER_DAILY_LIMITS.get(target)
+    if not limit:
+        # günlük limiti bilinmeyen sağlayıcı (TPM-limitli) → sayıyı göster, % yanıltmasın
+        return UsageInfo(today_count=count, daily_limit=0, percentage=0.0, warn=False, block=False)
+    pct = round((count / limit) * 100, 1)
     return UsageInfo(
         today_count=count,
-        daily_limit=GEMINI_DAILY_LIMIT if provider == "gemini" else 999999,
+        daily_limit=limit,
         percentage=pct,
         warn=pct >= 80.0,
         block=pct >= 100.0,
@@ -319,8 +336,12 @@ def chat(
         }
 
     duration_ms = int((time.time() - t_start) * 1000)
+    # BE-025: nominal "fallback" yerine İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcıyı logla →
+    # günlük Gemini kotası doğru izlenir (aksi halde her çağrı "fallback" loglanıp gemini
+    # sayacı hep 0 kalır, günlük-limit koruması ölür).
+    logged_provider = (result.get("provider_used") or provider_name)
     _log_api_call(
-        db, user.id, provider_name, model,
+        db, user.id, logged_provider, model,
         success=success, duration_ms=duration_ms,
         tool_calls_count=tool_calls_count, error_message=error_msg,
     )

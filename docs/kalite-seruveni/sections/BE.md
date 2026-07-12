@@ -131,10 +131,11 @@
 - **Aksiyon:** `Settings`'e (davranışsal) + `app/constants.py`'ye (iş kuralı) topla.
 - **Etki:** Düşük · **Efor:** S
 
-### [BE-025] Usage/limit mantığı Gemini'ye sabit kodlu — fallback'te yanlış %0
+### [BE-025] Usage/limit mantığı Gemini'ye sabit kodlu — fallback'te yanlış %0 ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `app/routers/coach.py:153,169-178`
 - **Aksiyon:** Provider→limit haritası config'ten; fallback'te gerçek alt-provider'ı ayrıştır+normalize.
 - **Etki:** Orta · **Efor:** S
+- **Durum:** İki sorun çözüldü. (1) FONKSİYONEL: fallback modda usage hep %0 dönüyordu → pre-call günlük-limit BLOCK koruması ÖLÜYDÜ (Gemini kotası dolsa bile çağrı engellenmiyordu). (2) DOĞRULUK: nominal "fallback" loglanıyordu → Gemini sayacı hep 0. Fix: `PROVIDER_DAILY_LIMITS` haritası + `_daily_constrained_provider` (fallback/gemini→gemini, circuit breaker gpt-oss'u eleyince fiili birincil Gemini); engine.chat çıktısına `provider_used` eklendi → router İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcıyı loglar. TPM-limitli sağlayıcı (Groq/Cerebras) günlük % yerine sayı gösterir (yanıltıcı 999999 değil). 5 test (test_usage_tracking.py). Provider gerçeğiyle (memory: reference_groq_tpm_limiti) tutarlı.
 
 ### [BE-026] `_engine` global singleton — thread-safe değil, config donuk
 - **Kanıt:** `app/routers/coach.py:249-256`

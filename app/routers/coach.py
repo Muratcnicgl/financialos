@@ -171,7 +171,10 @@ def _daily_constrained_provider(provider: str) -> str:
 
 
 def _today_call_count(db: Session, user_id: int, provider: str) -> int:
-    today_start = datetime.combine(date.today(), datetime.min.time())
+    # BUG #133 fix (P1-7): ApiCallLog.called_at naive UTC. date.today() SUNUCU YEREL tarihi →
+    # TR (UTC+3) sunucuda sayaç yerel gece yarısında (21:00 UTC) sıfırlanıyor, 3 saat erken →
+    # Gemini günlük kotası aşılabilir. UTC gününü kullan (called_at ile aynı zaman ekseni).
+    today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
     return (
         db.query(func.count(ApiCallLog.id))
         .filter(

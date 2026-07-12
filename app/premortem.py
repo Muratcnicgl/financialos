@@ -24,7 +24,7 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -72,6 +72,15 @@ class PremortemResult(BaseModel):
     provider_used: Optional[str] = None
     model_name: Optional[str] = None
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @model_validator(mode="after")
+    def _normalize_scenario_ids(self):
+        # BUG #135 fix (P1-20): senaryo id format/tekilliği doğrulanmıyordu → LLM aynı/bozuk id
+        # üretirse frontend React key çakışır (render bug). Kırmak yerine (dayanıklı çıktı ilkesi)
+        # deterministik S1..Sn yeniden-ata: hem format hem tekillik garanti, premortem'i bozmadan.
+        for i, sc in enumerate(self.scenarios, start=1):
+            sc.id = f"S{i}"
+        return self
 
 
 # ============================================================

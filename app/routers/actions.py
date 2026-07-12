@@ -284,14 +284,20 @@ def approve_action(
     db.commit()
 
     # Premortem outcome linki — premortem cagirilmamissa sessiz gec (None doner)
-    link_premortem_outcome(
-        session=db,
-        pending_action_id=pending.id,
-        action_history_id=history_entry.id,
-        success=result.get("success", False),
-        message=result.get("message", ""),
-        net_worth_delta=float(net_worth_after or 0.0) - float(net_worth_before or 0.0),
-    )
+    # BUG #131 fix (P1-23): aksiyon ZATEN executed+committed (yukarida). Bu post-commit cagri
+    # firlatirsa basarili aksiyon kullaniciya 500 doner (response/gercek-durum celiskisi).
+    # Reflection hook (asagida) gibi try/except ile sar — hatada logla, response'u etkileme.
+    try:
+        link_premortem_outcome(
+            session=db,
+            pending_action_id=pending.id,
+            action_history_id=history_entry.id,
+            success=result.get("success", False),
+            message=result.get("message", ""),
+            net_worth_delta=float(net_worth_after or 0.0) - float(net_worth_before or 0.0),
+        )
+    except Exception as e:
+        logger.warning(f"premortem outcome link basarisiz (sessiz, aksiyon zaten executed): {e}")
 
     # Reflection hook: commit sonrası background — rollback güvenliği garanti
     try:

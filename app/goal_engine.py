@@ -148,7 +148,10 @@ def _compute_cash_target(goal: models.Goal, db: Session) -> dict:
     projected = _project_cash_completion(goal, current, db)
 
     return {
-        "current_amount": current,
+        # BUG #132 fix (P1-10): çekimler katkıyı aşarsa `current` negatif → frontend'e negatif
+        # "birikmiş tutar" sızıyordu (progress zaten [0,100] klempli; debt_freedom ile tutarsız).
+        # Gösterim için 0'a klemple (progress ham `current` üzerinden hesaplandı, üstte).
+        "current_amount": max(current, Decimal("0")),
         "progress_percent": progress.quantize(Decimal("0.01")),
         "projected_completion_date": projected,
     }

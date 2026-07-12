@@ -356,6 +356,16 @@ class GoalRuleUpdate(BaseModel):
     allocation_value: Optional[Decimal] = Field(None, ge=0)
     is_active: Optional[bool] = None
 
+    @field_validator("allocation_value")
+    @classmethod
+    def percent_upper_bound(cls, v, info):
+        # BUG #134 fix (P1-9 residüel): create'te percent (0,100] doğrulanıyordu ama update'te
+        # üst sınır yoktu → update ile allocation_value=150 (percent) set edilebiliyordu (create/
+        # update asimetrisi, P1-11/P1-12 ile aynı sınıf). allocation_type payload'da varsa doğrula.
+        if info.data.get("allocation_type") == "percent" and v is not None and (v <= 0 or v > 100):
+            raise ValueError("percent must be in (0, 100]")
+        return v
+
 
 class GoalRuleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

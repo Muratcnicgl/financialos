@@ -279,3 +279,15 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M5 / money.py | D()/ZERO/q2/q4/floatify + `float(para)`→D() (rules 22+ae+router+ft) + json default=float (5) | drift-yok kanıtı (test_decimal_precision 8) | ✅ |
 | M5 Faz G | **CANLI DB upgrade YAPILMADI** — head `fec73e5343e5`, onay bekliyor | canlı balance hala `real` | ⏸️ ONAY |
 | M5 Faz H+I | **CANLI upgrade UYGULANDI** (2026-07-13, Murat onayı): backup+`alembic upgrade head` `fec73e5343e5`→`38360f856577`; canlı balance NUMERIC(19,4)/Decimal, cockpit sağlam, JSON-safe | tag `milestone-5-decimal-migration` push | ✅ M5 KAPANDI |
+
+## Milestone 6 — Kalite Serüveni Faz 3 (P1 denetim + düzeltme, artım 1)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| M6 denetim | 27 P1 maddesi R3 ile denetlendi (4 paralel audit agent). **16 zaten CLOSED** (Faz 2'de kapanmış, MASTER-FIX-LIST bayat-açıktı) | faz-3-durum.md | ✅ |
+| P1-7 / BUG #133 | usage sayacı `date.today()`→`datetime.utcnow().date()` — TR sunucuda Gemini kotası 3 saat erken sıfırlanıyordu | test | ✅ |
+| P1-9-res / BUG #134 | GoalRuleUpdate percent (0,100] validator — create/update asimetrisi | test | ✅ |
+| P1-10 / BUG #132 | cash_target `current_amount` `max(.,0)` — negatif birikmiş-tutar sızıntısı | test | ✅ |
+| P1-20 / BUG #135 | PremortemScenario id deterministik S1..Sn — React key çakışması (dayanıklı yeniden-ata) | test | ✅ |
+| P1-23 / BUG #131 | link_premortem_outcome try/except — executed aksiyon sonrası 500 riski | test | ✅ |
+| M6 güvenlik | SQL injection taraması temiz (ORM parametreli, `_EXCLUDED_SQL` statik); secret mgmt temiz (.env gitignore+git-dışı) | grep+git | ✅ |

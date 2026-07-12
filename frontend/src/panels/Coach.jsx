@@ -126,7 +126,12 @@ function parseHistoryDate(item) {
   const raw = item?.created_at ?? item?.timestamp;
   if (!raw) return null;
   try {
-    const d = new Date(raw);
+    // FE-017: backend UTC-naive datetime ('Z'/offset suffix'siz) gönderirse `new Date` bunu
+    // LOCAL sanıp Türkiye'de 3 saat kaydırır. Suffix yoksa 'Z' ekle (UTC olarak yorumla) —
+    // frontend/PROJE.md'nin uyardığı bug sınıfı; tz'li string'e dokunmaz.
+    const s = String(raw);
+    const hasTz = s.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(s);
+    const d = new Date(hasTz ? s : s + 'Z');
     if (isNaN(d.getTime())) return null;
     return d;
   } catch {

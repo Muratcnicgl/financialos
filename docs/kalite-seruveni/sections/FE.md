@@ -82,7 +82,7 @@
 - **Aksiyon:** `Message`'ı `React.memo`; `preprocessMarkdown`'ı `useMemo`; satır bileşenlerini memo.
 - **Etki:** Orta · **Efor:** S
 
-### [FE-017] Tarih parse'ında UTC 'Z' kuralı tutarsız (dokümante buga aykırı)
+### [FE-017] Tarih parse'ında UTC 'Z' kuralı tutarsız (dokümante buga aykırı) ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `api.js:386-393`; `Coach.jsx:125-135`; `Reports.jsx:524,536` (3 farklı ele alış)
 - **Aksiyon:** `shared/lib/date.js` `parseServerDate`; tüm parse noktaları buna. GUNCELLEMELER notu ekle.
 - **Etki:** Orta · **Efor:** S

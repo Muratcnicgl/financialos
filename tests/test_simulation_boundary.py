@@ -140,3 +140,53 @@ def test_rule019_odeme_gunu_yoksa_kart_donuk():
     w = _cash_only_world(accounts_extra=[card])
     _project_forward(w, 90)
     assert card.balance == 12000.0
+
+
+# ============================================================
+# PROPERTY / INVARIANT — _project_forward rastgele dünyada sınırları korur
+# ============================================================
+
+import math  # noqa: E402
+from hypothesis import given, strategies as st, settings  # noqa: E402
+
+_amt = st.floats(min_value=0.0, max_value=1e6, allow_nan=False, allow_infinity=False)
+_rate = st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False)
+_day = st.integers(min_value=1, max_value=28)
+
+
+@st.composite
+def _random_world(draw):
+    accounts = [AccountSnap(id=1, name="cash", account_type="cash",
+                            balance=draw(st.floats(-1e5, 1e6, allow_nan=False, allow_infinity=False)))]
+    n_loan = draw(st.integers(0, 3))
+    for i in range(n_loan):
+        accounts.append(AccountSnap(
+            id=10 + i, name=f"loan{i}", account_type="loan", balance=draw(_amt),
+            monthly_payment=draw(_amt), interest_rate=draw(_rate),
+            remaining_installments=draw(st.integers(0, 60)),
+            next_payment_date=AS_OF + __import__("datetime").timedelta(days=draw(st.integers(-10, 40))),
+        ))
+    if draw(st.booleans()):
+        accounts.append(AccountSnap(
+            id=2, name="card", account_type="credit_card", balance=draw(_amt),
+            credit_limit=draw(st.floats(1.0, 1e6, allow_nan=False, allow_infinity=False)),
+            payment_day=draw(st.one_of(st.none(), _day)), interest_rate=draw(_rate)))
+    incomes = [IncomeSnap(id=100 + i, name=f"inc{i}", amount=draw(_amt), day_of_month=draw(_day))
+               for i in range(draw(st.integers(0, 2)))]
+    return WorldSnap(as_of=AS_OF, accounts=accounts, incomes=incomes, debts=[])
+
+
+@given(world=_random_world(), days=st.integers(min_value=1, max_value=400))
+@settings(max_examples=250, deadline=None)
+def test_projeksiyon_invariantlari(world, days):
+    _project_forward(world, days)   # ASLA exception / sonsuz döngü
+    for a in world.accounts:
+        assert math.isfinite(a.balance), f"{a.name} bakiye finite değil"
+        # borç hesaplarının bakiyesi ASLA negatif olamaz (max(0,...) tabanı)
+        if a.account_type in ("loan", "credit_card"):
+            assert a.balance >= -1e-6, f"{a.name} borç negatife düştü: {a.balance}"
+        # taksit sayacı negatif olamaz
+        if a.remaining_installments is not None:
+            assert a.remaining_installments >= 0
+    # event_log tümü string
+    assert all(isinstance(e, str) for e in world.event_log)

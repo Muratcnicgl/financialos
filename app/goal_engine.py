@@ -17,6 +17,7 @@ Tasarım ilkeleri:
 """
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
@@ -26,6 +27,8 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.models import Account, AccountType, GoalAllocation, PersonalDebt
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -110,7 +113,10 @@ def _project_debt_freedom(goal: models.Goal, db: Session) -> Optional[date]:
         if snowball and snowball["months_to_freedom"] < 600:
             return date.today() + timedelta(days=int(snowball["months_to_freedom"] * 30))
     except Exception:
-        pass
+        # BE-010: sessiz yutma → loglama. Tam bu except #066'da bir AttributeError'ı
+        # gizleyip projected_completion_date'i sessizce None yapıyordu; log olsaydı erken yakalanırdı.
+        logger.warning("debt_freedom tahmini bitiş tarihi hesaplanamadı goal=%s",
+                       getattr(goal, "id", "?"), exc_info=True)
     return None
 
 

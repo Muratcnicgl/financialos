@@ -17,6 +17,7 @@ hicbir yatirim hesabi yoksa veya beklenmedik bir sey olursa cockpit calismaya
 devam etmeli.
 """
 
+import logging
 from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -25,6 +26,8 @@ from app.dependencies import get_db, get_current_user
 from app.models import User, NetWorthSnapshot
 from app.rules_engine import generate_cockpit
 from app.fund_tracker import get_freshness_summary
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cockpit", tags=["cockpit"])
 
@@ -94,6 +97,8 @@ def get_cockpit(
     try:
         _ensure_today_snapshot(db, user.id, cockpit)
     except Exception:
-        pass  # snapshot hatası cockpit'i durdurmasın
+        # BE-010: snapshot best-effort (cockpit'i durdurmaz) AMA sürekli başarısızsa görünür
+        # olmalı (net-worth trendi sessizce boş kalmasın).
+        logger.warning("bugünkü net-worth snapshot kaydedilemedi (cockpit devam ediyor)", exc_info=True)
 
     return cockpit

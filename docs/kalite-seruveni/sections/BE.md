@@ -52,10 +52,11 @@
 - **Aksiyon:** `add_exception_handler(DomainError,...)` + genel Exception handler; 500 + `problem+json`. (FastAPI Handling Errors + RFC 9457)
 - **Etki:** Yüksek · **Efor:** M
 
-### [BE-010] `except Exception: pass` sessiz yutma 6 yerde
+### [BE-010] `except Exception: pass` sessiz yutma 6 yerde ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `app/coach.py:391`, `app/action_executor.py:246`, `app/routers/cockpit.py:93`, `app/routers/coach.py:234,363`, `app/goal_engine.py:109`
 - **Aksiyon:** `logger.warning(..., exc_info=True)`; dar exception tipi. Özellikle `_to_openai_messages` (391) bozuk tool_calls_json'u sessizce düşürüyor.
 - **Etki:** Orta · **Efor:** S
+- **Durum:** 6 sessiz `except: pass` → uygun seviyeli loglama (davranış DEĞİŞMEDİ, hâlâ yutar ama TANILANABİLİR): goal_engine `_project_debt_freedom` (warning — tam bu except #066'da AttributeError'ı gizliyordu, log olsa erken yakalanırdı), action_executor mesaj-biçimlendirme (warning), cockpit snapshot best-effort (warning — trend sessizce boş kalmasın), routers/coach history pending-kart (warning) + ids parse (debug), coach history tool_calls parse (debug). goal_engine + cockpit'e logger eklendi. Süit 649 yeşil.
 
 ### [BE-011] Executor `{success, error}` dict sözleşmesi ile router kontrolü tutarsız
 - **Sorun:** İstisna yerine dict dönüyor; emanet ihlali (iş kuralı) ile "aksiyon bulunamadı" (404) aynı kanaldan, HTTP statü ayrımı kayboluyor.

@@ -484,7 +484,8 @@ def _to_openai_messages(messages: List[Dict]) -> List[Dict]:
                 for tc in json.loads(m["tool_calls_json"]):
                     valid_tc_ids.add(tc.get("id", ""))
             except Exception:
-                pass
+                # BE-010: bozuk history tool_calls_json → atla ama debug'a yaz (tanılanabilir).
+                logger.debug("history tool_calls_json parse edilemedi, atlaniyor", exc_info=True)
 
     result = []
     for m in messages:

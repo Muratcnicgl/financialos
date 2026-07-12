@@ -252,7 +252,9 @@ def _build_action_message(action_type: str, result: Dict) -> str:
         if action_type == "add_master_checkpoint":
             return f"Yeni kural eklendi: '{result.get('title', '?')}'."
     except Exception:
-        pass
+        # BE-010: mesaj biçimlendirme hatası benign (aksiyon zaten uygulandı) ama sessiz
+        # kalmamalı — generic mesaja düşmenin nedeni loglanır.
+        logger.warning("aksiyon sonuç mesajı biçimlendirilemedi type=%s", action_type, exc_info=True)
     return "Aksiyon uygulandı."
 
 

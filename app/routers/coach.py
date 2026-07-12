@@ -252,7 +252,10 @@ def _memory_to_history_item(m: CoachMemory, pa_map: Dict[int, PendingAction] = N
                 if pa:
                     actions.append(ActionDTO.model_validate(pa))
         except Exception:
-            pass
+            # BE-010: bozuk pending_action_ids_json veya DTO doğrulama hatası → kart atlanır
+            # ama loglanır (history'de aksiyon sessizce kaybolmasın).
+            logger.warning("history pending aksiyon kartı oluşturulamadı memory=%s",
+                           getattr(m, "id", "?"), exc_info=True)
 
     return HistoryItem(
         id=m.id,
@@ -388,7 +391,9 @@ def get_history(
             try:
                 all_pa_ids.extend(json.loads(m.pending_action_ids_json))
             except Exception:
-                pass
+                # BE-010: bozuk pending_action_ids_json → atla ama debug'a yaz (tanılanabilir).
+                logger.debug("pending_action_ids_json parse edilemedi memory=%s",
+                             getattr(m, "id", "?"), exc_info=True)
     pa_map: Dict[int, PendingAction] = {}
     if all_pa_ids:
         pas = db.query(PendingAction).filter(PendingAction.id.in_(all_pa_ids)).all()

@@ -27,10 +27,11 @@
 - **Aksiyon:** `@app.middleware("http")` ile başlıklar.
 - **Etki:** Orta · **Efor:** S
 
-### [SEC-006] `coach/chat` mesajında üst sınır yok — sınırsız girdi
+### [SEC-006] `coach/chat` mesajında üst sınır yok — sınırsız girdi ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `routers/coach.py:53` (max yok) vs `user.py:36` max_length=100
 - **Aksiyon:** `max_length=4000` + genel gövde boyutu sınırı.
 - **Etki:** Orta · **Efor:** S
+- **Durum:** `ChatRequest.message` → `max_length=4000` (4000 karakter finansal olay tarifi için fazlasıyla yeterli; aşarsa 422). Sağlayıcı token-limiti (413) + maliyet/bellek koruması — provider TPM gerçeğiyle doğrudan ilişkili (kazara büyük yapıştırma tüm zinciri patlatabilirdi). 2 test (>4000 → 422, boş → 422). test_coach_chat_endpoint.py.
 
 ### [SEC-007] LLM prompt injection — kullanıcı mesajı doğrudan prompt'a, sanitizasyon yok
 - **Kanıt:** `routers/coach.py:263-299`; prompt'ta sadece metinsel yasaklar

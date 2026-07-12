@@ -52,3 +52,14 @@ def test_chat_hata_ham_detay_sizdirmaz(client, monkeypatch):
     assert "SECRET-INTERNAL-DETAIL" not in body["reply"]   # ham hata sızmıyor
     assert "cevap veremedi" in body["reply"].lower()
     assert body["proposed_actions"] == []
+
+
+def test_sec006_asiri_uzun_mesaj_422(client):
+    """SEC-006: 4000 karakter üstü mesaj → 422 (sağlayıcı token/maliyet koruması)."""
+    r = client.post("/api/coach/chat", json={"message": "x" * 4001, "include_cockpit": False})
+    assert r.status_code == 422
+
+
+def test_sec006_bos_mesaj_422(client):
+    r = client.post("/api/coach/chat", json={"message": "", "include_cockpit": False})
+    assert r.status_code == 422                       # min_length=1

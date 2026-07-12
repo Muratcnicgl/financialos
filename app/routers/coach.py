@@ -51,7 +51,9 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1)
+    # SEC-006: üst sınır — sınırsız girdi sağlayıcı token limitini aşar (413), maliyet/bellek
+    # riski. 4000 karakter finansal olay tarifi için fazlasıyla yeterli; aşarsa 422 (net hata).
+    message: str = Field(..., min_length=1, max_length=4000)
     include_cockpit: bool = Field(True, description="System prompt'a Cockpit ekle (default True)")
 
 

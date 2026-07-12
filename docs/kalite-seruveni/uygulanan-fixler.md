@@ -318,3 +318,12 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ID | Değişiklik | Doğrulama | Durum |
 |----|-----------|-----------|-------|
 | P1-8 / BUG #141 | evaluate_rules_for_transaction transaction create'e BAĞLANDI (post-commit try/except) — GoalRule otomatik-tahsis özelliği çalışıyor (yarım özellik tamamlandı, opt-in) | test_p1_8 (2, endpoint) | ✅ |
+
+## Milestone 6 — artım 6 (P1-27 simulation parite)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-27 / BUG #142 (SE-007) | `_load_world` `if a.X else None`→`is not None` — gerçek 0.0 falsy→None sapması | test_p1_27 | ✅ |
+| P1-27 / BUG #143 (SE-004) | mark_debt_paid zaten-ödenmiş guard (executor paritesi) | test_p1_27 | ✅ |
+| P1-27 / BUG #144 (SE-005) | sell_investment eksik fiyat→red (sessiz 0 TL satış yok) | test_p1_27 | ✅ |
+| P1-27 / BUG #145 (SE-008) | sell_investment satış geliri emanet hedefe yatırılamaz | test_p1_27 | ✅ |

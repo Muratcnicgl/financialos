@@ -139,17 +139,20 @@ def _load_world(db: Session, user_id: int, as_of: date) -> WorldSnap:
             account_type=a.account_type.value,
             balance=float(a.balance or 0.0),
             is_emanet=bool(a.is_emanet),
-            credit_limit=float(a.credit_limit) if a.credit_limit else None,
+            # BUG #142 fix (P1-27/SE-007): `if a.X else None` gerçek 0.0 değeri (falsy) None'a
+            # çeviriyordu → sim gerçek executor'dan sapıyordu (ör. credit_limit=0 → None → limit
+            # kontrolü atlanır). `is not None` ile yalnızca gerçekten NULL olan None olur.
+            credit_limit=float(a.credit_limit) if a.credit_limit is not None else None,
             statement_day=a.statement_day,
             payment_day=a.payment_day,
-            monthly_payment=float(a.monthly_payment) if a.monthly_payment else None,
+            monthly_payment=float(a.monthly_payment) if a.monthly_payment is not None else None,
             remaining_installments=a.remaining_installments,
-            interest_rate=float(a.interest_rate) if a.interest_rate else None,  # RULE-018
+            interest_rate=float(a.interest_rate) if a.interest_rate is not None else None,  # RULE-018
             next_payment_date=a.next_payment_date,
             fund_code=a.fund_code,
-            lot_count=float(a.lot_count) if a.lot_count else None,
-            cost_per_lot=float(a.cost_per_lot) if a.cost_per_lot else None,
-            current_price=float(a.current_price) if a.current_price else None,
+            lot_count=float(a.lot_count) if a.lot_count is not None else None,
+            cost_per_lot=float(a.cost_per_lot) if a.cost_per_lot is not None else None,
+            current_price=float(a.current_price) if a.current_price is not None else None,
         )
         for a in accs_db
     ]
@@ -214,7 +217,14 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             if lots <= 0 or lots > (inv.lot_count or 0):
                 return False, f"Gecersiz lot sayisi: {lots} (mevcut {inv.lot_count})"
 
-            price = float(payload.get("actual_price") or inv.current_price or 0.0)
+            # BUG #144 fix (P1-27/SE-005): eksik fiyat sessizce 0 kabul ediliyordu → "0 TL'ye
+            # satış" (gerçek executor geçerli fiyat ister). Geçerli fiyat yoksa reddet.
+            _price_raw = payload.get("actual_price")
+            if _price_raw is None:
+                _price_raw = inv.current_price
+            price = float(_price_raw) if _price_raw is not None else 0.0
+            if price <= 0:
+                return False, f"Gecerli satis fiyati yok (actual_price veya current_price gerekli): {inv.name}"
             gross = lots * price
             cost = lots * (inv.cost_per_lot or 0.0)
             profit = gross - cost
@@ -234,6 +244,11 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             target = world.acc(cash_id) if cash_id else _find_default_cash_account(world)
             if not target:
                 return False, "Nakit hesabi bulunamadi"
+            # BUG #145 fix (P1-27/SE-008): satış geliri emanet (MC1) hedefe yatırılamaz.
+            # Gerçek executor kaynak+hedef emanet guard'lı (BUG #080/101/103); sim'de HEDEF
+            # kontrolü eksikti → net gelir korumasız emanet hesaba eklenebiliyordu.
+            if getattr(target, "is_emanet", False):
+                return False, f"Satis geliri emanet hesaba (MC1) yatirilamaz: {target.name}"
             target.balance += net_to_account
             world.event_log.append(
                 f"[T+0] SATIS: {lots} lot {inv.fund_code} @ {price:.2f} TL "
@@ -301,6 +316,11 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             d = next((x for x in world.debts if x.id == payload["debt_id"]), None)
             if not d:
                 return False, f"Borc/alacak bulunamadi: {payload['debt_id']}"
+            # BUG #143 fix (P1-27/SE-004): zaten ödenmiş borç tekrar ödenemez (gerçek executor
+            # action_executor.py `if debt.is_paid: return failure` guard'ı ile parite). Eskiden
+            # sim ödenmiş borcu tekrar ödeyip nakdi çift düşürüyordu.
+            if d.paid_date is not None:
+                return False, f"Borc/alacak zaten odenmis: {d.counterparty}"
             cash = _find_default_cash_account(world)
             if cash:
                 if d.direction == "receivable":

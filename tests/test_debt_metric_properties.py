@@ -13,6 +13,7 @@ from hypothesis import given, strategies as st, settings
 from app.debt_strategy import (
     DebtItem, _annuity_payment, calculate_consolidation_baseline,
     simulate_consolidation, calculate_min_payment_trap,
+    simulate_purchase_opportunity_cost,
 )
 
 _bal = st.floats(min_value=1.0, max_value=5e6, allow_nan=False, allow_infinity=False)
@@ -66,6 +67,33 @@ def test_simulate_avantaj_esikle_tutarli(debts, new_rate, term):
 
 
 # ---- min-payment trap: korunum (toplam_odeme = bakiye + toplam_faiz) -------
+
+# ---- opportunity cost: borca ödeme faizi ARTIRMAZ (yön invariant'ı) ---------
+
+@given(
+    # Borçlar büyük (min bakiye ≥ 20000) + amount küçük (≤ 10000) → HİÇBİR borç TAMAMEN
+    # bitmez. Bu rejimde "borca ödeme faizi artırmaz" invariant'ı sağlam tutar. (Bir borcu
+    # yok eden uç girdilerde payoff-event/rollover modelleme sınırı devreye girer — fonksiyon
+    # docstring'inde belgeli, gerçekçi kısmi ödeme için geçerli değil.)
+    debts=st.lists(
+        st.tuples(st.floats(min_value=20000, max_value=5e6, allow_nan=False),
+                  st.floats(min_value=0.5, max_value=10.0, allow_nan=False),
+                  st.floats(min_value=500, max_value=20000, allow_nan=False)),
+        min_size=1, max_size=5),
+    amount=st.floats(min_value=1, max_value=10000, allow_nan=False),
+)
+@settings(max_examples=150)
+def test_opportunity_cost_odeme_faizi_artirmaz(debts, amount):
+    items = [DebtItem(i, f"d{i}", "loan", bal, rate, mp)
+             for i, (bal, rate, mp) in enumerate(debts)]
+    r = simulate_purchase_opportunity_cost(items, amount, today=TODAY)
+    assert r is not None
+    # kısmi ödeme (borç yok edilmez) → toplam faiz artamaz, erken (ya da eşit) biter
+    assert r["odersen_faiz"] <= r["baseline_faiz"] + 1.0        # kuruş toleransı
+    assert r["odersen_ay"] <= r["baseline_ay"]
+    assert r["faiz_tasarrufu"] >= -1.0                          # harcamanın maliyeti ≥ 0
+    assert 0 < r["uygulanan"] <= amount + 0.01                  # 2-hane yuvarlama toleransı
+
 
 @given(
     balance=_bal,

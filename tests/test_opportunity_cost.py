@@ -72,11 +72,17 @@ def test_odeme_faizi_azaltir_invariant(db):
     assert r["odersen_ay"] <= r["baseline_ay"]  # erken (ya da eşit) biter
 
 
-def test_tutar_bakiyeyi_asarsa_bakiye_kadari(db):
-    # 50000 > kart bakiyesi 11976 → sadece 11976 uygulanır
+def test_tutar_borclara_avalanche_sirasi_tasar(db):
+    # 50000 < toplam borç (84976) → tamamı borçlara dağıtılır (kart bitince kredilere taşar)
     r = simulate_purchase_opportunity_cost(_debts(), 50000, today=TODAY)
-    assert r["uygulanan"] == 11976.0
+    assert r["uygulanan"] == 50000.0
     assert r["harcama"] == 50000.0
+
+
+def test_tutar_toplam_borcu_asarsa_fazlasi_haric(db):
+    # 200000 > toplam borç (84976) → yalnız 84976 borca gider (fazlası uygulanmaz)
+    r = simulate_purchase_opportunity_cost(_debts(), 200000, today=TODAY)
+    assert r["uygulanan"] == pytest.approx(84976.0, abs=0.01)
 
 
 # ---- endpoint ---------------------------------------------------------------

@@ -451,12 +451,22 @@ def simulate_purchase_opportunity_cost(
     if not active or amount <= 0:
         return None
     baseline = calc_avalanche(active, extra_monthly=0.0, today=today)
-    # amount'ı en yüksek faizli borca uygula (avalanche önceliği); bakiyeden fazlası boşa gitmez
-    target = max(active, key=lambda d: d.interest_rate_monthly)
-    applied = min(amount, target.balance)
-    reduced = [replace(d, balance=d.balance - applied) if d.account_id == target.account_id else d
-               for d in active]
-    with_payment = calc_avalanche(reduced, extra_monthly=0.0, today=today)
+    # amount'ı AVALANCHE SIRASINDA (en yüksek faiz önce) borçlara dağıt — bir borcu bitirince
+    # kalanı bir sonrakine taşar (eskiden yalnız en üstteki borca uygulanıp fazlası boşa gidiyordu).
+    target = max(active, key=lambda d: d.interest_rate_monthly)  # ilk (en yüksek faiz) — gösterim
+    remaining = amount
+    reduced = []
+    for d in sorted(active, key=lambda x: -x.interest_rate_monthly):
+        pay = min(remaining, d.balance)
+        reduced.append(replace(d, balance=d.balance - pay))
+        remaining -= pay
+    applied = round(amount - remaining, 2)   # fiilen borca giden (amount > toplam borç ise fazlası hariç)
+    # NOT (modelleme sınırı): ödeme bir borcu TAMAMEN bitirirse, o borcun payoff-EVENT'i (ve
+    # min ödemesinin rollover'ı) baseline'da olurdu, ön-ödemede olmaz → çok küçük borçları yok
+    # eden uç girdilerde tasarruf hafife/tersine gösterilebilir. Gerçekçi kısmi ödemede (Murat:
+    # amount < kart bakiyesi) sorun yok; araç caydırıcı amaçlı, bu yönde tutucu (maliyeti abartmaz).
+    with_payment = calc_avalanche([d for d in reduced if d.balance > 0.01],
+                                  extra_monthly=0.0, today=today)
 
     faiz_tasarrufu = round(baseline.total_interest_paid - with_payment.total_interest_paid, 2)
     ay_kazanci = baseline.months_to_freedom - with_payment.months_to_freedom

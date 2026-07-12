@@ -91,7 +91,7 @@ import time
 import json
 import logging
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, datetime
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 
@@ -973,6 +973,32 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         cockpit.setdefault("_coach_extra_numbers", []).extend(
             [k["toplam_faiz"] for k in at["kartlar"]] + [k["bakiye"] for k in at["kartlar"]]
         )
+
+    # İSTEK LİSTESİ 24-SAAT REVIEW (FEAT-032): 24h+ bekleyen impuls-alım adayları. Koç
+    # "hâlâ istiyor musun?" diye sorup borç bağlamıyla (kart borcu dururken bu tutar faize
+    # dönüşür — FEAT-030 fırsat maliyeti ruhu) impulsu kırar. Salt okuma; niyet kaydı.
+    try:
+        from datetime import timedelta as _td
+        from app.models import WishlistItem
+        _cutoff = datetime.utcnow() - _td(hours=24)
+        _ready = (
+            db.query(WishlistItem)
+            .filter(WishlistItem.user_id == user_id, WishlistItem.status == "pending",
+                    WishlistItem.created_at <= _cutoff)
+            .order_by(WishlistItem.created_at.asc()).all()
+        )
+        if _ready:
+            w_lines = [f"  - {w.item} ({_fmt(float(w.amount))} TL)" for w in _ready[:3]]
+            context += (
+                "\n\n## İSTEK LİSTESİ — 24 SAAT DOLDU (hâlâ isteniyor mu SOR)\n"
+                + "\n".join(w_lines)
+                + "\n  - 24 saat önce eklenen bu alımlar için 'hâlâ istiyor musun?' diye sor. "
+                "Kart borcu dururken bu tutarın faize dönüştüğünü (impuls maliyeti) hatırlat — "
+                "karar kullanıcının, sen sadece somut maliyeti göster."
+            )
+            cockpit.setdefault("_coach_extra_numbers", []).extend([float(w.amount) for w in _ready])
+    except Exception as e:
+        logger.warning(f"istek listesi coach context'e eklenemedi: {e}")
 
     # BORÇ ÖDEME İLERLEMESİ (FEAT-017): başlangıçtan beri momentum — motivasyon (Ramsey).
     bi = cockpit.get("borc_ilerleme") or {}

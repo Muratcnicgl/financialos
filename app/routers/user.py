@@ -23,7 +23,7 @@ from app.models import (
     Goal, Envelope, MasterCheckpoint, NetWorthSnapshot, CoachMemory, CoachInsight,
     # KVKK/egemenlik tamlığı: kullanıcının eylem/karar/hedef-izleme kayıtları da dahil.
     PendingAction, ActionHistory, DecisionJournal, ReasoningTrace, ApiCallLog,
-    GoalAllocation, GoalRule,
+    GoalAllocation, GoalRule, WishlistItem,
 )
 
 router = APIRouter(prefix="/api/user", tags=["user"])
@@ -142,6 +142,8 @@ def export_data(
         "goal_allocations": dump_by_goal(GoalAllocation),  # KVKK: hedef katkı/çekim kayıtları
         "goal_rules": dump_by_goal(GoalRule),
         "envelopes": dump(Envelope),
+        "wishlist_items": dump(WishlistItem),  # FEAT-032: istek listesi
+
         "master_checkpoints": dump(MasterCheckpoint),
         "net_worth_snapshots": dump(NetWorthSnapshot),
         "coach_memory": dump(CoachMemory),

@@ -50,6 +50,7 @@ from app.routers import debt_strategy as debt_strategy_router
 from app.routers import goals as goals_router
 from app.routers import subscriptions as subscriptions_router  # FEAT-006
 from app.routers import envelopes as envelopes_router  # FEAT-001
+from app.routers import wishlist as wishlist_router  # FEAT-032
 
 
 # ============================================================
@@ -156,6 +157,7 @@ app.include_router(debt_strategy_router.router)
 app.include_router(goals_router.router)
 app.include_router(subscriptions_router.router)  # FEAT-006
 app.include_router(envelopes_router.router)  # FEAT-001
+app.include_router(wishlist_router.router)  # FEAT-032
 
 
 # ============================================================

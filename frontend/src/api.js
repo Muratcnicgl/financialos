@@ -178,6 +178,13 @@ export const subscriptionsApi = {
   toRecurring: (data) => request('/api/subscriptions/to-recurring', { method: 'POST', body: data }),
 };
 
+// FEAT-032: istek listesi / 24-saat impuls bekleme
+export const wishlistApi = {
+  list:    () => request('/api/wishlist'),                        // {items, bekleyen_adet, review_adet}
+  add:     (data) => request('/api/wishlist', { method: 'POST', body: data }),
+  resolve: (id, status) => request(`/api/wishlist/${id}/resolve`, { method: 'POST', params: { status } }),
+};
+
 // =============================================================
 // DEBTS (4)
 // =============================================================

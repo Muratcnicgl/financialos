@@ -209,7 +209,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** Transaction'a etiket alanı; coach_insights yeni extractor (deterministik desen). Koç açıklar, DB yazmaz.
 - **Etki:** Orta · **Efor:** M
 
-### [FEAT-032] 24-saat impuls bekleme kuralı / istek listesi
+### [FEAT-032] 24-saat impuls bekleme kuralı / istek listesi ✅ UYGULANDI (12 Tem 2026)
 - **Değer/Fırsat:** Büyük/plansız alımı hemen yapmak yerine "istek listesine" ekler; 24 saat sonra koç hatırlatır ve hâlâ isteyip istemediğini sorar. İmpuls harcamayı kırar.
 - **Kaynak/İlham:** 24-hour rule / spending pause (davranışsal finans).
 - **Nasıl (mimari):** Küçük Wishlist tablosu + scheduler 24 saat sonra koça hatırlatma insight'ı. Alım gerçekleşirse propose_action → onay → execute.

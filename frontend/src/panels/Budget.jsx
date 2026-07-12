@@ -3,6 +3,7 @@ import { Loader2, Plus, Trash2, Wallet } from 'lucide-react';
 import { envelopesApi, formatTL } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import DetectedSubscriptions from '../components/DetectedSubscriptions.jsx';
+import Wishlist from '../components/Wishlist.jsx';
 
 /**
  * Bütçe Zarfları (FEAT-001) — kategori bazlı aylık bütçe. Her zarf: bütçe / bu-ay harcanan /
@@ -150,6 +151,9 @@ export default function Budget() {
 
       {/* FEAT-006: tespit edilen abonelikler + düzenli gidere çevir */}
       <DetectedSubscriptions />
+
+      {/* FEAT-032: istek listesi / 24-saat impuls bekleme */}
+      <Wishlist />
     </div>
   );
 }

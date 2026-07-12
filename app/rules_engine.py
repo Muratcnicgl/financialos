@@ -1251,8 +1251,10 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
     → boşta nakdi borca (fırsat) → yolunda. Dönüş: {tip, eylem, gerekce, tutar} veya None (borç
     yok + acil yok). `tip`: 'temerrut'|'kriz'|'tahsilat'|'firsat'|'stabil'.
     """
-    alerts = cockpit.get("alerts", []) or []
-    kritikler = [a for a in alerts if a.get("seviye") == "kritik"]
+    alerts = cockpit.get("alerts") or []
+    if not isinstance(alerts, list):   # savunmacı: generate_cockpit hep liste verir, ama saf/dışa-açık
+        alerts = []
+    kritikler = [a for a in alerts if isinstance(a, dict) and a.get("seviye") == "kritik"]
 
     # 1. TEMERRÜT — gecikmiş BORÇ (ceza/temerrüt riski) her şeyin önünde.
     gecikmis_borc = next((a for a in kritikler if "Gecikmiş borç" in a.get("baslik", "")), None)

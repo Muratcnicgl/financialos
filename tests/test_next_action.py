@@ -130,6 +130,12 @@ def test_pure_bos_cockpit_none():
     assert recommend_next_action({"alerts": [], "kart_borcu": 0, "kredi_borcu": 0}) is None
 
 
+def test_bozuk_girdi_cokmez():
+    """Savunmacı: bozuk alerts (liste değil / dict olmayan öğeler) çökme ÜRETMEZ (saf/dışa-açık)."""
+    assert recommend_next_action({"alerts": "notalist", "kart_borcu": 5000})["tip"] == "stabil"
+    assert recommend_next_action({"alerts": [1, 2, None], "kart_borcu": 5000})["tip"] == "stabil"
+
+
 # ---- koç context ------------------------------------------------------------
 
 def test_ilk_adim_koc_contextine_duser(db):

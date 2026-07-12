@@ -32,7 +32,7 @@
 - **Aksiyon:** Panel-arası tazeleme sinyali kur, `onActionResolved={triggerCockpitRefresh}` bağla; veya query invalidation.
 - **Etki:** Orta · **Efor:** S
 
-### [FE-007] Komut paleti + kısayollar 10 sekmenin yalnız 7'sini biliyor
+### [FE-007] Komut paleti + kısayollar 10 sekmenin yalnız 7'sini biliyor ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `useKeyboardShortcuts.js:3,32`; `CommandPalette.jsx:4-12`; `App.jsx:22-33` (10 tab); `e.key <= '7'`
 - **Aksiyon:** `TABS`'ı `shared/config/tabs.js`'e; TabBar+CommandPalette+shortcut aynı diziden.
 - **Etki:** Orta · **Efor:** S

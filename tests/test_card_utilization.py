@@ -14,7 +14,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.models import Base, User, Account, AccountType, NetWorthSnapshot
-from app.rules_engine import calculate_card_utilization
+from app.rules_engine import (
+    calculate_card_utilization, _UTIL_HEALTHY, _UTIL_HIGH, _UTIL_CRITICAL,
+)
 
 
 @pytest.fixture
@@ -116,6 +118,63 @@ def test_trend_kotulesme(db):
     r = calculate_card_utilization(1, today, db)
     assert r["trend"]["degisim"] == 5.0
     assert r["trend"]["iyilesme"] is False
+
+
+# ============================================================
+# PROPERTY / INVARIANT — rastgele kart portföyünde sağlanması gereken sınırlar
+# ============================================================
+
+from hypothesis import given, strategies as st, settings  # noqa: E402
+
+_card_st = st.tuples(
+    st.floats(min_value=0.0, max_value=5e5, allow_nan=False, allow_infinity=False),   # balance
+    st.floats(min_value=1.0, max_value=5e5, allow_nan=False, allow_infinity=False),   # limit (>0)
+)
+
+
+def _fresh_db_with_cards(cards):
+    eng = create_engine("sqlite:///:memory:",
+                        connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(eng)
+    s = sessionmaker(bind=eng)()
+    s.add(User(id=1, name="m"))
+    for bal, lim in cards:
+        s.add(Account(user_id=1, name="k", account_type=AccountType.credit_card,
+                      balance=bal, credit_limit=lim))
+    s.commit()
+    return s
+
+
+@given(cards=st.lists(_card_st, min_size=1, max_size=6))
+@settings(max_examples=80, deadline=None)  # DB-per-örnek: örnek sayısı ölçülü tutuldu
+def test_utilization_invariantlari(cards):
+    s = _fresh_db_with_cards(cards)
+    try:
+        r = calculate_card_utilization(1, date(2026, 7, 12), s)   # ASLA exception
+        assert r is not None  # en az 1 kart + toplam limit > 0 garanti
+        # band, FONKSİYONUN kendi yuvarladığı oran ile tutarlı olmalı (ham oranla değil —
+        # 29.96→30.0 yuvarlama sınırı flakiness'ini önler: bu dersi bir kez öğrendik).
+        oran = r["oran"]
+        if oran >= _UTIL_CRITICAL:
+            assert r["band"] == "kritik"
+        elif oran >= _UTIL_HIGH:
+            assert r["band"] == "yuksek"
+        elif oran >= _UTIL_HEALTHY:
+            assert r["band"] == "orta"
+        else:
+            assert r["band"] == "saglikli"
+        # sağlıklı borç hedefi = limitin %30'u; sabit eşik 30. Tolerans: toplam_limit 2-ondalık
+        # RAPORLANIR ama hedefi HAM limitten hesaplanır → kesirli limitte çift-yuvarlama en fazla
+        # 1 kuruş sapabilir (gerçek kart limitleri tam sayı → pratikte sıfır). Bkz. flaky-ders.
+        assert r["saglikli_esik"] == 30.0
+        assert abs(r["saglikli_borc_hedefi"] - round(r["toplam_limit"] * 0.30, 2)) <= 0.02
+        # kalan limit tanımı (aynı çift-yuvarlama toleransı: raw hesap vs raporlanan 2-ondalık)
+        assert abs(r["kalan_limit"] - round(r["toplam_limit"] - r["toplam_borc"], 2)) <= 0.02
+        # borçlar negatif değilse oran negatif olamaz
+        assert oran >= 0
+        assert r["kart_adet"] == len(cards)
+    finally:
+        s.close()
 
 
 if __name__ == "__main__":

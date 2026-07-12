@@ -8,6 +8,7 @@ import { ToastProvider } from './components/Toast.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import CommandPalette from './components/CommandPalette.jsx';
 import HelpModal from './components/HelpModal.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Cockpit from './panels/Cockpit.jsx';
 import Coach from './panels/Coach.jsx';
 import Accounts from './panels/Accounts.jsx';
@@ -199,17 +200,21 @@ function AppContent() {
         <div className={`max-w-6xl mx-auto px-4 ${
           activeTab === 'coach' ? 'h-full flex flex-col pt-4' : 'py-6'
         }`}>
-          {activeTab === 'cockpit' && <Cockpit setActiveTab={setActiveTab} />}
-          {activeTab === 'coach' && <Coach />}
-          {activeTab === 'accounts' && <Accounts />}
-          {activeTab === 'transactions' && <Transactions />}
-          {activeTab === 'incomedebt' && <IncomeDebt />}
-          {activeTab === 'redlines' && <RedLines />}
-          {activeTab === 'reports' && <Reports />}
-          {activeTab === 'cashflow' && <Cashflow />}
-          {activeTab === 'debtstrategy' && <DebtStrategy />}
-          {activeTab === 'goals' && <Goals />}
-          {activeTab === 'budget' && <Budget />}
+          {/* FE-003: her panel hata sınırıyla sarılı — biri çökerse tüm uygulama beyaz ekrana
+              düşmesin. resetKey=activeTab → sekme değişince sınır sıfırlanır. */}
+          <ErrorBoundary resetKey={activeTab}>
+            {activeTab === 'cockpit' && <Cockpit setActiveTab={setActiveTab} />}
+            {activeTab === 'coach' && <Coach />}
+            {activeTab === 'accounts' && <Accounts />}
+            {activeTab === 'transactions' && <Transactions />}
+            {activeTab === 'incomedebt' && <IncomeDebt />}
+            {activeTab === 'redlines' && <RedLines />}
+            {activeTab === 'reports' && <Reports />}
+            {activeTab === 'cashflow' && <Cashflow />}
+            {activeTab === 'debtstrategy' && <DebtStrategy />}
+            {activeTab === 'goals' && <Goals />}
+            {activeTab === 'budget' && <Budget />}
+          </ErrorBoundary>
         </div>
       </main>
 

@@ -11,7 +11,7 @@
 - **Aksiyon:** Tam-literal sınıf map'i veya `safelist:[{pattern:/(text|bg|ring|border)-(positive|negative|warn|brand)-(100|400|500|600|950)/,variants:['dark']}]`.
 - **Etki:** Yüksek · **Efor:** S
 
-### [FE-003] Global ErrorBoundary yok — tek panel çökerse beyaz ekran
+### [FE-003] Global ErrorBoundary yok — tek panel çökerse beyaz ekran ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** `main.jsx:6-9`; sadece `Coach.jsx:65-115` boundary
 - **Aksiyon:** Ortak `components/ErrorBoundary.jsx`; `main.jsx`'te App'i sar + panel-seviyesi izolasyon.
 - **Etki:** Yüksek · **Efor:** S

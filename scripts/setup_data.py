@@ -208,11 +208,11 @@ def main():
         # ============================================================
         print("Periyodik giderler:")
         recurring_expenses = [
-            RecurringExpense(user_id=murat.id, name="Netflix",    amount=149.0,  account_id=2,
+            RecurringExpense(user_id=murat.id, name="Netflix",    amount=149.0,  account_id=ziraat.id,
                              category="abonelik",  day_of_month=1,  is_active=True),
-            RecurringExpense(user_id=murat.id, name="Spotify",    amount=49.0,   account_id=2,
+            RecurringExpense(user_id=murat.id, name="Spotify",    amount=49.0,   account_id=ziraat.id,
                              category="abonelik",  day_of_month=1,  is_active=True),
-            RecurringExpense(user_id=murat.id, name="Internet",   amount=299.0,  account_id=2,
+            RecurringExpense(user_id=murat.id, name="Internet",   amount=299.0,  account_id=ziraat.id,
                              category="fatura",    day_of_month=10, is_active=True),
         ]
         for exp in recurring_expenses:

@@ -351,6 +351,25 @@ def test_soru_bos_cevap_retry_ile_metin_uretir(db):
     assert prov.received_tools_per_call[1] == []         # retry'da tool yok
 
 
+def test_resil004_tum_saglayici_dusunce_deterministik_veri_korunur(db):
+    """
+    RESIL-004: Tüm sağlayıcılar düşerse (chain-exhausted) koç ÇÖKMEZ — ham hata sızmaz,
+    cockpit_snapshot (Rules Engine, LLM'siz) korunur, kullanıcı deterministik güce yönlendirilir.
+    """
+    class DeadProvider:
+        NAME = "Dead"; model = "dead-1"; last_used_provider = "dead"
+        def chat(self, system_prompt, messages, tools):
+            raise RuntimeError("SECRET-STACK-quota-detail-xyz")
+
+    session, u = db
+    res = CoachEngine(provider=DeadProvider()).chat(session, u.id, "durumum nedir?", include_cockpit=True)
+    assert "SECRET-STACK" not in res["reply"]                 # BE-009: ham hata sızmaz
+    assert res["proposed_actions"] == []
+    assert res["cockpit_snapshot"] is not None                # deterministik veri korunur
+    assert "veriler" in res["reply"].lower() or "kokpit" in res["reply"].lower()
+    assert "grounding" in res                                 # şema tutarlı
+
+
 def test_retry_llm_patlarsa_istek_cokmemeli(db):
     """
     Dayanıklılık sözleşmesi: 1. çağrı boş → retry tetiklenir ama retry LLM çağrısı

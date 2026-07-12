@@ -2084,14 +2084,24 @@ class CoachEngine:
                         llm_step.usage_output_tokens = llm_response.usage.get("output_tokens")
                 first_llm_step_db_id = llm_step.step_db_id
             except Exception as e:
-                logger.error(f"{self.provider_name} hatasi (tum provider'lar denendi): {e}")
+                # RESIL-004 (graceful degradation): Tüm sağlayıcılar düştü (kota/erişim).
+                # BE-009 ilkesi: ham hata KULLANICIYA sızmaz — loglanır (exc_info). Kurucu güç:
+                # Rules Engine LLM'siz çalışır → kokpit/limit/bütçe/borç/alacak verileri HÂLÂ
+                # güncel ve doğru (cockpit_snapshot döner). Kullanıcıya "her şey bozuk" değil,
+                # "sadece yorumlayan AI yok, veriler sağlam" mesajı ver. grounding şeması tutarlı.
+                logger.error(
+                    f"{self.provider_name} hatasi (tum provider'lar denendi)", exc_info=True)
                 return {
                     "reply": (
-                        f"Koç şu an cevap veremiyor ({self.provider_name} hatası): {e}\n"
-                        f"Birkaç saniye sonra tekrar deneyebilirsin."
+                        "Koç (yapay zekâ yorumlayıcı) şu an ulaşılamıyor — sağlayıcı kotası "
+                        "dolmuş olabilir. Ama panelindeki tüm veriler güncel ve doğru: kokpit, "
+                        "günlük limit, bütçe zarfları, borç planı ve alacakların motor tarafından "
+                        "hesaplanıyor ve koça ihtiyaç duymadan çalışıyor. Birkaç dakika sonra "
+                        "tekrar yazabilirsin."
                     ),
                     "proposed_actions": [],
                     "cockpit_snapshot": cockpit_dict,
+                    "grounding": {"ok": True, "checked": 0, "unverified": []},
                 }
 
             # --------------------------------------------------------

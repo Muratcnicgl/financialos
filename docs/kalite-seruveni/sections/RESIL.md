@@ -19,11 +19,12 @@
 - **Aksiyon:** Status geçişini atomik tek-yön (pending→executed, tekrar 409); Idempotency-Key. (SEC-023/API-007)
 - **Etki:** Orta · **Efor:** M
 
-### [RESIL-004] FallbackProvider tükenince graceful degradation zayıf
+### [RESIL-004] FallbackProvider tükenince graceful degradation zayıf ✅ UYGULANDI (12 Tem 2026)
 - **Sorun/Fırsat:** Tüm provider'lar düşünce kullanıcıya ham exception string; "koç şu an yok, verilerin güvende, sonra dene" gibi degrade edilmiş deneyim yok.
 - **Kanıt:** `app/coach.py:1612-1621`; `routers/coach.py:306-313`
 - **Aksiyon:** Chain-exhausted'da net degrade mesajı + son cockpit'i yine göster (Rules Engine LLM'siz çalışır — bu güç); "deterministik özet" fallback.
 - **Etki:** Orta · **Efor:** M · **Not:** Rules Engine LLM'den bağımsız — LLM çökse bile sistem kullanılabilir kalmalı.
+- **Durum:** CoachEngine.chat STEP-C except'i (tüm sağlayıcı düştü) düzeltildi: ham hata (str(e)) artık KULLANICIYA SIZMAZ — loglanır (exc_info). Mesaj kurucu gücü vurguluyor: "yorumlayan AI yok ama kokpit/limit/bütçe/borç/alacak verileri motor tarafından hesaplanıyor, güncel ve doğru." cockpit_snapshot yine döner (deterministik veri korunur) + grounding şeması tutarlı. test_coach_behavior_contract.py: DeadProvider ile ham-hata-sızmaz + cockpit korunur + veri-yönlendirme testi. Router-seviyesi BE-009 handler'ı zaten ayrı katman (engine.chat tamamen patlarsa).
 
 ### [RESIL-005] Scheduler batch bir kullanıcı hatasında diğerlerini kirletebilir (tek session)
 - **Kanıt:** `app/scheduler.py:148-152`

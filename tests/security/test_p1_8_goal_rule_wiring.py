@@ -64,3 +64,10 @@ def test_p1_8_no_rule_no_allocation(client, db):
                     json={"transaction_type": "income", "amount": 2000, "category": "maas"})
     assert r.status_code == 201
     assert db.query(GoalAllocation).count() == 0
+
+
+def test_p2_5_transaction_limit_bounds(client, db):
+    """P2-5 (BUG #154): ?limit üst/alt sınırlı — negatif/aşırı reddedilir (422)."""
+    assert client.get("/api/transactions?limit=-1").status_code == 422    # alt sınır
+    assert client.get("/api/transactions?limit=999999").status_code == 422  # üst sınır
+    assert client.get("/api/transactions?limit=50").status_code == 200      # geçerli

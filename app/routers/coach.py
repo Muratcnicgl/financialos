@@ -31,7 +31,7 @@ import time
 import logging
 from datetime import datetime, date, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
@@ -372,7 +372,7 @@ def chat(
 
 @router.get("/history", response_model=List[HistoryItem])
 def get_history(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=500),  # BUG #154 (P2-5): ust sinir
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> List[HistoryItem]:

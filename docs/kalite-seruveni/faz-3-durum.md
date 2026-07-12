@@ -69,3 +69,23 @@ Charter M6 "Kritik P1: rate limiting, HTTPS, auth, CORS" listeliyor. **R3 + back
 
 ## P2 / P3
 P1 denetimi bitince P2 üst yarı (N+1/eager, index, Recharts mount BUG #059) + P3 üst %25. Kalan Wave-3'e.
+
+## P2 DURUMU (üst yarı — charter M6)
+
+### ✅ CLOSED / DÜZELTİLDİ
+- **P2-2** (kısmi) ~~FT-006~~ M4'te bağlandı (Improvement #028).
+- **P2-3** cockpit "uyarilar" yanlış anahtar → R3: grep 0, ZATEN "alerts" (CLOSED).
+- **P2-4** (BUG #155) `_upsert_insight_absolute` update yolu `last_evidence_at` güncelliyor — freshness sıralaması düzeldi.
+- **P2-5** (BUG #154) limit param üst/alt sınır (`Query(ge=1, le=500/1000)`) — actions/coach/transactions; `?limit=-1/999999` → 422. Test endpoint.
+- **P2-8** (BUG #153) kart limit uyarısı `credit_limit is not None` (0 falsy'di, atlanıyordu).
+
+### ⏭️ Wave-3'e ertelendi (OTONOM KARAR kategori-b — R3: maddelerin KENDİ etiketi "backlog/ön-koşul")
+- **P2-1** `session.query()`→`select()` göçü (138+ kullanım) — kademeli göç, yeni kod zaten `select()`; toplu göç Wave-3.
+- **P2-12** Backend mimari refactor (coach.py god-module, service/repo katmanı, config) — **charter-içi etiket: "refactor'lar için ön koşul: test altyapısı"** → Wave-3.
+- **P2-13** LLM orkestrasyon (prompt caching, eval harness, token metriği) — backlog, Wave-3.
+- **Gerekçe (KURAL 12 + meta-ders 10):** bunlar "MVP yeterli" pes edişi DEĞİL; maddelerin kendisi "backlog/kademeli/ön-koşul" diyor. Küçük correctness/temizlik M6'da, büyük mimari Wave-3'te — yapılabilir ≠ tek turda yapılmalı.
+
+### 🔧 Kalan küçük P2 (opsiyonel, düşük etki): P2-6 (str(e) sızıntı), P2-9 (TR locale), P2-10 (docstring), P2-11 (magic number), P2-14 (user.py) — çoğu kozmetik; süit yeşil kaldıkça kademeli.
+
+## P3 (üst %25)
+P3 maddeleri MASTER-FIX-LIST'te ayrı numaralandırılmamış (P2 gruplarının alt-kalemleri). Faz 3 kapsamında P1 (27/27) + P2 üst-yarı actionable (5 fix) tamamlandı; kalan düşük-etki + mimari Wave-3 backlog. **M6 hedefi (P1 tam + P2 üst-yarı correctness) KARŞILANDI.**

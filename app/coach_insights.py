@@ -484,6 +484,11 @@ def _upsert_insight_absolute(
     existing.evidence_count = evidence_count
     existing.source_refs = source_refs_json
     existing.last_seen_at = now
+    # BUG #155 fix (P2-4/CI-004): update yolunda last_evidence_at güncellenmiyordu → yeni kanıt
+    # gelse de kanıt-tazeliği bayat kalıyor, freshness sıralaması bozuluyordu. Create yoluyla
+    # parite: kanıt varsa taze zaman damgası (yoksa mevcut korunur).
+    if evidence_count > 0:
+        existing.last_evidence_at = now
     existing.sort_priority = sort_priority
     existing.status = status
     db.commit()

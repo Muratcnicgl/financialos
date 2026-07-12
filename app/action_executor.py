@@ -208,7 +208,7 @@ def propose_action(
                 Account.id == payload["account_id"],
                 Account.user_id == user_id,
             ).first()
-            if card and card.credit_limit:
+            if card and card.credit_limit is not None:  # BUG #153 (P2-8/AE-007): 0 falsy'di, atlaniyordu
                 amount = D(payload.get("amount", 0))
                 projected = card.balance + amount
                 if projected > card.credit_limit:

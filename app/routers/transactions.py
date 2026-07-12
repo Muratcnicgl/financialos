@@ -14,7 +14,7 @@ import math
 import re
 from datetime import date
 from typing import Optional, Literal
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -272,7 +272,7 @@ def _parse_quick_text(text: str) -> dict:
 def list_transactions(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    limit: int = 200,
+    limit: int = Query(200, ge=1, le=1000),  # BUG #154 (P2-5): ust sinir
 ):
     """Son N transaction (en yeni once)."""
     txns = (

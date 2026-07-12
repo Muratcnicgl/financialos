@@ -24,7 +24,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Optional, List
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
@@ -379,7 +379,7 @@ def edit_action(
 
 @router.get("/history", response_model=List[ActionHistoryOut])
 def get_action_history(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=500),  # BUG #154 (P2-5): ust sinir
     action_type: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

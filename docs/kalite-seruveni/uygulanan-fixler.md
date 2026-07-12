@@ -170,3 +170,26 @@ hipotez "propose sunuluyor ama zayıf sağlayıcı çağırmıyor" doğrulandı,
 DOĞRU yakalıyor (grounded=-, confidence düşürülüyor) — sistem tasarım gereği çalışıyor, kod bug'ı
 değil (kanonik eval DB'de borç/alacak yok → yeni context blokları devrede değil). Eval-driven
 döngü işledi: hipotez → fix → eval teyidi.
+
+### SESSION-3 dayanıklılık + doğruluk + egemenlik sweep (12 Tem 2026, süit 632→661)
+
+Deterministik/FEAT işleri doyunca provider-gerçeği (Groq/Cerebras TPM, Gemini kota) etrafında
+dayanıklılık + kullanıcıyı etkileyen doğruluk + veri-egemenliği tamlığı hedeflendi.
+
+| ID | Değişiklik | Doğrulama |
+|----|-----------|-----------|
+| FEAT-030 | Satın alma fırsat maliyeti: amount'ı harcamak vs en yüksek faizli borca ödemek (borçsuzluk + faiz farkı). Avalanche RAM kopyası; assumption-free. + endpoint + DebtStrategy.jsx formu | test_opportunity_cost.py (8) |
+| RESIL-008 | Circuit breaker: request-too-large (413) veren sağlayıcı process boyunca atlanır (429 geçici kotadan AYRI). `_engine` singleton → Groq TPM israfı ilk çağrıdan sonra biter | test_fallback_provider.py (+4) |
+| RESIL-004 | Graceful degradation: tüm sağlayıcı düşünce ham hata sızmaz + "Rules Engine LLM'siz çalışır, verilerin sağlam" mesajı + cockpit korunur | test_coach_behavior_contract.py |
+| BE-025 | Fallback modda günlük-limit BLOCK koruması ölüydü (usage hep %0). provider_used loglanır + PROVIDER_DAILY_LIMITS haritası → Gemini kotası doğru izlenir | test_usage_tracking.py (5) |
+| BE-010 | 6 sessiz `except: pass` → tanılanabilir loglama (goal_engine except'i #066'da AttributeError gizliyordu) | süit yeşil |
+| SEC-006 | coach mesajı max_length=4000 (sağlayıcı token/maliyet koruması; büyük yapıştırma zinciri patlatmasın) | test_coach_chat_endpoint.py (+2) |
+| KVKK | Veri export tamlığı: eylem/karar/hedef-izleme + koç-şeffaflık kayıtları eklendi (18 tablo). TAMLIK invariant testi | test_data_export.py (+2) |
+
+**Provider gerçeği (memory: reference_groq_tpm_limiti):** Zengin veride koç isteği ~8000+ token →
+Groq HEM Cerebras (gpt-oss, 8000 TPM) aşılır → circuit breaker ikisini de eler → koç fiilen
+Gemini'de çalışır. Bu dış kısıt kod defekti değil; sistem prompt trim'i RİSKLİ (docs uyarısı) →
+otonom yapılmadı. Eval DB kasıtlı minimal (davranışı provider-boyutundan izole).
+
+**Golden tamamlandı:** test_founding_scenario Murat'ın alacaklarıyla genişletildi → yeni
+borç/alacak metrikleri (asgari tuzağı/aging/konsolidasyon) + grounding kurucu manzarada kilitli.

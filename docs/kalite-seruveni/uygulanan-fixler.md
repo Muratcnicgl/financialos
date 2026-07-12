@@ -312,3 +312,9 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ID | Değişiklik | Doğrulama | Durum |
 |----|-----------|-----------|-------|
 | P1-4 / BUG #140 | `_sweep_insights_dormant` (DRY) — decision_rhythm (dominant değiş/dağıl) + mc_reference (top-3 dışı count>0) eski aktif insight'ları dormant'a indirir; bayat sinyal kalmaz | test_p1_4 + 54 coach_insights | ✅ |
+
+## Milestone 6 — artım 5 (P1-8)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-8 / BUG #141 | evaluate_rules_for_transaction transaction create'e BAĞLANDI (post-commit try/except) — GoalRule otomatik-tahsis özelliği çalışıyor (yarım özellik tamamlandı, opt-in) | test_p1_8 (2, endpoint) | ✅ |

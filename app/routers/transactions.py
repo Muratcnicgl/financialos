@@ -9,6 +9,7 @@ NOTLAR:
   geri cevirir.
 """
 
+import logging
 import math
 import re
 from datetime import date
@@ -27,6 +28,7 @@ from app.models import (
     User, Account, AccountType, Transaction, TransactionType,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
@@ -375,6 +377,17 @@ def create_transaction(
 
     db.commit()
     db.refresh(txn)
+
+    # BUG #141 fix (P1-8): GoalRule otomatik-tahsis motorunu TETİKLE. Eskiden
+    # evaluate_rules_for_transaction TAM+TESTLİ ama hiçbir yerden çağrılmıyordu → kullanıcı
+    # kural yaratsa da (POST /goals/rules) hiç allocation oluşmuyordu (yarım özellik). Kural
+    # yoksa etki yok (opt-in). Hata transaction'ı bozmasın (post-commit, defensive).
+    try:
+        from app.goal_rules import evaluate_rules_for_transaction
+        evaluate_rules_for_transaction(txn.id, db)
+    except Exception as e:
+        logger.warning(f"goal rule degerlendirme basarisiz (sessiz, txn zaten kayitli): {e}")
+
     return _txn_to_dict(txn)
 
 

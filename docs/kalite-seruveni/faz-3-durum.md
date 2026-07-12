@@ -43,8 +43,11 @@
 ### ✅ DÜZELTİLDİ (M6 artım 4)
 - **P1-4** coach_insights dormant sweep — yeniden-kullanılabilir `_sweep_insights_dormant` (`coach_insights.py`, BUG #140); decision_rhythm (dominant dilim değişince/dağılınca) + mc_reference (top-3 dışına düşen count>0 MC) eski aktif insight'ları dormant'a indirir. Test `test_p1_4_*`.
 
+### ✅ DÜZELTİLDİ (M6 artım 5)
+- **P1-8** evaluate_rules_for_transaction BAĞLANDI — transaction create'te `evaluate_rules_for_transaction(txn.id, db)` tetikleniyor (`transactions.py`, BUG #141, post-commit try/except). GoalRule otomatik-tahsis özelliği artık çalışıyor (kural yoksa etki yok, opt-in). Entegrasyon testi `test_p1_8_*` (gelir→%10 tahsis + kural-yok→tahsis-yok).
+
 ### 🔧 OPEN — kalan (sonraki M6 artımları)
-- **P1-8** evaluate_rules_for_transaction ölü kod (bağla/kaldır) · **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-24** evaluate_credit_card_strategy ölü kod · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite (float falsy→None, mark_debt guard, sell price/emanet).
+- **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-24** evaluate_credit_card_strategy ölü kod — **karar: wire (MC3 ekstre-döngüsü, card_utilization'dan FARKLI gerçek özellik); off-by-one RULE-003/004/005 ile birlikte** · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite.
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

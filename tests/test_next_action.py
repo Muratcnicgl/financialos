@@ -136,6 +136,66 @@ def test_bozuk_girdi_cokmez():
     assert recommend_next_action({"alerts": [1, 2, None], "kart_borcu": 5000})["tip"] == "stabil"
 
 
+def test_bozuk_alacak_yaslanma_cokmez():
+    """alacak_yaslanma bozuk (dict değil / eksik en_riskli / eksik alanlı öğe) → çökme YOK."""
+    # dict değil
+    assert recommend_next_action({"alacak_yaslanma": "x", "kart_borcu": 100})["tip"] == "stabil"
+    # en_riskli liste değil
+    assert recommend_next_action({"alacak_yaslanma": {"en_riskli": 5}, "kart_borcu": 100})["tip"] == "stabil"
+    # en_riskli eksik alanlı dict (kim/tutar/gecikme_gun yok) + gecikmiş var → kullanılmaz, çökmez
+    r = recommend_next_action({"alacak_yaslanma": {"gecikmis_adet": 2, "en_riskli": [{}]}, "kart_borcu": 100})
+    assert r["tip"] == "stabil"
+    # gecikmis_adet sayı değil → karşılaştırma çökmez
+    assert recommend_next_action(
+        {"alacak_yaslanma": {"gecikmis_adet": "iki", "en_riskli": [{}]}, "kart_borcu": 100})["tip"] == "stabil"
+
+
+# ---- property: recommend_next_action ARBİTRER cockpit'te ASLA çökmez -----------
+
+from hypothesis import given, strategies as st, settings  # noqa: E402
+
+_num_or_none = st.one_of(st.none(), st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False))
+# en_riskli öğeleri: tam dict / eksik dict / non-dict karışımı
+_er_item = st.one_of(
+    st.none(), st.integers(),
+    st.fixed_dictionaries({"kim": st.text(max_size=5), "tutar": st.floats(allow_nan=False, allow_infinity=False, min_value=0, max_value=1e5), "gecikme_gun": st.integers(0, 999)}),
+    st.dictionaries(st.text(max_size=4), st.integers(), max_size=3),  # eksik alanlı
+)
+_alacak = st.one_of(
+    st.none(), st.text(max_size=3), st.integers(),
+    st.fixed_dictionaries({
+        "gecikmis_adet": st.one_of(st.integers(-2, 9), st.text(max_size=3)),
+        "toplam_gecikmis": _num_or_none,
+        "en_riskli": st.one_of(st.none(), st.integers(), st.lists(_er_item, max_size=3)),
+    }),
+)
+_alert_item = st.one_of(
+    st.none(), st.integers(),
+    st.fixed_dictionaries({"seviye": st.sampled_from(["kritik", "uyari", "bilgi", "x"]),
+                           "baslik": st.sampled_from(["Gecikmiş borç: Efe", "Nakit kriz", "başka", ""]),
+                           "mesaj": st.text(max_size=8), "tutar": _num_or_none}),
+)
+_cockpit = st.fixed_dictionaries({
+    "alerts": st.one_of(st.none(), st.text(max_size=3), st.lists(_alert_item, max_size=4)),
+    "alacak_yaslanma": _alacak,
+    "kart_borcu": _num_or_none,
+    "kredi_borcu": _num_or_none,
+    "atanmamis_nakit": _num_or_none,
+    "nakit_runway_gun": _num_or_none,
+    "daily_limit": _num_or_none,
+    "faiz_sizintisi": st.one_of(st.none(), st.dictionaries(st.text(max_size=4), _num_or_none, max_size=3)),
+    "borc_ozgurluk": st.one_of(st.none(), st.dictionaries(st.text(max_size=4), st.one_of(_num_or_none, st.booleans(), st.text(max_size=5)), max_size=3)),
+})
+
+
+@given(cockpit=_cockpit)
+@settings(max_examples=300, deadline=None)
+def test_recommend_next_action_asla_cokmez(cockpit):
+    r = recommend_next_action(cockpit)   # ARBİTRER girdi → exception YASAK
+    assert r is None or (isinstance(r, dict) and r.get("tip") in
+                         {"temerrut", "kriz", "tahsilat", "firsat", "stabil"})
+
+
 # ---- koç context ------------------------------------------------------------
 
 def test_ilk_adim_koc_contextine_duser(db):

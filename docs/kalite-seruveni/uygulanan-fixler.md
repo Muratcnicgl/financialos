@@ -126,6 +126,7 @@ bug avı. Süit **287 → 601 yeşil** (+~314 test, 1 skip). `main` dokunulmadı
 | BUG #125 | Alert önem sıralaması kararsızdı → kararlı stable-sort (kritikler önce) | test_metric_coherence.py |
 | BUG #126 | Alert yorgunluğu → uyarılar top-3, kritikler korunur, gizli_uyari_sayisi | test_metric_coherence.py |
 | BUG #127 | Zayıf sağlayıcı gerçekleşmiş eylemi düz metinle geçiştirip propose'u unutuyordu → STEP-E retry has_realized_action ile genişletildi | test_coach_behavior_contract.py (düz-metin + nötr-guard) |
+| BUG #129 | recommend_next_action (FEAT-041) "saf/dışa-açık" sözleşmesi eksikti: property fuzzing 3 gerçek çökme buldu — daily_limit/faiz_sizintisi/toplam_gecikmis present-but-None → _tl(None)/None>0 TypeError; ayrıca alacak_yaslanma non-dict + eksik en_riskli guard'ı. Production'da crash yoktu (generate_cockpit hep geçerli) ama sözleşme artık arbitrer girdide tutuyor | test_next_action.py (fuzz 300+ örnek, 2000 elle doğrulandı) |
 | RULE-008 | simulate_partial_sale giriş doğrulaması | test_partial_sale_validation.py |
 | RULE-009 | Statü likidite oranı nakit>0 guard | test_rules |
 | RULE-010/011 | payoff_date gerçek takvim ayı + enjekte today; asla-bitmeyen borçta None | test_debt_payoff_date.py |

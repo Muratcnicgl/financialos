@@ -66,6 +66,14 @@ GÜNCELLEMELER:
 - FEAT-022 (finansal sağlık skoru): calculate_health_score — 0-100 ŞEFFAF composite (ödeme gücü,
   faiz yükü, nakit tamponu, kart sağlığı, bütçe uyumu). Bileşenler görünür (kara kutu değil).
   Cockpit'e `saglik_skoru` {skor, seviye, bilesenler}. Tüm solvency sinyallerini tek sayıda özetler.
+- FEAT-016 (kart utilization): calculate_card_utilization — toplam kart borcu/limit oranı + kredi-
+  sağlık bandı (saglikli<30<orta<70<yuksek<90<kritik) + %30 sağlıklı borç hedefi + iyileşme trendi
+  (en eski NetWorthSnapshot kart borcu ÷ güncel limit, ≥7 gün). Cockpit'e `kart_kullanim`.
+- BUG #129 fix: recommend_next_action (FEAT-041) "saf/dışa-açık" savunmacı sözleşmesini tamamlar —
+  property fuzzing iki gerçek çökmeyi buldu: (a) daily_limit present-but-None → _tl(None) TypeError
+  (STABİL dalı), (b) faiz_sizintisi.aylik_toplam None → None>0 TypeError (FIRSAT dalı). Ayrıca
+  alacak_yaslanma non-dict / eksik-alanlı en_riskli guard'ı eklendi. Production'da generate_cockpit
+  hep geçerli verir (crash yoktu) ama sözleşme artık arbitrer girdide de tutuyor (test_next_action fuzz).
 - 2 May 2026 BUG #006 fix: generate_cockpit artık iki net değer metriği döner.
   net_deger        = Görülen Net Değer (operasyonel, alacaksız, MC8 ruhuna uygun)
   net_deger_tam    = Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
@@ -1268,8 +1276,15 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
             "tutar": gecikmis_borc.get("tutar"),
         }
 
-    ay = cockpit.get("alacak_yaslanma") or {}
-    en_riskli = (ay.get("en_riskli") or [None])[0]
+    # Savunmacı (alerts guard'ıyla tutarlı): alacak_yaslanma bozuk/eksik gelse de çökmemeli.
+    # en_riskli yalnız TAM bir dict ise kullanılır (aşağıdaki 'kim'/'tutar'/'gecikme_gun'
+    # erişimleri KeyError üretmesin) — production'da generate_cockpit hep tam verir.
+    ay = cockpit.get("alacak_yaslanma")
+    if not isinstance(ay, dict):
+        ay = {}
+    _er_list = ay.get("en_riskli")
+    _er = _er_list[0] if isinstance(_er_list, list) and _er_list else None
+    en_riskli = _er if (isinstance(_er, dict) and {"kim", "tutar", "gecikme_gun"} <= _er.keys()) else None
 
     # 2. NAKİT KRİZİ öngörüsü — henüz olmadan müdahale. En riskli alacağı tahsil ETMEK krizi
     # önler (nakit girişi); alacak yoksa gideri ertele.
@@ -1291,12 +1306,13 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
         }
 
     # 3. GECİKMİŞ TAHSİLAT — kriz yoksa da geciken alacak nakit girişidir (solvency-dostu).
-    if ay.get("gecikmis_adet", 0) > 0 and en_riskli:
+    _gecikmis_adet = ay.get("gecikmis_adet", 0)
+    if isinstance(_gecikmis_adet, (int, float)) and _gecikmis_adet > 0 and en_riskli:
         return {
             "tip": "tahsilat",
             "eylem": f"{en_riskli['kim']}'den {_tl(en_riskli['tutar'])} TL tahsil et",
-            "gerekce": (f"{ay['gecikmis_adet']} gecikmiş alacağın var (toplam "
-                        f"{_tl(ay['toplam_gecikmis'])} TL); en eskisi {en_riskli['gecikme_gun']} gün. "
+            "gerekce": (f"{_gecikmis_adet} gecikmiş alacağın var (toplam "
+                        f"{_tl(ay.get('toplam_gecikmis') or 0)} TL); en eskisi {en_riskli['gecikme_gun']} gün. "
                         f"Nakit dar — önce en eskisini tahsil et."),
             "tutar": en_riskli["tutar"],
         }
@@ -1311,10 +1327,13 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
     nakit_bol = runway is None or runway >= 30
     if atanmamis >= _IDLE_CASH_ACTION_MIN and kart_borcu > 0 and nakit_bol:
         odenebilir = round(min(atanmamis, kart_borcu), 2)
-        fs = cockpit.get("faiz_sizintisi") or {}
+        fs = cockpit.get("faiz_sizintisi")
+        if not isinstance(fs, dict):
+            fs = {}
+        _aylik_faiz = fs.get("aylik_toplam") or 0   # present-but-None → 0 (savunmacı; None>0 çökerdi)
         gerekce = f"{_tl(atanmamis)} TL boşta nakdin var, kart borcun {_tl(kart_borcu)} TL."
-        if fs.get("aylik_toplam", 0) > 0:
-            gerekce += f" Karta ödemek aylık faiz sızıntısını ({_tl(fs['aylik_toplam'])} TL) azaltır."
+        if _aylik_faiz > 0:
+            gerekce += f" Karta ödemek aylık faiz sızıntısını ({_tl(_aylik_faiz)} TL) azaltır."
         return {
             "tip": "firsat",
             "eylem": f"Boşta {_tl(odenebilir)} TL'yi kart borcuna öde",
@@ -1324,7 +1343,7 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
 
     # 5. STABİL — acil hamle yok. Borç varsa disipline (borçsuzluk tarihiyle motive et), yoksa None.
     if kart_borcu > 0 or (cockpit.get("kredi_borcu", 0) or 0) > 0:
-        gunluk = cockpit.get("daily_limit", 0)
+        gunluk = cockpit.get("daily_limit", 0) or 0   # present-but-None → 0 (savunmacı; _tl(None) çökerdi)
         gerekce = f"Bugünlük kritik sinyal yok. Günlük limit {_tl(gunluk)} TL; her aşmama borcu hızlandırır."
         bo = cockpit.get("borc_ozgurluk") or {}
         if bo.get("borcsuz_tarih") and not bo.get("asla_bitmez"):

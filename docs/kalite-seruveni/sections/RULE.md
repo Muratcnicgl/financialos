@@ -84,7 +84,7 @@
 - **Aksiyon:** Baseline'ı goal yaratımındaki hesap kümesine (account_id listesi) sabitle, sonraki borçları hariç tut.
 - **Etki:** Orta · **Efor:** M
 
-### [RULE-014] Float→Decimal `str()` köprüsü kirli ondalık üretebilir
+### [RULE-014] Float→Decimal `str()` köprüsü kirli ondalık üretebilir ✅ UYGULANDI (12 Tem 2026)
 - **Sorun:** `Decimal(str(total))` — total SQL'den gelen Float toplamı; `str(63462.51999999999)` artefaktı Decimal'e taşınır, quantize edilmezse baseline'a çirkin değer yazılır.
 - **Kanıt:** `app/goal_engine.py:44, 84, 124, 156`
 - **Aksiyon:** `Decimal(str(total)).quantize(Decimal("0.01"))`; kaynağı Numeric'e taşımayı değerlendir.

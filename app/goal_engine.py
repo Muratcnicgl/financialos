@@ -30,6 +30,14 @@ from app.models import Account, AccountType, GoalAllocation, PersonalDebt
 
 logger = logging.getLogger(__name__)
 
+_CENT = Decimal("0.01")
+
+
+def _money(x) -> Decimal:
+    """RULE-014: SQL Float toplamı → Decimal köprüsünde kuruşa quantize. Aksi halde
+    `Decimal(str(63462.51999999999))` gibi kirli ondalık baseline'a/hesaba sızardı."""
+    return Decimal(str(x or 0)).quantize(_CENT, rounding=ROUND_HALF_UP)
+
 
 # ============================================================
 # BASELINE — debt_freedom için goal yaratım anında çağrılır
@@ -44,7 +52,7 @@ def calculate_baseline_for_debt_freedom(user_id: int, db: Session) -> Decimal:
         Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
         Account.balance > 0,
     ).scalar()
-    return Decimal(str(total))
+    return _money(total)
 
 
 # ============================================================
@@ -84,7 +92,7 @@ def _compute_debt_freedom(goal: models.Goal, db: Session) -> dict:
         Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
         Account.balance > 0,
     ).scalar()
-    current_debt = Decimal(str(current_debt))
+    current_debt = _money(current_debt)
 
     paid_off = goal.baseline_amount - current_debt
     paid_off = max(paid_off, Decimal("0"))  # yeni borç eklenince negatife düşmez
@@ -129,7 +137,7 @@ def _compute_cash_target(goal: models.Goal, db: Session) -> dict:
     alloc_sum = db.query(
         func.coalesce(func.sum(GoalAllocation.amount), 0)
     ).filter(GoalAllocation.goal_id == goal.id).scalar()
-    current = Decimal(str(alloc_sum))
+    current = _money(alloc_sum)
 
     if goal.target_amount == 0:
         progress = Decimal("0")
@@ -162,7 +170,7 @@ def _project_cash_completion(
             GoalAllocation.created_at >= cutoff,
         )
     ).scalar()
-    recent_sum = Decimal(str(recent_sum))
+    recent_sum = _money(recent_sum)
 
     if recent_sum <= 0:
         return None
@@ -207,8 +215,8 @@ def sinking_fund_plan(target_amount, target_date, current_amount, today: Optiona
     if today is None:
         today = date.today()
 
-    target = Decimal(str(target_amount))
-    current = Decimal(str(current_amount))
+    target = _money(target_amount)
+    current = _money(current_amount)
     remaining = target - current
     if remaining <= 0:
         return {"aylik_gereken": Decimal("0.00"), "kalan_ay": 0, "gecikmis": False, "tamamlandi": True}

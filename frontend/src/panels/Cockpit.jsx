@@ -133,6 +133,32 @@ export default function Cockpit({ setActiveTab }) {
         </button>
       </div>
 
+      {/* FEAT-041: deterministik İLK ADIM — tüm sinyallerin tek en-yüksek-etkili hamlesi */}
+      {data.sonraki_eylem && (() => {
+        const se = data.sonraki_eylem;
+        const style = {
+          temerrut: 'border-negative-400 dark:border-negative-600 bg-negative-50 dark:bg-negative-950/40',
+          kriz:     'border-negative-400 dark:border-negative-600 bg-negative-50 dark:bg-negative-950/40',
+          tahsilat: 'border-warn-400 dark:border-warn-600 bg-warn-50 dark:bg-warn-950/40',
+          firsat:   'border-brand-400 dark:border-brand-600 bg-brand-50 dark:bg-brand-950/40',
+          stabil:   'border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40',
+        }[se.tip] || 'border-zinc-300 dark:border-zinc-700';
+        return (
+          <div className={`card p-4 border-2 ${style}`}>
+            <div className="flex items-start gap-3">
+              <Target className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-0.5">
+                  İlk adım
+                </div>
+                <div className="font-semibold text-zinc-800 dark:text-zinc-100">{se.eylem}</div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-300 mt-0.5">{se.gerekce}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Bekleyen aksiyonlar */}
       {pendingActions.length > 0 && (
         <div>

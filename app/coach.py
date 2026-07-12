@@ -261,7 +261,7 @@ KULLANICIYA SOĞUK GELİR.
 14. KRİTİK UYARILAR — Cockpit "alerts" listesindeki [KRITIK] kalemleri (gecikmiş borç, negatif bütçe, kart limiti kritik) kullanıcı sormasa bile EN BAŞTA bildir; gecikmiş borçta "öde", gecikmiş alacakta "tahsil et" diye yönlendir. Bu uyarılar deterministik — asla görmezden gelme.
 15. NAKİT KRİZİ ÖNGÖRÜSÜ — "Nakit krizi öngörüsü" alert'i varsa GELECEĞE dönük en kritik sinyaldir: kriz henüz olmadan müdahale şansı. Stratejik ele al — hangi alacağı öne almak veya hangi gideri ertelemek krizi ÖNLER, somut tarih + tutarla söyle. Panik değil, plan.
 16. HARCAMA METRİKLERİ — Üç farklı sinyali KARIŞTIRMA, doğru bağlamda kullan: (a) Günlük limit = aylık bütçe temposu (kart-ayarlı). (b) Güvenli harcama = gelecekteki yükümlülükler + KART BORCU düşülünce bugün gerçekten güvenli tavan ("şu an kaç harcayabilirim" sorusunda buna dayan). (c) Nakit runway = gelirsiz kaç gün dayanır (iş/gelir kaygısında bu). "Ne kadar harcayabilirim" sorusunda günlük limit değil GÜVENLİ HARCAMA'yı öne çıkar; 0 ise "güvenli boşta paran yok" de.
-17. ÖNCELİKLENDİR VE TEK EYLEME İNDİR — Genel analiz/tavsiye verirken sinyal yığınını (sağlık skoru bileşenleri, faiz sızıntısı, alerts, kriz öngörüsü) TEK BİR "şimdi yapılacak en yüksek etkili şey"e indir. Sağlık skorunun EN DÜŞÜK bileşeni + en kritik alert genelde #1 önceliktir. Faiz sızıntısı yüksekse "borç eritmek her ay X TL faizi durdurur" diye somutla. Rapor uzun olabilir ama mutlaka net bir "İLK ADIM: ..." ver — dalkavukluk değil, uygulanabilir tek hamle.
+17. ÖNCELİKLENDİR VE TEK EYLEME İNDİR — Genel analiz/tavsiye verirken sinyal yığınını TEK BİR "şimdi yapılacak en yüksek etkili şey"e indir. **İLK ADIM SANA VERİLDİ**: cockpit'teki "🎯 ÖNERİLEN İLK ADIM" bloğu Rules Engine tarafından deterministik hesaplandı (temerrüt > kriz > tahsilat > fırsat > stabil önceliğiyle). Bu #1 eylemi RAPORUNUN "İLK ADIM: ..." satırında AÇIKLA ve gerekçelendir — KENDİN farklı bir öncelik türetme (deterministik sıralama zayıf-yargı riskini ortadan kaldırır). Gerekçeyi zenginleştirebilirsin (faiz sızıntısı yüksekse "borç eritmek her ay X TL faizi durdurur" diye somutla) ama önerilen eylemi DEĞİŞTİRME. Rapor uzun olabilir; İLK ADIM net ve verilen eylemle tutarlı olsun.
 
 # RAPOR FORMATI (Sadece kullanıcı analiz isterse)
 ## DURUM RAPORU — [TARİH]
@@ -705,6 +705,19 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
         for a in cockpit.get("alerts", [])
     ]) or "  (Uyarı yok)"
 
+    # FEAT-041: DETERMİNİSTİK İLK ADIM — Rules Engine tüm sinyalleri tek hamleye indirdi.
+    # Koç bunu AÇIKLAR/gerekçelendirir, KENDİ türetmez (sağlayıcı-bağımsız güvenilir öncelik).
+    se = cockpit.get("sonraki_eylem")
+    ilk_adim_block = ""
+    if se:
+        ilk_adim_block = (
+            f"\n\n# 🎯 ÖNERİLEN İLK ADIM (deterministik — bunu AÇIKLA, türetme)\n"
+            f"  - [{se['tip'].upper()}] {se['eylem']}\n"
+            f"  - Gerekçe: {se['gerekce']}"
+        )
+        if se.get("tutar"):
+            cockpit.setdefault("_coach_extra_numbers", []).append(se["tutar"])
+
     emanet_line = ""
     if cockpit.get("emanet_kasa", 0) > 0:
         emanet_line = f"\n  - Emanet Kasa       : {_fmt(cockpit['emanet_kasa'])} TL (DOKUNULMAZ)"
@@ -731,7 +744,7 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
 # COCKPIT — BUGÜNKÜ DURUM
 
 Tarih: {cockpit['tarih_turkce']}
-Statü: {cockpit['statu']}
+Statü: {cockpit['statu']}{ilk_adim_block}
 
 ## Ana Göstergeler
   - Nakit Kasa        : {_fmt(cockpit['nakit_kasa'])} TL

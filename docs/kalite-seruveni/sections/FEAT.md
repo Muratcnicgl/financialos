@@ -261,3 +261,9 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Kaynak/İlham:** Goal prioritization / waterfall funding (YNAB, Qapital priorities).
 - **Nasıl (mimari):** goal_engine'e priority alanı + rules_engine dağıtım hesabı → coach propose_action ile bölüştürme önerir → onay → execute. Deterministik hesap, LLM açıklar.
 - **Etki:** Orta · **Efor:** M
+
+### [FEAT-041] Deterministik "İLK ADIM" (next best action) ✅ UYGULANDI (12 Tem 2026)
+- **Değer/Fırsat:** Tüm sinyalleri (alerts, alacak yaşlandırma, boşta nakit, kart borcu, kriz) TEK bir "şimdi yapılacak en yüksek etkili hamle"ye indirir. Sinyal-yığını yorgunluğunu çözer, "one clear action" verir.
+- **Kaynak/İlham:** Copilot/Monarch "what to do next"; kurucu ilke "Rules Engine karar verir, LLM açıklar".
+- **Nasıl (mimari):** `recommend_next_action(cockpit)` saf öncelik cascade'i: temerrüt (gecikmiş borç) > nakit krizi (→ en riskli alacağı tahsil / gideri ertele) > gecikmiş tahsilat > fırsat (boşta nakdi karta öde, faiz sızıntısını durdur) > stabil (limite sadık kal). Cockpit `sonraki_eylem` alanı + koç context "🎯 ÖNERİLEN İLK ADIM" bloğu (Kural 17: koç AÇIKLAR, türetmez) + Cockpit.jsx prominent kart. **Kritik:** öncelik LLM yargısına DEĞİL koda bağlı → sağlayıcı kalitesinden BAĞIMSIZ güvenilir #1 eylem (zayıf-provider gerçeğiyle uyumlu). 8 test.
+- **Etki:** Yüksek · **Efor:** M

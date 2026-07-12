@@ -1234,6 +1234,97 @@ def _subscription_price_alerts(user_id: int, today: date, db: Session) -> List[D
     return _subscription_price_alerts_from_result(detect_subscriptions(user_id, today, db))
 
 
+# FEAT-041: "boşta nakit → karta öde" fırsatını önermek için asgari eşik (küçük bakiyeyle
+# uğraştırma). Altındaki atanmamış nakit için proaktif borç-ödeme önerisi çıkmaz.
+_IDLE_CASH_ACTION_MIN = 500.0
+
+
+def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
+    """
+    FEAT-041 (DETERMİNİSTİK SONRAKİ EYLEM — "İLK ADIM"): tüm sinyalleri (alerts, alacak
+    yaşlandırma, boşta nakit, kart borcu, kriz) TEK bir "şimdi yapılacak en yüksek etkili
+    hamle"ye indirir. Kurucu ilke "Rules Engine karar verir, LLM açıklar"ın en kritik çıktısı:
+    öncelik LLM yargısına (Kural 17, zayıf sağlayıcıda güvenilmez) DEĞİL, koda bağlanır →
+    sağlayıcı kalitesinden BAĞIMSIZ güvenilir #1 eylem. Koç bunu AÇIKLAR, türetmez. Salt okuma.
+
+    Öncelik sırası (hayatta kalma > fırsat): temerrüt riski → nakit krizi → gecikmiş tahsilat
+    → boşta nakdi borca (fırsat) → yolunda. Dönüş: {tip, eylem, gerekce, tutar} veya None (borç
+    yok + acil yok). `tip`: 'temerrut'|'kriz'|'tahsilat'|'firsat'|'stabil'.
+    """
+    alerts = cockpit.get("alerts", []) or []
+    kritikler = [a for a in alerts if a.get("seviye") == "kritik"]
+
+    # 1. TEMERRÜT — gecikmiş BORÇ (ceza/temerrüt riski) her şeyin önünde.
+    gecikmis_borc = next((a for a in kritikler if "Gecikmiş borç" in a.get("baslik", "")), None)
+    if gecikmis_borc:
+        return {
+            "tip": "temerrut",
+            "eylem": gecikmis_borc.get("baslik", "Gecikmiş borcu öde"),
+            "gerekce": gecikmis_borc.get("mesaj", ""),
+            "tutar": gecikmis_borc.get("tutar"),
+        }
+
+    ay = cockpit.get("alacak_yaslanma") or {}
+    en_riskli = (ay.get("en_riskli") or [None])[0]
+
+    # 2. NAKİT KRİZİ öngörüsü — henüz olmadan müdahale. En riskli alacağı tahsil ETMEK krizi
+    # önler (nakit girişi); alacak yoksa gideri ertele.
+    crunch = next((a for a in kritikler if "kriz" in a.get("baslik", "").lower()), None)
+    if crunch:
+        if en_riskli:
+            return {
+                "tip": "kriz",
+                "eylem": f"{en_riskli['kim']}'den {_tl(en_riskli['tutar'])} TL tahsil et",
+                "gerekce": (f"Nakit krizi öngörülüyor; {en_riskli['gecikme_gun']} gün geciken bu "
+                            f"tahsilat krizi önleyebilir. {crunch.get('mesaj', '')}"),
+                "tutar": en_riskli["tutar"],
+            }
+        return {
+            "tip": "kriz",
+            "eylem": "Ertelenebilir gideri ertele / harcamayı kes",
+            "gerekce": crunch.get("mesaj", "Nakit krizi öngörülüyor."),
+            "tutar": crunch.get("tutar"),
+        }
+
+    # 3. GECİKMİŞ TAHSİLAT — kriz yoksa da geciken alacak nakit girişidir (solvency-dostu).
+    if ay.get("gecikmis_adet", 0) > 0 and en_riskli:
+        return {
+            "tip": "tahsilat",
+            "eylem": f"{en_riskli['kim']}'den {_tl(en_riskli['tutar'])} TL tahsil et",
+            "gerekce": (f"{ay['gecikmis_adet']} gecikmiş alacağın var (toplam "
+                        f"{_tl(ay['toplam_gecikmis'])} TL); en eskisi {en_riskli['gecikme_gun']} gün. "
+                        f"Nakit dar — önce en eskisini tahsil et."),
+            "tutar": en_riskli["tutar"],
+        }
+
+    # 4. FIRSAT — boşta nakit + kart borcu + kriz YOK → karta öde (faiz sızıntısını durdur).
+    atanmamis = cockpit.get("atanmamis_nakit", 0) or 0
+    kart_borcu = cockpit.get("kart_borcu", 0) or 0
+    if atanmamis >= _IDLE_CASH_ACTION_MIN and kart_borcu > 0:
+        odenebilir = round(min(atanmamis, kart_borcu), 2)
+        fs = cockpit.get("faiz_sizintisi") or {}
+        gerekce = f"{_tl(atanmamis)} TL boşta nakdin var, kart borcun {_tl(kart_borcu)} TL."
+        if fs.get("aylik_toplam", 0) > 0:
+            gerekce += f" Karta ödemek aylık faiz sızıntısını ({_tl(fs['aylik_toplam'])} TL) azaltır."
+        return {
+            "tip": "firsat",
+            "eylem": f"Boşta {_tl(odenebilir)} TL'yi kart borcuna öde",
+            "gerekce": gerekce,
+            "tutar": odenebilir,
+        }
+
+    # 5. STABİL — acil hamle yok. Borç varsa disipline, yoksa None.
+    if kart_borcu > 0 or (cockpit.get("kredi_borcu", 0) or 0) > 0:
+        gunluk = cockpit.get("daily_limit", 0)
+        return {
+            "tip": "stabil",
+            "eylem": "Acil bir hamle yok — günlük limitine sadık kal, borcu erit",
+            "gerekce": f"Bugünlük kritik sinyal yok. Günlük limit {_tl(gunluk)} TL; her aşmama borcu hızlandırır.",
+            "tutar": None,
+        }
+    return None
+
+
 # FEAT-015: kart asgari-ödeme tuzağı uyarı eşiği. 12 ay = min-only'nin "kuyruk" sınırı;
 # altında zaten hızlı kapanır, üstünde faiz sızıntısı stratejik uyarıyı hak eder.
 _MIN_TRAP_ALERT_MONTHS = 12
@@ -1781,7 +1872,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     except Exception as e:
         logger.warning("borç özgürlüğü hesaplanamadı user_id=%s: %s", user_id, e)
 
-    return {
+    result = {
         "date": today.isoformat(),
         "tarih_turkce": turkish_date(today),
         "statu": statu,
@@ -1829,6 +1920,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         ),
         "son_islemler": _collect_recent_transactions(user_id, db),  # C2-lite: son 8 işlem
     }
+    # FEAT-041: deterministik "İLK ADIM" — tüm sinyalleri tek en-yüksek-etkili hamleye indir
+    # (tüm dict hazır olduktan SONRA; alerts/aging/nakit hepsini okur). Koç bunu açıklar, türetmez.
+    result["sonraki_eylem"] = recommend_next_action(result)
+    return result
 
 
 # ============================================================

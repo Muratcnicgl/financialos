@@ -41,8 +41,10 @@ class HorizonSnapshot(BaseModel):
     kredi_borcu: float
     yatirim_deger: float
     net_deger: float
-    reel_butce: float
-    daily_limit: float
+    # BUG #082 fix (P0-10/RSI-001): reel_butce/daily_limit KALDIRILDI. simulation_engine
+    # bu alanları üretmiyordu → HorizonSnapshot'ta hep 0.0 dönüp "bütçe sıfır/kritik" gibi
+    # yanıltıyordu. reel_butce ay-içi bir bütçe metriği; T+30/T+90 net-değer projeksiyonuna
+    # anlamlı oturmaz. (Frontend HorizonsModal bu alanları kullanmıyor — kaldırmak güvenli.)
     kart_kullanim_orani: Optional[float] = None
     delta_vs_baseline: dict = Field(default_factory=dict)
 
@@ -70,8 +72,6 @@ def _snapshot_to_horizon(snap: dict, label: str, days: int) -> HorizonSnapshot:
         kredi_borcu=float(snap.get("kredi_borcu") or 0.0),
         yatirim_deger=float(snap.get("yatirim_deger") or 0.0),
         net_deger=float(snap.get("net_deger") or 0.0),
-        reel_butce=float(snap.get("reel_butce") or 0.0),
-        daily_limit=float(snap.get("daily_limit") or 0.0),
         kart_kullanim_orani=snap.get("kart_kullanim_orani"),
         delta_vs_baseline=snap.get("delta_vs_baseline") or {},
     )

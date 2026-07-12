@@ -9,6 +9,11 @@ const COMMANDS = [
   { id: 'incomedebt',   label: 'Gelir & Borç\'a geç',      hint: 'Cmd+5' },
   { id: 'redlines',     label: 'Kırmızı Çizgiler\'e geç',  hint: 'Cmd+6' },
   { id: 'reports',      label: 'Raporlar\'a geç',           hint: 'Cmd+7' },
+  // FE-007: kalan 4 sekme de palette'te aranabilir (Cmd kısayolları yalnız 1-7 bağlı, hint yok).
+  { id: 'cashflow',     label: 'Nakit Akışı\'na geç',      hint: '' },
+  { id: 'debtstrategy', label: 'Borç Stratejisi\'ne geç',  hint: '' },
+  { id: 'goals',        label: 'Hedefler\'e geç',          hint: '' },
+  { id: 'budget',       label: 'Bütçe\'ye geç',            hint: '' },
 ];
 
 export default function CommandPalette({ onClose, setActiveTab }) {

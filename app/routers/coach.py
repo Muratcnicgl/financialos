@@ -33,6 +33,7 @@ from datetime import datetime, date, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -50,7 +51,9 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1)
+    # SEC-006: üst sınır — sınırsız girdi sağlayıcı token limitini aşar (413), maliyet/bellek
+    # riski. 4000 karakter finansal olay tarifi için fazlasıyla yeterli; aşarsa 422 (net hata).
+    message: str = Field(..., min_length=1, max_length=4000)
     include_cockpit: bool = Field(True, description="System prompt'a Cockpit ekle (default True)")
 
 
@@ -96,9 +99,11 @@ class TraceStepOut(BaseModel):
     usage_output_tokens: Optional[int] = None
     latency_ms: Optional[int] = None
     error: Optional[str] = None
-    created_at: datetime
+    created_at: UtcDateTime
 
-    model_config = {"from_attributes": True}
+    # BUG #118: model_name alanı Pydantic'in korumalı "model_" namespace'iyle çakışıyor →
+    # protected_namespaces=() ile uyarı susturulur (alan API sözleşmesi, yeniden adlandırılmaz).
+    model_config = {"from_attributes": True, "protected_namespaces": ()}
 
 
 class TraceResponse(BaseModel):
@@ -133,12 +138,12 @@ class HistoryItem(BaseModel):
     id: int
     role: str
     content: str
-    timestamp: datetime
-    created_at: datetime
+    timestamp: UtcDateTime
+    created_at: UtcDateTime
     actions: List[ActionDTO] = []  # BUG #046: pending aksiyonlar (history reload)
 
-    class Config:
-        from_attributes = True
+    # BUG #118 fix: Pydantic V2 stili (app/PROJE.md kuralı — V1 `class Config` deprecated).
+    model_config = {"from_attributes": True}
 
 
 class ResetResponse(BaseModel):
@@ -149,8 +154,20 @@ class ResetResponse(BaseModel):
 # YARDIMCILAR
 # ============================================================
 
-# Gemini ucretsiz limit (1500 ist/gun). Provider degisirse ileride dinamik yapariz.
+# BE-025: Sağlayıcı GÜNLÜK çağrı limitleri (ücretsiz kademe). Gemini günlük 1500 ist/gün.
+# Groq/Cerebras TPM (dakika-başı token) limitli — GÜNLÜK limit yok → % anlamsız (None).
 GEMINI_DAILY_LIMIT = 1500
+PROVIDER_DAILY_LIMITS = {"gemini": GEMINI_DAILY_LIMIT}
+
+
+def _daily_constrained_provider(provider: str) -> str:
+    """
+    BE-025: Günlük-kota bakımından raporlanacak FİİLİ kısıtlayıcı sağlayıcı. `fallback`
+    modda circuit breaker gpt-oss'u (Groq/Cerebras, TPM) eleyince fiili birincil Gemini olur
+    → günlük kota onun. Bu yüzden fallback/gemini → 'gemini' raporlanır (eskiden 'fallback'
+    için hep %0 dönüyordu → günlük-limit koruması FALLBACK'te ÖLÜYDÜ). Diğer sağlayıcılar kendisi.
+    """
+    return "gemini" if provider in ("fallback", "gemini") else provider
 
 
 def _today_call_count(db: Session, user_id: int, provider: str) -> int:
@@ -167,11 +184,16 @@ def _today_call_count(db: Session, user_id: int, provider: str) -> int:
 
 
 def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
-    count = _today_call_count(db, user_id, provider)
-    pct = round((count / GEMINI_DAILY_LIMIT) * 100, 1) if provider == "gemini" else 0.0
+    target = _daily_constrained_provider(provider)
+    count = _today_call_count(db, user_id, target)
+    limit = PROVIDER_DAILY_LIMITS.get(target)
+    if not limit:
+        # günlük limiti bilinmeyen sağlayıcı (TPM-limitli) → sayıyı göster, % yanıltmasın
+        return UsageInfo(today_count=count, daily_limit=0, percentage=0.0, warn=False, block=False)
+    pct = round((count / limit) * 100, 1)
     return UsageInfo(
         today_count=count,
-        daily_limit=GEMINI_DAILY_LIMIT if provider == "gemini" else 999999,
+        daily_limit=limit,
         percentage=pct,
         warn=pct >= 80.0,
         block=pct >= 100.0,
@@ -190,6 +212,8 @@ def _log_api_call(
 ) -> None:
     """ApiCallLog'a tek satir yazar. Hata icinde basarisiz olsa bile chat'i kirletmez."""
     try:
+        # SEC-009: ham sağlayıcı hatası (kota/org detayı içerebilir) 300 karakterle sınırlanır —
+        # DB/export şişmesin + gereksiz detay birikmesin (api_call_log artık KVKK export'unda).
         log = ApiCallLog(
             user_id=user_id,
             provider=provider.lower(),
@@ -197,7 +221,7 @@ def _log_api_call(
             status=ApiCallStatus.success if success else ApiCallStatus.failed,
             tool_calls_count=tool_calls_count,
             duration_ms=duration_ms,
-            error_message=error_message,
+            error_message=(error_message[:300] if error_message else None),
         )
         db.add(log)
         db.commit()
@@ -232,7 +256,10 @@ def _memory_to_history_item(m: CoachMemory, pa_map: Dict[int, PendingAction] = N
                 if pa:
                     actions.append(ActionDTO.model_validate(pa))
         except Exception:
-            pass
+            # BE-010: bozuk pending_action_ids_json veya DTO doğrulama hatası → kart atlanır
+            # ama loglanır (history'de aksiyon sessizce kaybolmasın).
+            logger.warning("history pending aksiyon kartı oluşturulamadı memory=%s",
+                           getattr(m, "id", "?"), exc_info=True)
 
     return HistoryItem(
         id=m.id,
@@ -304,17 +331,24 @@ def chat(
         )
         tool_calls_count = len(result.get("proposed_actions") or [])
     except Exception as e:
+        # BE-009 fix: graceful degradation (chat UX için 200) AMA ham hata (str(e)) kullanıcıya
+        # SIZDIRILMAZ — güvenlik/profesyonellik. Gerçek hata error_msg olarak LOGLANIR (izlenebilir).
         success = False
         error_msg = str(e)
+        logger.error("coach chat başarısız user_id=%s: %s", user.id, e, exc_info=True)
         result = {
-            "reply": f"Koc cevap veremedi: {e}",
+            "reply": "Koç şu an cevap veremedi (sağlayıcılar meşgul olabilir). Birazdan tekrar dene.",
             "proposed_actions": [],
             "cockpit_snapshot": None,
         }
 
     duration_ms = int((time.time() - t_start) * 1000)
+    # BE-025: nominal "fallback" yerine İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcıyı logla →
+    # günlük Gemini kotası doğru izlenir (aksi halde her çağrı "fallback" loglanıp gemini
+    # sayacı hep 0 kalır, günlük-limit koruması ölür).
+    logged_provider = (result.get("provider_used") or provider_name)
     _log_api_call(
-        db, user.id, provider_name, model,
+        db, user.id, logged_provider, model,
         success=success, duration_ms=duration_ms,
         tool_calls_count=tool_calls_count, error_message=error_msg,
     )
@@ -361,7 +395,9 @@ def get_history(
             try:
                 all_pa_ids.extend(json.loads(m.pending_action_ids_json))
             except Exception:
-                pass
+                # BE-010: bozuk pending_action_ids_json → atla ama debug'a yaz (tanılanabilir).
+                logger.debug("pending_action_ids_json parse edilemedi memory=%s",
+                             getattr(m, "id", "?"), exc_info=True)
     pa_map: Dict[int, PendingAction] = {}
     if all_pa_ids:
         pas = db.query(PendingAction).filter(PendingAction.id.in_(all_pa_ids)).all()

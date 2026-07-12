@@ -13,6 +13,13 @@ Bu modul iki yerden cagrilir:
 
 Bagimsizlik: action_executor.py veya rules_engine.py'yi import etmez. Bu sayede
 gercek DB'ye sizinti riski yok. Mantigi burada bagimsiz ama tutarli sekilde yazilmistir.
+
+GUNCELLEMELER:
+- BUG #084 fix (P0-7): Zincirleme ufuk projeksiyonunda sinir-gunu cift-sayimi.
+  _project_forward pencereleri artik yari-acik (start, end]. Onceki inclusive
+  [start, end] modelinde T+30 gibi tam sinir gunune dusen maas/kredi taksiti hem
+  1. hem 2. pencerede sayilip T+90'da hayalet gelir/odeme uretiyordu. Bkz.
+  tests/test_simulation_boundary.py.
 """
 
 from __future__ import annotations
@@ -44,6 +51,7 @@ class AccountSnap:
     payment_day: Optional[int] = None
     monthly_payment: Optional[float] = None
     remaining_installments: Optional[int] = None
+    interest_rate: Optional[float] = None   # RULE-018: aylık faiz oranı (%/ay) — sim amortismanı için
     next_payment_date: Optional[date] = None
     fund_code: Optional[str] = None
     lot_count: Optional[float] = None
@@ -136,6 +144,7 @@ def _load_world(db: Session, user_id: int, as_of: date) -> WorldSnap:
             payment_day=a.payment_day,
             monthly_payment=float(a.monthly_payment) if a.monthly_payment else None,
             remaining_installments=a.remaining_installments,
+            interest_rate=float(a.interest_rate) if a.interest_rate else None,  # RULE-018
             next_payment_date=a.next_payment_date,
             fund_code=a.fund_code,
             lot_count=float(a.lot_count) if a.lot_count else None,
@@ -213,8 +222,12 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             net_to_account = gross - withholding
 
             # Yatirim hesabini kucult
+            # BUG #102 tutarlılık (öz-denetim): gerçek executor satışta current_price'ı
+            # actual_price'a günceller; sim de aynısını yapmalı — yoksa kalan lotları BAYAT
+            # fiyattan değerleyip önizlemeyi gerçek sonuçtan saptırıyordu.
             inv.lot_count = (inv.lot_count or 0) - lots
-            inv.balance = (inv.lot_count or 0) * (inv.current_price or 0)
+            inv.current_price = price
+            inv.balance = (inv.lot_count or 0) * price
 
             # Nakdi hedef hesaba ekle
             cash_id = payload.get("credit_to_account_id")
@@ -236,18 +249,32 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             target = world.acc(account_id) if account_id else _find_default_cash_account(world)
             if not target:
                 return False, "Hedef hesap bulunamadi"
+            # BUG #101 fix: MC1 emanet — gerçek executor (action_executor:486) emanet hesaba
+            # işlem eklemeyi bloklar. Sim eskiden bloklamıyordu → gerçekte reddedilecek işlemi
+            # rozy önizleyip yanıltıcı karar desteği veriyordu. Executor ile birebir hizalandı.
+            if account_id and target.is_emanet:
+                return False, f"'{target.name}' emanet hesap (MC1). Islem eklenemez."
 
-            if ttype == "income":
-                target.balance += amount
-            elif ttype == "expense":
-                if target.account_type == "credit_card":
-                    target.balance += amount  # kart borcu artar
-                else:
-                    target.balance -= amount  # nakit hesap azalir
-            elif ttype == "transfer":
-                target.balance += amount
-            else:
+            if ttype not in ("income", "expense", "transfer"):
                 return False, f"Bilinmeyen islem tipi: {ttype}"
+            # BUG #080 fix (P0-8/SE-002): gerçek executor bakiyeyi SADECE auto_update_balance=True
+            # iken günceller (action_executor:504) ve transfer'de HİÇ değiştirmez. Simülasyon
+            # eskiden koşulsuz + transfer'de de değiştiriyordu → gerçekte bakiyeyi değiştirmeyecek
+            # bir işlemi bakiye değişimi olarak ön-izleyip yanlış karar desteği veriyordu.
+            if payload.get("auto_update_balance") and account_id:
+                if ttype == "income":
+                    # BUG #103 fix: karta gelen gelir (iade/cashback) borcu AZALTIR (executor
+                    # ile birebir); nakit/yatırıma gelen gelir varlığı artırır.
+                    if target.account_type == "credit_card":
+                        target.balance -= amount
+                    else:
+                        target.balance += amount
+                elif ttype == "expense":
+                    if target.account_type == "credit_card":
+                        target.balance += amount  # kart borcu artar
+                    else:
+                        target.balance -= amount  # nakit hesap azalir
+                # transfer: executor bakiye değiştirmiyor → simülasyon da değiştirmez
 
             world.event_log.append(
                 f"[T+0] ISLEM: {ttype} {amount:,.2f} TL -> {target.name} "
@@ -259,6 +286,10 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             target = world.acc(payload["account_id"])
             if not target:
                 return False, f"Hesap bulunamadi: {payload['account_id']}"
+            # BUG #101 fix: MC1 emanet — gerçek executor (action_executor:431) emanet bakiyeyi
+            # değiştirmeyi bloklar; sim de bloklamalı (önizleme executor ile tutarlı olsun).
+            if target.is_emanet:
+                return False, f"'{target.name}' emanet hesap (MC1). Bakiye degistirilemez."
             old = target.balance
             target.balance = float(payload["new_balance"])
             world.event_log.append(
@@ -319,7 +350,10 @@ def _next_payment_in_window(
     hits = []
     cursor = next_pay
     while cursor <= end:
-        if cursor >= start:
+        # BUG #084 fix (P0-7): yari-acik pencere (start, end]. Zincirleme projeksiyonda
+        # sinir gunu (onceki pencerenin SONU = bu pencerenin BASI) cift sayilmasin diye
+        # start dahil DEGIL. Tek-cagrili baseline ile birebir tutarlilik saglar.
+        if cursor > start:
             hits.append(cursor)
         # bir sonraki ay
         y, m = cursor.year, cursor.month + 1
@@ -348,7 +382,7 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
             ldom = _last_day_of_month(cursor)
             day = min(inc.day_of_month, ldom)
             pay_date = date(cursor.year, cursor.month, day)
-            if start <= pay_date <= end:
+            if start < pay_date <= end:  # BUG #084 fix (P0-7): yari-acik (start, end] — sinir cift-sayimini onler
                 cash = _find_default_cash_account(world)
                 if cash:
                     cash.balance += inc.amount
@@ -372,12 +406,41 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
             cash = _find_default_cash_account(world)
             if cash:
                 cash.balance -= a.monthly_payment
-            a.balance = max(0.0, a.balance - a.monthly_payment)
+            # RULE-018: taksit ödemesi ÖNCE faizi karşılar, kalanı anaparayı düşürür (gerçek
+            # amortisman). Eskiden taksit %100 anapara sayılıyordu → sim borcu gerçekten
+            # olduğundan hızlı eritip net değer projeksiyonunu İYİMSER gösteriyordu.
+            interest = a.balance * ((a.interest_rate or 0.0) / 100.0)
+            a.balance = max(0.0, a.balance + interest - a.monthly_payment)
             if a.remaining_installments:
                 a.remaining_installments = max(0, a.remaining_installments - 1)
             world.event_log.append(
                 f"[{pay_date}] KREDI TAKSITI: {a.name} -{a.monthly_payment:,.2f} "
-                f"(kalan borc {a.balance:,.2f}, taksit {a.remaining_installments})"
+                f"(faiz +{interest:,.2f}, kalan borc {a.balance:,.2f}, taksit {a.remaining_installments})"
+            )
+
+    # 2b. RULE-019: Kart asgari ödemesi — sim kartı HİÇ ödemiyordu → net değer projeksiyonu
+    # tutarsız (kart borcu donuk kalıp cash düşmüyordu). Kart döngüsü: ödeme gününde faiz
+    # tahakkuk + TR asgari (%25, min 50 TL) ödeme. Kart %99.8 doluyken 90 günde borç ~yarıya
+    # iner — bunu modellememek what-if net değerini ciddi biçimde eksik gösteriyordu.
+    _CARD_MIN_RATIO = 0.25
+    for a in world.accounts:
+        if a.account_type != "credit_card" or a.balance <= 0.01 or not a.payment_day:
+            continue
+        _ldom = monthrange(start.year, start.month)[1]
+        _card_next = date(start.year, start.month, min(a.payment_day, _ldom))
+        for pay_date in _next_payment_in_window(_card_next, start, end):
+            if a.balance <= 0.01:
+                break
+            interest = a.balance * ((a.interest_rate or 0.0) / 100.0)
+            a.balance += interest
+            min_pay = min(max(a.balance * _CARD_MIN_RATIO, 50.0), a.balance)
+            cash = _find_default_cash_account(world)
+            if cash:
+                cash.balance -= min_pay
+            a.balance = max(0.0, a.balance - min_pay)
+            world.event_log.append(
+                f"[{pay_date}] KART ASGARI: {a.name} -{min_pay:,.2f} "
+                f"(faiz +{interest:,.2f}, kalan borc {a.balance:,.2f})"
             )
 
     # 3. Efe & diger kisi alacaklari/borclari
@@ -386,7 +449,7 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
             continue
         if not d.due_date:
             continue
-        if not (start <= d.due_date <= end):
+        if not (start < d.due_date <= end):  # BUG #084 fix (P0-7): yari-acik (start, end] tutarlilik
             continue
         cash = _find_default_cash_account(world)
         if cash:

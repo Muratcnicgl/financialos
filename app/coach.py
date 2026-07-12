@@ -5,9 +5,41 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - AnthropicProvider  (Claude — ücretli, en güçlü)
 - GeminiProvider     (Google — Flash-Lite 1000/gün ücretsiz)
 - GroqProvider       (Llama 3.3 70B Versatile — 14400/gün ücretsiz, çok hızlı)
+- OllamaProvider     (YEREL/EGEMEN — Qwen 2.5, offline, veri makineden çıkmaz)
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #127 fix (STEP-E retry açığı): Zayıf sağlayıcı gerçekleşmiş eylemi düz metinle
+  onaylayıp propose_action'ı unutabiliyordu (cevap ne boş ne sahte-niyet → eski koşul
+  retry'ı kaçırıyordu; eval'de 2/8 action senaryosu böyle düşüyordu). Retry tetikleyicisine
+  has_realized_action(user_message) eklendi → mesajda açık gerçekleşmiş-eylem fiili varsa
+  (aldım/ödedim/harcadım) propose zorlanır. Nötr cümlede uydurma riski YOK (fiil guard'ı).
+- BUG #095 fix (KURAL SIFIR sağlamlaştırma): propose_action ön-filtresi genişletildi.
+  is_question artık analiz fiillerini de (değerlendir/özetle/yorumla/karşılaştır/göster/
+  hesapla) yakalar; ayrı should_offer_propose_tool gelecek-zaman/niyet ifadesinde
+  ("yarın kapatacağım") gerçekleşmiş eylem yoksa propose_action'ı BASKILAR. Hem tool-gating
+  hem STEP-E zorla-retry bu filtreye bağlandı → koç gerçekleşmemiş eylem UYDURAMAZ (varsayım yasak).
+- BUG #094 fix (per-file denetim): YENİ CHECKPOINT bölümü kullanıcı AÇIKÇA kural/checkpoint
+  istediyse hedge kelime ("eklenebilir") içerse bile KORUNUR (eski dal istediği öneriyi siliyordu).
+- BUG #093 fix (per-file denetim): FallbackProvider kota-dışı beklenmedik hatayı ERROR+exc_info
+  loglar — kök-neden "tüm sağlayıcılar düştü" görüntüsü altında saklanmasın.
+- BUG #085 iter2 (per-file denetim): _FAKE_PASTTENSE_RE yalnız 1. tekil şahıs + tek-satır;
+  edilgen formlar analiz raporlarını bozuyordu (yanlış-pozitif) → kaldırıldı, rapor korunur.
+- LLM-005 (DEVRİMSEL #2): OllamaProvider — tamamen yerel/egemen LLM (Qwen 2.5,
+  OpenAI-uyumlu :11434). LLM_PROVIDER=ollama ile tek-basina; fallback zincirinin
+  SON halkasi olarak (OLLAMA_ENABLED/BASE_URL/MODEL acikssa) bulut saglayicilar
+  dusunce devreye giren offline guvenlik agi. Kok vizyon "Sovereign OS".
+- BUG #085 fix (P0-19): Parantezsiz duz gecmis-zaman sahte tamamlama. Koc
+  propose_action cagirmadan "Kaydettim./Islem kaydedildi." yazarsa hicbir DB
+  yazimi olmadan "islendi" izlenimi kullaniciya ulasiyordu. _FAKE_PASTTENSE_RE
+  koc'un KENDI mutasyon-tamamlama iddiasini (1. tekil + edilgen) yakalar;
+  proposed_actions bossa iddia iceren cumleyi atip netlestirme sorusu ekler.
+  Kullanicinin gecmisine ("kaydettin/kaydettigin") DOKUNMAZ. Bkz. tests/test_coach_fake_completion.py.
+- BUG #083 fix (LLM-003 grounding): chat() cikisinda check_grounding ile koc
+  cevabindaki her TL tutari cockpit'e izlenebilir mi denetlenir. Izlenemeyen
+  tutar (silent hallucination suphesi) -> logger.warning + confidence<=0.4 +
+  FINAL_ANSWER trace'ine grounding_violation islenir + donus dict'ine "grounding".
+  Kok vizyon "varsayim yasak / kusursuzluk" mandatinin kod-seviyesi enforcement'i.
 - 2 May 2026 BUG #023 fix: Soru/bildirim ayrimi LLM'den koda tasindi.
   Llama 3.3 KURAL SIFIR'i takip etmiyor, soru olan mesajlara da
   propose_action cagiriyordu ("yarin Efe'den para gelecek mi" -> yanlis
@@ -59,18 +91,19 @@ import time
 import json
 import logging
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, datetime
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.models import (
     User, MasterCheckpoint, CoachMemory, PendingAction, ActionStatus,
 )
-from app.rules_engine import generate_cockpit, turkish_date
+from app.rules_engine import generate_cockpit, turkish_date, generate_monthly_summary
 from app.action_executor import propose_action, _fmt
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
+from app.grounding import check_grounding  # LLM-003: cikti dogrulama (grounding)
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +119,56 @@ def is_question(msg: str) -> bool:
         return True
     if re.search(r'\b(yoksa|öner|tavsiye|analiz|incele|stratej|ne yap)\b', m):
         return True
+    # Analiz-istek fiilleri (BUG #095): değerlendir/özetle/yorumla/karşılaştır/göster/hesapla
+    if re.search(r'\b(değerlendir|özetle|yorumla|karşılaştır|göster|hesapla|listele|durum)\b', m):
+        return True
     return False
+
+
+# Gelecek-zaman / niyet ifadeleri: "yarın kapatacağım", "gelecek hafta satacağım",
+# "planlıyorum", "düşünüyorum". Gerçekleşmiş eylem DEĞİL → KURAL SIFIR gereği propose_action
+# önerilmemeli (varsayım yasak — kurucu #1 mandat).
+_FUTURE_INTENT_RE = re.compile(
+    r'(acağım|eceğim|acağız|eceğiz|acaksın|eceksin|acak\b|ecek\b'
+    r'|planlıyorum|düşünüyorum|niyetinde|planım\s+var'
+    r'|yarın|gelecek\s+(hafta|ay|yıl|sene)|önümüzdeki|ileride|ilerde)',
+    re.IGNORECASE,
+)
+# Gerçekleşmiş eylem işaretleri (KURAL SIFIR ✅ listesi) — karışık mesajda ("aldım ama
+# yarın satacağım") gerçekleşen kısmı korur, yanlışlıkla baskılamaz.
+_REALIZED_ACTION_RE = re.compile(
+    r'\b(yaptım|ettim|sattım|aldım|ödedim|kapattım|harcadım|girdim'
+    r'|yatırdım|çektim|kaydett|geldi|geçti|yatırdı)\b',
+    re.IGNORECASE,
+)
+
+
+def is_future_or_intent(msg: str) -> bool:
+    """Gelecek-zaman veya niyet ifadesi mi? (gerçekleşmemiş eylem)."""
+    return bool(_FUTURE_INTENT_RE.search(msg or ""))
+
+
+def has_realized_action(msg: str) -> bool:
+    """Gerçekleşmiş somut eylem işareti içeriyor mu?"""
+    return bool(_REALIZED_ACTION_RE.search(msg or ""))
+
+
+def should_offer_propose_tool(msg: str) -> bool:
+    """
+    propose_action tool'u LLM'e sunulmalı mı? (KURAL SIFIR ön-filtresi — BUG #095)
+
+    HAYIR (baskıla) eğer:
+    - mesaj bir SORU/analiz isteği ise, VEYA
+    - GELECEK/NİYET ifadesi ise VE gerçekleşmiş eylem işareti YOKSA.
+
+    Baskılamak GÜVENLİ başarısızlık yönüdür: yanlış-pozitifte koç sadece netleştirme
+    sorar; yanlış-negatifte koç gerçekleşmemiş eylem UYDURUR (kurucu "varsayım yasak" ihlali).
+    """
+    if is_question(msg):
+        return False
+    if is_future_or_intent(msg) and not has_realized_action(msg):
+        return False
+    return True
 
 
 # ============================================================
@@ -172,10 +254,14 @@ KULLANICIYA SOĞUK GELİR.
    Örnek: "MC8 (Hayatta Kalma > Yatırım) gereği..." — numarayı cp.title'dan olduğu gibi al.
 10. NET DEĞER İKİ FARKLI METRİK — Görülen vs Tam, soruya göre seç
 11. DAVRANIŞ KALIPLARI — Cockpit'teki "⚠️ ANOMALİ" flag'leri %40 üzeri artış sinyalidir; analiz veya raporda dikkat çek.
-12. YAKLAŞAN VADELER — Cockpit'teki listeyi kullanıcı sormadan proaktif bildir; ⚠️ KART RİSKİ badge'li kalemleri özellikle vurgula.
+12. YAKLAŞAN VADELER — Cockpit'teki listeyi kullanıcı sormadan proaktif bildir; ⚠️ KART RİSKİ ve 💳 SON ÖDEME kalemlerini özellikle vurgula. Alacak (tahsilat) kalemlerinde "X'ten tahsil et" diye net hatırlat — nakit dar, zamanında tahsilat solvency-kritik.
 13. RAPOR FORMAT — Bölüm başlıkları için ## kullan (## 1. Stratejik Analiz), seçenek
     başlıkları için ### kullan (### A. Seçenek). Inline **A)** kullanma. Maddeler için
     - kullan, doğru girinti uygula.
+14. KRİTİK UYARILAR — Cockpit "alerts" listesindeki [KRITIK] kalemleri (gecikmiş borç, negatif bütçe, kart limiti kritik) kullanıcı sormasa bile EN BAŞTA bildir; gecikmiş borçta "öde", gecikmiş alacakta "tahsil et" diye yönlendir. Bu uyarılar deterministik — asla görmezden gelme.
+15. NAKİT KRİZİ ÖNGÖRÜSÜ — "Nakit krizi öngörüsü" alert'i varsa GELECEĞE dönük en kritik sinyaldir: kriz henüz olmadan müdahale şansı. Stratejik ele al — hangi alacağı öne almak veya hangi gideri ertelemek krizi ÖNLER, somut tarih + tutarla söyle. Panik değil, plan.
+16. HARCAMA METRİKLERİ — Üç farklı sinyali KARIŞTIRMA, doğru bağlamda kullan: (a) Günlük limit = aylık bütçe temposu (kart-ayarlı). (b) Güvenli harcama = gelecekteki yükümlülükler + KART BORCU düşülünce bugün gerçekten güvenli tavan ("şu an kaç harcayabilirim" sorusunda buna dayan). (c) Nakit runway = gelirsiz kaç gün dayanır (iş/gelir kaygısında bu). "Ne kadar harcayabilirim" sorusunda günlük limit değil GÜVENLİ HARCAMA'yı öne çıkar; 0 ise "güvenli boşta paran yok" de.
+17. ÖNCELİKLENDİR VE TEK EYLEME İNDİR — Genel analiz/tavsiye verirken sinyal yığınını TEK BİR "şimdi yapılacak en yüksek etkili şey"e indir. **İLK ADIM SANA VERİLDİ**: cockpit'teki "🎯 ÖNERİLEN İLK ADIM" bloğu Rules Engine tarafından deterministik hesaplandı (temerrüt > kriz > tahsilat > fırsat > stabil önceliğiyle). Bu #1 eylemi RAPORUNUN "İLK ADIM: ..." satırında AÇIKLA ve gerekçelendir — KENDİN farklı bir öncelik türetme (deterministik sıralama zayıf-yargı riskini ortadan kaldırır). Gerekçeyi zenginleştirebilirsin (faiz sızıntısı yüksekse "borç eritmek her ay X TL faizi durdurur" diye somutla) ama önerilen eylemi DEĞİŞTİRME. Rapor uzun olabilir; İLK ADIM net ve verilen eylemle tutarlı olsun.
 
 # RAPOR FORMATI (Sadece kullanıcı analiz isterse)
 ## DURUM RAPORU — [TARİH]
@@ -202,6 +288,15 @@ YENİ CHECKPOINT satırını yalnızca şu koşulda yaz: kullanıcının mevcut 
 bulunmayan, yeni bir finansal davranış kuralı önermek istiyorsun.
 Mevcut bir durumu özetlemek, cockpit uyarısını tekrarlamak veya genel tavsiye vermek bu koşulu karşılamaz.
 Yeni kural önerisi yoksa bu satırı tamamen atla, hiçbir şey yazma.
+
+# DETERMİNİSTİK VERİYİ KULLAN (Rules Engine çıktısı — sen HESAPLAMA, bunları AKTAR)
+
+Context'te aşağıdaki bloklar VARSA analiz ve hareket planında bunları KULLAN (kesin sayılar,
+kendin türetme). Blok YOKSA o konuda sayı UYDURMA:
+- "## BORÇ ÖZGÜRLÜĞÜ" → borç/kredi stratejisinde avalanche öncelik sırasını, tahmini süreyi ve faizi ver.
+- "## BU AY" → aylık gidiş yorumunda bu gelir/gider/net ve önceki-aya trendi kullan.
+- "Bugün harcamazsan yarınki limit ..." (zikzak) → nöbet/tasarruf tavsiyesinde bu projeksiyonu göster.
+- "## SON İŞLEMLER" → somut harcamalara atıf yaparken bunları kaynak al.
 
 # HAFIZA KAYDETME — save_insight
 
@@ -389,7 +484,8 @@ def _to_openai_messages(messages: List[Dict]) -> List[Dict]:
                 for tc in json.loads(m["tool_calls_json"]):
                     valid_tc_ids.add(tc.get("id", ""))
             except Exception:
-                pass
+                # BE-010: bozuk history tool_calls_json → atla ama debug'a yaz (tanılanabilir).
+                logger.debug("history tool_calls_json parse edilemedi, atlaniyor", exc_info=True)
 
     result = []
     for m in messages:
@@ -469,6 +565,43 @@ def _is_quota_exceeded(exc: Exception) -> bool:
     if code == 429:
         return True
     return False
+
+
+# RESIL-008: "request too large / context limit" — SABİT-boyut prompt için KALICI hata.
+# 429 (geçici kota, dakika başı sıfırlanır) ile KARIŞTIRILMAMALI: bu, isteğin TEK BAŞINA
+# model/tier limitini aşması → aynı prompt her çağrıda aynı hatayı verir. Circuit breaker
+# bu sağlayıcıyı process boyunca atlar (bkz. FallbackProvider). Groq free tier TPM 8000 <
+# Türkçe koç prompt'u (~8400 tok) tipik örnek (memory: reference_groq_tpm_limiti).
+REQUEST_TOO_LARGE_KEYWORDS = (
+    "request too large",
+    "reduce your message size",
+    "too large for model",
+    "context length exceeded",
+    "maximum context length",
+    "string too long",
+)
+
+
+def _is_request_too_large(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    for kw in REQUEST_TOO_LARGE_KEYWORDS:
+        if kw in msg:
+            return True
+    if getattr(exc, "status_code", None) == 413:
+        return True
+    return False
+
+
+def _openai_compat_usage(response) -> Optional[Dict]:
+    """LLM-007: OpenAI-uyumlu yanıttan (Groq/Cerebras/OpenRouter/Ollama) usage çıkarır.
+    Trace + maliyet takibi için her sağlayıcı model_name/usage set etmeli (yalnız Groq değil)."""
+    u = getattr(response, "usage", None)
+    if not u:
+        return None
+    return {
+        "input_tokens": getattr(u, "prompt_tokens", None),
+        "output_tokens": getattr(u, "completion_tokens", None),
+    }
 
 
 def _call_with_retry(fn, *args, max_attempts: int = 3, base_delay: float = 1.0, **kwargs):
@@ -584,17 +717,37 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
         for a in cockpit.get("alerts", [])
     ]) or "  (Uyarı yok)"
 
+    # FEAT-041: DETERMİNİSTİK İLK ADIM — Rules Engine tüm sinyalleri tek hamleye indirdi.
+    # Koç bunu AÇIKLAR/gerekçelendirir, KENDİ türetmez (sağlayıcı-bağımsız güvenilir öncelik).
+    se = cockpit.get("sonraki_eylem")
+    ilk_adim_block = ""
+    if se:
+        ilk_adim_block = (
+            f"\n\n# 🎯 ÖNERİLEN İLK ADIM (deterministik — bunu AÇIKLA, türetme)\n"
+            f"  - [{se['tip'].upper()}] {se['eylem']}\n"
+            f"  - Gerekçe: {se['gerekce']}"
+        )
+        if se.get("tutar"):
+            cockpit.setdefault("_coach_extra_numbers", []).append(se["tutar"])
+
     emanet_line = ""
     if cockpit.get("emanet_kasa", 0) > 0:
         emanet_line = f"\n  - Emanet Kasa       : {_fmt(cockpit['emanet_kasa'])} TL (DOKUNULMAZ)"
 
     net_deger_tam = cockpit.get('net_deger_tam', cockpit['net_deger'])
     alacaklar_toplami = cockpit.get('alacaklar_toplami', 0)
+    borclar_toplami = cockpit.get('borclar_toplami', 0)  # BUG #116: kişisel payable
 
-    if alacaklar_toplami > 0:
+    if alacaklar_toplami > 0 or borclar_toplami > 0:
+        # BUG #116: Tam Net Değer hem alacağı (+) hem kişisel borcu (−) içerir (simetrik, realist).
+        detay = []
+        if alacaklar_toplami > 0:
+            detay.append(f"+{_fmt(alacaklar_toplami)} TL alacak")
+        if borclar_toplami > 0:
+            detay.append(f"−{_fmt(borclar_toplami)} TL kişisel borç")
         net_deger_block = (
-            f"  - Görülen Net Değer : {_fmt(cockpit['net_deger'])} TL (operasyonel, alacaksız)\n"
-            f"  - Tam Net Değer     : {_fmt(net_deger_tam)} TL (stratejik, +{_fmt(alacaklar_toplami)} TL alacak dahil)"
+            f"  - Görülen Net Değer : {_fmt(cockpit['net_deger'])} TL (operasyonel, alacak/borç hariç)\n"
+            f"  - Tam Net Değer     : {_fmt(net_deger_tam)} TL (stratejik, {', '.join(detay)} dahil)"
         )
     else:
         net_deger_block = f"  - Net Değer         : {_fmt(cockpit['net_deger'])} TL"
@@ -603,7 +756,7 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
 # COCKPIT — BUGÜNKÜ DURUM
 
 Tarih: {cockpit['tarih_turkce']}
-Statü: {cockpit['statu']}
+Statü: {cockpit['statu']}{ilk_adim_block}
 
 ## Ana Göstergeler
   - Nakit Kasa        : {_fmt(cockpit['nakit_kasa'])} TL
@@ -618,6 +771,9 @@ Statü: {cockpit['statu']}
   - Ay sonuna kalan   : {cockpit['days_remaining']} gün
   - Günlük limit      : {_fmt(cockpit['daily_limit'])} TL/gün
   - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
+  - Bugün harcamazsan : yarınki limit {_fmt(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))} TL/gün (zikzak: biriken güç)
+  - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (FEAT-009: 90 gün öngörü + KART BORCU düşülmüş — gelecekteki yükümlülükler hesaba katılınca bugün gerçekten güvenle harcanabilir; 0 ise güvenli boşta para yok)
+  - Nakit runway      : {cockpit.get('nakit_runway_gun') if cockpit.get('nakit_runway_gun') is not None else '—'} gün (gelirsiz mevcut nakit son 30g harcama hızıyla kaç gün yeter)
 
 ## Hesaplar
 {accounts_text}
@@ -649,8 +805,15 @@ Statü: {cockpit['statu']}
 
         r_lines = []
         for r in reminders:
-            sign = "+" if r["type"] == "income" else "-"
-            risk_s = " ⚠️ KART RİSKİ" if r["card_risk"] else ""
+            # BUG #119: alacak (receivable) da gelir gibi NAKİT GİRİŞİ → + işaret.
+            sign = "+" if r["type"] in ("income", "receivable") else "-"
+            # A1 tamamlama: kart son ödeme kalemi ayrı, net bir etiketle vurgulanır.
+            if r["type"] == "card_payment":
+                risk_s = " 💳 SON ÖDEME"
+            elif r["card_risk"]:
+                risk_s = " ⚠️ KART RİSKİ"
+            else:
+                risk_s = ""
             acc_s = f", {r['account_name']}" if r["account_name"] else ""
             r_lines.append(
                 f"  - {_days_label(r['days_until'])}: {r['name']} "
@@ -674,6 +837,255 @@ Statü: {cockpit['statu']}
             anomaly_s = " ⚠️ ANOMALİ" if p["anomaly_flag"] else ""
             p_lines.append(f"  - {cat}: {prev_s} TL → {curr_s} TL {change_s}{anomaly_s}")
         context += "\n\n## Davranış Kalıpları (son 30 gün / önceki 30 gün)\n" + "\n".join(p_lines)
+
+    # BU AY (A3 özeti) — koçun aylık trend farkındalığı (kurucu "durum raporu" ruhu).
+    # Deterministik veri; koç açıklar, hesap yapmaz. Sadece bu ay işlem varsa gösterilir.
+    try:
+        ms = generate_monthly_summary(user_id, today.year, today.month, db)
+        cur_ms = ms["current"]
+        if cur_ms["transaction_count"] > 0:
+            tr = ms["trend"]
+            exp_delta = tr["expense_delta_pct"]
+            exp_delta_s = (
+                f"gider geçen aya göre %{exp_delta:+.0f}" if exp_delta is not None
+                else "gider (önceki ay verisi yok)"
+            )
+            top_cat_s = ""
+            if cur_ms["expense_categories"]:
+                tc = cur_ms["expense_categories"][0]
+                top_cat_s = f"\n  - En çok: {tc['category']} {_fmt(tc['total'])} TL (%{tc['percentage']:.0f})"
+            sr = cur_ms["savings_rate"]
+            sr_s = f", tasarruf oranı %{sr:.0f}" if sr is not None else ""
+            context += (
+                f"\n\n## BU AY ({ms['period']['label']} — ay içi)\n"
+                f"  - Gelir {_fmt(cur_ms['total_income'])} TL | "
+                f"Gider {_fmt(cur_ms['total_expense'])} TL | "
+                f"Net {_fmt(cur_ms['net_change'])} TL{sr_s}\n"
+                f"  - Trend: {exp_delta_s} (net değişim Δ {_fmt(tr['net_change_delta'])} TL)"
+                f"{top_cat_s}"
+            )
+            # BUG #110 fix: koça gösterilen aylık sayıları cockpit'e ekle ki grounding onları
+            # DOĞRULANMIŞ saysın (aksi halde grounding bu meşru deterministik tutarları
+            # "izlenemeyen" sanıp analiz raporunda confidence'ı yanlışlıkla düşürüyordu).
+            cockpit.setdefault("_coach_extra_numbers", []).extend([
+                cur_ms["total_income"], cur_ms["total_expense"], cur_ms["net_change"],
+                tr["net_change_delta"], tr["prev_total_income"],
+                tr["prev_total_expense"], tr["prev_net_change"],
+                *[c["total"] for c in cur_ms["expense_categories"]],
+            ])
+    except Exception as e:
+        logger.warning(f"aylık özet coach context'e eklenemedi: {e}")
+
+    # SON İŞLEMLER (C2-lite): koç analizini gerçek harcamalara dayandırsın.
+    son_islemler = cockpit.get("son_islemler", [])
+    if son_islemler:
+        si_lines = []
+        for t in son_islemler:
+            sign = "+" if t["tip"] == "income" else "-"
+            tarih = t.get("tarih") or "?"
+            kat = t.get("kategori") or ""
+            acikla = f" — {t['aciklama']}" if t.get("aciklama") else ""
+            si_lines.append(f"  - {tarih}: {sign}{_fmt(t['tutar'])} TL ({kat}){acikla}")
+        context += "\n\n## SON İŞLEMLER (en yeni ilk)\n" + "\n".join(si_lines)
+
+    # BORÇ ÖZGÜRLÜĞÜ (kurucu "Borç Çığı"/avalanche): 5-kredi durumunda koç proaktif yol gösterir.
+    # Deterministik (debt_strategy); koç açıklar-hesap-yapmaz. Sadece borç varsa gösterilir.
+    try:
+        from app.debt_strategy import collect_debts, calc_avalanche, MAX_MONTHS
+        _debts = collect_debts(db, user_id)
+        if _debts:
+            av = calc_avalanche(_debts, extra_monthly=0.0)
+            name_by_id = {d.account_id: d.name for d in _debts}
+            order_names = " → ".join(name_by_id.get(aid, str(aid)) for aid in av.order[:6])
+            if av.months_to_freedom >= MAX_MONTHS:
+                sure_s = "Minimum ödemelerle makul sürede kapanmıyor — ek ödeme şart."
+            else:
+                payoff_s = av.payoff_date.isoformat() if av.payoff_date else "?"
+                sure_s = (
+                    f"~{av.months_to_freedom} ay (≈{payoff_s}), "
+                    f"toplam faiz {_fmt(av.total_interest_paid)} TL"
+                )
+            context += (
+                f"\n\n## BORÇ ÖZGÜRLÜĞÜ (Borç Çığı — en yüksek faiz önce, min. ödeme senaryosu)\n"
+                f"  - {sure_s}\n"
+                f"  - Öncelik sırası: {order_names}"
+            )
+            # BUG #110 fix: borç-özgürlük projeksiyon sayılarını grounding'e tanıt.
+            cockpit.setdefault("_coach_extra_numbers", []).extend([
+                av.total_interest_paid, av.total_paid,
+                *[d.balance for d in _debts],
+            ])
+    except Exception as e:
+        logger.warning(f"borç özgürlüğü coach context'e eklenemedi: {e}")
+
+    # KONSOLİDASYON EŞİĞİ (FEAT-014): birden çok borcu tek krediye çevirmek YALNIZCA teklif
+    # edilen oran ağırlıklı ortalamanın ALTINDAYSA tasarruf ettirir. Assumption-free, nötr eşik
+    # (tavsiye değil) — 5 kredi + kart durumunda kritik karar aracı.
+    ks = cockpit.get("konsolidasyon") or {}
+    if ks.get("borc_adet", 0) >= 2:
+        context += (
+            f"\n\n## KONSOLİDASYON EŞİĞİ ({ks['borc_adet']} borç, toplam {_fmt(ks['toplam_bakiye'])} TL)\n"
+            f"  - Ağırlıklı ortalama faiz: %{ks['agirlikli_ort_oran']:.2f}/ay "
+            f"(dağılım %{ks['en_dusuk_oran']:.2f}–%{ks['en_yuksek_oran']:.2f})\n"
+            f"  - Konsolidasyon (tek krediye toplama) SADECE teklif edilen oran "
+            f"%{ks['agirlikli_ort_oran']:.2f}/ay ALTINDAYSA faiz olarak avantajlı. "
+            f"Nötr eşik — tavsiye değil; kullanıcı teklif oranını söylerse karşılaştır."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).append(ks["toplam_bakiye"])
+
+    # ALACAK YAŞLANDIRMA (FEAT-027): 13 dağınık alacağı vade-yaşına göre gruplar → hangi
+    # alacağın peşine ÖNCE düşüleceğini netleştirir. Nakit dar; zamanında tahsilat kritik.
+    ay_ag = cockpit.get("alacak_yaslanma") or {}
+    if ay_ag.get("gecikmis_adet", 0) > 0:
+        risk_s = "; ".join(
+            f"{k['kim']} {_fmt(k['tutar'])} TL ({k['gecikme_gun']}g)"
+            for k in ay_ag.get("en_riskli", [])
+        )
+        context += (
+            f"\n\n## ALACAK YAŞLANDIRMA ({ay_ag['adet']} alacak, "
+            f"{ay_ag['gecikmis_adet']} gecikmiş = {_fmt(ay_ag['toplam_gecikmis'])} TL)\n"
+            f"  - En riskli (en çok geciken önce): {risk_s}\n"
+            f"  - Nakit dar — önce en eski gecikeni tahsil et (solvency-kritik)."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend(
+            [ay_ag["toplam"], ay_ag["toplam_gecikmis"]]
+            + [k["tutar"] for k in ay_ag.get("en_riskli", [])]
+        )
+
+    # KART ASGARİ ÖDEME TUZAĞI (FEAT-015): kart SADECE asgari ödemeyle kaç ay + toplam faiz.
+    # Kart %99.8 doluyken "görünmez maliyeti görünür yap" — realist koçun kritik farkındalığı.
+    at = cockpit.get("asgari_tuzagi") or {}
+    if at.get("kartlar"):
+        t_lines = []
+        for k in at["kartlar"][:2]:
+            if k.get("asla_bitmez"):
+                t_lines.append(f"  - {k['ad']}: yalnız asgariyle ASLA kapanmaz (asgari < faiz, borç büyüyor)")
+            else:
+                t_lines.append(
+                    f"  - {k['ad']}: yalnız asgariyle {k['ay']} ay, toplam {_fmt(k['toplam_faiz'])} TL faiz "
+                    f"(biter {k['payoff_tarih']})"
+                )
+        context += (
+            "\n\n## KART ASGARİ ÖDEME TUZAĞI (sadece asgari ödeme senaryosu)\n"
+            + "\n".join(t_lines)
+            + "\n  - Asgarinin üstüne her ek ödeme süreyi ve toplam faizi hızla düşürür."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend(
+            [k["toplam_faiz"] for k in at["kartlar"]] + [k["bakiye"] for k in at["kartlar"]]
+        )
+
+    # İSTEK LİSTESİ 24-SAAT REVIEW (FEAT-032): 24h+ bekleyen impuls-alım adayları. Koç
+    # "hâlâ istiyor musun?" diye sorup borç bağlamıyla (kart borcu dururken bu tutar faize
+    # dönüşür — FEAT-030 fırsat maliyeti ruhu) impulsu kırar. Salt okuma; niyet kaydı.
+    try:
+        from datetime import timedelta as _td
+        from app.models import WishlistItem
+        _cutoff = datetime.utcnow() - _td(hours=24)
+        _ready = (
+            db.query(WishlistItem)
+            .filter(WishlistItem.user_id == user_id, WishlistItem.status == "pending",
+                    WishlistItem.created_at <= _cutoff)
+            .order_by(WishlistItem.created_at.asc()).all()
+        )
+        if _ready:
+            w_lines = [f"  - {w.item} ({_fmt(float(w.amount))} TL)" for w in _ready[:3]]
+            context += (
+                "\n\n## İSTEK LİSTESİ — 24 SAAT DOLDU (hâlâ isteniyor mu SOR)\n"
+                + "\n".join(w_lines)
+                + "\n  - 24 saat önce eklenen bu alımlar için 'hâlâ istiyor musun?' diye sor. "
+                "Kart borcu dururken bu tutarın faize dönüştüğünü (impuls maliyeti) hatırlat — "
+                "karar kullanıcının, sen sadece somut maliyeti göster."
+            )
+            cockpit.setdefault("_coach_extra_numbers", []).extend([float(w.amount) for w in _ready])
+    except Exception as e:
+        logger.warning(f"istek listesi coach context'e eklenemedi: {e}")
+
+    # BORÇ ÖDEME İLERLEMESİ (FEAT-017): başlangıçtan beri momentum — motivasyon (Ramsey).
+    bi = cockpit.get("borc_ilerleme") or {}
+    if bi.get("ilerleme"):  # yalnız gerçek ilerlemede (borç azaldı) motive et
+        # KİLOMETRE TAŞI: taze band geçişi varsa AÇIKÇA kutla (diskret kutlama > sürekli metrik).
+        milestone_line = ""
+        if bi.get("yeni_milestone"):
+            milestone_line = (
+                f"\n  - 🏆 KİLOMETRE TAŞI: Borcunu %{bi['yeni_milestone']} azalttın! Bunu "
+                f"COŞKUYLA kutla — Murat'ın borç serüveninde gerçek bir dönüm noktası."
+            )
+        context += (
+            f"\n\n## BORÇ ÖDEME İLERLEMESİ (momentum — motive et)\n"
+            f"  - {bi['baslangic_tarih']}'ten beri {_fmt(bi['odendi'])} TL borç ödedin "
+            f"(%{bi['yuzde']} azalma, {bi['baslangic_borc']:.0f}→{bi['guncel_borc']:.0f}). "
+            f"Bu ivmeyi vurgula — davranışsal momentum borç bitirmenin #1 faktörü."
+            f"{milestone_line}"
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend([bi["odendi"], bi["baslangic_borc"]])
+
+    # KART KULLANIM ORANI (FEAT-016): utilization + kredi-sağlık bandı + trend. Murat'ın
+    # kartı neredeyse dolu → kredi notunu baskılıyor; %30 hedef somut çapa. Yalnız yüksek/kritik
+    # bantta koça taşınır (sağlıklıysa gürültü yapma).
+    ku = cockpit.get("kart_kullanim") or {}
+    if ku.get("band") in ("yuksek", "kritik"):
+        trend_s = ""
+        tr = ku.get("trend")
+        if tr:
+            yon = "iyileşiyor" if tr["iyilesme"] else "kötüleşiyor"
+            trend_s = (f" Trend: {tr['gun']} günde %{tr['baslangic_oran']}→%{ku['oran']} "
+                       f"({yon}, {tr['degisim']:+.1f} puan).")
+        context += (
+            f"\n\n## KART KULLANIM ORANI (kredi sağlığı)\n"
+            f"  - Kullanım %{ku['oran']} ({ku['band']}). Toplam borç {_fmt(ku['toplam_borc'])} / "
+            f"limit {_fmt(ku['toplam_limit'])} TL. %30 sağlıklı eşiğe inmek için borç "
+            f"{_fmt(ku['saglikli_borc_hedefi'])} TL seviyesine düşmeli.{trend_s} "
+            f"Kredi notunda en ağır faktörlerden — her ödenen TL oranı doğrudan düşürür."
+        )
+        _kn = [ku["oran"], ku["toplam_borc"], ku["toplam_limit"], ku["saglikli_borc_hedefi"]]
+        if tr:
+            _kn.extend([tr["baslangic_oran"], abs(tr["degisim"])])
+        cockpit.setdefault("_coach_extra_numbers", []).extend(_kn)
+
+    # BÜTÇE ZARFLARI (FEAT-001/002): zarf durumu + atanmamış nakit ("Ready to Assign").
+    zd = cockpit.get("zarflar") or {}
+    if zd.get("zarflar"):
+        asan = [z for z in zd["zarflar"] if z.get("asildi")]
+        asan_s = (" · AŞAN: " + ", ".join(f"{z['category']} ({_fmt(z['harcanan'])}/{_fmt(z['butce'])})" for z in asan[:3])) if asan else ""
+        context += (
+            f"\n\n## BÜTÇE ZARFLARI\n"
+            f"  - Toplam bütçe {_fmt(zd['toplam_butce'])} TL, harcanan {_fmt(zd['toplam_harcanan'])} TL, "
+            f"kalan {_fmt(zd['toplam_kalan'])} TL{asan_s}\n"
+            f"  - Atanmamış (boşta) nakit: {_fmt(cockpit.get('atanmamis_nakit', 0))} TL "
+            f"(YNAB 'her liraya görev' — atanmamış para kolay harcanır)"
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend(
+            [zd["toplam_butce"], zd["toplam_harcanan"], zd["toplam_kalan"], cockpit.get("atanmamis_nakit", 0)]
+        )
+
+    # ABONELİK YÜKÜ (FEAT-006): tespit edilen tekrarlayan aboneliklerin aylık/yıllık toplamı.
+    ay = cockpit.get("abonelik_yuku") or {}
+    if ay.get("adet", 0) > 0:
+        context += (
+            f"\n\n## ABONELİK YÜKÜ ({ay['adet']} tespit edildi)\n"
+            f"  - Aylık {_fmt(ay['aylik'])} TL · Yıllık {_fmt(ay['yillik'])} TL "
+            f"(kullanılmayan varsa iptal fırsatı — nakit dar)"
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend([ay["aylik"], ay["yillik"]])
+
+    # FİNANSAL SAĞLIK SKORU (FEAT-022): 0-100 şeffaf composite — bileşenleriyle.
+    hs = cockpit.get("saglik_skoru") or {}
+    if hs.get("bilesenler"):
+        bilesen_s = ", ".join(f"{b['ad']} {b['puan']}" for b in hs["bilesenler"])
+        context += (
+            f"\n\n## FİNANSAL SAĞLIK SKORU: {hs['skor']}/100 ({hs['seviye']})\n"
+            f"  - Bileşenler: {bilesen_s}"
+        )
+
+    # FAİZ SIZINTISI (FEAT-013): kredi+kart borçlarının aylık faiz maliyeti — sarsıcı realist sinyal.
+    fs = cockpit.get("faiz_sizintisi") or {}
+    if fs.get("aylik_toplam", 0) > 0:
+        context += (
+            f"\n\n## FAİZ SIZINTISI (borç faiz maliyeti)\n"
+            f"  - Aylık {_fmt(fs['aylik_toplam'])} TL · Yıllık {_fmt(fs['yillik_toplam'])} TL faize gidiyor "
+            f"(her gün {_fmt(fs['gunluk'])} TL). Borç eritme = bu sızıntıyı durdurmak."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend([fs["aylik_toplam"], fs["yillik_toplam"]])
 
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
@@ -764,7 +1176,8 @@ class LLMProvider(ABC):
 # ============================================================
 
 class AnthropicProvider(LLMProvider):
-    DEFAULT_MODEL = "claude-opus-4-7"
+    # LLM-001: güncel Claude (opus-4-7 eskiydi; en yeni/yetkin varsayılan). LLM_MODEL ile ezilir.
+    DEFAULT_MODEL = "claude-opus-4-8"
     NAME = "Anthropic"
 
     def __init__(self, api_key: str, model: Optional[str] = None):
@@ -798,7 +1211,16 @@ class AnthropicProvider(LLMProvider):
             elif block.type == "tool_use":
                 tool_calls.append({"name": block.name, "input": block.input})
 
-        return LLMResponse(text="\n".join(text_parts).strip(), tool_calls=tool_calls)
+        # LLM-007: Anthropic usage (input/output_tokens) + model_name/provider_used.
+        _au = getattr(response, "usage", None)
+        _ausage = None
+        if _au is not None:
+            _ausage = {
+                "input_tokens": getattr(_au, "input_tokens", None),
+                "output_tokens": getattr(_au, "output_tokens", None),
+            }
+        return LLMResponse(text="\n".join(text_parts).strip(), tool_calls=tool_calls,
+                           usage=_ausage, provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -950,7 +1372,16 @@ class GeminiProvider(LLMProvider):
                 detail="hem text hem tool_calls bos",
             )
 
-        return LLMResponse(text=result_text, tool_calls=tool_calls)
+        # LLM-007: Gemini usage_metadata → usage; her sağlayıcı model_name/usage set etmeli.
+        _um = getattr(response, "usage_metadata", None)
+        _gusage = None
+        if _um is not None:
+            _gusage = {
+                "input_tokens": getattr(_um, "prompt_token_count", None),
+                "output_tokens": getattr(_um, "candidates_token_count", None),
+            }
+        return LLMResponse(text=result_text, tool_calls=tool_calls,
+                           usage=_gusage, provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -961,7 +1392,10 @@ class GeminiProvider(LLMProvider):
 # ============================================================
 
 class GroqProvider(LLMProvider):
-    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    # Groq 17 Haz 2026'da llama-3.3-70b-versatile'i DEPRECATE etti (404). Önerilen halef:
+    # openai/gpt-oss-120b (tool-calling'de güçlü). Eval bunu yakaladı: eski model → Groq düşer,
+    # zayıf Gemini'ye kalıyordu → gerçekleşmiş eylemde propose_action kaçıyordu.
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
     NAME = "Groq"
 
     def __init__(self, api_key: str, model: Optional[str] = None):
@@ -1028,7 +1462,9 @@ class GroqProvider(LLMProvider):
 # ============================================================
 
 class CerebrasProvider(LLMProvider):
-    DEFAULT_MODEL = "qwen-3-235b-a22b-instruct-2507"
+    # Cerebras 27 May 2026'da qwen-3-235b-a22b-instruct-2507'i deprecate etti (404). gpt-oss-120b
+    # güncel + tool-calling güçlü (Groq ile tutarlı). Eval canlı çalıştırmasında yakalandı.
+    DEFAULT_MODEL = "gpt-oss-120b"
     NAME = "Cerebras"
 
     def __init__(self, api_key: str, model: Optional[str] = None):
@@ -1061,7 +1497,9 @@ class CerebrasProvider(LLMProvider):
                     except Exception:
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls)
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=_openai_compat_usage(response),
+                           provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1112,7 +1550,74 @@ class OpenRouterProvider(LLMProvider):
                     except Exception:
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls)
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=_openai_compat_usage(response),
+                           provider_used=self.NAME.lower(), model_name=self.model)
+
+    def chat(self, system_prompt, messages, tools):
+        return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
+
+
+# ============================================================
+# 11b. OLLAMA PROVIDER (SOVEREIGN / YEREL — DEVRİMSEL ADIM #2)
+# ============================================================
+
+class OllamaProvider(LLMProvider):
+    """Tamamen YEREL LLM (Ollama, OpenAI-uyumlu endpoint).
+
+    Kök vizyon "Sovereign OS": koç internet/kota/gizlilik bağımlılığı olmadan,
+    finansal veri makineden HİÇ çıkmadan çalışabilmeli. Bu provider bulut
+    sağlayıcıların tümü düşse (offline/kota) devreye giren egemen güvenlik ağıdır;
+    fallback zincirinin SON halkası olarak eklenir.
+
+    Ollama OpenAI-uyumlu API sunar (http://localhost:11434/v1). Qwen 2.5 gibi
+    araç-yetenekli (tool-capable) modeller propose_action tool-call'u destekler.
+    Ollama api_key umursamaz — dummy değer geçilir.
+    """
+    DEFAULT_MODEL = "qwen2.5:7b-instruct"  # origin vision: yerel Qwen 2.5
+    DEFAULT_BASE_URL = "http://localhost:11434/v1"
+    NAME = "Ollama"
+
+    def __init__(self, model: Optional[str] = None, base_url: Optional[str] = None):
+        from openai import OpenAI
+        self.base_url = (base_url or os.getenv("OLLAMA_BASE_URL", "").strip()
+                         or self.DEFAULT_BASE_URL)
+        # Yerel model yavaş olabilir → cömert timeout (env ile ayarlanabilir)
+        try:
+            timeout = float(os.getenv("OLLAMA_TIMEOUT", "120"))
+        except ValueError:
+            timeout = 120.0
+        self.client = OpenAI(api_key="ollama", base_url=self.base_url, timeout=timeout)
+        self.model = model or os.getenv("OLLAMA_MODEL", "").strip() or self.DEFAULT_MODEL
+
+    def _raw_chat(self, system_prompt, messages, tools):
+        oai_tools = [
+            {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["parameters"]}}
+            for t in tools
+        ]
+        oai_messages = [{"role": "system", "content": system_prompt}]
+        oai_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
+
+        kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2}
+        if oai_tools:
+            kwargs["tools"] = oai_tools
+            kwargs["tool_choice"] = "auto"
+
+        response = self.client.chat.completions.create(**kwargs)
+        msg = response.choices[0].message
+        text = msg.content or ""
+        tool_calls = []
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.function and tc.function.name:
+                    try:
+                        args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                    except Exception:
+                        args = {}
+                    tool_calls.append({"name": tc.function.name, "input": args})
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=_openai_compat_usage(response),
+                           provider_used=self.NAME.lower(), model_name=self.model)
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1131,6 +1636,9 @@ class FallbackProvider(LLMProvider):
         self.providers = providers
         self.last_used_provider: Optional[str] = None
         self.fallback_count: int = 0
+        # RESIL-008: "request too large / context limit" veren sağlayıcı adları — bu process
+        # boyunca atlanır (sabit-boyut prompt her çağrıda aynı 413'ü verir; beyhude round-trip yok).
+        self._oversized_providers: set = set()
 
     @property
     def model(self) -> str:
@@ -1138,9 +1646,13 @@ class FallbackProvider(LLMProvider):
 
     def chat(self, system_prompt, messages, tools):
         last_exc = None
-        for i, provider in enumerate(self.providers):
+        # RESIL-008: kalıcı "request too large" veren sağlayıcıları baştan ele. HEPSİ elenirse
+        # (beklenmez — Gemini/Ollama geniş bağlam alır) güvenli tarafta kalıp tam listeye dön.
+        candidates = [p for p in self.providers if p.NAME not in self._oversized_providers] \
+            or self.providers
+        for i, provider in enumerate(candidates):
             try:
-                logger.info(f"FallbackProvider deniyor [{i+1}/{len(self.providers)}]: {provider.NAME}")
+                logger.info(f"FallbackProvider deniyor [{i+1}/{len(candidates)}]: {provider.NAME}")
                 result = provider.chat(system_prompt, messages, tools)
                 self.last_used_provider = provider.NAME
                 # provider_used backfill: alt provider set etmediyse FallbackProvider doldurur
@@ -1148,7 +1660,7 @@ class FallbackProvider(LLMProvider):
                 if i > 0:
                     self.fallback_count += 1
                     logger.warning(
-                        f"FallbackProvider: {self.providers[0].NAME} basarisiz oldu, "
+                        f"FallbackProvider: {candidates[0].NAME} basarisiz oldu, "
                         f"{provider.NAME} kullanildi (toplam fallback: {self.fallback_count})"
                     )
                 return result
@@ -1156,18 +1668,34 @@ class FallbackProvider(LLMProvider):
                 last_exc = e
                 is_quota = _is_quota_exceeded(e)
                 is_empty = isinstance(e, ProviderEmptyResponseError)
+                is_too_large = _is_request_too_large(e)
 
-                if (is_quota or is_empty) and i < len(self.providers) - 1:
-                    reason = "quota doldu" if is_quota else "bos/bozuk cevap"
+                # RESIL-008: KALICI hata — sağlayıcıyı process boyunca atlanacak listeye AL (bir
+                # kez logla). 429 geçici kotadan farklı: bu istek boyutu tier limitini aşıyor,
+                # aynı prompt her seferinde aynı hatayı verir → tekrar denemek beyhude.
+                if is_too_large and provider.NAME not in self._oversized_providers:
+                    self._oversized_providers.add(provider.NAME)
+                    logger.warning(
+                        f"FallbackProvider: {provider.NAME} isteği KALICI sunamıyor "
+                        f"(request too large / context limit) — bu process boyunca atlanacak. ({e})"
+                    )
+
+                if (is_quota or is_empty or is_too_large) and i < len(candidates) - 1:
+                    reason = ("quota doldu" if is_quota else
+                              "request too large" if is_too_large else "bos/bozuk cevap")
                     logger.warning(
                         f"FallbackProvider: {provider.NAME} {reason} ({e}), "
-                        f"siradakine geciliyor: {self.providers[i+1].NAME}"
+                        f"siradakine geciliyor: {candidates[i+1].NAME}"
                     )
                     continue
-                if i < len(self.providers) - 1:
-                    logger.warning(
-                        f"FallbackProvider: {provider.NAME} hata verdi ({e}), "
-                        f"siradakine geciliyor: {self.providers[i+1].NAME}"
+                if i < len(candidates) - 1:
+                    # BUG #093 fix: kota/boş DEĞİL bir hata (400/401/kod bug'ı) sessizce
+                    # yutulup "tüm sağlayıcılar düştü" gibi görünüyordu. ERROR + exc_info ile
+                    # gerçek kök-neden (stack) görünür yapılır; fallback yine de devam eder.
+                    logger.error(
+                        f"FallbackProvider: {provider.NAME} BEKLENMEDİK hata verdi ({e!r}), "
+                        f"siradakine geciliyor: {candidates[i+1].NAME}",
+                        exc_info=True,
                     )
                     continue
                 raise
@@ -1218,6 +1746,19 @@ def _build_openrouter() -> Optional[OpenRouterProvider]:
     return OpenRouterProvider(api_key=api_key)
 
 
+def _build_ollama() -> Optional[OllamaProvider]:
+    """Yerel Ollama — SADECE acikca etkinlestirilmisse (OLLAMA_ENABLED/BASE_URL/MODEL).
+    Aksi halde fallback zincirinde localhost'a beyhude baglanti denemesi yapmaz."""
+    enabled = (
+        os.getenv("OLLAMA_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+        or bool(os.getenv("OLLAMA_BASE_URL", "").strip())
+        or bool(os.getenv("OLLAMA_MODEL", "").strip())
+    )
+    if not enabled:
+        return None
+    return OllamaProvider()
+
+
 def build_provider() -> LLMProvider:
     provider_name = os.getenv("LLM_PROVIDER", "gemini").lower().strip()
 
@@ -1239,11 +1780,18 @@ def build_provider() -> LLMProvider:
             raise ValueError("GROQ_API_KEY bulunamadi (.env kontrol et).")
         return p
 
+    if provider_name == "ollama":
+        # DEVRİMSEL #2: egemen/yerel mod — sadece Ollama, internet gerekmez.
+        p = OllamaProvider()
+        return p
+
     if provider_name == "fallback":
         # BUG #022 fix: Groq once, Gemini fallback.
         # BUG #028 fix: Zincir genisledi: Groq -> Cerebras -> Gemini -> OpenRouter
+        # DEVRİMSEL #2: zincirin SON halkasi yerel Ollama (egemen guvenlik agi) —
+        # sadece acikca etkinse (OLLAMA_ENABLED/BASE_URL/MODEL) eklenir.
         chain = []
-        for builder in [_build_groq, _build_cerebras, _build_gemini, _build_openrouter]:
+        for builder in [_build_groq, _build_cerebras, _build_gemini, _build_openrouter, _build_ollama]:
             p = builder()
             if p:
                 chain.append(p)
@@ -1343,6 +1891,27 @@ _FAKE_NIYET_RE = re.compile(
     r'|(onay\s+bekliyorum)',
     re.IGNORECASE,
 )
+# BUG #085 fix (P0-19): Parantezsiz DUZ gecmis-zaman sahte tamamlama.
+# _FAKE_CONFIRM_RE sadece [koseli parantez] icini yakaliyordu; "Harcamani kaydettim.",
+# "Islem kaydedildi.", "500 TL gideri ekledim." gibi duz cumleler hicbir filtreye
+# takilmiyordu -> propose_action olmadan kullaniciya "islendi" izlenimi (finansal guven ihlali).
+# BUG #085 iter2 (per-file denetim düzeltmesi): YALNIZ koc'un KENDI 1. TEKİL ŞAHIS
+# mutasyon-tamamlama iddiasini yakalar. Edilgen 3. şahıs formları (kaydedildi/işlendi/
+# eklendi/güncellendi/geçirildi) KALDIRILDI — çünkü bunlar analiz raporlarında kullanıcının
+# GEÇMİŞİNİ betimleyen meşru cümlelerde doğal geçiyor ("3 fatura işlendi", "maaş hesaba
+# geçirildi") ve raporu bozuyordu (yanlış-pozitif). Edilgen sahte-tamamlama zaten köşeli
+# parantezli ise _FAKE_CONFIRM_RE ile yakalanır. "kaydetmissin/kaydettin/kaydettigin" DOKUNULMAZ.
+_FAKE_PASTTENSE_RE = re.compile(
+    r'\b('
+    r'kaydett[iı]m'
+    r'|i[sş]led[iı]m'
+    r'|ekled[iı]m'
+    r'|g[uü]ncelled[iı]m'
+    r'|hesab[ıi]na\s*ge[cç]ird[iı]m'
+    r'|kay[ıi]t\s*alt[ıi]na\s*ald[ıi]m'
+    r')\b',
+    re.IGNORECASE,
+)
 
 
 def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "", proposed_actions: Optional[List] = None) -> str:
@@ -1380,12 +1949,12 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
             while j < len(lines) and lines[j].strip() and not lines[j].strip().startswith('['):
                 block.append(lines[j])
                 j += 1
-            # Kullanıcı checkpoint istemiyorsa → her zaman sil
-            # Kullanıcı checkpoint istiyorsa → yalnızca koşullu ifade varsa sil
-            should_remove = (
-                not user_wants_checkpoint
-                or _YC_CONDITIONAL_RE.search('\n'.join(block))
-            )
+            # BUG #094 fix: Kullanıcı checkpoint/kural İSTEDİYSE bölümü KORU — hedge kelime
+            # ("eklenebilir/önerilir") içerse bile. Gerçek bir kural önerisi neredeyse her
+            # zaman bu kelimelerle ifade edilir; eski `or _YC_CONDITIONAL_RE` dalı kullanıcının
+            # AÇIKÇA istediği öneriyi siliyordu. Artık sadece kullanıcı İSTEMEDİYSE silinir
+            # (halüsinasyon/istenmeyen checkpoint bölümü temizliği korunur).
+            should_remove = not user_wants_checkpoint
             if should_remove:
                 i = j
                 continue
@@ -1398,10 +1967,26 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
 
     cleaned = '\n'.join(result).strip()
 
-    # BUG #041 fix: proposed_actions boşsa sahte tamamlama cümlelerini sil
-    if not proposed_actions and _FAKE_CONFIRM_RE.search(cleaned):
-        cleaned = _FAKE_CONFIRM_RE.sub('', cleaned).strip()
-        cleaned = (cleaned + '\n\n' + _CLARIFY_MSG).strip()
+    # Sahte tamamlama temizligi — SADECE hicbir aksiyon onerilmediyse (DB'ye hic yazilmadi).
+    if not proposed_actions:
+        fake = False
+        # BUG #041 fix: koseli-parantezli sahte tamamlama -> sil
+        if _FAKE_CONFIRM_RE.search(cleaned):
+            cleaned = _FAKE_CONFIRM_RE.sub('', cleaned).strip()
+            fake = True
+        # BUG #085 fix (P0-19): parantezsiz duz gecmis-zaman iddiasi -> iddia iceren CUMLEYI at.
+        # BUG #085 iter2: SADECE tek-satırlık kısa yanıtlara uygula. Sahte tamamlama ("Kaydettim.")
+        # her zaman kısa, tek-satır bir yanıttır; çok-satırlı YAPISAL RAPOR (## başlıklar, kokpit
+        # tablosu) asla sahte-tamamlama değildir ve cümle-bölüp-birleştirmek raporu bozuyordu
+        # (yanlış-pozitif — per-file denetim HIGH bulgusu). Çok-satırlı yanıta DOKUNMA.
+        is_structured_report = ("\n" in cleaned) or ("##" in cleaned) or ("[" in cleaned)
+        if not is_structured_report and _FAKE_PASTTENSE_RE.search(cleaned):
+            sentences = re.split(r'(?<=[.!?])\s+', cleaned)
+            kept = [s for s in sentences if not _FAKE_PASTTENSE_RE.search(s)]
+            cleaned = ' '.join(kept).strip()
+            fake = True
+        if fake:
+            cleaned = (cleaned + '\n\n' + _CLARIFY_MSG).strip()
 
     return cleaned
 
@@ -1566,11 +2151,13 @@ class CoachEngine:
                 system_prompt = f"{V3_GOD_MODE_PROMPT}\n\n{context_text}"
 
             with recorder.step(OperationName.RULE_CHECK, intent="Cockpit + kural durumu") as s:
-                uyarilar = cockpit_dict.get("uyarilar", []) if cockpit_dict else []
+                # BUG #111 fix (öz-denetim): cockpit anahtarı "alerts" (uyarilar DEĞİL) ve
+                # uyarı dict'i seviye/baslik içerir (kod DEĞİL) → trace hep "0 uyari" gösteriyordu.
+                uyarilar = cockpit_dict.get("alerts", []) if cockpit_dict else []
                 s.observation = f"Cockpit hazir. Aktif uyari: {len(uyarilar)}"
                 s.set_action_input({"include_cockpit": include_cockpit})
                 if uyarilar:
-                    kodlar = [u.get("kod", "?") for u in uyarilar[:3]]
+                    kodlar = [u.get("baslik", u.get("seviye", "?")) for u in uyarilar[:3]]
                     s.inference = f"Uyarilar: {kodlar}"
 
             messages = self._load_history(db, user_id)
@@ -1580,11 +2167,17 @@ class CoachEngine:
             # STEP B: Soru-bildirim siniflandirma
             # --------------------------------------------------------
             # BUG #023: Soru ise propose_action yok; save_insight her zaman aktif
+            # BUG #095: KURAL SIFIR ön-filtresi genişletildi — gelecek/niyet ifadesinde de
+            # (gerçekleşmiş eylem yoksa) propose_action sunulmaz (varsayım yasak).
             is_q = is_question(user_message)
-            active_tools = [SAVE_INSIGHT_SCHEMA] if is_q else [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA]
+            offer_propose = should_offer_propose_tool(user_message)
+            active_tools = (
+                [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA] if offer_propose
+                else [SAVE_INSIGHT_SCHEMA]
+            )
 
             with recorder.step(OperationName.OBSERVATION, intent="Soru-bildirim siniflandirma") as s:
-                s.observation = f"is_question={is_q}, tool_count={len(active_tools)}"
+                s.observation = f"is_question={is_q}, offer_propose={offer_propose}, tool_count={len(active_tools)}"
                 tool_names = [t.get("name", "?") for t in active_tools]
                 s.inference = f"active_tools: {tool_names}"
 
@@ -1610,14 +2203,24 @@ class CoachEngine:
                         llm_step.usage_output_tokens = llm_response.usage.get("output_tokens")
                 first_llm_step_db_id = llm_step.step_db_id
             except Exception as e:
-                logger.error(f"{self.provider_name} hatasi (tum provider'lar denendi): {e}")
+                # RESIL-004 (graceful degradation): Tüm sağlayıcılar düştü (kota/erişim).
+                # BE-009 ilkesi: ham hata KULLANICIYA sızmaz — loglanır (exc_info). Kurucu güç:
+                # Rules Engine LLM'siz çalışır → kokpit/limit/bütçe/borç/alacak verileri HÂLÂ
+                # güncel ve doğru (cockpit_snapshot döner). Kullanıcıya "her şey bozuk" değil,
+                # "sadece yorumlayan AI yok, veriler sağlam" mesajı ver. grounding şeması tutarlı.
+                logger.error(
+                    f"{self.provider_name} hatasi (tum provider'lar denendi)", exc_info=True)
                 return {
                     "reply": (
-                        f"Koç şu an cevap veremiyor ({self.provider_name} hatası): {e}\n"
-                        f"Birkaç saniye sonra tekrar deneyebilirsin."
+                        "Koç (yapay zekâ yorumlayıcı) şu an ulaşılamıyor — sağlayıcı kotası "
+                        "dolmuş olabilir. Ama panelindeki tüm veriler güncel ve doğru: kokpit, "
+                        "günlük limit, bütçe zarfları, borç planı ve alacakların motor tarafından "
+                        "hesaplanıyor ve koça ihtiyaç duymadan çalışıyor. Birkaç dakika sonra "
+                        "tekrar yazabilirsin."
                     ),
                     "proposed_actions": [],
                     "cockpit_snapshot": cockpit_dict,
+                    "grounding": {"ok": True, "checked": 0, "unverified": []},
                 }
 
             # --------------------------------------------------------
@@ -1688,10 +2291,21 @@ class CoachEngine:
             # STEP E: Retry (BUG #043/#045 ve BUG #049)
             # --------------------------------------------------------
             # BUG #043/#045: Boş cevap VEYA sahte niyet tespit edilirse tek retry
+            # BUG #095: retry SADECE propose_action sunulması gereken durumda zorlanır.
+            # Gelecek/niyet ifadesinde (offer_propose=False) zorla propose_action = uydurma
+            # eylem riski (KURAL SIFIR ihlali) — bu yüzden `and offer_propose` guard'ı.
+            # BUG #127 fix: Zayıf sağlayıcı (gpt-oss/gemini) gerçekleşmiş eylemi DÜZ METİNLE
+            # onaylayıp propose_action'ı UNUTABİLİR (eval'de 2/8 action senaryosu böyle düştü).
+            # Bu durumda cevap ne boş ne sahte-niyet — eski koşul retry'ı KAÇIRIYORDU. Mesajda
+            # AÇIK gerçekleşmiş-eylem fiili (aldım/ödedim/harcadım...) varsa retry'ı ayrıca tetikle.
+            # has_realized_action guard'ı sayesinde nötr cümlede ("hava güzel") uydurma riski YOK.
+            _orig_empty_or_fake = (
+                not (llm_response.text or "").strip()
+                or bool(_FAKE_NIYET_RE.search(llm_response.text or ""))
+            )
             if (not proposed_actions and not account_unclear and not date_unclear
-                    and not is_q
-                    and (not (llm_response.text or "").strip()
-                         or _FAKE_NIYET_RE.search(llm_response.text or ""))):
+                    and offer_propose
+                    and (_orig_empty_or_fake or has_realized_action(user_message))):
                 logger.warning(f"BUG #045/#043 retry tetiklendi: {user_message!r}")
                 try:
                     retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
@@ -1744,7 +2358,11 @@ class CoachEngine:
                     if retry_actions:
                         proposed_actions = retry_actions
                         llm_response = retry_response
-                    elif not account_unclear:
+                    elif not account_unclear and _orig_empty_or_fake:
+                        # BUG #127: Generic "hazırlanamadı" yönlendirmesini SADECE orijinal cevap
+                        # boş/sahte-niyet iken yaz. has_realized_action ile tetiklenip orijinal
+                        # metin substantif ise onu KORU → aşağıdaki _postprocess_report sahte-
+                        # tamamlama temizliği + hesap-belirsiz clarify akışı doğru mesajı üretsin.
                         llm_response.text = (
                             "Aksiyon hazırlanamadı. Mesajını biraz farklı şekilde tekrar gönder, "
                             "örneğin: '240 TL yemek kart'."
@@ -1795,14 +2413,32 @@ class CoachEngine:
             # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
             reply = _build_smart_reply(clean_text, proposed_actions)
 
+            # LLM-003 (grounding): Koc cevabindaki her TL tutari cockpit'e izlenebilir mi?
+            # Izlenemeyen tutar = potansiyel "silent hallucination" (varsayim yasak mandati).
+            # UYARI sinyali — sert blok degil; guveni dusurur ve trace'e islenir.
+            grounding = check_grounding(reply, cockpit_dict or {})
+            if not grounding["ok"]:
+                logger.warning(
+                    "grounding ihlali user_id=%s: cockpit'te bulunamayan TL tutarlari=%s",
+                    user_id, grounding["unverified"],
+                )
+                # Halusinasyon supheli tutar varsa raporlanan guveni asagi cek
+                if confidence is not None:
+                    confidence = min(confidence, 0.4)
+
             # --------------------------------------------------------
             # STEP F: Final answer
             # --------------------------------------------------------
             with recorder.step(OperationName.FINAL_ANSWER, intent="Yanit kullaniciya hazir") as s:
-                s.observation = f"reply_len={len(reply)}, action_count={len(proposed_actions)}"
+                s.observation = (
+                    f"reply_len={len(reply)}, action_count={len(proposed_actions)}, "
+                    f"grounding_ok={grounding['ok']}, grounding_checked={grounding['checked']}"
+                )
                 if confidence is not None:
                     s.confidence_score = confidence
-                if account_unclear:
+                if not grounding["ok"]:
+                    s.inference = f"grounding_violation: {grounding['unverified']}"
+                elif account_unclear:
                     s.inference = "account_unclear override"
                 elif date_unclear:
                     s.inference = "date_unclear override"
@@ -1855,6 +2491,10 @@ class CoachEngine:
                 "proposed_actions": proposed_actions,
                 "cockpit_snapshot": cockpit_dict,
                 "coach_memory_id": last_assistant.id if last_assistant else None,
+                "grounding": grounding,  # LLM-003: {ok, checked, unverified}
+                # BE-025: fallback zincirinde İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcı (gemini/groq/...)
+                # → router bunu loglar ki günlük kota (Gemini) doğru izlensin, nominal "fallback" değil.
+                "provider_used": getattr(llm_response, "provider_used", None),
             }
         finally:
             recorder.close()

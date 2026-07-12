@@ -219,6 +219,55 @@ class RecurringExpense(Base):
     user = relationship("User", back_populates="expenses")
 
 
+class Envelope(Base):
+    """
+    FEAT-001: Kategori bazlı aylık BÜTÇE ZARFI (YNAB / Actual Budget zarf yöntemi).
+    Her kategoriye aylık tutar ayrılır; o kategorideki harcama zarftan düşülür. Harcama
+    ayrı bir allocation tablosunda DEĞİL, mevcut Transaction.category üzerinden izlenir
+    (tek doğruluk kaynağı) — bu ay harcanan = SUM(expense, category, bu ay). Zarf aşımında
+    görünür uyarı. monthly_amount her ay için geçerli (recurring bütçe).
+    """
+    __tablename__ = "envelopes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    category = Column(String(50), nullable=False)          # Transaction.category ile eşleşir
+    monthly_amount = Column(Numeric(14, 2), nullable=False)  # aylık bütçe (Decimal — RULE-006)
+    is_active = Column(Boolean, default=True, nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        # (user, category) tekildir — bir kategori için tek zarf. Bu constraint aynı zamanda
+        # user_id prefix'li aramalar için index sağlar (dual-index anti-pattern'den kaçınıldı).
+        UniqueConstraint("user_id", "category", name="uq_envelope_user_category"),
+    )
+
+
+class WishlistItem(Base):
+    """
+    FEAT-032: 24-saat impuls bekleme / istek listesi. Büyük/plansız alımı HEMEN yapmak yerine
+    listeye ekle; 24 saat sonra koç "hâlâ istiyor musun?" diye sorar (fırsat maliyetiyle —
+    FEAT-030). İmpuls harcamayı kırar (davranışsal finans; borç-batık için doğrudan lever).
+    Alım gerçekleşirse propose_action → onay → execute (KURAL SIFIR: liste ekleme mutasyon
+    değil, niyet kaydı). created_at + 24h = review zamanı (scheduler gerekmez; cockpit türetir).
+    """
+    __tablename__ = "wishlist_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    item = Column(String(200), nullable=False)             # ne almak isteniyor
+    amount = Column(Numeric(14, 2), nullable=False)        # tahmini tutar (Decimal — RULE-006)
+    note = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="pending")  # pending | bought | dismissed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_wishlist_user_status", "user_id", "status"),
+    )
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
 

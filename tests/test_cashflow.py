@@ -461,3 +461,90 @@ def test_loan_payments_stop_at_remaining_installments(db_session, test_user):
     ]
     assert len(loan_events) == 3, f"Beklenen 3 taksit, alınan {len(loan_events)}"
     assert abs(result["summary"]["total_payable"]) == pytest.approx(4500.0)
+
+
+def test_rule016_stale_next_payment_date_gelecek_taksitleri_gizlemez():
+    """RULE-016: geçmiş (stale) next_payment_date remaining'i boşa harcamamalı — kredi
+    forecast'ta tüm KALAN taksitler gelecek yükümlülük olarak görünür (yoksa crunch iyimser)."""
+    from app.models import Account, AccountType
+    # 6 ay eski next_payment_date + 4 taksit kalan
+    acc = Account(id=1, user_id=1, name="Kredi", account_type=AccountType.loan,
+                  balance=20000.0, monthly_payment=2500.0, remaining_installments=4,
+                  next_payment_date=date(2026, 1, 12))
+    start = date(2026, 7, 12)
+    ev = _expand_loan_payments(acc, start, start + timedelta(days=180))
+    assert len(ev) == 4                       # eskiden 0 (geçmiş occurrence'lar idx'i tüketti)
+    assert all(e.date >= start for e in ev)   # hepsi ileriye dönük
+    assert ev[0].date == start                # geçmiş-vadeli bugüne çekildi (aya ötelenmedi)
+
+
+def test_rule016_gelecek_next_payment_date_etkilenmez():
+    """Normal (gelecek) next_payment_date davranışı değişmez."""
+    from app.models import Account, AccountType
+    acc = Account(id=2, user_id=1, name="Kredi2", account_type=AccountType.loan,
+                  balance=20000.0, monthly_payment=2500.0, remaining_installments=4,
+                  next_payment_date=date(2026, 7, 20))
+    start = date(2026, 7, 12)
+    ev = _expand_loan_payments(acc, start, start + timedelta(days=180))
+    assert len(ev) == 4 and ev[0].date == date(2026, 7, 20)
+
+
+def test_rule017_ayin_31i_taksiti_surumlenmez():
+    """RULE-017: 31'inde taksit Şubat'ta 28'e clamp'lenir ama Mart'ta 31'e DÖNER (sürüklenme yok).
+    Eskiden _advance_month current.day'i taşıyıp 28'de kalıyordu."""
+    from app.models import Account, AccountType
+    acc = Account(id=1, user_id=1, name="Kredi", account_type=AccountType.loan,
+                  balance=50000.0, monthly_payment=2000.0, remaining_installments=6,
+                  next_payment_date=date(2026, 1, 31))
+    ev = _expand_loan_payments(acc, date(2026, 1, 15), date(2026, 5, 15))
+    dates = [e.date for e in ev]
+    assert date(2026, 2, 28) in dates    # Şubat clamp
+    assert date(2026, 3, 31) in dates    # Mart ANCHOR'a döner (sürüklenme yok)
+    assert date(2026, 4, 30) in dates
+
+
+# ============================================================
+# PROPERTY / INVARIANT — _expand_loan_payments (RULE-016/017)
+# Account transient (session gerekmez) → ucuz fuzzing.
+# ============================================================
+
+from hypothesis import given, strategies as st, settings  # noqa: E402
+
+_START = date(2026, 7, 1)
+
+
+@given(
+    off=st.integers(min_value=-400, max_value=400),      # next_payment_date ofseti (stale dahil)
+    horizon=st.integers(min_value=1, max_value=400),
+    pay=st.floats(min_value=0.0, max_value=1e5, allow_nan=False, allow_infinity=False),
+    remaining=st.integers(min_value=0, max_value=60),
+)
+@settings(max_examples=250, deadline=None)
+def test_expand_loan_invariantlari(off, horizon, pay, remaining):
+    end = _START + timedelta(days=horizon)
+    acc = Account(id=1, name="Kredi", account_type=AccountType.loan,
+                  balance=100000.0, monthly_payment=pay,
+                  remaining_installments=remaining,
+                  next_payment_date=_START + timedelta(days=off))
+    events = _expand_loan_payments(acc, _START, end)   # ASLA exception / sonsuz döngü
+    # taksit sayısı kalan taksitten fazla olamaz
+    assert len(events) <= remaining
+    prev = None
+    for e in events:
+        assert _START <= e.date <= end                 # pencere içinde (stale bile öne çekilir)
+        assert e.amount == -pay                          # tutar = -taksit
+        assert e.source_type == "loan_payment"
+        if prev is not None:
+            assert e.date > prev                         # tarihler kesin artan (RULE-017 anchor)
+        prev = e.date
+
+
+def test_expand_loan_rule016_stale_tarih_bosa_gitmez():
+    """RULE-016 regresyon: geçmiş (stale) next_payment_date + kalan taksit → occurrence'lar
+    KAYBOLMAZ (öne çekilir). Eskiden 0 gelecek ödeme gösterip yükümlülüğü hafife alıyordu."""
+    acc = Account(id=1, name="Kredi", account_type=AccountType.loan, balance=50000.0,
+                  monthly_payment=2500.0, remaining_installments=4,
+                  next_payment_date=_START - timedelta(days=180))  # 6 ay eski
+    events = _expand_loan_payments(acc, _START, _START + timedelta(days=150))
+    assert len(events) >= 1, "stale tarihli kredi taksitleri forecast'ta görünmeli"
+    assert all(e.date >= _START for e in events)

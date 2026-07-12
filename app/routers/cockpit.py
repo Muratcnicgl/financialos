@@ -17,6 +17,7 @@ hicbir yatirim hesabi yoksa veya beklenmedik bir sey olursa cockpit calismaya
 devam etmeli.
 """
 
+import logging
 from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -26,6 +27,8 @@ from app.models import User, NetWorthSnapshot
 from app.rules_engine import generate_cockpit
 from app.fund_tracker import get_freshness_summary
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/cockpit", tags=["cockpit"])
 
 
@@ -34,7 +37,10 @@ def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict) -> None:
     today = date.today()
     if db.query(NetWorthSnapshot).filter_by(user_id=user_id, snapshot_date=today).first():
         return
-    receivables = max(0.0, cockpit.get("net_deger_tam", cockpit["net_deger"]) - cockpit["net_deger"])
+    # BUG #117 fix (#116 takibi): net_deger_tam artık payable de düşüyor → (net_deger_tam −
+    # net_deger) = alacak − borç olurdu (yanlış "receivables"). Alacağı doğrudan cockpit'ten al.
+    receivables = cockpit.get("alacaklar_toplami",
+                              max(0.0, cockpit.get("net_deger_tam", cockpit["net_deger"]) - cockpit["net_deger"]))
     snap = NetWorthSnapshot(
         user_id=user_id,
         snapshot_date=today,
@@ -91,6 +97,8 @@ def get_cockpit(
     try:
         _ensure_today_snapshot(db, user.id, cockpit)
     except Exception:
-        pass  # snapshot hatası cockpit'i durdurmasın
+        # BE-010: snapshot best-effort (cockpit'i durdurmaz) AMA sürekli başarısızsa görünür
+        # olmalı (net-worth trendi sessizce boş kalmasın).
+        logger.warning("bugünkü net-worth snapshot kaydedilemedi (cockpit devam ediyor)", exc_info=True)
 
     return cockpit

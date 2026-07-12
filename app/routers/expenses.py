@@ -12,10 +12,12 @@ from datetime import datetime, date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User, RecurringExpense, Account, PendingAction, ActionStatus
+from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,7 @@ router = APIRouter(prefix="/api/expenses/recurring", tags=["recurring-expenses"]
 
 class ExpenseBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    amount: float = Field(..., gt=0)
+    amount: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır
     account_id: int = Field(..., description="Ödeme yapılacak hesap (kart veya nakit)")
     category: Optional[str] = Field(None, max_length=50)
     day_of_month: int = Field(..., ge=1, le=31)
@@ -42,7 +44,7 @@ class ExpenseCreate(ExpenseBase):
 
 class ExpenseUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    amount: Optional[float] = Field(None, gt=0)
+    amount: FinansOptTutar = None  # SEC-032
     account_id: Optional[int] = None
     category: Optional[str] = Field(None, max_length=50)
     day_of_month: Optional[int] = Field(None, ge=1, le=31)
@@ -52,11 +54,10 @@ class ExpenseUpdate(BaseModel):
 
 class ExpenseOut(ExpenseBase):
     id: int
-    created_at: datetime
+    created_at: UtcDateTime
     last_triggered_year_month: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
 
 
 # ============================================================
@@ -112,7 +113,18 @@ def update_expense(
     ).first()
     if not exp:
         raise HTTPException(404, f"Gider bulunamadi: id={expense_id}")
-    for k, v in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    # BUG #088 fix: create account_id sahipliğini doğruluyor (line 87-92) ama update
+    # doğrulamadan setattr ediyordu → başka kullanıcının/var olmayan hesabına bağlanıp
+    # trigger-due o hesaba propose_action üretebiliyordu. Simetrik doğrulama eklendi.
+    if "account_id" in update_data and update_data["account_id"] is not None:
+        target = db.query(Account).filter(
+            Account.id == update_data["account_id"],
+            Account.user_id == user.id,
+        ).first()
+        if not target:
+            raise HTTPException(404, "Hedef hesap bulunamadi veya size ait degil.")
+    for k, v in update_data.items():
         setattr(exp, k, v)
     db.commit()
     db.refresh(exp)
@@ -153,16 +165,24 @@ def trigger_due_expenses(
     today = date.today()
     year_month = f"{today.year}-{today.month:02d}"
 
+    # BUG #071 fix (P0-16): day_of_month'u ay uzunluğuna clamp'le. 29/30/31 kısa aylarda
+    # (Şubat/Nisan/Haziran/Eylül/Kasım) `day_of_month <= today.day` HİÇ True olmuyordu →
+    # o ay sessizce atlanıp telafi de edilmiyordu.
+    import calendar
+    last_day = calendar.monthrange(today.year, today.month)[1]
+
     exps = db.query(RecurringExpense).filter(
         RecurringExpense.user_id == user.id,
         RecurringExpense.is_active == True,
-        RecurringExpense.day_of_month <= today.day,
     ).all()
 
     triggered = []
     for exp in exps:
+        effective_day = min(exp.day_of_month, last_day)
+        if effective_day > today.day:
+            continue  # bu ay vadesi henüz gelmedi
         # BUG #047 çift kontrol:
-        # (1) Bu ay henüz tetiklenmemiş mi
+        # (1) Bu ay zaten EXECUTED olarak işaretlenmiş mi (last_triggered execute'te set edilir)
         if exp.last_triggered_year_month == year_month:
             continue
         # (2) Bu kayıt için zaten pending var mı
@@ -190,10 +210,10 @@ def trigger_due_expenses(
                 },
                 summary=f"{exp.name}: {_fmt(exp.amount)} TL ödendi",
             )
-            # BUG #047: source fields + last_triggered tek commit'te
+            # BUG #070 fix (P0-15): last_triggered BURADA set EDİLMEZ — execute'te
+            # (_mark_recurring_triggered) set edilir; reddedilen/başarısız gider re-triggerable kalır.
             pending.source_recurring_id = exp.id
             pending.source_recurring_type = "expense"
-            exp.last_triggered_year_month = year_month
             db.commit()
             triggered.append({
                 "id": pending.id,

@@ -9,13 +9,19 @@ NOTLAR:
   geri cevirir.
 """
 
+import math
+import re
 from datetime import date
 from typing import Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.serializers import utc_isoformat  # BUG #092: datetime UTC suffix
+# SEC-032: işlem tutarı SONLU olmalı (inf/NaN/taşma reddedilir); ≤0 kontrolü handler'daki
+# manuel doğrulamada (dostça Türkçe mesaj + quick_text modu) kalır → FinansOptBakiye (sign-agnostik sonlu).
+from app.schema_types import FinansOptBakiye
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType,
 )
@@ -31,14 +37,16 @@ class TransactionCreate(BaseModel):
     """Quick-entry destekli olusturma."""
     account_id: Optional[int] = None
     transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
-    amount: Optional[float] = None
-    category: Optional[str] = None
-    description: Optional[str] = None
+    amount: FinansOptBakiye = None  # SEC-032: sonlu (≤0 kontrolü handler'da; quick_text'te None)
+    # SEC-031: kullanıcı serbest-metin alanlarına CÖMERT üst sınır — DB bloat + prompt-injection
+    # payload boyutu + koç context şişmesi koruması (meşru not/kategori çok altında kalır).
+    category: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = Field(None, max_length=1000)
     transaction_date: Optional[date] = None
     is_card_expense: Optional[bool] = None
 
     # Quick entry
-    quick_text: Optional[str] = None
+    quick_text: Optional[str] = Field(None, max_length=200)
     auto_update_balance: Optional[bool] = True
 
 
@@ -46,9 +54,9 @@ class TransactionUpdate(BaseModel):
     """PUT icin partial guncelleme."""
     account_id: Optional[int] = None
     transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
-    amount: Optional[float] = None
-    category: Optional[str] = None
-    description: Optional[str] = None
+    amount: FinansOptBakiye = None  # SEC-032: sonlu (≤0 kontrolü handler'da; quick_text'te None)
+    category: Optional[str] = Field(None, max_length=100)  # SEC-031
+    description: Optional[str] = Field(None, max_length=1000)  # SEC-031
     transaction_date: Optional[date] = None
     is_card_expense: Optional[bool] = None
     auto_update_balance: Optional[bool] = True
@@ -73,7 +81,7 @@ def _txn_to_dict(txn: Transaction) -> dict:
         "description": txn.description,
         "transaction_date": txn.transaction_date.isoformat() if txn.transaction_date else None,
         "is_card_expense": txn.is_card_expense,
-        "created_at": txn.created_at.isoformat() if txn.created_at else None,
+        "created_at": utc_isoformat(txn.created_at),  # BUG #092: UTC suffix (yoksa JS -3h)
     }
 
 
@@ -156,6 +164,62 @@ QUICK_KEYWORDS = {
 }
 
 
+# FEAT-034: otomatik kategori önerisi. Yapılandırılmış girişte (UI formu) kullanıcı bir
+# açıklama yazıp kategoriyi boş bıraktığında, açıklamadaki anahtar kelimeden kategori türetilir.
+# Marka/işyeri adları da eşlenir (Migros → alisveris). quick-text zaten QUICK_KEYWORDS ile
+# çıkarım yapıyor; bu, aynı kolaylığı normal forma taşır. Deterministik + test edilebilir;
+# hiçbir zaman kullanıcının verdiği kategoriyi ezmez (yalnız boşsa doldurur).
+MERCHANT_KEYWORDS = {
+    # market / alışveriş
+    "migros": "alisveris", "bim": "alisveris", "a101": "alisveris", "sok": "alisveris",
+    "carrefour": "alisveris", "carrefoursa": "alisveris", "macrocenter": "alisveris",
+    "getir": "alisveris", "trendyol": "alisveris", "hepsiburada": "alisveris",
+    "amazon": "alisveris", "market": "alisveris",
+    # yemek / kafe
+    "yemeksepeti": "yemek", "starbucks": "yemek", "restoran": "yemek", "lokanta": "yemek",
+    "burger": "yemek", "pizza": "yemek", "cafe": "yemek",
+    # ulaşım / yakıt
+    "opet": "ulasim", "shell": "ulasim", "bp": "ulasim", "petrol": "ulasim",
+    "benzin": "ulasim", "uber": "ulasim", "bitaksi": "ulasim", "istanbulkart": "ulasim",
+    # fatura / abonelik
+    "netflix": "eglence", "spotify": "eglence", "youtube": "eglence", "exxen": "eglence",
+    "turkcell": "fatura", "vodafone": "fatura", "turk telekom": "fatura", "superonline": "fatura",
+    "elektrik": "fatura", "dogalgaz": "fatura", "igdas": "fatura", "iski": "fatura",
+    # sağlık
+    "eczane": "saglik", "hastane": "saglik", "medikal": "saglik",
+}
+
+
+def suggest_category(text: Optional[str]) -> Optional[str]:
+    """
+    Açıklama/işyeri metninden kategori türet (FEAT-034). Eşleşme yoksa None.
+    Önce belirli marka adları (MERCHANT_KEYWORDS), sonra genel anahtar kelimeler
+    (QUICK_KEYWORDS) kontrol edilir — böylece 'migros' → alisveris, 'taksi' → ulasim.
+
+    KELİME SINIRI: tek kelimelik anahtarlar token kümesine göre eşlenir — düz substring
+    DEĞİL. Aksi halde 'sok' → 'sokak', 'bim' → 'kimbilir' gibi yanlış pozitifler doğardı.
+    Çok kelimeli anahtarlar ('turk telekom') boşlukla sarılı substring ile aranır.
+    """
+    if not text:
+        return None
+    low = text.strip().lower()
+    tokens = set(re.findall(r"[a-zçğıöşü0-9]+", low))
+    padded = " " + low + " "
+
+    def _match(kw: str) -> bool:
+        if " " in kw:  # çok kelimeli marka
+            return f" {kw} " in padded
+        return kw in tokens
+
+    for kw, cat in MERCHANT_KEYWORDS.items():
+        if _match(kw):
+            return cat
+    for kw, meta in QUICK_KEYWORDS.items():
+        if _match(kw):
+            return meta["category"]
+    return None
+
+
 def _parse_quick_text(text: str) -> dict:
     parts = text.strip().lower().split()
     if not parts:
@@ -165,8 +229,15 @@ def _parse_quick_text(text: str) -> dict:
         amount = float(parts[0].replace(",", "."))
     except ValueError:
         raise ValueError(f"Gecerli tutar bulunamadi: '{parts[0]}'")
+    # SEC-032: quick_text tutarı Pydantic şema doğrulamasını ATLAR (create'te amount None gelip
+    # burada doldurulur) → sonlu/üst-sınır kontrolü BURADA yapılmalı; aksi halde "1e308 yemek"
+    # veya "Infinity market" DB'ye sızıp rules_engine matematiğini bozar (nan `<=0`'ı da atlar).
+    if not math.isfinite(amount):
+        raise ValueError("Tutar sonlu bir sayı olmalı")
     if amount <= 0:
         raise ValueError("Tutar pozitif olmali")
+    if amount > 1e12:  # schema_types._FIN_MAX ile aynı üst sınır (taşma/çöp değer)
+        raise ValueError("Tutar makul üst sınırı (1e12) aşıyor")
 
     rest = " ".join(parts[1:]).strip() if len(parts) > 1 else ""
     if not rest:
@@ -240,24 +311,33 @@ def create_transaction(
         if not data.get("description"):
             data["description"] = parsed["description"] or data["quick_text"]
 
-        # Default hesap secimi
-        if not data.get("account_id"):
-            if data.get("is_card_expense"):
-                acc = (
-                    db.query(Account)
-                    .filter(Account.user_id == user.id,
-                            Account.account_type == AccountType.credit_card)
-                    .first()
-                )
-            else:
-                acc = (
-                    db.query(Account)
-                    .filter(Account.user_id == user.id,
-                            Account.account_type == AccountType.cash)
-                    .first()
-                )
-            if acc:
-                data["account_id"] = acc.id
+    # FEAT-034: kategori boşsa açıklamadan türet. Yalnız gider işlemlerinde ve kategori
+    # verilmemişse — kullanıcının açık seçimini asla ezmez. Böylece UI formunda "Migros 240 TL"
+    # yazıp kategoriyi boş bırakmak yeter; alisveris otomatik atanır.
+    if not data.get("category") and data.get("transaction_type") == "expense":
+        guess = suggest_category(data.get("description"))
+        if guess:
+            data["category"] = guess
+
+    # Default hesap seçimi — DATA-018: yalnız quick-text için DEĞİL, HER create için (account_id
+    # verilmemişse) varsayılan hesaba düş. Böylece hem UX korunur hem "yetim" işlem üretilmez.
+    if not data.get("account_id"):
+        if data.get("is_card_expense"):
+            acc = (
+                db.query(Account)
+                .filter(Account.user_id == user.id,
+                        Account.account_type == AccountType.credit_card)
+                .first()
+            )
+        else:
+            acc = (
+                db.query(Account)
+                .filter(Account.user_id == user.id,
+                        Account.account_type == AccountType.cash)
+                .first()
+            )
+        if acc:
+            data["account_id"] = acc.id
 
     # Zorunlu alanlar
     if not data.get("transaction_type"):
@@ -268,16 +348,21 @@ def create_transaction(
     auto_update = data.pop("auto_update_balance", True)
     data.pop("quick_text", None)
 
-    # Account bul
-    account = None
-    if data.get("account_id"):
-        account = (
-            db.query(Account)
-            .filter(Account.id == data["account_id"], Account.user_id == user.id)
-            .first()
+    # Account bul — DATA-018: her işlem bir hesabı ETKİLEMELİ (bakiyesiz "yetim" işlem yok).
+    # Varsayılan hesap seçimi (yukarıda) uygun hesap bulamadıysa account_id None kalır →
+    # eskiden bakiyeye dokunmayan yanıltıcı bir işlem oluşuyordu. Artık reddedilir.
+    if not data.get("account_id"):
+        raise HTTPException(
+            status_code=400,
+            detail="Hesap belirtilmedi ve uygun varsayılan hesap yok. Önce bir nakit/kart hesabı ekle ya da account_id belirt.",
         )
-        if not account:
-            raise HTTPException(status_code=404, detail="Hesap bulunamadi")
+    account = (
+        db.query(Account)
+        .filter(Account.id == data["account_id"], Account.user_id == user.id)
+        .first()
+    )
+    if not account:
+        raise HTTPException(status_code=404, detail="Hesap bulunamadi")
 
     # Transaction kaydi olustur
     txn = Transaction(user_id=user.id, **data)
@@ -309,6 +394,22 @@ def update_transaction(
 
     update_data = payload.model_dump(exclude_unset=True)
     auto_update = update_data.pop("auto_update_balance", True)
+
+    # BUG #087 fix: update yolu create ile aynı doğrulamayı yapmalı.
+    # (a) amount <= 0 reddedilmeli — aksi halde negatif tutar _apply_to_balance'ta
+    #     işareti ters çevirip bakiyeyi bozuyordu (gider güncellemesi bakiyeyi ARTIRIYORDU).
+    if "amount" in update_data and (update_data["amount"] is None or update_data["amount"] <= 0):
+        raise HTTPException(status_code=422, detail="Tutar pozitif olmalı (amount > 0).")
+    # (b) account_id başka kullanıcının/var olmayan hesabına taşınamaz (create 404 veriyor;
+    #     update sessizce kabul edip txn'i sahipsiz hesaba bağlıyordu).
+    if "account_id" in update_data and update_data["account_id"] is not None:
+        target = (
+            db.query(Account)
+            .filter(Account.id == update_data["account_id"], Account.user_id == user.id)
+            .first()
+        )
+        if not target:
+            raise HTTPException(status_code=404, detail="Hedef hesap bulunamadi veya size ait degil.")
 
     # 1. Eski etki
     if auto_update and txn.account_id:

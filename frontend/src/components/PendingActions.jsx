@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Check, X, AlertCircle, Loader2, Pencil, Brain, TrendingUp } from 'lucide-react';
-import { actionsApi, formatTLSuffix, formatDate } from '../api.js';
+import { actionsApi, formatTLSuffix, formatDate, todayLocalISO } from '../api.js';
 import PremortemModal from './PremortemModal.jsx';
 import HorizonsModal from './HorizonsModal.jsx';
 
@@ -21,7 +21,7 @@ import HorizonsModal from './HorizonsModal.jsx';
 // Improvement #027: inline edit modu
 function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: setParentEditing, editRequestedAt = 0 }) {
   const p = typeof payload === 'string' ? JSON.parse(payload) : payload;
-  const todayISO = new Date().toISOString().split('T')[0];
+  const todayISO = todayLocalISO();   // LOCAL bugün (UTC slice gece vardiyasında bir gün kayardı)
 
   const [editing, setEditing] = useState(false);
   const prevEditRequestedAt = useRef(0);

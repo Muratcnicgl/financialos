@@ -17,8 +17,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from sqlalchemy.exc import IntegrityError
+
 from app.dependencies import get_db, get_current_user
-from app.models import User, Account, AccountType
+from app.models import User, Account, AccountType, Transaction, RecurringExpense
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
+# SEC-032: finansal float alanları sonlu olmalı (inf/NaN/taşma rules_engine'i çökertir).
+# balance negatif olabilir (FinansBakiye); limit/faiz/lot/fiyat ≥0 (FinansOptOran).
+from app.schema_types import FinansBakiye, FinansOptBakiye, FinansOptOran
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -30,22 +36,22 @@ router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 class AccountBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     account_type: AccountType
-    balance: float = 0.0
+    balance: FinansBakiye = 0.0  # SEC-032: sonlu (negatif olabilir)
     notes: Optional[str] = None
     # Kredi karti
-    credit_limit: Optional[float] = None
+    credit_limit: FinansOptOran = None  # SEC-032
     statement_day: Optional[int] = Field(None, ge=1, le=31)
     payment_day: Optional[int] = Field(None, ge=1, le=31)
     # Kredi
-    interest_rate: Optional[float] = None
-    monthly_payment: Optional[float] = None
+    interest_rate: FinansOptOran = None  # SEC-032
+    monthly_payment: FinansOptOran = None  # SEC-032
     remaining_installments: Optional[int] = Field(None, ge=0)
     next_payment_date: Optional[date] = None
     # Yatirim
     fund_code: Optional[str] = Field(None, max_length=20)
-    lot_count: Optional[float] = None
-    cost_per_lot: Optional[float] = None
-    current_price: Optional[float] = None
+    lot_count: FinansOptOran = None  # SEC-032
+    cost_per_lot: FinansOptOran = None  # SEC-032
+    current_price: FinansOptOran = None  # SEC-032
     is_emanet: bool = False
 
 
@@ -56,30 +62,29 @@ class AccountCreate(AccountBase):
 class AccountUpdate(BaseModel):
     """Sadece gonderilen alanlar guncellenir. None'lar atlanir."""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    balance: Optional[float] = None
+    balance: FinansOptBakiye = None  # SEC-032
     notes: Optional[str] = None
-    credit_limit: Optional[float] = None
+    credit_limit: FinansOptOran = None  # SEC-032
     statement_day: Optional[int] = Field(None, ge=1, le=31)
     payment_day: Optional[int] = Field(None, ge=1, le=31)
-    interest_rate: Optional[float] = None
-    monthly_payment: Optional[float] = None
+    interest_rate: FinansOptOran = None  # SEC-032
+    monthly_payment: FinansOptOran = None  # SEC-032
     remaining_installments: Optional[int] = Field(None, ge=0)
     next_payment_date: Optional[date] = None
     fund_code: Optional[str] = Field(None, max_length=20)
-    lot_count: Optional[float] = None
-    cost_per_lot: Optional[float] = None
-    current_price: Optional[float] = None
+    lot_count: FinansOptOran = None  # SEC-032
+    cost_per_lot: FinansOptOran = None  # SEC-032
+    current_price: FinansOptOran = None  # SEC-032
     is_emanet: Optional[bool] = None
 
 
 class AccountOut(AccountBase):
     id: int
-    last_price_update: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
+    last_price_update: Optional[UtcDateTime] = None
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
 
 
 # ============================================================
@@ -217,6 +222,27 @@ def delete_account(
             detail="Emanet hesabi silinemez (MC1 koruma).",
         )
 
-    db.delete(acc)
-    db.commit()
+    # BUG #091 fix: FK artık ENFORCE ediliyor (PRAGMA foreign_keys=ON, BUG #060). Bağlı
+    # transaction/recurring expense varken silmek IntegrityError → HTTP 500 veriyordu.
+    # Önce bağımlı kayıtları say, kullanıcıya düzgün 409 döndür (veri kaybı yok).
+    txn_count = db.query(Transaction).filter(Transaction.account_id == account_id).count()
+    exp_count = db.query(RecurringExpense).filter(RecurringExpense.account_id == account_id).count()
+    if txn_count or exp_count:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Hesap silinemez: {txn_count} işlem ve {exp_count} düzenli gider bağlı. "
+                f"Önce bunları silin veya başka hesaba taşıyın."
+            ),
+        )
+
+    try:
+        db.delete(acc)
+        db.commit()
+    except IntegrityError:
+        db.rollback()  # başka bir FK bağımlılığı (ör. goal allocation) — session'ı temizle
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Hesap başka kayıtlara bağlı olduğu için silinemedi.",
+        )
     return None

@@ -1,0 +1,18 @@
+# FinancialOS — araç yapılandırması
+# BUG #077 (TEST-018/001): testpaths=["tests"] — pytest ARTIK kökteki test_*.py
+# script'lerini TOPLAMAZ. O script'ler import-time'da drop_all yapıp CANLI DB'yi
+# siliyordu; bu ayar o veri-kaybı riskini kapatır.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "llm: gerçek LLM API çağrısı gerektirir (CI'da default skip)",
+    "network: dış ağ çağrısı gerektirir",
+    "slow: yavaş test",
+]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true

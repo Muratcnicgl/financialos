@@ -155,17 +155,30 @@ def _expand_loan_payments(
 
     events: list[ForecastEvent] = []
     current = account.next_payment_date
+    # RULE-016 fix: STALE (geçmiş) next_payment_date remaining'i BOŞA HARCAMASIN. Eskiden
+    # geçmiş occurrence'lar (current >= start False) atlanıyor ama idx'i tüketiyordu → 4 taksit
+    # kalan + 6 ay eski tarihli kredi forecast'ta 0 gelecek ödeme gösteriyordu (yükümlülük
+    # HAFİFE görünüp crunch/safe-to-spend'i iyimser yapıyordu). Geçmiş-vadeliyi bugüne çek:
+    # remaining taksit tümü gelecek yükümlülük olarak projelenir (aya ötelenmez, kaybolmaz).
+    if current < start:
+        current = start
+    # RULE-017 fix: ANCHOR gün (ayın sabit günü) ile ilerle — _advance_month(current) her ay
+    # current.day'i clamp'leyip taşıyordu → 31'inde taksit Şubat'ta 28'e düşünce Mart'ta 31'e
+    # DÖNMÜYOR (sürüklenme). Anchor'la min(anchor, ay_sonu) → Mart yine 31. _month_occurrences
+    # (recurring) zaten doğru; loan yolu bu düzeltmeyle hizalandı.
+    anchor_day = current.day
     idx = 0
     while current <= end and idx < remaining:
-        if current >= start:
-            events.append(ForecastEvent(
-                current,
-                -(account.monthly_payment),
-                f"{account.name} taksiti",
-                "loan_payment",
-                account.id,
-            ))
-        current = _advance_month(current)
+        events.append(ForecastEvent(
+            current,
+            -(account.monthly_payment),
+            f"{account.name} taksiti",
+            "loan_payment",
+            account.id,
+        ))
+        y = current.year + (current.month == 12)
+        m = current.month % 12 + 1
+        current = date(y, m, min(anchor_day, monthrange(y, m)[1]))
         idx += 1
     return events
 
@@ -235,6 +248,7 @@ def generate_forecast(
     account_id: Optional[int] = None,
     include: Optional[set[str]] = None,
     crunch_threshold: float = 0.0,
+    today: Optional[date] = None,
 ) -> dict:
     """
     Nakit akışı tahmini üretir.
@@ -247,6 +261,8 @@ def generate_forecast(
     account_id       : None = tüm nakit hesaplar; int = tek hesap
     include          : filtre chipsleri; None = hepsi dahil
     crunch_threshold : bu tutarın (TL) altına düşen günler crunch=True
+    today            : projeksiyon başlangıcı (None = date.today()). Enjekte edilebilir —
+                       generate_cockpit'in `today`'siyle TUTARLILIK + deterministik test için.
 
     Dönüş: {horizon_days, start_date, end_date, currency,
              days: [ForecastDay], summary: dict, sankey: dict}
@@ -254,10 +270,16 @@ def generate_forecast(
     if include is None:
         include = VALID_INCLUDE.copy()
 
-    today = date.today()
+    today = today or date.today()
     end = today + timedelta(days=horizon_days - 1)
 
     # --- Başlangıç bakiyesi: nakit hesaplar ---
+    # BİLİNEN SINIRLAMA (denetim, BUG #107): account_id verilirse SADECE açılış bakiyesi ve
+    # (aşağıda) recurring gider bu hesaba göre daraltılır; gelir/kredi taksiti/alacak/borç
+    # RecurringIncome/PersonalDebt'te account_id olmadığı için GLOBAL kalır. Yani tek-hesap
+    # projeksiyonu "bu hesap tüm nakit akışının merkezi" varsayar (izole hesap DEĞİL).
+    # Şu an hiçbir UI çağrısı account_id GEÇMİYOR (hep agregat mod) → yol pratikte kullanılmıyor.
+    # İzole-hesap semantiği ürün kararı gerektirir; varsayımla davranış değiştirilmedi.
     cash_q = db.query(Account).filter(
         Account.user_id == user_id,
         Account.account_type == AccountType.cash,

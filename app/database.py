@@ -1,11 +1,20 @@
 """
 SQLite veritabanı bağlantı katmanı.
 SQLAlchemy engine + session factory + Base metadata.
+
+GUNCELLEMELER:
+  BUG #060 fix: Her SQLite bağlantısında PRAGMA'lar ayarlanır (connect listener).
+    - foreign_keys=ON  → SQLite'ta FK enforcement default KAPALIYDI; modellerdeki
+      ondelete=CASCADE/SET NULL tanımları hiç çalışmıyordu, yetim kayıt sessizce
+      yazılabiliyordu (Kalite serüveni DATA-003).
+    - journal_mode=WAL + busy_timeout → scheduler ve request eşzamanlı yazınca
+      "database is locked" hatasını önler (DATA-004, PERF-013).
+    - synchronous=NORMAL → WAL ile güvenli, daha hızlı.
 """
 
 import os
 from pathlib import Path
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from dotenv import load_dotenv
 
@@ -27,6 +36,22 @@ engine = create_engine(
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
     echo=False,  # SQL loglarını görmek istersen True yap
 )
+
+
+# BUG #060 fix: Her yeni SQLite bağlantısında kritik PRAGMA'ları ayarla.
+# SQLite'ta foreign_keys default KAPALI — ondelete=CASCADE/SET NULL tanımları
+# aksi halde hiç çalışmaz (DATA-003). WAL + busy_timeout eşzamanlı yazımda
+# "database is locked" hatasını önler (DATA-004, PERF-013).
+if DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_conn, _connection_record):
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=5000")
+        cur.execute("PRAGMA synchronous=NORMAL")
+        cur.close()
+
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

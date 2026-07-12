@@ -7,6 +7,15 @@ export default {
   // Koyu tema 'class' stratejisi: <html class="dark"> veya <html> arasinda toggle.
   // localStorage'da kullanici tercihi saklanir.
   darkMode: 'class',
+  // BUG #061 fix (Kalite serüveni FE-002): dinamik interpolasyonla üretilen sınıflar
+  // (`text-${color}-600`, `bg-${meta.color}-950/30`, `ring-${meta.color}-500` — Accounts.jsx,
+  // RedLines.jsx) JIT tarafından prod build'de purge oluyordu (safelist yoktu). Palette
+  // renkleri (brand/positive/negative/warn) literal geçmediği için üretilmezdi → görünmez renk.
+  safelist: [
+    { pattern: /(text|bg|ring|border)-(brand|positive|negative|warn)-(100|400|500|600|950)/, variants: ['dark'] },
+    'bg-brand-950/30', 'bg-positive-950/30', 'bg-negative-950/30', 'bg-warn-950/30',
+    'dark:bg-brand-950/30', 'dark:bg-positive-950/30', 'dark:bg-negative-950/30', 'dark:bg-warn-950/30',
+  ],
   theme: {
     extend: {
       // FinancialOS palette — finansal arayuz icin disiplinli renkler
@@ -23,6 +32,7 @@ export default {
           700: '#4338ca',
           800: '#3730a3',
           900: '#312e81',
+          950: '#1e1b4b',
         },
         // Pozitif (yesil) — kar, tahsilat, taze fiyat
         positive: {
@@ -36,6 +46,7 @@ export default {
           700: '#047857',
           800: '#065f46',
           900: '#064e3b',
+          950: '#022c22',
         },
         // Negatif (kirmizi) — borc, kayip, kritik
         negative: {
@@ -49,6 +60,7 @@ export default {
           700: '#b91c1c',
           800: '#991b1b',
           900: '#7f1d1d',
+          950: '#450a0a',
         },
         // Uyari (amber) — bayatlik, dikkat
         warn: {
@@ -62,6 +74,7 @@ export default {
           700: '#b45309',
           800: '#92400e',
           900: '#78350f',
+          950: '#451a03',
         },
       },
       fontFamily: {

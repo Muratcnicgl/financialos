@@ -13,14 +13,17 @@ GET /api/reports/category-breakdown
 
 from calendar import monthrange
 from datetime import date, timedelta
-from typing import Literal
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.rules_engine import (
+    generate_monthly_summary, calculate_networth_attribution, calculate_real_networth,
+)
 from app.models import (
     Transaction, TransactionType, User, NetWorthSnapshot,
     Account, AccountType, PersonalDebt, DebtDirection,
@@ -53,8 +56,12 @@ def category_breakdown(
 ):
     since = date.today() - timedelta(days=days)
 
+    # BUG #073 fix (P0-11/RRE-001): transaction_type de select+group_by'a eklendi. "both"
+    # modunda aynı kategori adlı gelir + gider tek 'total'da toplanıp yön bilgisini yok
+    # ediyordu (örn. 1000 gelir + 200 gider → tek satır 1200); artık ayrı, etiketli satırlar.
     q = db.query(
         func.coalesce(Transaction.category, "(kategorisiz)").label("category"),
+        Transaction.transaction_type.label("ttype"),
         func.sum(Transaction.amount).label("total"),
         func.count(Transaction.id).label("cnt"),
     ).filter(
@@ -72,16 +79,24 @@ def category_breakdown(
         ))
 
     rows = q.group_by(
-        func.coalesce(Transaction.category, "(kategorisiz)")
+        func.coalesce(Transaction.category, "(kategorisiz)"),
+        Transaction.transaction_type,
     ).order_by(
         func.sum(Transaction.amount).desc()
     ).all()
 
     grand_total = sum(r.total for r in rows)
 
+    def _label(r):
+        # "both" modunda geliri giderden ayırt et (yön etiketi)
+        if type == "both":
+            yon = "gelir" if r.ttype == TransactionType.income else "gider"
+            return f"{r.category} ({yon})"
+        return r.category
+
     items = [
         CategoryItem(
-            category=r.category,
+            category=_label(r),
             total=round(r.total, 2),
             count=r.cnt,
             percentage=round(r.total / grand_total * 100, 1) if grand_total > 0 else 0.0,
@@ -132,6 +147,36 @@ def net_worth_trend(
         for r in rows
     ]
     return {"items": items, "days": days}
+
+
+@router.get("/net-worth-attribution")
+def net_worth_attribution(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    FEAT-021: Bu ayki net değer değişimini sürücülerine ayrıştırır (nakit, kart/kredi ödeme,
+    yatırım, alacak). Yeterli snapshot geçmişi yoksa {available: false}.
+    """
+    r = calculate_networth_attribution(current_user.id, date.today(), db)
+    if r is None:
+        return {"available": False}
+    return {"available": True, **r}
+
+
+@router.get("/real-net-worth")
+def real_net_worth(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    FEAT-024: Enflasyon-düzeltilmiş (reel) net değer — nominal vs reel değişim + enflasyon etkisi.
+    Türkiye'de servetin gerçek yönünü gösterir. Yeterli snapshot geçmişi yoksa {available: false}.
+    """
+    r = calculate_real_networth(current_user.id, date.today(), db)
+    if r is None:
+        return {"available": False}
+    return {"available": True, **r}
 
 
 # ============================================================
@@ -189,15 +234,31 @@ def upcoming_cashflow(
         items.append({"date": d.due_date.isoformat(), "type": "payable",
                       "amount": -d.amount, "label": label, "source": "personal_debt"})
 
-    # --- Loan hesapları: next_payment_date ---
+    # --- Loan hesapları: ufuk boyunca AYLIK taksitler (BUG #074 fix / P0-12) ---
+    # Eskiden sadece next_payment_date'teki TEK taksit ekleniyordu; 180 günlük ufukta
+    # 5 kredinin her biri ~6 taksit öderken rapor 1'er gösterip total_payable'ı ciddi eksik,
+    # net_flow'u iyimser çıkarıyordu ("sanal zenginlik" ihlali). Artık next_payment_date'ten
+    # başlayarak ufuk sonuna kadar, kalan taksit sayısıyla sınırlı aylık taksitler üretilir.
+    import calendar as _cal
     for acc in db.query(Account).filter(
         Account.user_id == current_user.id,
         Account.account_type == AccountType.loan,
         Account.next_payment_date.isnot(None),
-        Account.next_payment_date <= horizon,
     ).all():
-        items.append({"date": acc.next_payment_date.isoformat(), "type": "payable",
-                      "amount": -(acc.monthly_payment or 0), "label": acc.name, "source": "loan"})
+        pay = acc.monthly_payment or 0
+        if pay <= 0:
+            continue
+        remaining = acc.remaining_installments if acc.remaining_installments is not None else 999
+        cur = acc.next_payment_date
+        pay_day = cur.day
+        count = 0
+        while cur <= horizon and count < remaining:
+            items.append({"date": cur.isoformat(), "type": "payable",
+                          "amount": -pay, "label": acc.name, "source": "loan"})
+            count += 1
+            ny = cur.year + (cur.month // 12)
+            nm = (cur.month % 12) + 1
+            cur = date(ny, nm, min(pay_day, _cal.monthrange(ny, nm)[1]))
 
     # --- RecurringIncome: aylık tekrar tarihleri ---
     for inc in db.query(RecurringIncome).filter(
@@ -234,3 +295,25 @@ def upcoming_cashflow(
         "days": days,
         "today": today.isoformat(),
     }
+
+
+# ============================================================
+# AYLIK ÖZET (A3) — matematik rules_engine.generate_monthly_summary'de
+# ============================================================
+
+@router.get("/monthly-summary")
+def monthly_summary(
+    year: Optional[int] = Query(default=None, ge=2000, le=2100),
+    month: Optional[int] = Query(default=None, ge=1, le=12),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    A3: Aylık özet rapor — gelir/gider/net değişim + gider kategori dağılımı +
+    önceki aya göre trend. year/month verilmezse içinde bulunulan ay.
+    Hesap rules_engine'de (mimari kural); router yalnız parametre + delege eder.
+    """
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+    return generate_monthly_summary(current_user.id, y, m, db)

@@ -13,10 +13,12 @@ from datetime import datetime, date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User, PersonalDebt, DebtDirection
+from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
 router = APIRouter(prefix="/api/debts", tags=["debts"])
 
@@ -28,7 +30,7 @@ router = APIRouter(prefix="/api/debts", tags=["debts"])
 class DebtBase(BaseModel):
     counterparty: str = Field(..., min_length=1, max_length=100)
     direction: DebtDirection
-    amount: float = Field(..., gt=0)
+    amount: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır (inf/NaN/taşma reddedilir)
     description: Optional[str] = None
     due_date: Optional[date] = None
 
@@ -39,7 +41,7 @@ class DebtCreate(DebtBase):
 
 class DebtUpdate(BaseModel):
     counterparty: Optional[str] = Field(None, min_length=1, max_length=100)
-    amount: Optional[float] = Field(None, gt=0)
+    amount: FinansOptTutar = None  # SEC-032
     description: Optional[str] = None
     due_date: Optional[date] = None
     paid_date: Optional[date] = None      # Set edilirse is_paid=True olur
@@ -50,10 +52,9 @@ class DebtOut(DebtBase):
     id: int
     is_paid: bool
     paid_date: Optional[date]
-    created_at: datetime
+    created_at: UtcDateTime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
 
 
 # ============================================================
@@ -121,11 +122,16 @@ def update_debt(
     for k, v in update_data.items():
         setattr(debt, k, v)
 
-    # Akilli senkronizasyon
-    if "paid_date" in update_data:
+    # Akilli senkronizasyon — BUG #106 fix: çelişkide (is_paid=False + paid_date verilmiş)
+    # explicit is_paid KAZANIR ve tutarlılık HER durumda garanti edilir. Eskiden iki kural
+    # sırayla çalışıp "is_paid=True ama paid_date=None" (ödendi ama tarih yok) üretebiliyordu.
+    if "is_paid" in update_data:
+        if update_data["is_paid"] is False:
+            debt.paid_date = None
+        elif debt.paid_date is None:
+            debt.paid_date = date.today()  # ödendi işaretlendi ama tarih yok → bugün
+    elif "paid_date" in update_data:
         debt.is_paid = update_data["paid_date"] is not None
-    if "is_paid" in update_data and update_data["is_paid"] is False:
-        debt.paid_date = None
 
     db.commit()
     db.refresh(debt)

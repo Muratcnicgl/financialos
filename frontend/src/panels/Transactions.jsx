@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   transactionsApi, accountsApi,
-  formatTL, formatDate, signClass,
+  formatTL, formatDate, signClass, todayLocalISO,
 } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
 
@@ -504,7 +504,7 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
   const [description, setDescription] = useState(txn?.description || '');
   const [accountId, setAccountId] = useState(txn?.account_id?.toString() || '');
   const [transactionDate, setTransactionDate] = useState(
-    txn?.transaction_date || new Date().toISOString().slice(0, 10)
+    txn?.transaction_date || todayLocalISO()
   );
   const [isCardExpense, setIsCardExpense] = useState(txn?.is_card_expense || false);
 
@@ -589,12 +589,16 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             className="input"
-            placeholder="yemek, ulasim, fatura..."
+            placeholder="boş bırak → açıklamadan otomatik"
             list="category-list"
           />
           <datalist id="category-list">
             {COMMON_CATEGORIES.map(c => <option key={c} value={c} />)}
           </datalist>
+          {/* FEAT-034: kategori boşsa backend açıklamadan türetir (Migros → alışveriş). */}
+          <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+            Boş bırakırsan açıklamadan otomatik atanır (ör. "Migros" → alışveriş).
+          </p>
         </div>
 
         {/* Aciklama */}

@@ -162,6 +162,30 @@ export const expensesApi = {
 };
 
 // =============================================================
+// ENVELOPES — kategori bütçe zarfları (FEAT-001)
+// =============================================================
+
+export const envelopesApi = {
+  list:   () => request('/api/envelopes'),                        // {envelopes, durum}
+  create: (data) => request('/api/envelopes', { method: 'POST', body: data }),
+  update: (id, data) => request(`/api/envelopes/${id}`, { method: 'PUT', body: data }),
+  delete: (id) => request(`/api/envelopes/${id}`, { method: 'DELETE' }),
+};
+
+// FEAT-006/007: abonelik denetçisi
+export const subscriptionsApi = {
+  list: () => request('/api/subscriptions'),                      // {abonelikler, aylik_toplam, ...}
+  toRecurring: (data) => request('/api/subscriptions/to-recurring', { method: 'POST', body: data }),
+};
+
+// FEAT-032: istek listesi / 24-saat impuls bekleme
+export const wishlistApi = {
+  list:    () => request('/api/wishlist'),                        // {items, bekleyen_adet, review_adet}
+  add:     (data) => request('/api/wishlist', { method: 'POST', body: data }),
+  resolve: (id, status) => request(`/api/wishlist/${id}/resolve`, { method: 'POST', params: { status } }),
+};
+
+// =============================================================
 // DEBTS (4)
 // =============================================================
 
@@ -173,7 +197,7 @@ export const debtsApi = {
   // 'Odendi' kisayolu — paid_date set ederek
   markPaid: (id, date = null) => request(`/api/debts/${id}`, {
     method: 'PUT',
-    body: { paid_date: date || new Date().toISOString().slice(0, 10) },
+    body: { paid_date: date || todayLocalISO() },
   }),
 };
 
@@ -237,8 +261,18 @@ export const reportsApi = {
     request('/api/reports/category-breakdown', { params: { days, type } }),
   netWorthTrend: (days = 30) =>
     request('/api/reports/net-worth-trend', { params: { days } }),
+  netWorthAttribution: () => request('/api/reports/net-worth-attribution'),   // FEAT-021
+  realNetWorth: () => request('/api/reports/real-net-worth'),                 // FEAT-024
   upcomingCashflow: (days = 30) =>
     request('/api/reports/upcoming-cashflow', { params: { days } }),
+  // A3: aylık özet (gelir/gider/net + kategori + önceki-ay trend). Boş param = içinde bulunulan ay.
+  monthlySummary: ({ year = null, month = null } = {}) =>
+    request('/api/reports/monthly-summary', {
+      params: {
+        ...(year !== null && { year }),
+        ...(month !== null && { month }),
+      },
+    }),
 };
 
 export const fundPriceApi = {
@@ -282,6 +316,16 @@ export const debtStrategyApi = {
   compare: ({ extraMonthly = 0 } = {}) =>
     request('/api/debt-strategy/compare', {
       params: { extra_monthly: extraMonthly },
+    }),
+  // FEAT-014: konsolidasyon what-if — teklif edilen oran + vade ile tek-kredi karşılaştırması
+  consolidation: ({ rate, term }) =>
+    request('/api/debt-strategy/consolidation', {
+      params: { rate, term },
+    }),
+  // FEAT-030: satın alma fırsat maliyeti — amount'ı harcamak vs borca ödemek
+  opportunityCost: ({ amount }) =>
+    request('/api/debt-strategy/opportunity-cost', {
+      params: { amount },
     }),
 };
 
@@ -385,7 +429,12 @@ const TURKISH_MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
                               'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 export function formatDate(isoStr, { withYear = false } = {}) {
   if (!isoStr) return '—';
-  const d = new Date(isoStr);
+  // Date-only ("YYYY-MM-DD") string'i LOCAL parse et: 'new Date("2026-05-11")' UTC gece-yarısı
+  // demektir, UTC-batı saat dilimlerinde bir gün geri kayar. 'T00:00:00' eklemek (Reports.jsx'in
+  // zaten kullandığı desen) gösterilen günü saat diliminden BAĞIMSIZ kılar. Datetime string'lere
+  // (T içerenler) dokunma — kendi tz suffix'leri (UtcDateTime +00:00) var.
+  const local = isoStr.length === 10 && !isoStr.includes('T') ? isoStr + 'T00:00:00' : isoStr;
+  const d = new Date(local);
   if (isNaN(d.getTime())) return isoStr;
   const day = d.getDate();
   const month = TURKISH_MONTHS_SHORT[d.getMonth()];
@@ -400,4 +449,23 @@ export function signClass(value) {
   return value > 0
     ? 'text-positive-600 dark:text-positive-400'
     : 'text-negative-600 dark:text-negative-400';
+}
+
+/**
+ * Bugünün LOCAL tarihi "YYYY-MM-DD".
+ * `new Date().toISOString().slice(0,10)` UTC tarihi verir → Türkiye'de (+3) gece
+ * 00:00-03:00 arası BİR GÜN GERİ kayar. Murat gece vardiyası çalıştığından geç saatte
+ * girilen paid_date/transaction_date bir gün önceye kaydolabiliyordu — bu onu düzeltir.
+ */
+export function todayLocalISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Bugünün LOCAL yıl-ayı "YYYY-MM" (aynı saat-dilimi güvenliği). */
+export function currentYearMonthLocal() {
+  return todayLocalISO().slice(0, 7);
 }

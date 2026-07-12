@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target,
+  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank,
 } from 'lucide-react';
 import { healthApi } from './api.js';
 import { ToastProvider } from './components/Toast.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import CommandPalette from './components/CommandPalette.jsx';
 import HelpModal from './components/HelpModal.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Cockpit from './panels/Cockpit.jsx';
 import Coach from './panels/Coach.jsx';
 import Accounts from './panels/Accounts.jsx';
@@ -18,6 +19,7 @@ import Reports from './panels/Reports.jsx';
 import Cashflow from './panels/Cashflow.jsx';
 import DebtStrategy from './panels/DebtStrategy.jsx';
 import Goals from './panels/Goals.jsx';
+import Budget from './panels/Budget.jsx';
 
 const TABS = [
   { id: 'cockpit',     label: 'Cockpit',         icon: Activity      },
@@ -30,6 +32,7 @@ const TABS = [
   { id: 'cashflow',    label: 'Akış',             icon: Waves        },
   { id: 'debtstrategy', label: 'Borç Stratejisi', icon: CreditCard  },
   { id: 'goals',        label: 'Hedefler',        icon: Target      },
+  { id: 'budget',       label: 'Bütçe',           icon: PiggyBank   },
 ];
 
 function useTheme() {
@@ -197,21 +200,31 @@ function AppContent() {
         <div className={`max-w-6xl mx-auto px-4 ${
           activeTab === 'coach' ? 'h-full flex flex-col pt-4' : 'py-6'
         }`}>
-          {activeTab === 'cockpit' && <Cockpit setActiveTab={setActiveTab} />}
-          {activeTab === 'coach' && <Coach />}
-          {activeTab === 'accounts' && <Accounts />}
-          {activeTab === 'transactions' && <Transactions />}
-          {activeTab === 'incomedebt' && <IncomeDebt />}
-          {activeTab === 'redlines' && <RedLines />}
-          {activeTab === 'reports' && <Reports />}
-          {activeTab === 'cashflow' && <Cashflow />}
-          {activeTab === 'debtstrategy' && <DebtStrategy />}
-          {activeTab === 'goals' && <Goals />}
+          {/* FE-003: her panel hata sınırıyla sarılı — biri çökerse tüm uygulama beyaz ekrana
+              düşmesin. resetKey=activeTab → sekme değişince sınır sıfırlanır. */}
+          <ErrorBoundary resetKey={activeTab}>
+            {activeTab === 'cockpit' && <Cockpit setActiveTab={setActiveTab} />}
+            {activeTab === 'coach' && <Coach />}
+            {activeTab === 'accounts' && <Accounts />}
+            {activeTab === 'transactions' && <Transactions />}
+            {activeTab === 'incomedebt' && <IncomeDebt />}
+            {activeTab === 'redlines' && <RedLines />}
+            {activeTab === 'reports' && <Reports />}
+            {activeTab === 'cashflow' && <Cashflow />}
+            {activeTab === 'debtstrategy' && <DebtStrategy />}
+            {activeTab === 'goals' && <Goals />}
+            {activeTab === 'budget' && <Budget />}
+          </ErrorBoundary>
         </div>
       </main>
 
       <footer className="flex-shrink-0 max-w-6xl mx-auto px-4 py-3 text-center text-xs text-zinc-500">
         FinancialOS · 160 IQ stratejist finansal koç · v0.1.0
+        {' · '}
+        <a href="/api/user/export" download="financialos-verim.json"
+           className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
+          Verimi indir
+        </a>
       </footer>
 
       {showPalette && (

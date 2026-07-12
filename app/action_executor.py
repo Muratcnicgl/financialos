@@ -25,19 +25,40 @@ GÜNCELLEMELER:
 - 4 May 2026 BUG #032 fix: _fmt_lot() eklendi — lot değerleri tam sayıysa int gösterilir (4.0→4).
 - 4 May 2026 BUG #039 fix: _normalize_transaction_payload() LLM açıkça nakit/banka hesabı
   seçtiyse kart varsayılanına yönlendirmez; account_id varsa ve kredi kartı değilse payload'a dokunulmaz.
+- 6 Tem 2026 BUG #068 fix (AE-002/P0-2): _execute_sell_investment satış gelirinin gideceği
+  hesabı MUTASYONDAN ÖNCE doğrular; geçersiz/emanet/eksik hesapta lot düşürmeden başarısız döner
+  (eskiden net_eline_gecen hiçbir hesaba yatmadan lot düşüp success dönüyordu → para kaybı).
+- 6 Tem 2026 BUG #069 fix (AE-001/P0-1): execute_pending_action post-commit trigger'ı ayrı try'a
+  alındı — trigger hatası zaten 'executed' aksiyonu 'failed' işaretleyip çift-sayıma yol açmasın.
 """
 
 import json
 import logging
+import math
 from datetime import datetime, date
 from typing import Dict, Optional
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_finite(value) -> Optional[float]:
+    """
+    SEC-032 (para-hareketi katmanı): LLM payload'ındaki sayısal alanı SONLU float'a çevirir.
+    Geçersiz (sayısal değil) / inf / NaN → None. En yüksek-riskli handler'lar (bakiye, satış,
+    fiyat) bunu kullanır — NaN `<=0` ve `>lot` guard'larının İKİSİNİ de atlayıp DB'ye
+    yazılabiliyordu (nan bakiye/lot → cockpit matematiğini bozar). Giriş şeması (schema_types)
+    ilk savunma; bu, propose_action→execute yolundaki ikinci savunmadır.
+    """
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
 from app.models import (
     Account, AccountType, Transaction, TransactionType,
-    PersonalDebt, MasterCheckpoint, CheckpointType,
+    PersonalDebt, DebtDirection, MasterCheckpoint, CheckpointType,
     PendingAction, ActionStatus,
 )
 from app.rules_engine import simulate_partial_sale
@@ -62,7 +83,10 @@ _DATE_KEYWORD_RE = _re.compile(
     r'|\d+\s+g[uü]n\s+[oö]nce'
     r'|\d{1,2}[./]\d{1,2}[./]\d{2,4}'
     r'|\d{4}-\d{2}-\d{2}'
-    r'|tarihinde|tarihli|\d{1,2}['']\w+nde|\d{1,2}['']\w+da'
+    # BUG #114 fix: eskiden ['']  içindeki DÜZ apostrof (U+0027) r'...' raw string'i erken
+    # kapatıyordu → karakter sınıfı boş [] oluyor, "3'ünde/5'inde" gibi Türkçe sıralı tarihler
+    # YAKALANMIYOR + \w kaçış-uyarısı. Çift-tırnak raw + hem düz (') hem kıvrık (’) apostrof:
+    r"|tarihinde|tarihli|\d{1,2}['’]\w+nde|\d{1,2}['’]\w+da"
     r')\b',
     _re.IGNORECASE,
 )
@@ -244,13 +268,44 @@ def _build_action_message(action_type: str, result: Dict) -> str:
         if action_type == "add_master_checkpoint":
             return f"Yeni kural eklendi: '{result.get('title', '?')}'."
     except Exception:
-        pass
+        # BE-010: mesaj biçimlendirme hatası benign (aksiyon zaten uygulandı) ama sessiz
+        # kalmamalı — generic mesaja düşmenin nedeni loglanır.
+        logger.warning("aksiyon sonuç mesajı biçimlendirilemedi type=%s", action_type, exc_info=True)
     return "Aksiyon uygulandı."
 
 
 # ============================================================
 # 2. EXECUTE — Onaylanmış aksiyonu DB'ye uygula
 # ============================================================
+
+def _mark_recurring_triggered(db: Session, pending: PendingAction, payload: Dict) -> None:
+    """
+    BUG #070 (P0-15): recurring kaynaklı aksiyon GERÇEKTEN executed olunca kaynak
+    RecurringIncome/Expense'in last_triggered_year_month'unu işaretler. Bu iş eskiden
+    trigger anında (propose sırasında) yapılıyordu; reddedilen/başarısız gider "bu ay
+    halledildi" sayılıp bir daha tetiklenmiyordu (sessiz veri kaybı). Commit YAPMAZ —
+    çağıran execute_pending_action status='executed' ile aynı commit'te yazar.
+    """
+    if not getattr(pending, "source_recurring_id", None):
+        return
+    from app.models import RecurringIncome, RecurringExpense
+    # DATA-029: dedup anahtarı ÖNCE payload'ın transaction_date'inden (yerel iş-günü) türetilir —
+    # trigger_due bunu HER ZAMAN yerel date.today() ile koyar, CHECK tarafı da yerel date.today()
+    # kullanır → tutarlı, ay-sınırında çift-tetik YOK. Fallback (transaction_date yoksa) da yerel
+    # date.today() olmalı (utcnow DEĞİL) — TR (UTC+3) ay sınırında UTC/yerel ay farkı doğurmasın.
+    td = payload.get("transaction_date")
+    _local = date.today()
+    ym = td[:7] if isinstance(td, str) and len(td) >= 7 else \
+        f"{_local.year}-{_local.month:02d}"
+    if pending.source_recurring_type == "income":
+        rec = db.query(RecurringIncome).filter(RecurringIncome.id == pending.source_recurring_id).first()
+    elif pending.source_recurring_type == "expense":
+        rec = db.query(RecurringExpense).filter(RecurringExpense.id == pending.source_recurring_id).first()
+    else:
+        rec = None
+    if rec is not None:
+        rec.last_triggered_year_month = ym
+
 
 def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
     """
@@ -317,10 +372,18 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
         # Başarılı — kaydı 'executed' işaretle
         pending.status = ActionStatus.executed
         pending.resolved_at = datetime.utcnow()
+        # BUG #070 fix (P0-15): recurring last_triggered'i SADECE gerçekten executed olunca
+        # işaretle (status ile aynı commit'te). Reddedilen/başarısız kayıt re-triggerable kalır.
+        _mark_recurring_triggered(db, pending, payload)
         db.commit()
-        # Wave-2 H1G2: olay-tetikli action_rejection_pattern
-        from app.scheduler import trigger_after_action_resolution
-        trigger_after_action_resolution(db, user_id)
+        # BUG #069 fix (P0-1): post-commit tetikleyici AYRI try. Aksiyon zaten 'executed'
+        # (para/mutasyon kalıcı); trigger patlarsa asla 'failed' işaretleme — aksi halde
+        # kullanıcı "başarısız" görüp tekrar tetikler, mutasyon çift uygulanır (çift-sayım).
+        try:
+            from app.scheduler import trigger_after_action_resolution
+            trigger_after_action_resolution(db, user_id)
+        except Exception as te:
+            logger.warning("trigger_after_action_resolution basarisiz (aksiyon zaten executed): %s", te)
 
         return {
             "success": True,
@@ -397,8 +460,11 @@ def _execute_update_account_balance(db: Session, user_id: int, payload: Dict) ->
             "message": f"'{account.name}' emanet hesap (MC1). Bakiye degistirilemez.",
         }
 
+    _nb = _parse_finite(new_balance)  # SEC-032: nan/inf bakiye DB'ye yazılmasın
+    if _nb is None:
+        return {"success": False, "message": "new_balance sonlu bir sayı olmalı."}
     old_balance = account.balance
-    account.balance = float(new_balance)
+    account.balance = _nb
     account.updated_at = datetime.utcnow()
     db.commit()
 
@@ -430,6 +496,9 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
     amount = payload.get("amount")
     if txn_type not in ("income", "expense", "transfer") or amount is None:
         return {"success": False, "message": "transaction_type ve amount gerekli."}
+    amount = _parse_finite(amount)  # SEC-032: nan/inf tutar bakiyeyi/cockpit'i bozar
+    if amount is None or amount <= 0:
+        return {"success": False, "message": "amount sonlu ve pozitif olmalı."}
 
     txn_date = payload.get("transaction_date")
     if txn_date:
@@ -454,7 +523,7 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
         user_id=user_id,
         account_id=account_id,
         transaction_type=TransactionType(txn_type),
-        amount=float(amount),
+        amount=amount,  # SEC-032: yukarıda _parse_finite ile sonlu+pozitif doğrulandı
         category=payload.get("category"),
         description=payload.get("description"),
         transaction_date=txn_date,
@@ -466,8 +535,15 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
     balance_diff = 0.0
     if payload.get("auto_update_balance") and account_id:
         if txn_type == "income":
-            account.balance += float(amount)
-            balance_diff = float(amount)
+            # BUG #103 fix: karta gelen gelir (iade/cashback/chargeback) BORCU AZALTIR;
+            # nakit/yatırıma gelen gelir varlığı artırır. Eskiden kart için de += yapıp
+            # borcu YANLIŞLIKLA artırıyordu (gider'in simetriği eksikti).
+            if account.account_type == AccountType.credit_card:
+                account.balance -= float(amount)  # kart borcu azalır
+                balance_diff = -float(amount)
+            else:
+                account.balance += float(amount)
+                balance_diff = float(amount)
         elif txn_type == "expense":
             # Kart harcamasıysa kart borcunu artır, nakitse nakti azalt
             if account.account_type == AccountType.credit_card:
@@ -516,6 +592,28 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
         date.fromisoformat(paid_date_str) if paid_date_str else date.today()
     )
     debt.is_paid = True
+
+    # BUG #113 fix (kapsam-güdümlü keşif): mark_debt_paid TEK aksiyondur (prompt: "X bana ödedi
+    # / borcumu ödedim" → mark_debt_paid). Bu yüzden NAKDİ DE HAREKET ETTİRMELİ — eskiden yalnız
+    # is_paid işaretleyip nakdi hareketsiz bırakıyordu: alacak tahsili net değeri YANLIŞ düşürüyor,
+    # borç ödemesi yanlış yükseltiyordu (tahsilat/ödeme net-nötr olmalı; görülen nakit değişmeli).
+    # Simülasyon zaten böyle yapıyordu → executor ile TUTARLI hale geldi. Varsayılan nakit hesaba işlenir.
+    cash = (
+        db.query(Account)
+        .filter(Account.user_id == user_id, Account.account_type == AccountType.cash)
+        .order_by(Account.id.asc())
+        .first()
+    )
+    cash_effect = 0.0
+    if cash:
+        if debt.direction == DebtDirection.receivable:
+            cash.balance += debt.amount          # alacak TAHSİL edildi → nakit artar
+            cash_effect = debt.amount
+        else:
+            cash.balance -= debt.amount          # borç ÖDENDİ → nakit azalır
+            cash_effect = -debt.amount
+        cash.updated_at = datetime.utcnow()
+
     db.commit()
 
     return {
@@ -525,6 +623,8 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
         "amount": debt.amount,
         "direction": debt.direction.value,
         "paid_date": debt.paid_date.isoformat(),
+        "cash_effect": cash_effect,               # +tahsilat / -ödeme; nakit hesap yoksa 0
+        "cash_account": cash.name if cash else None,
     }
 
 
@@ -564,7 +664,9 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
             ),
         }
 
-    lots = float(lots)
+    lots = _parse_finite(lots)  # SEC-032: nan lots `<=0`/`>lot` guard'larını atlayıp DB'yi bozardı
+    if lots is None:
+        return {"success": False, "message": "lots_to_sell sonlu bir sayı olmalı."}
     if lots <= 0:
         return {"success": False, "message": "lots_to_sell sifirdan buyuk olmali."}
     if lots > (inv.lot_count or 0):
@@ -578,7 +680,10 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
             "message": "cost_per_lot veya current_price eksik — satis simulasyonu yapilamaz.",
         }
 
-    actual_price = float(payload.get("actual_price") or inv.current_price)
+    _ap = payload.get("actual_price")
+    actual_price = _parse_finite(_ap) if _ap is not None else inv.current_price
+    if actual_price is None or not math.isfinite(actual_price):  # SEC-032
+        return {"success": False, "message": "actual_price sonlu bir sayı olmalı."}
 
     # Stopaj hesabı (Rules Engine'i kullanıyoruz — LLM hesaplamasın)
     sim = simulate_partial_sale(
@@ -588,22 +693,33 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
         lots_to_sell=lots,
     )
 
-    # Yatırım hesabını güncelle: lot azalt, balance yeniden hesapla
+    # BUG #068 fix (AE-002): Satış gelirinin gideceği hesabı MUTASYONDAN ÖNCE doğrula.
+    # Eskiden lot düşürülüp commit ediliyor, ama hesap geçersiz/emanet/eksikse
+    # net_eline_gecen hiçbir yere yatmadan "success" dönüyordu → para sessizce yok oluyordu.
+    credit_account_id = payload.get("credit_to_account_id")
+    if not credit_account_id:
+        return {"success": False, "message": "Satış geliri için hedef nakit hesap (credit_to_account_id) belirtilmeli — aksi halde para kaybolur. Satış yapılmadı."}
+    credit_account = db.query(Account).filter(
+        Account.id == credit_account_id,
+        Account.user_id == user_id,
+    ).first()
+    if credit_account is None:
+        return {"success": False, "message": f"Nakit aktarılacak hesap bulunamadı: id={credit_account_id}. Satış yapılmadı."}
+    if credit_account.is_emanet:
+        return {"success": False, "message": f"'{credit_account.name}' emanet hesap — satış parası buraya yatırılamaz. Satış yapılmadı."}
+
+    # Doğrulama geçti — şimdi mutasyon (lot azalt + nakdi hedefe yatır) tek commit'te
     inv.lot_count = sim["kalan_lot"]
     inv.balance = sim["kalan_deger"]
+    # BUG #102 fix: kalan_deger = kalan_lot * actual_price. actual_price taze bir piyasa
+    # gözlemidir; current_price'ı da güncelle ki balance == lot_count*current_price tutarlı
+    # kalsın. Eskiden current_price bayat kalıp cockpit (lot*current_price) ile balance ve
+    # simülasyon (balance okur) birbirinden sapıyordu.
+    inv.current_price = actual_price
+    inv.last_price_update = datetime.utcnow()
     inv.updated_at = datetime.utcnow()
-
-    # Nakdi hangi hesaba geçirelim?
-    credit_account_id = payload.get("credit_to_account_id")
-    credit_account = None
-    if credit_account_id:
-        credit_account = db.query(Account).filter(
-            Account.id == credit_account_id,
-            Account.user_id == user_id,
-        ).first()
-        if credit_account and not credit_account.is_emanet:
-            credit_account.balance += sim["net_eline_gecen"]
-            credit_account.updated_at = datetime.utcnow()
+    credit_account.balance += sim["net_eline_gecen"]
+    credit_account.updated_at = datetime.utcnow()
 
     db.commit()
 
@@ -633,7 +749,10 @@ def _execute_update_fund_price(db: Session, user_id: int, payload: Dict) -> Dict
     if account_id is None or new_price is None:
         return {"success": False, "message": "account_id ve new_price gerekli."}
 
-    return update_fund_price_manual(db, account_id, float(new_price))
+    _np = _parse_finite(new_price)  # SEC-032: nan/inf fiyat lot*fiyat matematiğini bozar
+    if _np is None:
+        return {"success": False, "message": "new_price sonlu bir sayı olmalı."}
+    return update_fund_price_manual(db, account_id, _np, user_id=user_id)  # BUG #115
 
 
 def _execute_add_master_checkpoint(db: Session, user_id: int, payload: Dict) -> Dict:

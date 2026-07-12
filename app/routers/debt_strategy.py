@@ -15,7 +15,10 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.debt_strategy import compare_strategies
+from app.debt_strategy import (
+    compare_strategies, collect_debts, simulate_consolidation,
+    simulate_purchase_opportunity_cost,
+)
 from app.models import User
 
 logger = logging.getLogger(__name__)
@@ -85,3 +88,53 @@ def compare(
         current_user.id, len(result['debts']), extra_monthly,
     )
     return DebtStrategyResponse(**result)
+
+
+@router.get("/consolidation")
+def consolidation(
+    rate: float = Query(
+        ..., ge=0.0, le=20.0,
+        description="Teklif edilen konsolidasyon kredisi AYLIK faiz oranı (%/ay, 0-20)",
+    ),
+    term: int = Query(
+        ..., ge=1, le=360,
+        description="Konsolidasyon kredisi vadesi (ay, 1-360)",
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    FEAT-014: Tüm borçları tek krediye (verilen oran + vade) toplayınca aylık taksit +
+    toplam faiz. Nötr karşılaştırma — ağırlıklı ortalama orana göre avantajlı mı gösterir.
+    Tavsiye DEĞİL: kullanıcı teklif edilen oran/vadeyi girer, sistem matematiği yapar.
+
+    <2 borç → 404 (konsolidasyon en az iki borç ister).
+    """
+    debts = collect_debts(db, current_user.id)
+    result = simulate_consolidation(debts, rate, term)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Konsolidasyon için en az iki aktif borç gerekir.")
+    logger.info("consolidation sim user_id=%s rate=%.2f term=%d", current_user.id, rate, term)
+    return result
+
+
+@router.get("/opportunity-cost")
+def opportunity_cost(
+    amount: float = Query(
+        ..., gt=0.0, le=10_000_000.0,
+        description="Harcamayı düşündüğün tutar (TL) — borca ödemenin alternatif maliyeti",
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    FEAT-030: `amount` TL'yi harcamak vs en yüksek faizli borca ödemek — borçsuzluk tarihine
+    ve toplam faize etkisi. İmpuls harcamayı somut maliyetle yavaşlatan nötr what-if aracı
+    (harcama emri değil). Aktif borç yoksa 404.
+    """
+    debts = collect_debts(db, current_user.id)
+    result = simulate_purchase_opportunity_cost(debts, amount)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Fırsat maliyeti için aktif borç gerekir.")
+    logger.info("opportunity-cost sim user_id=%s amount=%.2f", current_user.id, amount)
+    return result

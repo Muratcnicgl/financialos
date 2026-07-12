@@ -15,10 +15,12 @@ from datetime import datetime, date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User, RecurringIncome, Account, AccountType, PendingAction, ActionStatus
+from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ router = APIRouter(prefix="/api/incomes", tags=["incomes"])
 
 class IncomeBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    amount: float = Field(..., gt=0)
+    amount: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır
     day_of_month: int = Field(..., ge=1, le=31, description="Ayın kacinda gelir (1-31)")
     is_active: bool = True
     notes: Optional[str] = None
@@ -43,7 +45,7 @@ class IncomeCreate(IncomeBase):
 
 class IncomeUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    amount: Optional[float] = Field(None, gt=0)
+    amount: FinansOptTutar = None  # SEC-032
     day_of_month: Optional[int] = Field(None, ge=1, le=31)
     is_active: Optional[bool] = None
     notes: Optional[str] = None
@@ -51,10 +53,9 @@ class IncomeUpdate(BaseModel):
 
 class IncomeOut(IncomeBase):
     id: int
-    created_at: datetime
+    created_at: UtcDateTime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
 
 
 # ============================================================
@@ -139,16 +140,22 @@ def trigger_due_incomes(
     if not cash_acc:
         return {"triggered": []}
 
+    # BUG #071 fix (P0-16): day_of_month'u ay uzunluğuna clamp'le (kısa aylarda 31 atlanmasın).
+    import calendar
+    last_day = calendar.monthrange(today.year, today.month)[1]
+
     incomes = db.query(RecurringIncome).filter(
         RecurringIncome.user_id == user.id,
         RecurringIncome.is_active == True,
-        RecurringIncome.day_of_month <= today.day,
     ).all()
 
     triggered = []
     for inc in incomes:
+        effective_day = min(inc.day_of_month, last_day)
+        if effective_day > today.day:
+            continue  # bu ay vadesi henüz gelmedi
         # BUG #047 çift kontrol:
-        # (1) Bu ay henüz tetiklenmemiş mi
+        # (1) Bu ay zaten EXECUTED olarak işaretlenmiş mi (last_triggered execute'te set edilir)
         if inc.last_triggered_year_month == year_month:
             continue
         # (2) Bu kayıt için zaten pending var mı
@@ -175,10 +182,9 @@ def trigger_due_incomes(
                 },
                 summary=f"{inc.name}: {_fmt(inc.amount)} TL geldi",
             )
-            # BUG #047: source fields + last_triggered tek commit'te
+            # BUG #070 fix (P0-15): last_triggered BURADA set EDİLMEZ — execute'te set edilir.
             pending.source_recurring_id = inc.id
             pending.source_recurring_type = "income"
-            inc.last_triggered_year_month = year_month
             db.commit()
             triggered.append({
                 "id": pending.id,

@@ -6,7 +6,7 @@ ORM modellerinden bağımsız, frontend ile veri sözleşmesi.
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, computed_field
 
 
 # === ORTAK ===
@@ -264,7 +264,10 @@ class GoalUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     target_amount: Optional[Decimal] = Field(None, gt=0)
     target_date: Optional[date] = None
-    status: Optional[Literal["active", "achieved", "paused", "abandoned"]] = None
+    # BUG #063 fix (SH-002): "achieved" çıkarıldı. achieved geçişi SADECE
+    # goal_engine.refresh_goal'da (gerçek katkı >= target ise) olur; kullanıcı PATCH ile
+    # hiç katkı yapmadan "sanal başarı" işaretleyemez ("Rules Engine karar verir" ilkesi).
+    status: Optional[Literal["active", "paused", "abandoned"]] = None
 
 
 class GoalRead(BaseModel):
@@ -285,6 +288,28 @@ class GoalRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     achieved_at: Optional[datetime]
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def sinking_fund(self) -> Optional[dict]:
+        """
+        FEAT-003: cash_target + target_date olan hedef bir "sinking fund"tır — aylık gereken
+        katkı serileştirme anında hesaplanır (cache YOK, mevcut alanlardan türetilir → şema/DB
+        değişmez). Diğer tipler/tarihsiz hedefler için None.
+        """
+        if self.goal_type != "cash_target" or self.target_date is None:
+            return None
+        from app.goal_engine import sinking_fund_plan  # lazy: import cycle riskini sıfırla
+        plan = sinking_fund_plan(self.target_amount, self.target_date, self.current_amount)
+        if plan is None:
+            return None
+        # Decimal → float (JSON serileştirme; frontend Türkçe formatlar)
+        return {
+            "aylik_gereken": float(plan["aylik_gereken"]),
+            "kalan_ay": plan["kalan_ay"],
+            "gecikmis": plan["gecikmis"],
+            "tamamlandi": plan["tamamlandi"],
+        }
 
 
 class GoalAllocationCreate(BaseModel):

@@ -2073,8 +2073,12 @@ def extract_explicit_red_line_k2(
             evidence = p["evidence_quotes"]
             confidence = p["confidence"]
 
-            first_quote = (evidence[0] if evidence else "")[:60]
-            title = f"Ima edilen kirmizi cizgi [{category}]: {first_quote}"
+            # BUG #104 fix: title dedup ANAHTARI (UNIQUE user_id+type+title). Eskiden volatil
+            # LLM alıntısı (first_quote) title'a giriyordu → her nightly batch farklı title →
+            # dedup başarısız → aynı kırmızı-çizgi için mükerrer insight birikip prompt top-5'ini
+            # dolduruyordu. Title artık SADECE kategoriye bağlı (stabil) → aynı kategori tekrar
+            # çalışınca UPSERT ile GÜNCELLENİR. Alıntı zaten content'te korunuyor (bilgi kaybı yok).
+            title = f"Ima edilen kirmizi cizgi [{category}]"
             if len(title) > 200:
                 title = title[:197] + "..."
 

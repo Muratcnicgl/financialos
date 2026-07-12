@@ -3,13 +3,14 @@ import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Banknote, Calculator, Scale, ScaleIcon, AlertTriangle,
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
-  Eye, Telescope, Bell, Waves, ArrowRight,
+  Eye, Telescope, Bell, Waves, ArrowRight, Target,
 } from 'lucide-react';
 import {
   cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
   cashflowApi, formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
 } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
+import MonthlySummary from '../components/MonthlySummary.jsx';
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -106,7 +107,13 @@ export default function Cockpit({ setActiveTab }) {
   // BUG #006 fix: Yeni alanlar (eski cockpit response'i ile geriye uyumlu olsun diye fallback)
   const netDegerTam = data.net_deger_tam ?? data.net_deger;
   const alacaklarToplami = data.alacaklar_toplami ?? 0;
+  const borclarToplami = data.borclar_toplami ?? 0;   // BUG #116: kişisel borç (net_deger_tam'dan −)
   const alacaklarVar = alacaklarToplami > 0;
+  // Tam Net Değer alt-yazısı: hem +alacak hem −kişisel-borç şeffaf gösterilir (#116)
+  const netTamDetay = [
+    alacaklarToplami > 0 ? `+${formatTL(alacaklarToplami)} TL alacak` : null,
+    borclarToplami > 0 ? `−${formatTL(borclarToplami)} TL kişisel borç` : null,
+  ].filter(Boolean).join(', ');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -125,6 +132,32 @@ export default function Cockpit({ setActiveTab }) {
           <span className="hidden sm:inline">Yenile</span>
         </button>
       </div>
+
+      {/* FEAT-041: deterministik İLK ADIM — tüm sinyallerin tek en-yüksek-etkili hamlesi */}
+      {data.sonraki_eylem && (() => {
+        const se = data.sonraki_eylem;
+        const style = {
+          temerrut: 'border-negative-400 dark:border-negative-600 bg-negative-50 dark:bg-negative-950/40',
+          kriz:     'border-negative-400 dark:border-negative-600 bg-negative-50 dark:bg-negative-950/40',
+          tahsilat: 'border-warn-400 dark:border-warn-600 bg-warn-50 dark:bg-warn-950/40',
+          firsat:   'border-brand-400 dark:border-brand-600 bg-brand-50 dark:bg-brand-950/40',
+          stabil:   'border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40',
+        }[se.tip] || 'border-zinc-300 dark:border-zinc-700';
+        return (
+          <div className={`card p-4 border-2 ${style}`}>
+            <div className="flex items-start gap-3">
+              <Target className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-0.5">
+                  İlk adım
+                </div>
+                <div className="font-semibold text-zinc-800 dark:text-zinc-100">{se.eylem}</div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-300 mt-0.5">{se.gerekce}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Bekleyen aksiyonlar */}
       {pendingActions.length > 0 && (
@@ -197,12 +230,37 @@ export default function Cockpit({ setActiveTab }) {
             value={netDegerTam}
             variant={netDegerTam >= 0 ? 'positive' : 'negative'}
             icon={Telescope}
-            subtitle={alacaklarVar
-              ? `+${formatTL(alacaklarToplami)} TL alacak dahil`
-              : 'Alacak yok, görülen ile aynı'}
+            subtitle={netTamDetay
+              ? `${netTamDetay} dahil`
+              : 'Alacak/borç yok, görülen ile aynı'}
           />
         </div>
       </div>
+
+      {/* FEAT-022: finansal sağlık skoru — şeffaf composite capstone */}
+      {data.saglik_skoru && (() => {
+        const sk = data.saglik_skoru;
+        const barCls = sk.seviye === 'iyi' ? 'bg-positive-500' : sk.seviye === 'orta' ? 'bg-warn-500' : 'bg-negative-500';
+        const txtCls = sk.seviye === 'iyi' ? 'text-positive-600 dark:text-positive-400' : sk.seviye === 'orta' ? 'text-warn-600 dark:text-warn-400' : 'text-negative-600 dark:text-negative-400';
+        return (
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Finansal Sağlık</span>
+              <span className={`font-numeric font-bold text-2xl ${txtCls}`}>
+                {sk.skor}<span className="text-sm text-zinc-400 dark:text-zinc-500">/100</span>
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+              <div className={`h-full rounded-full ${barCls}`} style={{ width: `${sk.skor}%` }} />
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {sk.bilesenler.map((b) => (
+                <span key={b.ad} className="chip chip-neutral text-[10px]">{b.ad} {b.puan}</span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Günlük limit kutusu */}
       <div className="card p-5 border-brand-200 dark:border-brand-800/50 bg-brand-50/50 dark:bg-brand-950/20">
@@ -221,8 +279,148 @@ export default function Cockpit({ setActiveTab }) {
               </span>
             )}
           </p>
+          {/* Zikzak projeksiyonu — kurucu "biriken güç": bugün harcamazsan yarınki limit yükselir */}
+          {data.yarin_limit_harcamasiz > data.daily_limit && (
+            <p className="text-xs text-positive-600 dark:text-positive-400 mt-1.5 flex items-center gap-1">
+              <Waves className="w-3.5 h-3.5 shrink-0" />
+              Bugün harcamazsan yarın limitin {formatTL(data.yarin_limit_harcamasiz)} TL/gün'e çıkar
+            </p>
+          )}
+          {/* FEAT-009: ileriye-dönük güvenli harcama tabanı — lumpy yükümlülükleri hesaba katar (kart hariç) */}
+          {data.guvenli_harcama !== undefined && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
+              <Lock className="w-3.5 h-3.5 shrink-0" />
+              Güvenli harcama (90g öngörü, kart borcu düşülmüş):{' '}
+              <span className={`font-numeric font-semibold ${data.guvenli_harcama > 0 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
+                {formatTL(data.guvenli_harcama)} TL
+              </span>
+            </p>
+          )}
+          {/* FEAT-010: nakit runway — gelirsiz mevcut nakit kaç gün yeter */}
+          {data.nakit_runway_gun !== undefined && data.nakit_runway_gun !== null && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              Nakit runway:{' '}
+              <span className={`font-numeric font-semibold ${data.nakit_runway_gun >= 30 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
+                {data.nakit_runway_gun} gün
+              </span>
+              <span className="text-zinc-400 dark:text-zinc-500"> (gelirsiz, 30g harcama hızıyla)</span>
+            </p>
+          )}
         </div>
       </div>
+
+      {/* A3: Aylık özet — kurucu "durum raporu" */}
+      <MonthlySummary />
+
+      {/* FEAT-006: toplam abonelik yükü — glanceable (Rocket Money headline) */}
+      {data.abonelik_yuku?.adet > 0 && (
+        <div className="card p-3 flex items-center gap-2 text-sm">
+          <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+          <span className="text-zinc-600 dark:text-zinc-300">
+            {data.abonelik_yuku.adet} abonelik ·{' '}
+            <span className="font-numeric font-semibold">{formatTL(data.abonelik_yuku.aylik)} TL</span>/ay
+            <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(data.abonelik_yuku.yillik)} TL/yıl)</span>
+          </span>
+        </div>
+      )}
+
+      {/* FEAT-012: borçsuz olma tarihi — Murat'ın borç serüveninin motive edici hedefi */}
+      {data.borc_ozgurluk && (
+        <div className="card p-3 flex items-center gap-2 text-sm">
+          <Target className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
+          <span className="text-zinc-600 dark:text-zinc-300">
+            {data.borc_ozgurluk.asla_bitmez
+              ? 'Minimum ödemelerle borç makul sürede kapanmıyor — ek ödeme şart.'
+              : <>Borçsuzluk: <span className="font-semibold">{data.borc_ozgurluk.kalan_ay} ay</span>
+                  {data.borc_ozgurluk.borcsuz_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (≈{formatDate(data.borc_ozgurluk.borcsuz_tarih)})</span>}
+                  <span className="text-zinc-400 dark:text-zinc-500"> · kalan faiz {formatTL(data.borc_ozgurluk.toplam_faiz)} TL</span></>}
+          </span>
+        </div>
+      )}
+
+      {/* FEAT-013: faiz sızıntısı — borç faiz maliyeti (sarsıcı realist sinyal) */}
+      {data.faiz_sizintisi?.aylik_toplam > 0 && (
+        <div className="card p-3 flex items-center gap-2 text-sm border-negative-200 dark:border-negative-800/50">
+          <AlertTriangle className="w-4 h-4 text-negative-500 shrink-0" />
+          <span className="text-zinc-600 dark:text-zinc-300">
+            Faize giden:{' '}
+            <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatTL(data.faiz_sizintisi.aylik_toplam)} TL</span>/ay
+            <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(data.faiz_sizintisi.yillik_toplam)} TL/yıl · günde {formatTL(data.faiz_sizintisi.gunluk)} TL)</span>
+          </span>
+        </div>
+      )}
+
+      {/* FEAT-016: kart kullanım oranı (utilization) + kredi sağlığı — yalnız yüksek/kritik bantta */}
+      {data.kart_kullanim && ['yuksek', 'kritik'].includes(data.kart_kullanim.band) && (() => {
+        const ku = data.kart_kullanim;
+        const pct = Math.min(100, ku.oran);
+        const barColor = ku.band === 'kritik' ? 'bg-negative-500' : 'bg-warn-500';
+        const txtColor = ku.band === 'kritik' ? 'text-negative-600 dark:text-negative-400' : 'text-warn-600 dark:text-warn-400';
+        const tr = ku.trend;
+        return (
+          <div className="card p-3 space-y-2 text-sm border-negative-200 dark:border-negative-800/50">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+              <span className="text-zinc-600 dark:text-zinc-300">
+                Kart kullanımı{' '}
+                <span className={`font-numeric font-semibold ${txtColor}`}>%{ku.oran}</span>
+                <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(ku.toplam_borc)} / {formatTL(ku.toplam_limit)} TL)</span>
+              </span>
+              {tr && (
+                <span className={`ml-auto text-xs font-numeric ${tr.iyilesme ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
+                  {tr.iyilesme ? '↓' : '↑'} {tr.degisim > 0 ? '+' : ''}{tr.degisim} puan / {tr.gun}g
+                </span>
+              )}
+            </div>
+            <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+              <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Sağlıklı eşik %30 — borç <span className="font-numeric">{formatTL(ku.saglikli_borc_hedefi)} TL</span> seviyesine inmeli.
+              Kullanım oranı kredi notunda en ağır faktörlerden; her ödenen TL doğrudan düşürür.
+            </p>
+          </div>
+        );
+      })()}
+
+      {/* FEAT-027: alacak yaşlandırma — gecikmiş alacakları vade-yaşına göre önceliklendir */}
+      {data.alacak_yaslanma?.gecikmis_adet > 0 && (
+        <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
+          <Users className="w-4 h-4 text-warn-500 shrink-0 mt-0.5" />
+          <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
+            <div>
+              <span className="font-semibold">{data.alacak_yaslanma.gecikmis_adet} gecikmiş alacak</span>{' '}
+              <span className="font-numeric font-semibold text-warn-600 dark:text-warn-400">{formatTL(data.alacak_yaslanma.toplam_gecikmis)} TL</span>
+              <span className="text-zinc-400 dark:text-zinc-500"> / {data.alacak_yaslanma.adet} alacak</span>
+            </div>
+            {data.alacak_yaslanma.en_riskli?.length > 0 && (
+              <div className="text-zinc-400 dark:text-zinc-500 text-xs">
+                Önce kovala: {data.alacak_yaslanma.en_riskli.map((k) => `${k.kim} ${formatTL(k.tutar)} TL (${k.gecikme_gun}g)`).join(' · ')}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* FEAT-015: kart asgari-ödeme tuzağı — sadece asgari ödeme senaryosu (görünmez maliyet) */}
+      {data.asgari_tuzagi?.kartlar?.length > 0 && (
+        <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
+          <AlertTriangle className="w-4 h-4 text-warn-500 shrink-0 mt-0.5" />
+          <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
+            {data.asgari_tuzagi.kartlar.slice(0, 2).map((k, i) => (
+              <div key={i}>
+                {k.asla_bitmez
+                  ? <><span className="font-semibold">{k.ad}</span>: yalnız asgariyle <span className="font-semibold text-negative-600 dark:text-negative-400">asla kapanmaz</span> (asgari &lt; faiz)</>
+                  : <><span className="font-semibold">{k.ad}</span> asgari-ödeme tuzağı: <span className="font-semibold">{k.ay} ay</span> · faiz{' '}
+                      <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatTL(k.toplam_faiz)} TL</span>
+                      {k.payoff_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (biter ≈{formatDate(k.payoff_tarih)})</span>}</>}
+              </div>
+            ))}
+            <div className="text-zinc-400 dark:text-zinc-500 text-xs">Asgarinin üstüne her ek ödeme süreyi ve toplam faizi hızla düşürür.</div>
+          </div>
+        </div>
+      )}
 
       {/* Uyarılar */}
       {data.alerts && data.alerts.length > 0 && (
@@ -261,6 +459,12 @@ export default function Cockpit({ setActiveTab }) {
               </div>
             </div>
           ))}
+          {/* #126: sığmayan uyarılar — alert yorgunluğu için gizlenenlerin sayısı */}
+          {data.gizli_uyari_sayisi > 0 && (
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center pt-1">
+              +{data.gizli_uyari_sayisi} düşük öncelikli uyarı daha
+            </p>
+          )}
         </div>
       )}
 
@@ -377,22 +581,28 @@ export default function Cockpit({ setActiveTab }) {
               const dayLabel = r.days_until === 0 ? 'Bugün'
                 : r.days_until === 1 ? 'Yarın'
                 : `${r.days_until} gün sonra`;
-              const sign = r.type === 'income' ? '+' : '−';
-              const colorClass = r.type === 'income'
+              // BUG #119: alacak (receivable) da gelir gibi bir NAKİT GİRİŞİ — + ve yeşil.
+              const isInflow = r.type === 'income' || r.type === 'receivable';
+              const sign = isInflow ? '+' : '−';
+              const colorClass = isInflow
                 ? 'text-positive-600 dark:text-positive-400'
                 : 'text-negative-600 dark:text-negative-400';
+              const typeLabel = { income: 'Gelir', receivable: 'Tahsilat',
+                debt: 'Borç', expense: 'Gider', card_payment: 'Son ödeme' }[r.type] || r.type;
               return (
                 <div key={i}
                   className="flex items-center justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="font-medium truncate">{r.name}</p>
-                      {r.card_risk && (
+                      {r.type === 'card_payment' ? (
+                        <span className="chip chip-negative text-[9px] flex-shrink-0">💳 Son ödeme</span>
+                      ) : r.card_risk ? (
                         <span className="chip chip-negative text-[9px] flex-shrink-0">Kart riski</span>
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {dayLabel} · {r.account_name || r.type}
+                      {dayLabel} · {r.account_name || typeLabel}
                     </p>
                   </div>
                   <span className={`font-numeric font-semibold flex-shrink-0 ${colorClass}`}>

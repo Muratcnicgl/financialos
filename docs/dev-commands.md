@@ -60,10 +60,21 @@ Yedekler `data/backups/` altında, 30 günden eskisi otomatik silinir.
 Repo kökünde, `.gitignore`'da:
 
 ```
-LLM_PROVIDER=gemini          # gemini | anthropic | groq | fallback
+LLM_PROVIDER=gemini          # gemini | anthropic | groq | ollama | fallback
 GEMINI_API_KEY=...
 GROQ_API_KEY=...             # fallback için opsiyonel
 ANTHROPIC_API_KEY=...        # opsiyonel
 LLM_MODEL=...                # opsiyonel, provider'ın default'unu ezer
 DATABASE_URL=sqlite:///./data/financialos.db   # opsiyonel
+
+# Ollama (YEREL/EGEMEN — offline, veri makineden çıkmaz; LLM-005)
+OLLAMA_ENABLED=1             # fallback zincirine yerel Ollama'yı SON halka ekler
+OLLAMA_BASE_URL=http://localhost:11434/v1   # opsiyonel (default budur)
+OLLAMA_MODEL=qwen2.5:7b-instruct            # opsiyonel (default budur)
+OLLAMA_TIMEOUT=120           # opsiyonel, yerel model yavaşsa artır
 ```
+
+**Egemen/offline mod:** `LLM_PROVIDER=ollama` → koç tamamen yerel çalışır (internet
+gerekmez). Önce `ollama pull qwen2.5:7b-instruct` + `ollama serve`. Bulut sağlayıcı
+kullanıp yalnızca hepsi düşünce yerel yedek isteniyorsa `LLM_PROVIDER=fallback` +
+`OLLAMA_ENABLED=1` yeterli (Ollama zincirin son halkası olur).

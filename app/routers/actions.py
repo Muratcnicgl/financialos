@@ -26,6 +26,7 @@ from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
+from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
@@ -169,8 +170,8 @@ class PendingActionOut(BaseModel):
     warning: Optional[str] = None
     status: ActionStatus
     error_message: Optional[str] = None
-    created_at: datetime
-    resolved_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    resolved_at: Optional[UtcDateTime] = None
 
     model_config = {"from_attributes": True}
 
@@ -196,7 +197,7 @@ class ActionHistoryOut(BaseModel):
     net_worth_after: Optional[float] = None
     cash_before: Optional[float] = None
     cash_after: Optional[float] = None
-    applied_at: datetime
+    applied_at: UtcDateTime
 
     model_config = {"from_attributes": True}
 

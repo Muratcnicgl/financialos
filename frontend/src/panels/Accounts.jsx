@@ -9,6 +9,7 @@ import {
   formatTL, formatTLSuffix, formatDate, signClass,
 } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
+import { useToast } from '../components/Toast.jsx';
 
 /**
  * Accounts paneli — 8 hesabin tam yonetimi.
@@ -22,6 +23,7 @@ import EmptyState from '../components/EmptyState.jsx';
  *  - Yenile butonu
  */
 export default function Accounts() {
+  const toast = useToast();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,20 +50,25 @@ export default function Accounts() {
 
   const handleRefresh = () => { setRefreshing(true); load(); };
 
+  // FE-005: mutasyon handler'ları try/catch — API/ağ hatası sessizce düşmesin.
   const handleSave = async (formData, isNew) => {
-    if (isNew) {
-      await accountsApi.create(formData);
-    } else {
-      await accountsApi.update(editingAccount.id, formData);
-    }
-    setEditingAccount(null);
-    handleRefresh();
+    try {
+      if (isNew) {
+        await accountsApi.create(formData);
+      } else {
+        await accountsApi.update(editingAccount.id, formData);
+      }
+      setEditingAccount(null);
+      handleRefresh();
+    } catch (e) { toast.error(`Hesap kaydedilemedi: ${e.message}`); }
   };
 
   const handleDelete = async (id) => {
-    await accountsApi.delete(id);
-    setConfirmingDelete(null);
-    handleRefresh();
+    try {
+      await accountsApi.delete(id);
+      setConfirmingDelete(null);
+      handleRefresh();
+    } catch (e) { toast.error(`Hesap silinemedi: ${e.message}`); }
   };
 
   // ============================================================

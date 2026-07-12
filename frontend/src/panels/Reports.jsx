@@ -9,6 +9,7 @@ import {
   LineChart, Line, CartesianGrid, ReferenceLine,
 } from 'recharts';
 import { reportsApi, formatTL } from '../api.js';
+import NetWorthAnalysis from '../components/NetWorthAnalysis.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 
@@ -351,6 +352,9 @@ export default function Reports() {
           </div>
         )}
       </div>
+
+      {/* FEAT-021/024: net değer analizi (ayrıştırma + reel) */}
+      <NetWorthAnalysis />
 
       {/* ===== B3: ALACAK-BORÇ TAKVİMİ ===== */}
       <div className="space-y-3 pt-2">

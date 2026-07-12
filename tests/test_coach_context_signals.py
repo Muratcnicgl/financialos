@@ -52,3 +52,55 @@ def test_yaklasan_alacak_tahsilati_baglama_duser(db):
     context, cockpit = _build_context_message(db, 1)
     assert "Efe alacağı" in context
     assert any(r["type"] == "receivable" for r in cockpit["upcoming_reminders"])
+
+
+# ---- kenar-durum portföyleri: koç bağlamı ASLA çökmemeli (core feature koruması) ----
+
+def _fresh():
+    eng = create_engine("sqlite:///:memory:",
+                        connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(eng)
+    s = sessionmaker(bind=eng)()
+    s.add(User(id=1, name="m"))
+    s.commit()
+    return s
+
+
+def _setup_bos(s):
+    pass  # hiç hesap yok
+
+
+def _setup_yalniz_borc(s):
+    s.add(Account(user_id=1, name="K", account_type=AccountType.credit_card,
+                  balance=50000, credit_limit=50000))  # kart tam dolu, nakit yok
+
+
+def _setup_sifir_limit_kart(s):
+    s.add(Account(user_id=1, name="K", account_type=AccountType.credit_card,
+                  balance=5000, credit_limit=0))  # limit 0 → utilization None (bölme yok)
+
+
+def _setup_devasa(s):
+    s.add(Account(user_id=1, name="N", account_type=AccountType.cash, balance=1e12))
+    s.add(Account(user_id=1, name="K", account_type=AccountType.credit_card,
+                  balance=9e11, credit_limit=1e12))
+
+
+@pytest.mark.parametrize("setup", [
+    _setup_bos, _setup_yalniz_borc, _setup_sifir_limit_kart, _setup_devasa,
+], ids=["bos", "yalniz_borc", "sifir_limit_kart", "devasa"])
+def test_kenar_portfoy_baglam_cokmez(setup):
+    """
+    Koç THE çekirdek etkileşim — _build_context_message olağandışı-ama-geçerli portföyde
+    (boş, yalnız-borç, sıfır-limit kart, devasa sayılar) çökerse koç tamamen kırılır.
+    Çökme YOK + bağlam boş değil.
+    """
+    s = _fresh()
+    try:
+        setup(s)
+        s.commit()
+        context, cockpit = _build_context_message(s, 1)
+        assert isinstance(context, str) and len(context) > 0
+        assert isinstance(cockpit, dict)
+    finally:
+        s.close()

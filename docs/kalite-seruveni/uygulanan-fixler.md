@@ -252,3 +252,10 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M2.2 | 4 global skill repo'ya kopyalandı + `financialos-kalite-seruveni` skill yazıldı | `.asistan/skills/` 5 skill, skill kayıtlı | ✅ |
 | M2.3 | ADR-001/012/013 materyalize (repo-izli); kalan 7 ADR pending (MCP boş) | 3 ADR dosyası + pending | ✅ |
 | M2.4 / ADR-001 | 8 yasaklı-isim referansı isimsiz forma çevrildi (coach_insights/premortem/mobile-roadmap/wave3-vision) | grep 0, pytest 774 | ✅ |
+
+## Milestone 3 — Yetim trace temizliği + ADR-028
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| M3.1 | `scripts/cleanup_orphan_traces.py`: test-kullanıcı (user_id=2 test_user_decision_rhythm) + dangling-orphan (user_id=3) temizliği. R3: memory "20 yetim user_id=2" yanlıştı (2=test 56, 3=orphan 20). Backup'lı, idempotent, tüm user-scoped tablo | 82 satır silindi (76 trace+4 insight+1 goal+1 user); sadece Murat kaldı; tekrar=0 | ✅ |
+| M3.2 / ADR-028 | Koç fiilen Gemini-only gerçeği belgelendi (ADR-002 yapısı korunur). D1: OpenRouter araştırması (research-log.md) — Wave-3 fallback adayı | ADR-028 + research-log yazıldı | ✅ |

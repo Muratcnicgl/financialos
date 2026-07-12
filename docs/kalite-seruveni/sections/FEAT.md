@@ -221,11 +221,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** rules_engine iki ay karşılaştırması hesaplar (sayılar), coach açıklar. Aylık rapor (A3) planlı olsa da bu, ay-üstü karşılaştırma yorumu olarak ayrı katman.
 - **Etki:** Orta · **Efor:** S
 
-### [FEAT-034] Otomatik kategori etiketleme
+### [FEAT-034] Otomatik kategori etiketleme ✅ UYGULANDI
 - **Değer/Fırsat:** İşlem açıklamasındaki anahtar kelimelerden kategoriyi otomatik önerir ("Migros" → market); manuel etiketleme sürtünmesini azaltır ve tutarlılık sağlar.
 - **Kaynak/İlham:** Lunch Money / Copilot auto-categorization rules.
 - **Nasıl (mimari):** rules_engine deterministik keyword→kategori eşleme (kullanıcı kuralları öğrenilebilir); Transaction eklenirken öneri. Kullanıcı onaylar. LLM zorunlu değil.
 - **Etki:** Orta · **Efor:** M
+- **Uygulama:** `suggest_category()` (`app/routers/transactions.py`) — MERCHANT_KEYWORDS (marka: Migros/Opet/Netflix…) + mevcut QUICK_KEYWORDS; **kelime-sınırı token eşleşmesi** (substring değil → "sokak" yanlış pozitifi yok). `create_transaction` yalnız gider + kategori BOŞ ise açıklamadan türetir; kullanıcının açık seçimini asla ezmez. UI formunda kategori opsiyonel + ipucu metni. Test: `tests/test_auto_categorization.py` (9 test: marka/genel/none/case/kelime-sınırı + 3 endpoint entegrasyon).
 
 ### [FEAT-035] Fatura tutar anomali uyarısı
 - **Değer/Fırsat:** Bir tekrarlayan faturanın (elektrik, doğalgaz) her zamankinden belirgin yüksek gelmesini işaretler ("elektrik geçen 3 ay ortalamasının %60 üstünde").

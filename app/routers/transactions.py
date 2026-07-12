@@ -9,6 +9,7 @@ NOTLAR:
   geri cevirir.
 """
 
+import re
 from datetime import date
 from typing import Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException
@@ -157,6 +158,62 @@ QUICK_KEYWORDS = {
 }
 
 
+# FEAT-034: otomatik kategori önerisi. Yapılandırılmış girişte (UI formu) kullanıcı bir
+# açıklama yazıp kategoriyi boş bıraktığında, açıklamadaki anahtar kelimeden kategori türetilir.
+# Marka/işyeri adları da eşlenir (Migros → alisveris). quick-text zaten QUICK_KEYWORDS ile
+# çıkarım yapıyor; bu, aynı kolaylığı normal forma taşır. Deterministik + test edilebilir;
+# hiçbir zaman kullanıcının verdiği kategoriyi ezmez (yalnız boşsa doldurur).
+MERCHANT_KEYWORDS = {
+    # market / alışveriş
+    "migros": "alisveris", "bim": "alisveris", "a101": "alisveris", "sok": "alisveris",
+    "carrefour": "alisveris", "carrefoursa": "alisveris", "macrocenter": "alisveris",
+    "getir": "alisveris", "trendyol": "alisveris", "hepsiburada": "alisveris",
+    "amazon": "alisveris", "market": "alisveris",
+    # yemek / kafe
+    "yemeksepeti": "yemek", "starbucks": "yemek", "restoran": "yemek", "lokanta": "yemek",
+    "burger": "yemek", "pizza": "yemek", "cafe": "yemek",
+    # ulaşım / yakıt
+    "opet": "ulasim", "shell": "ulasim", "bp": "ulasim", "petrol": "ulasim",
+    "benzin": "ulasim", "uber": "ulasim", "bitaksi": "ulasim", "istanbulkart": "ulasim",
+    # fatura / abonelik
+    "netflix": "eglence", "spotify": "eglence", "youtube": "eglence", "exxen": "eglence",
+    "turkcell": "fatura", "vodafone": "fatura", "turk telekom": "fatura", "superonline": "fatura",
+    "elektrik": "fatura", "dogalgaz": "fatura", "igdas": "fatura", "iski": "fatura",
+    # sağlık
+    "eczane": "saglik", "hastane": "saglik", "medikal": "saglik",
+}
+
+
+def suggest_category(text: Optional[str]) -> Optional[str]:
+    """
+    Açıklama/işyeri metninden kategori türet (FEAT-034). Eşleşme yoksa None.
+    Önce belirli marka adları (MERCHANT_KEYWORDS), sonra genel anahtar kelimeler
+    (QUICK_KEYWORDS) kontrol edilir — böylece 'migros' → alisveris, 'taksi' → ulasim.
+
+    KELİME SINIRI: tek kelimelik anahtarlar token kümesine göre eşlenir — düz substring
+    DEĞİL. Aksi halde 'sok' → 'sokak', 'bim' → 'kimbilir' gibi yanlış pozitifler doğardı.
+    Çok kelimeli anahtarlar ('turk telekom') boşlukla sarılı substring ile aranır.
+    """
+    if not text:
+        return None
+    low = text.strip().lower()
+    tokens = set(re.findall(r"[a-zçğıöşü0-9]+", low))
+    padded = " " + low + " "
+
+    def _match(kw: str) -> bool:
+        if " " in kw:  # çok kelimeli marka
+            return f" {kw} " in padded
+        return kw in tokens
+
+    for kw, cat in MERCHANT_KEYWORDS.items():
+        if _match(kw):
+            return cat
+    for kw, meta in QUICK_KEYWORDS.items():
+        if _match(kw):
+            return meta["category"]
+    return None
+
+
 def _parse_quick_text(text: str) -> dict:
     parts = text.strip().lower().split()
     if not parts:
@@ -240,6 +297,14 @@ def create_transaction(
             data["is_card_expense"] = parsed["is_card_expense"]
         if not data.get("description"):
             data["description"] = parsed["description"] or data["quick_text"]
+
+    # FEAT-034: kategori boşsa açıklamadan türet. Yalnız gider işlemlerinde ve kategori
+    # verilmemişse — kullanıcının açık seçimini asla ezmez. Böylece UI formunda "Migros 240 TL"
+    # yazıp kategoriyi boş bırakmak yeter; alisveris otomatik atanır.
+    if not data.get("category") and data.get("transaction_type") == "expense":
+        guess = suggest_category(data.get("description"))
+        if guess:
+            data["category"] = guess
 
     # Default hesap seçimi — DATA-018: yalnız quick-text için DEĞİL, HER create için (account_id
     # verilmemişse) varsayılan hesaba düş. Böylece hem UX korunur hem "yetim" işlem üretilmez.

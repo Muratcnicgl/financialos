@@ -178,6 +178,8 @@ dayanıklılık + kullanıcıyı etkileyen doğruluk + veri-egemenliği tamlığ
 
 | ID | Değişiklik | Doğrulama |
 |----|-----------|-----------|
+| FEAT-034 | Otomatik kategori: gider + kategori boşsa açıklamadan türetir (Migros→alisveris). MERCHANT_KEYWORDS + QUICK_KEYWORDS, kelime-sınırı token eşleşmesi (substring değil → "sokak" yanlış pozitifi yok). Kullanıcının açık seçimini ezmez. UI ipucu | test_auto_categorization.py (9) |
+| FEAT-032 | İstek listesi / 24-saat impuls bekleme: WishlistItem + router (add/list/resolve, scheduler yok — 24h "hazır" türetilir) + koç bağlamı + export + Wishlist.jsx. Borç-batık için davranışsal impuls-lever | test_wishlist.py |
 | FEAT-030 | Satın alma fırsat maliyeti: amount'ı harcamak vs en yüksek faizli borca ödemek (borçsuzluk + faiz farkı). Avalanche RAM kopyası; assumption-free. + endpoint + DebtStrategy.jsx formu | test_opportunity_cost.py (8) |
 | RESIL-008 | Circuit breaker: request-too-large (413) veren sağlayıcı process boyunca atlanır (429 geçici kotadan AYRI). `_engine` singleton → Groq TPM israfı ilk çağrıdan sonra biter | test_fallback_provider.py (+4) |
 | RESIL-004 | Graceful degradation: tüm sağlayıcı düşünce ham hata sızmaz + "Rules Engine LLM'siz çalışır, verilerin sağlam" mesajı + cockpit korunur | test_coach_behavior_contract.py |

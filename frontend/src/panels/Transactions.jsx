@@ -589,12 +589,16 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             className="input"
-            placeholder="yemek, ulasim, fatura..."
+            placeholder="boş bırak → açıklamadan otomatik"
             list="category-list"
           />
           <datalist id="category-list">
             {COMMON_CATEGORIES.map(c => <option key={c} value={c} />)}
           </datalist>
+          {/* FEAT-034: kategori boşsa backend açıklamadan türetir (Migros → alışveriş). */}
+          <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+            Boş bırakırsan açıklamadan otomatik atanır (ör. "Migros" → alışveriş).
+          </p>
         </div>
 
         {/* Aciklama */}

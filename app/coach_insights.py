@@ -273,6 +273,37 @@ def _classify_hour_to_slot(hour: int) -> str:
     return "gece"
 
 
+def _sweep_insights_dormant(db: Session, user_id: int, insight_type: str,
+                            active_titles_now: set) -> int:
+    """
+    BUG #140 fix (P1-4): Bir insight_type için ŞU AN üretilmeyen (active_titles_now dışı)
+    aktif insight'ları dormant'a indirir. category_account_preference'da vardı; decision_rhythm
+    ve mc_reference'da YOKTU → dominant dilim/top-3 değişince eski başlık active kalıyordu
+    (kullanıcıya bayat sinyal). Yeniden-kullanılabilir sweep (DRY).
+    """
+    existing = (
+        db.query(CoachInsight)
+        .filter(
+            CoachInsight.user_id == user_id,
+            CoachInsight.insight_type == insight_type,
+            CoachInsight.status == "active",
+        )
+        .all()
+    )
+    now = datetime.utcnow()
+    swept = 0
+    for ins in existing:
+        if ins.title in active_titles_now:
+            continue
+        ins.status = "dormant"
+        ins.last_seen_at = now
+        ins.sort_priority = 1
+        swept += 1
+    if swept > 0:
+        db.commit()
+    return swept
+
+
 def extract_decision_rhythm(db: Session, user_id: int) -> None:
     """
     Extractor #8: decision_rhythm
@@ -337,9 +368,12 @@ def extract_decision_rhythm(db: Session, user_id: int) -> None:
         )
 
         if dominant_ratio < DECISION_RHYTHM_DOMINANT_RATIO:
+            # BUG #140 (P1-4): yeterli veri var ama dominant dilim YOK → örüntü dağılmış;
+            # eski aktif decision_rhythm insight'ını dormant'a indir (bayat kalmasın).
+            swept = _sweep_insights_dormant(db, user_id, "decision_rhythm", set())
             log.info(
                 f"no dominant slot (max ratio {dominant_ratio:.0%} < "
-                f"{DECISION_RHYTHM_DOMINANT_RATIO:.0%}), skipping"
+                f"{DECISION_RHYTHM_DOMINANT_RATIO:.0%}), dormant_swept={swept}, skipping"
             )
             return
 
@@ -371,7 +405,10 @@ def extract_decision_rhythm(db: Session, user_id: int) -> None:
             priority=4,
         )
 
-        log.info(f"insight saved/updated: '{title}'")
+        # BUG #140 (P1-4): dominant dilim değişmişse eski başlık(lar)ı dormant'a indir
+        # (ör. "sabah" → "aksam": eski "...sabah dilminde" active kalmasın).
+        swept = _sweep_insights_dormant(db, user_id, "decision_rhythm", {title})
+        log.info(f"insight saved/updated: '{title}', dormant_swept={swept}")
 
 
 # ============================================================
@@ -504,6 +541,7 @@ def extract_mc_reference_frequency(db: Session, user_id: int) -> dict:
 
         created = 0
         updated = 0
+        active_titles_now: set = set()  # BUG #140 (P1-4): bu çalışmada aktif yapılan başlıklar
 
         # Dominant insight'lar (top 3, count > 0)
         for rank, (mc_num, count) in enumerate(ranked[:MC_REFERENCE_TOP_K], start=1):
@@ -511,6 +549,7 @@ def extract_mc_reference_frequency(db: Session, user_id: int) -> dict:
                 continue
 
             title = f"MC{mc_num} sik referans verilen kural"
+            active_titles_now.add(title)
             content = (
                 f"Son {MC_REFERENCE_PERIOD_DAYS} gunde MC{mc_num} kurali "
                 f"toplam {count} kez referans verildi (rank {rank}/{MC_REFERENCE_TOP_K}). "
@@ -576,9 +615,17 @@ def extract_mc_reference_frequency(db: Session, user_id: int) -> dict:
             elif result == "updated":
                 updated += 1
 
+        # BUG #140 (P1-4): top-3 DIŞINA düşen (count>0 ama rank 4-8) eski aktif "sik referans"
+        # insight'larını dormant'a indir. Eskiden yalnızca count==0 dormant'a düşüyor, top-3'ten
+        # çıkan ama hâlâ count>0 olan MC'ler active kalıyordu (bayat "sık referans" sinyali).
+        dormant_swept = _sweep_insights_dormant(
+            db, user_id, "mc_reference_frequency", active_titles_now
+        )
+
         return {
             "created": created,
             "updated": updated,
+            "dormant_swept": dormant_swept,
             "skipped_reason": None,
             "total_messages": total,
             "mc_counts": mc_counts,

@@ -306,3 +306,9 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | P1-5 / BUG #139 | explicit_red_line finansal-anchor: mutlak_red/niyet_beyani/kesin_red için finansal anahtar-kelime şartı ("asla o filmi izlemem" artık kırmızı-çizgi değil) | test_p1_5 | ✅ |
 | P1-19 / BUG #138 | net_worth_delta ölü param kaldırıldı (link_premortem_outcome) — spekülatif kolon eklemeden | test güncellendi | ✅ |
 | P1-13 | OTONOM KARAR (kategori-b): transfer bakiye no-op = tasarım-sınırı, bug değil (geçerli sınıflandırma; çift-hesap transfer Wave-3) | belgelendi | ✅ |
+
+## Milestone 6 — artım 4 (P1-4)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-4 / BUG #140 | `_sweep_insights_dormant` (DRY) — decision_rhythm (dominant değiş/dağıl) + mc_reference (top-3 dışı count>0) eski aktif insight'ları dormant'a indirir; bayat sinyal kalmaz | test_p1_4 + 54 coach_insights | ✅ |

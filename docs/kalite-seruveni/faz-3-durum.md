@@ -40,8 +40,11 @@
 - **P1-19** net_worth_delta ölü param kaldırıldı (`premortem.py` link_premortem_outcome, BUG #138) — spekülatif kolon eklemeden (meta-ders 10); calibration Wave-3'e.
 - **P1-13** ~~transfer no-op~~ → **OTONOM KARAR (kategori-b): tasarım-sınırı, "bug" değil.** transfer geçerli sınıflandırma tipi (goal allocation + pattern exclusion testlerinde YOĞUN kullanılıyor); tek-hesap modelde bakiye-nötr savunulabilir. API'den kaldırmak özellikleri bozar. Çift-hesap transfer (destinasyon) Wave-3 kapsamı.
 
+### ✅ DÜZELTİLDİ (M6 artım 4)
+- **P1-4** coach_insights dormant sweep — yeniden-kullanılabilir `_sweep_insights_dormant` (`coach_insights.py`, BUG #140); decision_rhythm (dominant dilim değişince/dağılınca) + mc_reference (top-3 dışına düşen count>0 MC) eski aktif insight'ları dormant'a indirir. Test `test_p1_4_*`.
+
 ### 🔧 OPEN — kalan (sonraki M6 artımları)
-- **P1-4** coach_insights dormant sweep (decision_rhythm + mc_reference top-3-dışı) · **P1-8** evaluate_rules_for_transaction ölü kod (bağla/kaldır) · **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-24** evaluate_credit_card_strategy ölü kod · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite (float falsy→None, mark_debt guard, sell price/emanet).
+- **P1-8** evaluate_rules_for_transaction ölü kod (bağla/kaldır) · **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-24** evaluate_credit_card_strategy ölü kod · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite (float falsy→None, mark_debt guard, sell price/emanet).
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

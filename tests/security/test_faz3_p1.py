@@ -109,3 +109,27 @@ def test_p1_5_red_line_requires_financial_anchor():
     assert "mutlak_red" in ERL_ANCHOR_REQUIRED
     assert ERL_FINANCIAL_RE.search(finans_disi) is None        # film → kırmızı çizgi DEĞİL
     assert ERL_FINANCIAL_RE.search(finansal) is not None       # kredi → EVET
+
+
+# --- P1-4: dormant sweep (top-3/dominant dışına düşen eski insight active kalmaz) ---
+
+def test_p1_4_dormant_sweep_downgrades_stale(db_session, test_user):
+    from app.coach_insights import _sweep_insights_dormant
+    from app.models import CoachInsight
+    guncel = CoachInsight(user_id=test_user.id, insight_type="decision_rhythm",
+                          title="Buyuk kararlarin cogu aksam dilminde", content="x", status="active")
+    bayat = CoachInsight(user_id=test_user.id, insight_type="decision_rhythm",
+                         title="Buyuk kararlarin cogu sabah dilminde", content="x", status="active")
+    baska_tip = CoachInsight(user_id=test_user.id, insight_type="mc_reference_frequency",
+                             title="MC5 sik referans verilen kural", content="x", status="active")
+    db_session.add_all([guncel, bayat, baska_tip])
+    db_session.commit()
+
+    swept = _sweep_insights_dormant(db_session, test_user.id, "decision_rhythm",
+                                    {"Buyuk kararlarin cogu aksam dilminde"})
+    db_session.refresh(guncel); db_session.refresh(bayat); db_session.refresh(baska_tip)
+
+    assert swept == 1
+    assert guncel.status == "active"        # şu anki dominant → korunur
+    assert bayat.status == "dormant"        # eski dilim → dormant
+    assert baska_tip.status == "active"     # farklı insight_type → dokunulmaz

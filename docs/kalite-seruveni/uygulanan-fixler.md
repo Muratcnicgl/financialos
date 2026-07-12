@@ -327,3 +327,9 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | P1-27 / BUG #143 (SE-004) | mark_debt_paid zaten-ödenmiş guard (executor paritesi) | test_p1_27 | ✅ |
 | P1-27 / BUG #144 (SE-005) | sell_investment eksik fiyat→red (sessiz 0 TL satış yok) | test_p1_27 | ✅ |
 | P1-27 / BUG #145 (SE-008) | sell_investment satış geliri emanet hedefe yatırılamaz | test_p1_27 | ✅ |
+
+## Milestone 6 — artım 7 (P1-15 enum migration)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-15 / BUG #146 | OperationName values_callable + migration 978ad0f00814 (RULE_CHECK→rule_check). R3: CHECK yok, data-only. **Canlı uygulandı** (backup 2026-07-13-011907) | kopya+fresh-db+803 test | ✅ |

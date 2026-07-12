@@ -49,8 +49,11 @@
 ### ✅ DÜZELTİLDİ (M6 artım 6)
 - **P1-27** simulation_engine ↔ executor paritesi (4 fix, `simulation_engine.py`): **SE-007** `if a.X else None`→`is not None` (gerçek 0.0 falsy→None sapması, BUG #142); **SE-004** mark_debt_paid zaten-ödenmiş guard (BUG #143); **SE-005** eksik fiyat→satış reddi (sessiz 0 TL yok, BUG #144); **SE-008** satış geliri emanet hedefe yatırılamaz (BUG #145). Test `test_p1_27_sim_parity` (4).
 
+### ✅ DÜZELTİLDİ (M6 artım 7)
+- **P1-15** OperationName enum values_callable — model + migration `978ad0f00814` (`RULE_CHECK`→`rule_check` veri göçü, BUG #146). **R3:** kolon VARCHAR(12), CHECK YOK → şema değişmez, data-only. **Canlı uygulandı** (backup `2026-07-13-011907.db`, head→978ad0f00814, değerler lowercase, ORM read OK). Kopyada+fresh-db+803 test doğrulandı. Test `test_p1_15_*`.
+
 ### 🔧 OPEN — kalan (sonraki M6 artımları)
-- **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-24** evaluate_credit_card_strategy ölü kod — karar: wire (MC3 ekstre-döngüsü) · **P1-25** AnthropicProvider tool-history adapter (fallback provider, düşük öncelik).
+- **P1-24** evaluate_credit_card_strategy ölü kod — karar: wire (MC3 ekstre-döngüsü) · **P1-25** AnthropicProvider tool-history adapter (fallback provider, düşük öncelik).
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

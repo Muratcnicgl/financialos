@@ -133,3 +133,22 @@ def test_p1_4_dormant_sweep_downgrades_stale(db_session, test_user):
     assert guncel.status == "active"        # şu anki dominant → korunur
     assert bayat.status == "dormant"        # eski dilim → dormant
     assert baska_tip.status == "active"     # farklı insight_type → dokunulmaz
+
+
+# --- P1-15: OperationName enum DB'ye DEĞER yazar (üye adı değil) ---
+
+def test_p1_15_operation_name_stores_value_not_member(db_session, test_user):
+    from sqlalchemy import text
+    from app.models import ReasoningTrace, OperationName
+    tr = ReasoningTrace(user_id=test_user.id, trace_id="t-1", step_index=0,
+                        operation_name=OperationName.RULE_CHECK)
+    db_session.add(tr)
+    db_session.commit()
+    # ham DB değeri "rule_check" (values_callable) olmalı, "RULE_CHECK" (üye adı) DEĞİL
+    raw = db_session.execute(
+        text("SELECT operation_name FROM reasoning_traces WHERE id = :i"), {"i": tr.id}
+    ).scalar()
+    assert raw == "rule_check"
+    # ORM okuma enum'a geri map'ler
+    db_session.refresh(tr)
+    assert tr.operation_name == OperationName.RULE_CHECK

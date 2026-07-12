@@ -728,7 +728,13 @@ class ReasoningTrace(Base):
     parent_step_id = Column(Integer, ForeignKey("reasoning_traces.id"), nullable=True)
     coach_memory_id = Column(Integer, ForeignKey("coach_memories.id"), nullable=True)
 
-    operation_name = Column(SQLEnum(OperationName), nullable=False)
+    operation_name = Column(
+        # BUG #146 fix (P1-15): values_callable YOKtu → SQLAlchemy DB'ye üye ADINI ("RULE_CHECK")
+        # yazıyordu, DEĞERİ ("rule_check") değil (PriceSource'da düzeltilmiş, burada değildi).
+        # values_callable ile artık değer yazılır; migration mevcut satırları LOWER() ile taşır.
+        SQLEnum(OperationName, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
     intent = Column(Text, nullable=True)
     action_input_json = Column(Text, nullable=True)
     observation = Column(Text, nullable=True)

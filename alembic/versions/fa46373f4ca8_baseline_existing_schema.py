@@ -1,19 +1,17 @@
-"""baseline existing schema
+"""fa46373f4ca8_baseline_existing_schema (collapsed)
 
-Revision ID: fa46373f4ca8
-Revises: 
-Create Date: 2026-05-09 13:26:19.023099
-
+M1 non-destructive collapse (ADR-013 tam gerceklestirme): bu migration'in orijinal
+create/alter islemleri artik b70779a2f621_genesis_full_schema (tek baseline) tarafindan
+yapiliyor. Zincir surekliligi + canli DB alembic_version gecerliligi icin revizyon KORUNUR,
+govde no-op'tur. Orijinal icerik git gecmisinde. Temiz DB: genesis her seyi yaratir; bunlar pass.
+Canli DB: bu revizyonlari zaten calistirdi (eski govdeleriyle) -> yeniden CALISMAZ.
 """
 from typing import Sequence, Union
-
 from alembic import op
 import sqlalchemy as sa
 
-
-# revision identifiers, used by Alembic.
 revision: str = 'fa46373f4ca8'
-down_revision: Union[str, None] = None
+down_revision: Union[str, None] = 'b70779a2f621'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

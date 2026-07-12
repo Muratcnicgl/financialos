@@ -1,82 +1,82 @@
 """
-Envelope + WishlistItem migration testi (charter M1.6).
+Temiz-DB kurulum testi (charter M1 — ADR-013 tam gerçekleştirme).
 
-BULGU (KURAL R3 — disk gerçeği charter varsayımını düzeltti): Bu projede migration zinciri
-SIFIRDAN-şema DEĞİL. `fa46373f4ca8_baseline_existing_schema` bir STAMP noktasıdır; taban şema
-`Base.metadata.create_all` (init_db / setup_data) ile kurulur, Alembic yalnız artımlı
-değişiklikleri izler. Bu yüzden bomboş bir DB'de `alembic upgrade head` çöker
-(ör. `extend_coach_insights` var-olmayan tabloyu batch_alter eder). "Temiz DB'den saf-alembic"
-bu projede DESTEKLENMEZ (ADR-013 kısmen gerçekleşmiş; bkz. milestone-log.md M1 notu).
+Bomboş bir SQLite dosyasında `alembic upgrade head` çalıştırıldığında TÜM şema kurulmalı ve
+sonuç `Base.metadata.create_all` ile ÖZDEŞ olmalı. Bu, `git clone` + `alembic upgrade head`
+ile yeni ortam kurulumunu (Wave-3 open-source/multi-user; Firefly/Beancount/Maybe sektör
+pratiği) garanti eder.
 
-Bu test GERÇEK senaryoyu doğrular — canlı DB'nin birebir durumu:
-  taban şema VAR (create_all) + envelopes/wishlist_items YOK + revizyon down_revision'da
-  → `alembic upgrade head` iki tabloyu YARATIR.
+TARİHÇE: Eskiden migration zinciri sıfırdan-şema DEĞİLdi (`baseline_existing_schema` bir
+STAMP'ti, taban `create_all` ile kurulurdu; bomboş DB'de `alembic upgrade head` çökerdi —
+coach_insights var-olmadan batch_alter edilirdi). M1'de non-destructive collapse yapıldı:
+tek `b70779a2f621_genesis_full_schema` tüm 21 tabloyu (+48 index) yaratır (root); sonraki
+migration'lar zincir sürekliliği için no-op'a indirildi. Canlı DB etkilenmedi (genesis onun
+atasıdır, yeniden çalışmaz). Artık temiz-DB kurulumu DESTEKLENİYOR ve bu test onu kilitler.
 
 Kullanım:  .\venv\Scripts\python.exe scripts/test_fresh_db_migration.py
 """
 from __future__ import annotations
 
 import os
-import sqlite3
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT))   # scripts/ dizininden çalışınca app importlanabilsin
-DOWN_REVISION = "f3dda4d3996d"   # envelope migration'ından bir önceki head
+sys.path.insert(0, str(REPO_ROOT))
 
 
-def _tables(db: Path) -> set[str]:
-    conn = sqlite3.connect(db)
-    try:
-        return {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    finally:
-        conn.close()
+def _schema(db_url: str):
+    from sqlalchemy import create_engine, inspect
+    e = create_engine(db_url)
+    ins = inspect(e)
+    out = {}
+    for t in ins.get_table_names():
+        if t == "alembic_version":
+            continue
+        cols = frozenset(c["name"] for c in ins.get_columns(t))
+        idx = frozenset(i["name"] for i in ins.get_indexes(t))
+        out[t] = (cols, idx)
+    e.dispose()
+    return out
 
 
 def main() -> int:
-    tmp = Path(tempfile.mkdtemp(prefix="mig_test_")) / "scenario.db"
-    url = f"sqlite:///{tmp.as_posix()}"
-    env = {**os.environ, "DATABASE_URL": url}
-
-    # 1) Taban şemayı create_all ile kur (projenin gerçek bootstrap yolu)
-    from sqlalchemy import create_engine, text
-    from app import models  # noqa: F401  — tüm modeller Base.metadata'ya kayıtlı olsun
+    from sqlalchemy import create_engine
+    from app import models  # noqa: F401 — Base.metadata dolsun
     from app.models import Base
 
-    eng = create_engine(url)
-    Base.metadata.create_all(eng)
+    td = Path(tempfile.mkdtemp(prefix="fresh_db_"))
 
-    # 2) Canlı DB durumunu taklit et: envelopes + wishlist_items YOK, revizyon down_revision'da
-    with eng.begin() as c:
-        c.execute(text("DROP TABLE IF EXISTS wishlist_items"))
-        c.execute(text("DROP TABLE IF EXISTS envelopes"))
-    eng.dispose()
-
-    before = _tables(tmp)
-    assert "envelopes" not in before and "wishlist_items" not in before, "kurulum: tablolar drop edilmeliydi"
-    assert "accounts" in before and "coach_insights" in before, "kurulum: taban şema olmalı"
-
-    # 3) Alembic'i down_revision'da damgala, sonra head'e yükselt
-    for args in (["stamp", DOWN_REVISION], ["upgrade", "head"]):
-        p = subprocess.run([sys.executable, "-m", "alembic", *args],
-                           cwd=REPO_ROOT, env=env, capture_output=True, text=True)
-        if p.returncode != 0:
-            print(f"FAIL: alembic {' '.join(args)} basarisiz")
-            print(p.stdout[-1500:]); print(p.stderr[-1500:])
-            return 1
-
-    # 4) Doğrula: iki tablo migration ile yaratıldı
-    after = _tables(tmp)
-    missing = {"envelopes", "wishlist_items"} - after
-    if missing:
-        print(f"FAIL: migration sonrasi hala eksik: {sorted(missing)}")
+    # A) Bomboş DB'ye alembic upgrade head
+    dba = td / "alembic.db"
+    env = {**os.environ, "DATABASE_URL": f"sqlite:///{dba.as_posix()}"}
+    p = subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"],
+                       cwd=REPO_ROOT, env=env, capture_output=True, text=True)
+    if p.returncode != 0:
+        print("FAIL: temiz DB'de 'alembic upgrade head' basarisiz")
+        print(p.stdout[-1500:]); print(p.stderr[-1500:])
         return 1
 
-    print(f"OK: taban-sema-var + tablolar-yok DB'de 'alembic upgrade head' "
-          f"envelopes + wishlist_items YARATTI (canli DB senaryosu dogrulandi).")
+    # B) create_all referansı
+    dbb = td / "createall.db"
+    Base.metadata.create_all(create_engine(f"sqlite:///{dbb.as_posix()}"))
+
+    sa, sb = _schema(f"sqlite:///{dba.as_posix()}"), _schema(f"sqlite:///{dbb.as_posix()}")
+    if set(sa) != set(sb):
+        print(f"FAIL: tablo farki — alembic-eksik={set(sb)-set(sa)} fazla={set(sa)-set(sb)}")
+        return 1
+    diffs = [t for t in sa if sa[t] != sb[t]]
+    if diffs:
+        print("FAIL: sema (kolon/index) farki:")
+        for t in diffs:
+            print(f"  {t}: kolon_farki={sb[t][0] ^ sa[t][0]} index_farki={sb[t][1] ^ sa[t][1]}")
+        return 1
+
+    assert "envelopes" in sa and "wishlist_items" in sa and "coach_insights" in sa
+    print(f"OK: temiz DB'de 'alembic upgrade head' {len(sa)} tabloyu kurdu; "
+          f"sema create_all ile TAM OZDES (kolon + index). ADR-013 temiz-kurulum destegi dogrulandi.")
     return 0
 
 

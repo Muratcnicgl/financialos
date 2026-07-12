@@ -90,7 +90,7 @@
 - **Aksiyon:** `Decimal(str(total)).quantize(Decimal("0.01"))`; kaynağı Numeric'e taşımayı değerlendir.
 - **Etki:** Orta · **Efor:** S
 
-### [RULE-015] `_project_cash_completion` `int()` ile gün sayısını aşağı yuvarlıyor
+### [RULE-015] `_project_cash_completion` `int()` ile gün sayısını aşağı yuvarlıyor ✅ UYGULANDI (12 Tem 2026)
 - **Sorun:** `days_needed = int(remaining / daily_rate)` truncation → tamamlanma hep erken; `daily_rate` 90 güne bölerek hızı düşük tahmin eder.
 - **Kanıt:** `app/goal_engine.py:161-163`
 - **Aksiyon:** `math.ceil`; hız için gerçek katkı-günü sayısı veya EWMA.

@@ -193,7 +193,10 @@ def _project_cash_completion(
 
     daily_rate = recent_sum / Decimal(str(span_days))
     remaining = goal.target_amount - current
-    days_needed = int(remaining / daily_rate)
+    # RULE-015: int() aşağı yuvarlar → tamamlanma HEP erken (iyimser) görünür. ceil ile
+    # gerçekçi: 10.7 gün gereken hedef "10 gün" değil "11 gün"de tamamlanır (realist koç).
+    import math
+    days_needed = math.ceil(remaining / daily_rate)
 
     if days_needed > 365 * 10:
         return None

@@ -1318,13 +1318,17 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
             "tutar": odenebilir,
         }
 
-    # 5. STABİL — acil hamle yok. Borç varsa disipline, yoksa None.
+    # 5. STABİL — acil hamle yok. Borç varsa disipline (borçsuzluk tarihiyle motive et), yoksa None.
     if kart_borcu > 0 or (cockpit.get("kredi_borcu", 0) or 0) > 0:
         gunluk = cockpit.get("daily_limit", 0)
+        gerekce = f"Bugünlük kritik sinyal yok. Günlük limit {_tl(gunluk)} TL; her aşmama borcu hızlandırır."
+        bo = cockpit.get("borc_ozgurluk") or {}
+        if bo.get("borcsuz_tarih") and not bo.get("asla_bitmez"):
+            gerekce += f" Bu tempoyla {bo['borcsuz_tarih']} tarihinde borçsuzsun — disiplin bunu öne çeker."
         return {
             "tip": "stabil",
             "eylem": "Acil bir hamle yok — günlük limitine sadık kal, borcu erit",
-            "gerekce": f"Bugünlük kritik sinyal yok. Günlük limit {_tl(gunluk)} TL; her aşmama borcu hızlandırır.",
+            "gerekce": gerekce,
             "tutar": None,
         }
     return None

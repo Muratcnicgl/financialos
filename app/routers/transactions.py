@@ -14,7 +14,7 @@ import re
 from datetime import date
 from typing import Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
@@ -38,13 +38,15 @@ class TransactionCreate(BaseModel):
     account_id: Optional[int] = None
     transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
     amount: FinansOptBakiye = None  # SEC-032: sonlu (≤0 kontrolü handler'da; quick_text'te None)
-    category: Optional[str] = None
-    description: Optional[str] = None
+    # SEC-031: kullanıcı serbest-metin alanlarına CÖMERT üst sınır — DB bloat + prompt-injection
+    # payload boyutu + koç context şişmesi koruması (meşru not/kategori çok altında kalır).
+    category: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = Field(None, max_length=1000)
     transaction_date: Optional[date] = None
     is_card_expense: Optional[bool] = None
 
     # Quick entry
-    quick_text: Optional[str] = None
+    quick_text: Optional[str] = Field(None, max_length=200)
     auto_update_balance: Optional[bool] = True
 
 
@@ -53,8 +55,8 @@ class TransactionUpdate(BaseModel):
     account_id: Optional[int] = None
     transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
     amount: FinansOptBakiye = None  # SEC-032: sonlu (≤0 kontrolü handler'da; quick_text'te None)
-    category: Optional[str] = None
-    description: Optional[str] = None
+    category: Optional[str] = Field(None, max_length=100)  # SEC-031
+    description: Optional[str] = Field(None, max_length=1000)  # SEC-031
     transaction_date: Optional[date] = None
     is_card_expense: Optional[bool] = None
     auto_update_balance: Optional[bool] = True

@@ -120,3 +120,29 @@ def test_http_quick_text_mesru_kabul(client):
     r = client.post("/api/transactions", json={"quick_text": "100 yemek", "account_id": 1})
     assert r.status_code in (200, 201), r.text
     assert math.isfinite(r.json()["amount"]) and r.json()["amount"] == 100.0
+
+
+def test_http_asiri_uzun_aciklama_reddedilir(client):
+    """SEC-031: serbest-metin alanları cömert üst sınırı aşarsa 422 (bloat/injection payload)."""
+    r = client.post("/api/transactions", json={
+        "transaction_type": "expense", "amount": 50, "account_id": 1,
+        "description": "x" * 1001,
+    })
+    assert r.status_code == 422, r.text
+
+
+def test_http_asiri_uzun_kategori_reddedilir(client):
+    r = client.post("/api/transactions", json={
+        "transaction_type": "expense", "amount": 50, "account_id": 1,
+        "category": "k" * 101,
+    })
+    assert r.status_code == 422, r.text
+
+
+def test_http_normal_uzunluk_aciklama_kabul(client):
+    """Meşru uzunlukta not sorunsuz (aşırı-kısıtlama yok)."""
+    r = client.post("/api/transactions", json={
+        "transaction_type": "expense", "amount": 50, "account_id": 1,
+        "description": "Migros haftalık market alışverişi, biraz fazla kaçtı",
+    })
+    assert r.status_code in (200, 201), r.text

@@ -61,7 +61,7 @@
 ## ✅ P1 DURUMU: 27/27 KAPANDI
 - **16 zaten CLOSED** (Faz 2'de kapanmış, MASTER-FIX-LIST bayat-açıktı): P1-2/3/6/9/11/12/14/16/17/18/21/26 + doğrulananlar.
 - **11 M6'da fixed/decided:** P1-1/4/5/7/8/10/15/19/20/22/23/24/25/27 + P1-13 (OTONOM KARAR: tasarım-sınırı).
-- Toplam **19 BUG (#131-#152)** + 2 canlı migration (Decimal M5 + enum P1-15) + 25 yeni test (tests/security/). 806 test yeşil.
+- Toplam **19 BUG (#131-#152)** + 2 canlı migration (Decimal M5 + enum P1-15) + 26 yeni test (tests/security/=18, tests/test_decimal_precision.py=8). 806 test yeşil.
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

@@ -212,6 +212,8 @@ def _log_api_call(
 ) -> None:
     """ApiCallLog'a tek satir yazar. Hata icinde basarisiz olsa bile chat'i kirletmez."""
     try:
+        # SEC-009: ham sağlayıcı hatası (kota/org detayı içerebilir) 300 karakterle sınırlanır —
+        # DB/export şişmesin + gereksiz detay birikmesin (api_call_log artık KVKK export'unda).
         log = ApiCallLog(
             user_id=user_id,
             provider=provider.lower(),
@@ -219,7 +221,7 @@ def _log_api_call(
             status=ApiCallStatus.success if success else ApiCallStatus.failed,
             tool_calls_count=tool_calls_count,
             duration_ms=duration_ms,
-            error_message=error_message,
+            error_message=(error_message[:300] if error_message else None),
         )
         db.add(log)
         db.commit()

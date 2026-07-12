@@ -162,6 +162,11 @@ def _expand_loan_payments(
     # remaining taksit tümü gelecek yükümlülük olarak projelenir (aya ötelenmez, kaybolmaz).
     if current < start:
         current = start
+    # RULE-017 fix: ANCHOR gün (ayın sabit günü) ile ilerle — _advance_month(current) her ay
+    # current.day'i clamp'leyip taşıyordu → 31'inde taksit Şubat'ta 28'e düşünce Mart'ta 31'e
+    # DÖNMÜYOR (sürüklenme). Anchor'la min(anchor, ay_sonu) → Mart yine 31. _month_occurrences
+    # (recurring) zaten doğru; loan yolu bu düzeltmeyle hizalandı.
+    anchor_day = current.day
     idx = 0
     while current <= end and idx < remaining:
         events.append(ForecastEvent(
@@ -171,7 +176,9 @@ def _expand_loan_payments(
             "loan_payment",
             account.id,
         ))
-        current = _advance_month(current)
+        y = current.year + (current.month == 12)
+        m = current.month % 12 + 1
+        current = date(y, m, min(anchor_day, monthrange(y, m)[1]))
         idx += 1
     return events
 

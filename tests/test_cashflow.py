@@ -487,3 +487,17 @@ def test_rule016_gelecek_next_payment_date_etkilenmez():
     start = date(2026, 7, 12)
     ev = _expand_loan_payments(acc, start, start + timedelta(days=180))
     assert len(ev) == 4 and ev[0].date == date(2026, 7, 20)
+
+
+def test_rule017_ayin_31i_taksiti_surumlenmez():
+    """RULE-017: 31'inde taksit Şubat'ta 28'e clamp'lenir ama Mart'ta 31'e DÖNER (sürüklenme yok).
+    Eskiden _advance_month current.day'i taşıyıp 28'de kalıyordu."""
+    from app.models import Account, AccountType
+    acc = Account(id=1, user_id=1, name="Kredi", account_type=AccountType.loan,
+                  balance=50000.0, monthly_payment=2000.0, remaining_installments=6,
+                  next_payment_date=date(2026, 1, 31))
+    ev = _expand_loan_payments(acc, date(2026, 1, 15), date(2026, 5, 15))
+    dates = [e.date for e in ev]
+    assert date(2026, 2, 28) in dates    # Şubat clamp
+    assert date(2026, 3, 31) in dates    # Mart ANCHOR'a döner (sürüklenme yok)
+    assert date(2026, 4, 30) in dates

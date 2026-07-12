@@ -102,7 +102,7 @@
 - **Aksiyon:** Kürsörü `max(next_payment_date, ilgili ay)`'a kaydır ya da geçmişte `idx` artırma.
 - **Etki:** Orta · **Efor:** M
 
-### [RULE-017] Ay sonu gününden taşarken gün sürüklenmesi (clamp sonrası orijinal gün kaybı)
+### [RULE-017] Ay sonu gününden taşarken gün sürüklenmesi (clamp sonrası orijinal gün kaybı) ✅ UYGULANDI (12 Tem 2026)
 - **Sorun:** Bir sonraki ay `min(cursor.day, last)` ile üretilir ama cursor zaten kırpılmış olabilir; 31 → Şubat 28 → Mart 28 (31 değil). Orijinal `day_of_month` korunmuyor.
 - **Kanıt:** `app/cashflow.py:132-137`; `app/simulation_engine.py:326-331`
 - **Aksiyon:** Orijinal `day_of_month`'ı taşı, her ay `min(day_of_month, last)` (cashflow `_month_occurrences` bunu doğru yapıyor — pattern'i taşı).

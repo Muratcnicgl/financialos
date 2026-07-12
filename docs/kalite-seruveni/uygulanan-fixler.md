@@ -158,3 +158,15 @@ alacak tarafı yaşlandırma (FEAT-027). `collect_debts` bu metrikler arasında 
 Metrik-tutarlılık gözlemle doğrulandı: borç özgürlük (avalanche, rollover) vs asgari tuzağı
 (izole min-only) FARKLI senaryolar → çelişki değil (#124-tarzı bug yok). Koç context ~946 token
 (tüm bloklarla) — Groq TPM darboğazı sistem prompt'undan, context'ten değil.
+
+**Ek sağlamlaştırma:** RESIL-008 circuit breaker (request-too-large veren sağlayıcı process
+boyunca atlanır — Groq TPM israfı bitti) · BUG #128 annüite overflow + küçük-oran hassasiyet
+guard'ları (property test yakaladı) + FEAT-014/015/027 korunum invariant testleri.
+
+**Eval-driven doğrulama (12 Tem, fallback config):** BUG #127 retry + circuit breaker ile koç
+eval'inde **action gap KAPANDI** — gerceklesmis_eylem/kart_action artık PASS (önce 2/8 düşüyordu;
+hipotez "propose sunuluyor ama zayıf sağlayıcı çağırmıyor" doğrulandı, retry + çalışan Cerebras
+çözdü). Kalan 2 FAIL (analiz grounding): Cerebras seyrek-veri analizinde TL uyduruyor → grounding
+DOĞRU yakalıyor (grounded=-, confidence düşürülüyor) — sistem tasarım gereği çalışıyor, kod bug'ı
+değil (kanonik eval DB'de borç/alacak yok → yeni context blokları devrede değil). Eval-driven
+döngü işledi: hipotez → fix → eval teyidi.

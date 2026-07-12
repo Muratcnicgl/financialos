@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Loader2 } from 'lucide-react';
-import { cashflowApi } from '../api.js';
+import { cashflowApi, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import BalanceTrend from '../components/BalanceTrend.jsx';
 import CashflowCalendar from '../components/CashflowCalendar.jsx';
@@ -66,7 +66,7 @@ export default function Cashflow() {
   };
 
   const applyThreshold = () => {
-    const val = parseFloat(thresholdInput.replace(',', '.')) || 0;
+    const val = parseTRNumber(thresholdInput) || 0; // W3-001
     setCrunchThreshold(val);
   };
 

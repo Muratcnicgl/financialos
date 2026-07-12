@@ -353,3 +353,9 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 |----|-----------|-----------|-------|
 | W3-BACKLOG | `wave-3-backlog.md` — 7 kaynak tarama, 68 madde + 4 big-package, top-35 seçim | 2 denetim ajanı + R3 | ✅ |
 | OTONOM KARAR M8 | Premise düzeltmeleri (kategori-a KOZMETİK değil, R3-doğrulama): (1) #059/#060/#062 tanımları yanlış→gerçek kapalı; (2) P2-1 AÇIK (db.query 183×, session.query değil); (3) DATA-003/004 KAPALI (FK pragma ON, database.py:49); (4) create_all ADR-013 ihlali yok. Gerekçe: R3 disk>rapor — denetim section'ları bayat, koda karşı doğrulandı | grep + database.py:49 okuma | ✅ |
+
+## Milestone 9 — Kritik Kısa Süre (Wave-3, 2026-07-13)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| W3-001 / BUG #156 | TR sayı parse veri bozulması: `parseTRNumber` (api.js) — locale-toleranslı (son ayraç=ondalık, tek nokta+3hane=binlik). 13 çağrı yeri (Accounts/Cashflow/Transactions/IncomeDebt/Cockpit/Wishlist/Budget/Goals/PendingActions) eski `parseFloat(x.replace(',','.'))` → parseTRNumber. "1.234,56"→1234.56 (eskiden 1.234, ~1000× hata). D1: Firefly III/Maybe locale-aware. K10: TR-first + US-tolerans | api.test.js +6 test (23 geçti), npm build ✓ | ✅ |

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Check, X, AlertCircle, Loader2, Pencil, Brain, TrendingUp } from 'lucide-react';
-import { actionsApi, formatTLSuffix, formatDate, todayLocalISO } from '../api.js';
+import { actionsApi, formatTLSuffix, formatDate, todayLocalISO, parseTRNumber } from '../api.js';
 import PremortemModal from './PremortemModal.jsx';
 import HorizonsModal from './HorizonsModal.jsx';
 
@@ -55,7 +55,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
     setEditErr(null);
     const newPayload = {
       ...p,
-      amount: parseFloat(form.amount),
+      amount: parseTRNumber(form.amount), // W3-001
       transaction_type: form.transaction_type,
       category: form.category.toLowerCase().trim(),
       account_id: form.account_id ? parseInt(form.account_id) : p.account_id,

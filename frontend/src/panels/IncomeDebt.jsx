@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   incomesApi, expensesApi, debtsApi, accountsApi,
-  formatTL, formatDate, todayLocalISO, currentYearMonthLocal,
+  formatTL, formatDate, todayLocalISO, currentYearMonthLocal, parseTRNumber,
 } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 
@@ -653,7 +653,7 @@ function IncomeFormModal({ income, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) { setError('Ad boş olamaz'); return; }
-    const amt = parseFloat(amount.replace(',', '.'));
+    const amt = parseTRNumber(amount); // W3-001
     if (!amt || amt <= 0) { setError('Geçerli tutar girin'); return; }
     const day = parseInt(dayOfMonth);
     if (!day || day < 1 || day > 31) { setError('Gün 1-31 arasında olmalı'); return; }
@@ -762,7 +762,7 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) { setError('Ad boş olamaz'); return; }
-    const amt = parseFloat(amount.replace(',', '.'));
+    const amt = parseTRNumber(amount); // W3-001
     if (!amt || amt <= 0) { setError('Geçerli tutar girin'); return; }
     const day = parseInt(dayOfMonth);
     if (!day || day < 1 || day > 31) { setError('Gün 1-31 arasında olmalı'); return; }
@@ -863,7 +863,7 @@ function DebtFormModal({ debt, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!counterparty.trim()) { setError('Karşı taraf boş olamaz'); return; }
-    const amt = parseFloat(amount.replace(',', '.'));
+    const amt = parseTRNumber(amount); // W3-001
     if (!amt || amt <= 0) { setError('Geçerli tutar girin'); return; }
 
     setBusy(true);

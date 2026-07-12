@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
-  cashflowApi, formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
+  cashflowApi, formatTL, formatTLSuffix, formatPercent, formatDate, signClass, parseTRNumber,
 } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
 import MonthlySummary from '../components/MonthlySummary.jsx';
@@ -818,7 +818,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const price = parseFloat(newPrice.replace(',', '.'));
+    const price = parseTRNumber(newPrice); // W3-001
     if (!price || price <= 0) {
       setErr('Geçerli bir fiyat girin');
       return;

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   transactionsApi, accountsApi,
-  formatTL, formatDate, signClass, todayLocalISO,
+  formatTL, formatDate, signClass, todayLocalISO, parseTRNumber,
 } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
 
@@ -522,7 +522,7 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const amt = parseFloat(amount.replace(',', '.'));
+    const amt = parseTRNumber(amount); // W3-001
     if (!amt || amt <= 0) { setError('Geçerli tutar girin'); return; }
 
     setBusy(true);

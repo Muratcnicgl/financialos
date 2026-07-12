@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { goalsApi } from '../api';
-import { formatTL, formatTLSuffix, formatDate } from '../api';
+import { formatTL, formatTLSuffix, formatDate, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import { Loader2, Target, Plus, X, RefreshCw } from 'lucide-react';
 
@@ -402,7 +402,7 @@ function GoalCreateWizard({ onClose }) {
       await goalsApi.create({
         goal_type: goalType,
         title: form.title.trim(),
-        target_amount: parseFloat(form.target_amount),
+        target_amount: parseTRNumber(form.target_amount), // W3-001
         target_date: form.target_date || null,
       });
       toast.success('Hedef oluşturuldu');

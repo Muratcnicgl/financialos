@@ -416,6 +416,43 @@ export function formatTLSuffix(amount, opts) {
   return formatTL(amount, opts) + ' TL';
 }
 
+/**
+ * Kullanıcının girdiği sayıyı locale-toleranslı parse eder (formatTL'in tersi).
+ * "1.234,56" -> 1234.56 · "1,234.56" -> 1234.56 · "1234,5" -> 1234.5 ·
+ * "1.234" -> 1234 (TR binlik) · "1.5" -> 1.5 · "₺ 99,90" -> 99.9 · geçersiz -> NaN.
+ *
+ * W3-001 fix (BUG #156): eski kalıp `parseFloat(x.replace(',', '.'))` yalnız İLK
+ * virgülü çeviriyordu → "1.234,56" (1234,56 TL) parseFloat("1.234.56")=1.234 olarak
+ * ~1000× yanlış, UYARISIZ kaydediliyordu. Sessiz finansal veri bozulması.
+ * Kural: iki ayraç varsa son görünen = ondalık; yalnız nokta ise TR binlik kabul
+ * (birden fazla nokta VEYA son grup tam 3 hane → binlik, aksi halde ondalık).
+ */
+export function parseTRNumber(input) {
+  if (typeof input === 'number') return Number.isFinite(input) ? input : NaN;
+  if (input === null || input === undefined) return NaN;
+  let s = String(input).trim().replace(/[^\d.,-]/g, ''); // TL sembolü/boşluk/harf at
+  if (!s || s === '-' || s === '.' || s === ',') return NaN;
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma >= 0 && lastDot >= 0) {
+    // İki ayraç: son görünen ondalık, diğeri binlik
+    if (lastComma > lastDot) s = s.replace(/\./g, '').replace(/,/g, '.');
+    else s = s.replace(/,/g, '');
+  } else if (lastComma >= 0) {
+    // Yalnız virgül: TR ondalık (tek virgül) veya binlik (birden fazla)
+    const commas = (s.match(/,/g) || []).length;
+    s = commas > 1 ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (lastDot >= 0) {
+    // Yalnız nokta: TR'de binlik. Birden fazla nokta VEYA son grup 3 hane = binlik
+    const dots = (s.match(/\./g) || []).length;
+    const afterDot = s.slice(lastDot + 1);
+    if (dots > 1 || afterDot.length === 3) s = s.replace(/\./g, '');
+    // aksi halde tek nokta = ondalık (1.5, 1.23, 1.2345), olduğu gibi bırak
+  }
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 /** Yuzdeyi format eder: 36.3 -> "+%36,3" */
 export function formatPercent(value, { showSign = true } = {}) {
   if (value === null || value === undefined || isNaN(value)) return '—';

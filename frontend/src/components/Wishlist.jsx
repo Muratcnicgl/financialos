@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Plus, ShoppingBag, Check, X, Clock } from 'lucide-react';
-import { wishlistApi, formatTL } from '../api';
+import { wishlistApi, formatTL, parseTRNumber } from '../api';
 import { useToast } from './Toast.jsx';
 
 /**
@@ -30,7 +30,7 @@ export default function Wishlist() {
 
   const add = async (e) => {
     e.preventDefault();
-    const amount = parseFloat(String(form.amount).replace(',', '.'));
+    const amount = parseTRNumber(form.amount); // W3-001
     if (!form.item.trim() || !(amount > 0)) { toast.error('Ürün ve geçerli tutar gir.'); return; }
     try {
       setSaving(true);

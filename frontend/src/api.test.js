@@ -7,8 +7,46 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
-  todayLocalISO, currentYearMonthLocal,
+  todayLocalISO, currentYearMonthLocal, parseTRNumber,
 } from './api.js';
+
+describe('parseTRNumber (W3-001)', () => {
+  it('TR binlik + ondalık: "1.234,56" -> 1234.56 (eski bug: 1.234)', () => {
+    expect(parseTRNumber('1.234,56')).toBe(1234.56);
+    expect(parseTRNumber('12.345.678,90')).toBe(12345678.9);
+  });
+  it('TR yalnız ondalık virgül', () => {
+    expect(parseTRNumber('1234,56')).toBe(1234.56);
+    expect(parseTRNumber('-99,50')).toBe(-99.5);
+    expect(parseTRNumber('0,01')).toBe(0.01);
+  });
+  it('TR yalnız nokta: 3-hane grup binlik, aksi ondalık', () => {
+    expect(parseTRNumber('1.234')).toBe(1234);      // binlik
+    expect(parseTRNumber('1.234.567')).toBe(1234567); // binlik
+    expect(parseTRNumber('1.5')).toBe(1.5);          // ondalık
+    expect(parseTRNumber('1.23')).toBe(1.23);        // ondalık
+    expect(parseTRNumber('1.2345')).toBe(1.2345);    // ondalık
+  });
+  it('US formatı da tolere edilir', () => {
+    expect(parseTRNumber('1,234.56')).toBe(1234.56);
+    expect(parseTRNumber('1,234,567')).toBe(1234567);
+    expect(parseTRNumber('1234.56')).toBe(1234.56);
+  });
+  it('TL sembolü, boşluk, sayısal geçiş', () => {
+    expect(parseTRNumber('₺ 1.234,56')).toBe(1234.56);
+    expect(parseTRNumber('  850  ')).toBe(850);
+    expect(parseTRNumber(1234.56)).toBe(1234.56);
+    expect(parseTRNumber('850')).toBe(850);
+  });
+  it('geçersiz -> NaN', () => {
+    expect(parseTRNumber('')).toBeNaN();
+    expect(parseTRNumber('abc')).toBeNaN();
+    expect(parseTRNumber(null)).toBeNaN();
+    expect(parseTRNumber(undefined)).toBeNaN();
+    expect(parseTRNumber('-')).toBeNaN();
+    expect(parseTRNumber(Infinity)).toBeNaN();
+  });
+});
 
 describe('formatTL', () => {
   it('TR formatı: nokta binlik, virgül ondalık', () => {

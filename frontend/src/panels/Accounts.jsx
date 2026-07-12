@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   accountsApi, fundPriceApi,
-  formatTL, formatTLSuffix, formatDate, signClass,
+  formatTL, formatTLSuffix, formatDate, signClass, parseTRNumber,
 } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
 import { useToast } from '../components/Toast.jsx';
@@ -361,7 +361,7 @@ function AccountFormModal({ account, onClose, onSave }) {
 
   const parseNum = (v) => {
     if (!v || v === '') return null;
-    const n = parseFloat(String(v).replace(',', '.'));
+    const n = parseTRNumber(v); // W3-001: TR binlik/ondalık güvenli parse
     return isNaN(n) ? null : n;
   };
   const parseInt2 = (v) => {
@@ -547,7 +547,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const price = parseFloat(newPrice.replace(',', '.'));
+    const price = parseTRNumber(newPrice); // W3-001
     if (!price || price <= 0) { setErr('Geçerli bir fiyat girin'); return; }
     setBusy(true);
     setErr(null);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Plus, Trash2, Wallet } from 'lucide-react';
-import { envelopesApi, formatTL } from '../api';
+import { envelopesApi, formatTL, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import DetectedSubscriptions from '../components/DetectedSubscriptions.jsx';
 import Wishlist from '../components/Wishlist.jsx';
@@ -31,12 +31,12 @@ export default function Budget() {
 
   const add = async (e) => {
     e.preventDefault();
-    if (!form.category.trim() || !(parseFloat(form.monthly_amount) > 0)) return;
+    if (!form.category.trim() || !(parseTRNumber(form.monthly_amount) > 0)) return; // W3-001
     try {
       setSaving(true);
       await envelopesApi.create({
         category: form.category.trim().toLowerCase(),
-        monthly_amount: parseFloat(form.monthly_amount),
+        monthly_amount: parseTRNumber(form.monthly_amount), // W3-001
       });
       setForm({ category: '', monthly_amount: '' });
       toast.success('Zarf eklendi');

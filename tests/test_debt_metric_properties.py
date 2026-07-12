@@ -88,10 +88,14 @@ def test_opportunity_cost_odeme_faizi_artirmaz(debts, amount):
              for i, (bal, rate, mp) in enumerate(debts)]
     r = simulate_purchase_opportunity_cost(items, amount, today=TODAY)
     assert r is not None
-    # kısmi ödeme (borç yok edilmez) → toplam faiz artamaz, erken (ya da eşit) biter
-    assert r["odersen_faiz"] <= r["baseline_faiz"] + 1.0        # kuruş toleransı
+    # kısmi ödeme (borç yok edilmez) → toplam faiz artamaz, erken (ya da eşit) biter.
+    # GÖRELİ tolerans: asla-bitmeyen borçlarda (min<faiz) faiz MAX_MONTHS'ta astronomik
+    # (~1e16) olur; iki senaryo yalnız float yuvarlama basamağında (1e-9) farklılaşır → mutlak
+    # 1.0 toleransı bu ölçekte anlamsız. Görelide invariant (odersen anlamlıca artmaz) korunur.
+    _tol = abs(r["baseline_faiz"]) * 1e-9 + 1.0
+    assert r["odersen_faiz"] <= r["baseline_faiz"] + _tol
     assert r["odersen_ay"] <= r["baseline_ay"]
-    assert r["faiz_tasarrufu"] >= -1.0                          # harcamanın maliyeti ≥ 0
+    assert r["faiz_tasarrufu"] >= -_tol                        # harcamanın maliyeti ≥ 0 (görelide)
     assert 0 < r["uygulanan"] <= amount + 0.01                  # 2-hane yuvarlama toleransı
 
 

@@ -188,6 +188,7 @@ dayanıklılık + kullanıcıyı etkileyen doğruluk + veri-egemenliği tamlığ
 | BE-025 | Fallback modda günlük-limit BLOCK koruması ölüydü (usage hep %0). provider_used loglanır + PROVIDER_DAILY_LIMITS haritası → Gemini kotası doğru izlenir | test_usage_tracking.py (5) |
 | BE-010 | 6 sessiz `except: pass` → tanılanabilir loglama (goal_engine except'i #066'da AttributeError gizliyordu) | süit yeşil |
 | SEC-006 | coach mesajı max_length=4000 (sağlayıcı token/maliyet koruması; büyük yapıştırma zinciri patlatmasın) | test_coach_chat_endpoint.py (+2) |
+| SEC-032 | Finansal float alanları sonlu olmalı: paylaşılan schema_types (allow_inf_nan=False + üst sınır 1e12) accounts/transactions/debts/incomes/expenses'e uygulandı → inf/NaN/taşma(1e308) girişte reddedilir (round(inf) rules_engine sızıntısı kesildi). İşlem ≤0 dostça mesajı korundu | test_financial_input_validation.py (21) |
 | KVKK | Veri export tamlığı: eylem/karar/hedef-izleme + koç-şeffaflık kayıtları eklendi (18 tablo). TAMLIK invariant testi | test_data_export.py (+2) |
 
 **Provider gerçeği (memory: reference_groq_tpm_limiti):** Zengin veride koç isteği ~8000+ token →

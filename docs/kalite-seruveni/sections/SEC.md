@@ -158,10 +158,18 @@
 - **Aksiyon:** action_type'a göre discriminated union Pydantic; `extra="forbid"`.
 - **Etki:** Orta · **Efor:** M
 
-### [SEC-032] Sayısal/finansal alanlarda aralık doğrulaması eksik
+### [SEC-032] Sayısal/finansal alanlarda aralık doğrulaması eksik ✅ UYGULANDI (12 Tem 2026)
 - **Kanıt:** accounts/transactions şemalarında max_length var ama tutar `ge=`/`le=` yok
 - **Aksiyon:** `Field(ge=0)`/üst sınır, Decimal; `_parse_quick_text` girdisini sıkı doğrula.
 - **Etki:** Orta · **Efor:** M
+- **Uygulama:** `app/schema_types.py` — paylaşılan sonlu-float tipleri (FinansTutar/FinansOptTutar
+  = gt=0, FinansBakiye = negatif olabilir, FinansOptOran = ≥0; hepsi `allow_inf_nan=False` +
+  üst sınır 1e12). accounts/transactions/debts/incomes/expenses şemalarına uygulandı → inf/NaN
+  ve taşma (1e308) GİRİŞTE reddedilir (rules_engine'e round(inf) sızıntısı kesilir). İşlem tutarı
+  FinansOptBakiye (sonlu ama sign-agnostik) → handler'daki dostça ≤0 mesajı korunur. 21 test
+  (şema seviyesi inf/NaN + HTTP taşma/işaret/meşru-büyük). Not: tarayıcı JSON'u Infinity/NaN
+  taşıyamaz (JSON.stringify→"null"); asıl gerçek-dünya koruması taşma/yazım-hatası (1e308) değeridir.
+  Decimal geçişi ayrı iş (mevcut float+round yeterli, migration gerektirmez).
 
 ### [SEC-033] Insight/hafıza içeriği ikinci-tur (stored) prompt injection taşıyıcısı
 - **Kanıt:** `app/coach.py:681-684`, `1644`

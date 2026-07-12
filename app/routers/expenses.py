@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User, RecurringExpense, Account, PendingAction, ActionStatus
+from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/api/expenses/recurring", tags=["recurring-expenses"]
 
 class ExpenseBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    amount: float = Field(..., gt=0)
+    amount: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır
     account_id: int = Field(..., description="Ödeme yapılacak hesap (kart veya nakit)")
     category: Optional[str] = Field(None, max_length=50)
     day_of_month: int = Field(..., ge=1, le=31)
@@ -43,7 +44,7 @@ class ExpenseCreate(ExpenseBase):
 
 class ExpenseUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    amount: Optional[float] = Field(None, gt=0)
+    amount: FinansOptTutar = None  # SEC-032
     account_id: Optional[int] = None
     category: Optional[str] = Field(None, max_length=50)
     day_of_month: Optional[int] = Field(None, ge=1, le=31)

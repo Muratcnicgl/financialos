@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import User, RecurringIncome, Account, AccountType, PendingAction, ActionStatus
+from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ router = APIRouter(prefix="/api/incomes", tags=["incomes"])
 
 class IncomeBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    amount: float = Field(..., gt=0)
+    amount: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır
     day_of_month: int = Field(..., ge=1, le=31, description="Ayın kacinda gelir (1-31)")
     is_active: bool = True
     notes: Optional[str] = None
@@ -44,7 +45,7 @@ class IncomeCreate(IncomeBase):
 
 class IncomeUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    amount: Optional[float] = Field(None, gt=0)
+    amount: FinansOptTutar = None  # SEC-032
     day_of_month: Optional[int] = Field(None, ge=1, le=31)
     is_active: Optional[bool] = None
     notes: Optional[str] = None

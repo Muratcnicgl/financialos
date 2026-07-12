@@ -18,6 +18,9 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.serializers import utc_isoformat  # BUG #092: datetime UTC suffix
+# SEC-032: işlem tutarı SONLU olmalı (inf/NaN/taşma reddedilir); ≤0 kontrolü handler'daki
+# manuel doğrulamada (dostça Türkçe mesaj + quick_text modu) kalır → FinansOptBakiye (sign-agnostik sonlu).
+from app.schema_types import FinansOptBakiye
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType,
 )
@@ -33,7 +36,7 @@ class TransactionCreate(BaseModel):
     """Quick-entry destekli olusturma."""
     account_id: Optional[int] = None
     transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
-    amount: Optional[float] = None
+    amount: FinansOptBakiye = None  # SEC-032: sonlu (≤0 kontrolü handler'da; quick_text'te None)
     category: Optional[str] = None
     description: Optional[str] = None
     transaction_date: Optional[date] = None
@@ -48,7 +51,7 @@ class TransactionUpdate(BaseModel):
     """PUT icin partial guncelleme."""
     account_id: Optional[int] = None
     transaction_type: Optional[Literal["income", "expense", "transfer"]] = None
-    amount: Optional[float] = None
+    amount: FinansOptBakiye = None  # SEC-032: sonlu (≤0 kontrolü handler'da; quick_text'te None)
     category: Optional[str] = None
     description: Optional[str] = None
     transaction_date: Optional[date] = None

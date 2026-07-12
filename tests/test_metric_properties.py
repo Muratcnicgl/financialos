@@ -58,3 +58,72 @@ def test_sinking_fund_aylik_gereken_negatif_degil(target, current, months_ahead)
     assert r is not None
     assert r["aylik_gereken"] >= 0
     assert r["kalan_ay"] >= 0
+
+
+# ============================================================
+# UÇTAN-UCA FİNİTLİK — SONLU girdide generate_cockpit ASLA inf/NaN üretmez.
+# SEC-032 finiteness garantilerinin TÜM cockpit hesabı boyunca korunduğunu kilitler
+# (round(inf)/taşma sınıfı bir daha sessizce dönemez).
+# ============================================================
+import math  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+from app.models import (Base, User, Account, AccountType, Transaction,  # noqa: E402
+                        TransactionType, PersonalDebt, DebtDirection, RecurringIncome)
+from app.rules_engine import generate_cockpit  # noqa: E402
+
+_COCKPIT_TODAY = date(2026, 7, 12)
+_fin = st.floats(min_value=0, max_value=1e9, allow_nan=False, allow_infinity=False)
+_rate = st.floats(min_value=0, max_value=100, allow_nan=False, allow_infinity=False)
+
+
+def _assert_all_finite(obj, path="root"):
+    if isinstance(obj, float):
+        assert math.isfinite(obj), f"non-finite float at {path}: {obj}"
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            _assert_all_finite(v, f"{path}.{k}")
+    elif isinstance(obj, (list, tuple)):
+        for i, v in enumerate(obj):
+            _assert_all_finite(v, f"{path}[{i}]")
+
+
+@st.composite
+def _portfoy(draw):
+    accs = [("cash", draw(_fin), None, None, None, None)]
+    if draw(st.booleans()):
+        accs.append(("credit_card", draw(_fin), draw(st.floats(1, 1e6, allow_nan=False, allow_infinity=False)),
+                     draw(st.integers(1, 28)), draw(st.integers(1, 28)), draw(_rate)))
+    for _ in range(draw(st.integers(0, 2))):
+        accs.append(("loan", draw(_fin), None, None, None, draw(_rate)))
+    return accs
+
+
+@given(portfoy=_portfoy(), n_txn=st.integers(0, 5), n_debt=st.integers(0, 3))
+@settings(max_examples=40, deadline=None)
+def test_generate_cockpit_daima_finite(portfoy, n_txn, n_debt):
+    eng = create_engine("sqlite:///:memory:",
+                        connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(eng)
+    s = sessionmaker(bind=eng)()
+    try:
+        s.add(User(id=1, name="m"))
+        for i, (atype, bal, lim, sd, pd_, rate) in enumerate(portfoy):
+            s.add(Account(user_id=1, name=f"a{i}", account_type=AccountType(atype), balance=bal,
+                          credit_limit=lim, statement_day=sd, payment_day=pd_, interest_rate=rate,
+                          monthly_payment=(bal * 0.05 if atype == "loan" else None),
+                          remaining_installments=(12 if atype == "loan" else None)))
+        for j in range(n_txn):
+            s.add(Transaction(user_id=1, transaction_type=TransactionType.expense, amount=50.0 + j,
+                              category="market", transaction_date=_COCKPIT_TODAY))
+        for k in range(n_debt):
+            s.add(PersonalDebt(user_id=1, counterparty=f"K{k}", direction=DebtDirection.receivable,
+                               amount=1000.0 + k, is_paid=False))
+        s.add(RecurringIncome(user_id=1, name="Maas", amount=25000, day_of_month=15, is_active=True))
+        s.commit()
+        cockpit = generate_cockpit(1, _COCKPIT_TODAY, s)   # ASLA exception
+        cockpit.pop("_coach_extra_numbers", None)          # iç ayrıntı
+        _assert_all_finite(cockpit)
+    finally:
+        s.close()

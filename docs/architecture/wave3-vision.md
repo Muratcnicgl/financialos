@@ -470,9 +470,9 @@ Wave-3 başlangıcında bir "Quality Sprint":
 
 ## 7. Vizyon-Misyon Entegrasyonu
 
-Tüm bu önerilerin filtresi: **Mustafa mimarisi** ve **Murat'ın vizyonu** (160 IQ stratejist, dalkavukluk yapmayan, gerçek aksiyon alabilen, hatırlayan koç).
+Tüm bu önerilerin filtresi: **ADR-001 mimarisi** ve **Murat'ın vizyonu** (160 IQ stratejist, dalkavukluk yapmayan, gerçek aksiyon alabilen, hatırlayan koç).
 
-### Önerilerin Mustafa Mimarisi'ne Uyumu
+### Önerilerin ADR-001'e Uyumu
 
 | Öneri | Rules Engine | Action Schema | Reflection | Insight Memory |
 |---|---|---|---|---|
@@ -482,7 +482,7 @@ Tüm bu önerilerin filtresi: **Mustafa mimarisi** ve **Murat'ın vizyonu** (160
 | TanStack Query | Cockpit cache fast feedback | Korur | Korur | Korur |
 | Observability | Kararları görünür kılar | Hangi action başarılı görür | Hangi insight değerli görür | Eski insight'lar silinir |
 
-Hiçbiri Mustafa mimarisini bozmuyor — hepsi **mevcut mimarinin daha iyi enstrümante edilmiş, daha modüler hali**. Yıkıcı değil evrimsel.
+Hiçbiri ADR-001'i bozmuyor — hepsi **mevcut mimarinin daha iyi enstrümante edilmiş, daha modüler hali**. Yıkıcı değil evrimsel.
 
 ### Vizyon Uyumu — "DeepSeek/Claude/GPT seviyesindeki tek farkın sub-agent routing"
 

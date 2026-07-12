@@ -243,3 +243,12 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ID | Değişiklik | Doğrulama | Durum |
 |----|-----------|-----------|-------|
 | OTONOM KARAR M1 | **Bulgu:** temiz DB'de `alembic upgrade head` çöküyordu (baseline STAMP idi, coach_insights orphan+alter). **Kategori: (c) ADR İhlali** (ADR-013/DB-001). "Testi uyarlıyorum" reflex'i REDDEDİLDİ. **Karar (K10):** non-destructive collapse — `b70779a2f621_genesis_full_schema` tüm 21 tablo+48 index (create_all eşdeğeri) yaratan root; 9 migration no-op'a indirildi (revizyon+zincir korundu). **Gerekçe:** en sağlam+risksiz (canlı DB atası=genesis, dokunulmaz; re-stamp yok). ADR-013a yazıldı | Temiz DB `alembic upgrade head` → 21 tablo, create_all ile kolon+index ÖZDEŞ (`scripts/test_fresh_db_migration.py`). Canlı DB dokunulmadı (fec73e5343e5, 22 tablo). pytest 774 | ✅ |
+
+## Milestone 2 — Rehber + skill + ADR + Mustafa temizlik
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| M2.1 | PROJE.md 4 May bayat → güncel (774 baseline, kritik yollar, KURAL+OTONOM KARAR, anti-pattern, audit kod, skill) | 33→74 satır | ✅ |
+| M2.2 | 4 global skill repo'ya kopyalandı + `financialos-kalite-seruveni` skill yazıldı | `.asistan/skills/` 5 skill, skill kayıtlı | ✅ |
+| M2.3 | ADR-001/012/013 materyalize (repo-izli); kalan 7 ADR pending (MCP boş) | 3 ADR dosyası + pending | ✅ |
+| M2.4 / ADR-001 | 8 yasaklı-isim referansı isimsiz forma çevrildi (coach_insights/premortem/mobile-roadmap/wave3-vision) | grep 0, pytest 774 | ✅ |

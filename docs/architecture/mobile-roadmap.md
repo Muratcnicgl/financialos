@@ -103,7 +103,7 @@ Frontend'i sıfırdan RN ile yaz. Backend (FastAPI) aynı kalır — sadece API 
 - **Klavye-merkezli web**, **gesture-merkezli mobile**: Web'de Tab/Enter/Esc, mobile'da swipe-to-categorize, swipe-to-approve.
 - **Felsefe odaklı**: Her doların bir görevi var. Bu sadece UI değil, mental model.
 
-**Senin için ders:** Senin "FinancialOS" dediğin sistemin de bir felsefesi var (Mustafa mimarisi: Rules Engine karar verir, LLM açıklar). Bu felsefeyi UX'e yansıtmak rakiplerine karşı en büyük diferansiyatörün.
+**Senin için ders:** Senin "FinancialOS" dediğin sistemin de bir felsefesi var (ADR-001 mimarisi: Rules Engine karar verir, LLM açıklar). Bu felsefeyi UX'e yansıtmak rakiplerine karşı en büyük diferansiyatörün.
 
 ### Bank of America "Erica" — AI Asistanlı Banking
 

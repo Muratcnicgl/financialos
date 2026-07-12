@@ -5,7 +5,7 @@ Klein 1989 prospective hindsight + LLM-tabanli senaryo uretimi.
 Murat'in onaylamak uzere oldugu bir aksiyon icin 5 basarisizlik senaryosu uretir.
 Her senaryo: gerekce + olasilik etiketi + TL etki + mitigation aksiyonu.
 
-Mustafa felsefesi: Premortem KARAR VERMEZ, sadece korluk noktalarini acar.
+ADR-001 ilkesi: Premortem KARAR VERMEZ, sadece korluk noktalarini acar.
 Son karar her zaman Murat'in.
 
 Mimari:

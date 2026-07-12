@@ -4,7 +4,7 @@ app/coach_insights.py
 Wave-2 Hafta 1 Davranissal Hafiza modulu.
 
 Mimari (ADR-016 Saf Karma A):
-- 8 deterministik extractor (Mustafa mimarisi)
+- 8 deterministik extractor (ADR-001 mimarisi)
 - Hibrit tetikleme (D pattern): olay-tepki + esik-tepki + periyodik
 - Honcho Dream paterni: explicit_red_line icin gece batch LLM consolidation
 - Saf Karma A invalidation: counter_evidence_count >= 3 AND >= evidence_count/2
@@ -286,7 +286,7 @@ def extract_decision_rhythm(db: Session, user_id: int) -> None:
     4. Eger dominant dilim varsa insight olustur/guncelle
     5. Yoksa - 'davranis dengeli' insight YAZMA (gurultu olur)
 
-    Mustafa mimarisi: LLM yok, regex yok, saf SQL + istatistik.
+    ADR-001 mimarisi: LLM yok, regex yok, saf SQL + istatistik.
     confidence_basis: 'pattern_grounded'
 
     Model notu: ActionHistory.applied_at (timezone-naive UTC) kullanilir.
@@ -1839,7 +1839,7 @@ def extract_explicit_red_line_k1(db: Session, user_id: int) -> dict:
 # - Honcho Dream paterni - K1 (regex %0 false positive) + K2 (LLM nuance)
 # - Mem0 fact-extraction implicit preference %30-45 vs Honcho %77-90 - LLM
 #   nuance gerektiren ima edilen patern tespiti icin sart
-# - Mustafa mimarisi - LLM uretici, sistem tuketici. Pydantic-benzeri schema
+# - ADR-001 mimarisi - LLM uretici, sistem tuketici. Pydantic-benzeri schema
 #   validation cikti dogrulamasi yapar, false output reddedilir.
 #
 # Kritik tasarim kisitlari (sema kesfi 10 May 2026):

@@ -333,3 +333,9 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ID | Değişiklik | Doğrulama | Durum |
 |----|-----------|-----------|-------|
 | P1-15 / BUG #146 | OperationName values_callable + migration 978ad0f00814 (RULE_CHECK→rule_check). R3: CHECK yok, data-only. **Canlı uygulandı** (backup 2026-07-13-011907) | kopya+fresh-db+803 test | ✅ |
+
+## Milestone 6 — artım 8 (P1-24 kart stratejisi wire)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-24 / BUG #147-151 | evaluate_credit_card_strategy cockpit'e bağlandı. **OTONOM KARAR:** util-guard (near-full kartta "float silah" zararlı → "borç azalt" uyarır). RULE-003 (gerçek tarih) + RULE-004 (eff) fix; RULE-005 R3 ile doğru bulundu (geri alındı) | test_p1_24 + 7 card_strategy + canlı | ✅ |

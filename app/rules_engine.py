@@ -260,8 +260,10 @@ def evaluate_credit_card_strategy(
     statement_day_eff = min(statement_day, last_day)
     payment_day_eff = min(payment_day, last_day)
 
-    days_to_statement = (statement_day_eff - today.day) % last_day
-    days_to_payment = (payment_day_eff - today.day) % last_day
+    # BUG #147 fix (P1-24/RULE-003): modulo(last_day) cari ay uzunluğunu kullanıyordu → kesim
+    # sonraki aya taşarken off-by (Şubat 28→Mart). Gerçek tarih farkı (cross-month doğru).
+    days_to_statement = (_get_next_due_date(today, statement_day) - today).days
+    days_to_payment = (_get_next_due_date(today, payment_day) - today).days
 
     kullanim_orani = round((current_debt / credit_limit) * 100, 1) if credit_limit > 0 else 0.0
     kalan_limit = round(credit_limit - current_debt, 2)
@@ -271,14 +273,26 @@ def evaluate_credit_card_strategy(
     # ekstreye gitmesi (float) her zaman doğru. Kesilen ekstrenin ÖDEME hazırlığı bu fonksiyonun
     # işi DEĞİL; son ödeme yaklaşımı _collect_upcoming_reminders (BUG #096) tarafından ayrıca
     # uyarılır. Bu ikisini birleştirmeye çalışma → çifte uyarı olur.
-    if today.day > statement_day:
+    if today.day > statement_day_eff:  # BUG #148 (P1-24/RULE-004): ham değil effective
         durum = "vade_avantaji"
-        mesaj = (
-            f"Kesim {statement_day_eff}'inde geçti. Bugünden itibaren yapılan "
-            f"harcamalar bir sonraki ekstreye gidecek — yaklaşık 35-40 gün vade. "
-            f"Kart stratejik silah, nakit korumalı."
-        )
-    elif today.day <= payment_day and today.day > 1:
+        # BUG #149 (P1-24/K10-BENİ-DÜŞÜN): utilization YÜKSEKSE "kart stratejik silah" tavsiyesi
+        # ZARARLI (near-full kartta float-harcama teşviki felaket). Yüksek kullanımda uyar.
+        if kullanim_orani >= _UTIL_HIGH:
+            mesaj = (
+                f"Kesim {statement_day_eff}'inde geçti (yeni harcama sonraki ekstreye ~35-40 gün "
+                f"vade). ANCAK kart kullanımın %{kullanim_orani} — DOLU. Float avantajı değil, "
+                f"borç azaltma önceliği: yeni harcama YAPMA, nakit koru."
+            )
+        else:
+            mesaj = (
+                f"Kesim {statement_day_eff}'inde geçti. Bugünden itibaren yapılan "
+                f"harcamalar bir sonraki ekstreye gidecek — yaklaşık 35-40 gün vade. "
+                f"Kullanım %{kullanim_orani} (sağlıklı) — kart stratejik kullanılabilir, nakit korumalı."
+            )
+    elif today.day <= payment_day_eff and today.day > 1:  # BUG #150 (P1-24/RULE-004): effective
+        # NOT (R3): `today.day > 1` KORUNDU — erken-statement kartta (Murat: kesim=2) ayın 1'i
+        # kesim ÖNCESİ (kesim_dikkat DOĞRU). RULE-005'in "day-1 odeme'ye düşmeli" iddiası yalnız
+        # geç-statement kartlarda geçerli; erken-statement'ta day-1→kesim_dikkat doğru davranış.
         durum = "odeme_dikkat"
         gun_kaldi = payment_day_eff - today.day
         mesaj = (
@@ -2040,6 +2054,21 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     alacak_yaslanma = calculate_receivables_aging(user_id, today, db)  # FEAT-027
     borc_ilerleme = calculate_debt_progress(user_id, today, db, kart_borcu + kredi_borcu)  # FEAT-017
     kart_kullanim = calculate_card_utilization(user_id, today, db, accounts)  # FEAT-016 (accounts re-query yok)
+
+    # BUG #151 (P1-24): MC3 kart ekstre-döngüsü stratejisi — kesim/ödeme günü olan kredi
+    # kartları için (utilization-guard'lı; near-full kartta float-tavsiyesi vermez). Eskiden
+    # evaluate_credit_card_strategy ölü koddu; artık cockpit'e bağlı (accounts re-query yok).
+    kart_stratejisi = []
+    for _acc in accounts:
+        if (_acc.account_type == AccountType.credit_card and _acc.statement_day
+                and _acc.payment_day and _acc.credit_limit):
+            _strat = evaluate_credit_card_strategy(
+                today, _acc.statement_day, _acc.payment_day,
+                float(D(_acc.balance)), float(D(_acc.credit_limit)),
+            )
+            _strat["hesap_adi"] = _acc.name
+            kart_stratejisi.append(_strat)
+
     # FEAT-022: finansal sağlık skoru (şeffaf composite)
     _aylik_gelir = D(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
         RecurringIncome.user_id == user_id, RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
@@ -2086,6 +2115,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "guvenli_harcama": guvenli_harcama,  # FEAT-009: kart-hariç ileriye-dönük güvenli harcama tabanı
         "nakit_runway_gun": nakit_runway_gun,  # FEAT-010: gelirsiz nakit kaç gün yeter (None=belirsiz)
         "kart_kullanim": kart_kullanim,  # FEAT-016: kart utilization oranı + trend + kredi-sağlık bandı (None=kart yok)
+        "kart_stratejisi": kart_stratejisi,  # P1-24/MC3: ekstre-döngüsü stratejisi (util-guard'lı; [] = uygun kart yok)
         "abonelik_yuku": {  # FEAT-006: aylık/yıllık toplam abonelik yükü (Rocket Money headline)
             "aylik": sub_result["aylik_toplam"],
             "yillik": sub_result["yillik_toplam"],

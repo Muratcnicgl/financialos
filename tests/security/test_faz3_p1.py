@@ -152,3 +152,22 @@ def test_p1_15_operation_name_stores_value_not_member(db_session, test_user):
     # ORM okuma enum'a geri map'ler
     db_session.refresh(tr)
     assert tr.operation_name == OperationName.RULE_CHECK
+
+
+# --- P1-24: kart stratejisi utilization-guard (near-full kartta zararlı float-tavsiyesi vermez) ---
+
+def test_p1_24_high_utilization_suppresses_float_advice():
+    from datetime import date
+    from app.rules_engine import evaluate_credit_card_strategy
+    # kesim geçmiş (vade_avantaji dalı), %98.5 dolu kart (Murat senaryosu)
+    dolu = evaluate_credit_card_strategy(date(2026, 7, 13), statement_day=2, payment_day=12,
+                                         current_debt=11822.66, credit_limit=12000.0)
+    assert dolu["durum"] == "vade_avantaji"
+    assert "YAPMA" in dolu["mesaj"] and "borç azalt" in dolu["mesaj"].lower()  # güvenli uyarı
+    assert "stratejik silah" not in dolu["mesaj"]                              # zararlı tavsiye YOK
+
+    # sağlıklı kullanım → stratejik kullanım tavsiyesi meşru
+    saglikli = evaluate_credit_card_strategy(date(2026, 7, 13), statement_day=2, payment_day=12,
+                                             current_debt=2000.0, credit_limit=12000.0)
+    assert saglikli["durum"] == "vade_avantaji"
+    assert "stratejik" in saglikli["mesaj"].lower()

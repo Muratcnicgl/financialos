@@ -52,8 +52,11 @@
 ### ✅ DÜZELTİLDİ (M6 artım 7)
 - **P1-15** OperationName enum values_callable — model + migration `978ad0f00814` (`RULE_CHECK`→`rule_check` veri göçü, BUG #146). **R3:** kolon VARCHAR(12), CHECK YOK → şema değişmez, data-only. **Canlı uygulandı** (backup `2026-07-13-011907.db`, head→978ad0f00814, değerler lowercase, ORM read OK). Kopyada+fresh-db+803 test doğrulandı. Test `test_p1_15_*`.
 
-### 🔧 OPEN — kalan (sonraki M6 artımları)
-- **P1-24** evaluate_credit_card_strategy ölü kod — karar: wire (MC3 ekstre-döngüsü) · **P1-25** AnthropicProvider tool-history adapter (fallback provider, düşük öncelik).
+### ✅ DÜZELTİLDİ (M6 artım 8)
+- **P1-24** evaluate_credit_card_strategy cockpit'e BAĞLANDI (util-guard'lı, `rules_engine.py` `kart_stratejisi`, BUG #147-151). **OTONOM KARAR (kategori-c):** "wire-as-is" Murat'ın %98.5 dolu kartına "float silah" ZARARLI tavsiyesi verirdi → **utilization-guard** (yüksek kullanımda "borç azalt, harcama YAPMA" uyarır). RULE-003 (modulo→gerçek tarih) + RULE-004 (statement_day_eff) düzeltildi; RULE-005 R3 ile DOĞRULANDI (erken-statement'ta `today.day>1` doğru — geri alındı). Canlı: Murat kartı %98.5→güvenli uyarı. Test `test_p1_24_*` + 7 card_strategy.
+
+### 🔧 OPEN — kalan (son P1)
+- **P1-25** AnthropicProvider tool-history adapter (fallback provider, Gemini birincil → düşük öncelik).
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

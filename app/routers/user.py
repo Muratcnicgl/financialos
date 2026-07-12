@@ -21,6 +21,9 @@ from app.dependencies import get_db, get_current_user
 from app.models import (
     User, Account, Transaction, RecurringIncome, RecurringExpense, PersonalDebt,
     Goal, Envelope, MasterCheckpoint, NetWorthSnapshot, CoachMemory, CoachInsight,
+    # KVKK/egemenlik tamlığı: kullanıcının eylem/karar/hedef-izleme kayıtları da dahil.
+    PendingAction, ActionHistory, DecisionJournal, ReasoningTrace, ApiCallLog,
+    GoalAllocation, GoalRule,
 )
 
 router = APIRouter(prefix="/api/user", tags=["user"])
@@ -118,6 +121,14 @@ def export_data(
     def dump(model):
         return [_row_to_dict(r) for r in db.query(model).filter(model.user_id == user.id).all()]
 
+    # GoalAllocation/GoalRule'da user_id YOK (DATA-011) → kullanıcının hedefleri üzerinden join.
+    goal_ids = [g.id for g in db.query(Goal).filter(Goal.user_id == user.id).all()]
+
+    def dump_by_goal(model):
+        if not goal_ids:
+            return []
+        return [_row_to_dict(r) for r in db.query(model).filter(model.goal_id.in_(goal_ids)).all()]
+
     return {
         "exported_at": datetime.utcnow().isoformat() + "Z",
         "schema": "financialos-export-v1",
@@ -128,9 +139,18 @@ def export_data(
         "recurring_expenses": dump(RecurringExpense),
         "personal_debts": dump(PersonalDebt),
         "goals": dump(Goal),
+        "goal_allocations": dump_by_goal(GoalAllocation),  # KVKK: hedef katkı/çekim kayıtları
+        "goal_rules": dump_by_goal(GoalRule),
         "envelopes": dump(Envelope),
         "master_checkpoints": dump(MasterCheckpoint),
         "net_worth_snapshots": dump(NetWorthSnapshot),
         "coach_memory": dump(CoachMemory),
         "coach_insights": dump(CoachInsight),
+        # kullanıcının eylem/karar kayıtları (finansal geçmişin tam parçası)
+        "pending_actions": dump(PendingAction),
+        "action_history": dump(ActionHistory),
+        "decision_journal": dump(DecisionJournal),
+        # koç şeffaflığı (Sovereign OS: koçun para hakkındaki muhakemesi de kullanıcınındır)
+        "reasoning_traces": dump(ReasoningTrace),
+        "api_call_log": dump(ApiCallLog),
     }

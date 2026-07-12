@@ -67,3 +67,32 @@ def test_export_json_serialize_edilebilir(client):
     import json
     r = client.get("/api/user/export")
     json.dumps(r.json())   # enum/tarih/Decimal JSON-güvenli → hata fırlatmamalı
+
+
+def test_export_eylem_karar_hedef_kayitlari_dahil(client):
+    """KVKK/egemenlik: kullanıcının eylem/karar/hedef-izleme kayıtları da export'ta olmalı."""
+    body = client.get("/api/user/export").json()
+    for key in ("pending_actions", "action_history", "decision_journal",
+                "goal_allocations", "goal_rules", "reasoning_traces", "api_call_log"):
+        assert key in body and isinstance(body[key], list), f"export'ta eksik: {key}"
+
+
+def test_export_tamlik_invariant():
+    """
+    TAMLIK INVARIANT: user_id'li (veya goal_id ile kullanıcıya bağlı) HER tablo export'ta
+    temsil edilmeli. Biri yeni user-data tablosu ekleyip export'a koymayı unutursa yakalar
+    (KVKK/egemenlik regresyon ağı). price_history market verisi (user-data değil) → muaf.
+    """
+    from app.models import Base
+    from app.routers.user import export_data as _fn
+    import inspect
+    src = inspect.getsource(_fn)
+    MARKET_OR_JOIN = {"price_history"}  # user-data değil / özel ele alınır
+    for cls in Base.__subclasses__():
+        cols = {c.name for c in cls.__table__.columns}
+        tn = cls.__tablename__
+        if tn == "users" or tn in MARKET_OR_JOIN:
+            continue
+        if "user_id" in cols or "goal_id" in cols:
+            # export fonksiyonunun gövdesinde bu model dump ediliyor mu (isim geçiyor mu)?
+            assert cls.__name__ in src, f"{tn} ({cls.__name__}) export'ta yok — KVKK tamlık ihlali"

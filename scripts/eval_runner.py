@@ -22,7 +22,18 @@ from app.coach_eval import DEFAULT_SCENARIOS, run_eval, format_report
 
 
 def _canonical_db():
-    """Murat'ın tipik manzarası — izole, tekrarlanabilir (gerçek DB'ye dokunmaz)."""
+    """
+    Kontrollü MİNİMAL manzara — izole, tekrarlanabilir (gerçek DB'ye dokunmaz).
+
+    NEDEN minimal (12 Tem gözlemi): eval DETERMİNİSTİK KOÇ DAVRANIŞ regresyonunu ölçer
+    (KURAL SIFIR, action-proposing, sahte-tamamlama, format) — Murat'ın tam verisini
+    simüle etmek DEĞİL. DB'yi zenginleştirmek (5 kredi + alacaklar) koç context'ini
+    ~8000+ token'a şişirip Groq+Cerebras free-tier TPM'ini AŞTIRIYOR → ikisi de circuit
+    breaker'la atlanıp ZAYIF sağlayıcıya düşülüyor → action senaryoları provider-boyut
+    gürültüsüyle bozuluyor (6/8 → 4/8). Minimal DB davranışı sağlayıcı-boyutundan İZOLE
+    ölçer. Grounding-analiz senaryoları sağlayıcı-halüsinasyonuna duyarlıdır (kaçınılmaz;
+    grounding uydurmayı DOĞRU yakalar → confidence düşer). Bkz. memory reference_groq_tpm_limiti.
+    """
     eng = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(eng)
     s = sessionmaker(bind=eng)()

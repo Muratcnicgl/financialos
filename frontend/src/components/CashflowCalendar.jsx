@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { formatTL } from '../api.js';
+import { formatTL, todayLocalISO } from '../api.js';
 
 const TR_MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
                    'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -83,7 +83,7 @@ export default function CashflowCalendar({ days }) {
           }
           const iso = isoStr(viewYear, viewMonth, day);
           const forecastDay = dayMap[iso];
-          const isToday = iso === today.toISOString().slice(0, 10);
+          const isToday = iso === todayLocalISO(); // W3-002: UTC değil yerel gün
           const hasForecast = !!forecastDay;
           const isCrunch = forecastDay?.crunch;
           const balance = forecastDay?.closing_balance;

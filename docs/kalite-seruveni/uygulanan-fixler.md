@@ -359,3 +359,4 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ID | Değişiklik | Doğrulama | Durum |
 |----|-----------|-----------|-------|
 | W3-001 / BUG #156 | TR sayı parse veri bozulması: `parseTRNumber` (api.js) — locale-toleranslı (son ayraç=ondalık, tek nokta+3hane=binlik). 13 çağrı yeri (Accounts/Cashflow/Transactions/IncomeDebt/Cockpit/Wishlist/Budget/Goals/PendingActions) eski `parseFloat(x.replace(',','.'))` → parseTRNumber. "1.234,56"→1234.56 (eskiden 1.234, ~1000× hata). D1: Firefly III/Maybe locale-aware. K10: TR-first + US-tolerans | api.test.js +6 test (23 geçti), npm build ✓ | ✅ |
+| W3-002 | markPaid UTC gün kayması: **R3 — markPaid/IncomeDebt zaten `todayLocalISO()` kullanıyor (düzeltilmiş).** Kalan tek `toISOString().slice(0,10)` yerel-gün bug'ı CashflowCalendar.jsx:86 (bugün-vurgusu, gece 00-03 TR'de yanlış gün) → `todayLocalISO()`. Aynı bug sınıfı temizlendi | npm build ✓, todayLocalISO api.test'te test edili | ✅ |

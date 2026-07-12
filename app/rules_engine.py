@@ -1532,6 +1532,40 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
 _INFLATION_ANNUAL = float(os.getenv("INFLATION_ANNUAL", "0.40"))
 
 
+def calculate_debt_progress(
+    user_id: int, today: date, db: Session, guncel_borc: float,
+) -> Optional[Dict]:
+    """
+    FEAT-017 (borç ödeme ilerlemesi — motivasyon): en eski NetWorthSnapshot'tan bugüne toplam
+    borç (kart+kredi) ne kadar AZALDI. Borç-batık için momentum (Ramsey: davranışsal başarı
+    faktörü #1). "Başladığından beri X TL / %Y borç ödedin." Salt hesap; yeterli geçmiş yoksa
+    veya başlangıç borcu 0 ise None. `guncel_borc` = kart+kredi (çağırandan, re-query yok).
+
+    Not: pozitif = ilerleme (borç azaldı); negatif = borç büyüdü (realist koç bunu da dürüstçe
+    yansıtır). Sadece anlamlı geçmişte (≥7 gün) döner — gürültü/aynı-gün sıçraması olmasın.
+    """
+    earliest = db.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
+    if not earliest:
+        return None
+    gun = (today - earliest.snapshot_date).days
+    if gun < 7:
+        return None  # anlamlı trend için en az bir hafta
+    baslangic_borc = float(earliest.card_debt) + float(earliest.loan_debt)
+    if baslangic_borc <= 0:
+        return None
+    odendi = round(baslangic_borc - guncel_borc, 2)   # + = ilerleme, − = borç büyüdü
+    return {
+        "baslangic_tarih": earliest.snapshot_date.isoformat(),
+        "gun": gun,
+        "baslangic_borc": round(baslangic_borc, 2),
+        "guncel_borc": round(guncel_borc, 2),
+        "odendi": odendi,
+        "yuzde": round(odendi / baslangic_borc * 100, 1),
+        "ilerleme": odendi > 0,
+    }
+
+
 def calculate_real_networth(
     user_id: int, today: date, db: Session, annual_inflation: Optional[float] = None,
 ) -> Optional[Dict]:
@@ -1855,6 +1889,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
     faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
     alacak_yaslanma = calculate_receivables_aging(user_id, today, db)  # FEAT-027
+    borc_ilerleme = calculate_debt_progress(user_id, today, db, kart_borcu + kredi_borcu)  # FEAT-017
     # FEAT-022: finansal sağlık skoru (şeffaf composite)
     _aylik_gelir = float(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
         RecurringIncome.user_id == user_id, RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
@@ -1909,6 +1944,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "atanmamis_nakit": atanmamis_nakit,  # FEAT-002: zarflara taahhüt edilmemiş "boşta" nakit
         "faiz_sizintisi": faiz_sizintisi,  # FEAT-013: aylık/yıllık faiz maliyeti (kredi+kart)
         "alacak_yaslanma": alacak_yaslanma,  # FEAT-027: alacakların vade-yaşı grupları (None=alacak yok)
+        "borc_ilerleme": borc_ilerleme,  # FEAT-017: başlangıçtan beri borç ödeme ilerlemesi (None=yetersiz geçmiş)
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru
         "borc_ozgurluk": borc_ozgurluk,  # FEAT-012: borçsuz olma tarihi + kalan faiz (None=borç yok)
         "asgari_tuzagi": asgari_tuzagi,  # FEAT-015: kart asgari-ödemeyle kaç ay + toplam faiz (None=kart yok)

@@ -962,6 +962,17 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             [k["toplam_faiz"] for k in at["kartlar"]] + [k["bakiye"] for k in at["kartlar"]]
         )
 
+    # BORÇ ÖDEME İLERLEMESİ (FEAT-017): başlangıçtan beri momentum — motivasyon (Ramsey).
+    bi = cockpit.get("borc_ilerleme") or {}
+    if bi.get("ilerleme"):  # yalnız gerçek ilerlemede (borç azaldı) motive et
+        context += (
+            f"\n\n## BORÇ ÖDEME İLERLEMESİ (momentum — motive et)\n"
+            f"  - {bi['baslangic_tarih']}'ten beri {_fmt(bi['odendi'])} TL borç ödedin "
+            f"(%{bi['yuzde']} azalma, {bi['baslangic_borc']:.0f}→{bi['guncel_borc']:.0f}). "
+            f"Bu ivmeyi vurgula — davranışsal momentum borç bitirmenin #1 faktörü."
+        )
+        cockpit.setdefault("_coach_extra_numbers", []).extend([bi["odendi"], bi["baslangic_borc"]])
+
     # BÜTÇE ZARFLARI (FEAT-001/002): zarf durumu + atanmamış nakit ("Ready to Assign").
     zd = cockpit.get("zarflar") or {}
     if zd.get("zarflar"):

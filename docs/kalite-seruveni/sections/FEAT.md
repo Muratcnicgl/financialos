@@ -116,11 +116,12 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Nasıl (mimari):** rules_engine'de Account.balance / credit_limit; Cockpit metriği + NetWorthSnapshot benzeri zaman serisi. Salt okuma.
 - **Etki:** Orta · **Efor:** S
 
-### [FEAT-017] Borçsuzluk milestone rozetleri
+### [FEAT-017] Borçsuzluk milestone rozetleri ✅ UYGULANDI (12 Tem 2026, ilerleme metriği)
 - **Değer/Fırsat:** "İlk kredi kapandı", "toplam borç %25 azaldı", "kart 5 hane altına indi" gibi eşiklerde kutlama/rozet; kartopu momentumunu davranışsal olarak besler.
 - **Kaynak/İlham:** Debt payoff psychology, gamification (Qapital, Ramsey baby steps).
 - **Nasıl (mimari):** rules_engine eşik tespiti → CoachInsight (breakthrough extractor mevcut) → koç proaktif kutlar. DB yazımı yok, insight katmanı.
 - **Etki:** Orta · **Efor:** S
+- **Durum:** `calculate_debt_progress` (rules_engine, saf) — en eski NetWorthSnapshot'tan bugüne toplam borç (kart+kredi) azalması: "başladığından beri X TL / %Y ödedin." ≥7 gün geçmiş + başlangıç>0 guard. Cockpit `borc_ilerleme` + koç context "momentum" bloğu (yalnız gerçek ilerlemede — Ramsey davranışsal #1 faktör; grounding'e tanıtıldı). Kokpit yoğunluğu artmasın diye ayrı prominent kart YOK, koç motivasyonu üzerinden. NetWorthSnapshot günlük birikir → zamanla aktifleşir. 7 test. (Eşik-crossing rozet/insight katmanı — follow-up; bu metrik ilerleme görünürlüğünü sağlar.)
 
 ### [FEAT-018] Acil durum fonu hedefi (otomatik target)
 - **Değer/Fırsat:** Ortalama aylık giderden 3-6 aylık acil fon hedefini otomatik hesaplar ve ilerlemeyi izler; finansal dayanıklılığın temel taşı.

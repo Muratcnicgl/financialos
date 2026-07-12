@@ -70,3 +70,26 @@ def test_p1_20_duplicate_ids_normalized_unique():
 def test_p1_20_ids_always_sequential():
     r = PremortemResult(action_id=1, scenarios=[_scn("zzz"), _scn("999"), _scn(""), _scn("S5")])
     assert [s.id for s in r.scenarios] == ["S1", "S2", "S3", "S4"]
+
+
+# --- P1-22: premortem cache (aynı snapshot_hash → LLM'siz cache dönüşü) ---
+
+def test_p1_22_premortem_cache_hit_and_miss(db_session, test_user):
+    from app.premortem import persist_premortem, load_cached_premortem
+    pa = models.PendingAction(user_id=test_user.id, action_type="sell_investment",
+                              payload="{}", summary="TLY sat")
+    db_session.add(pa)
+    db_session.commit()
+    result = PremortemResult(action_id=pa.id, scenarios=[_scn("S1"), _scn("S2"), _scn("S3")])
+    persist_premortem(db_session, pa, test_user.id, result, snapshot_hash="HASH_A")
+
+    # aynı hash → cache HIT (3 senaryo döner, LLM'siz)
+    hit = load_cached_premortem(db_session, pa, test_user.id, "HASH_A")
+    assert hit is not None
+    dj_id, scenarios = hit
+    assert len(scenarios) == 3 and [s.id for s in scenarios] == ["S1", "S2", "S3"]
+
+    # farklı hash (cockpit değişti) → cache MISS (yeniden üretilmeli)
+    assert load_cached_premortem(db_session, pa, test_user.id, "HASH_B") is None
+    # boş hash → MISS
+    assert load_cached_premortem(db_session, pa, test_user.id, "") is None

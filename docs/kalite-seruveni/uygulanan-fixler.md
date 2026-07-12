@@ -291,3 +291,10 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | P1-20 / BUG #135 | PremortemScenario id deterministik S1..Sn — React key çakışması (dayanıklı yeniden-ata) | test | ✅ |
 | P1-23 / BUG #131 | link_premortem_outcome try/except — executed aksiyon sonrası 500 riski | test | ✅ |
 | M6 güvenlik | SQL injection taraması temiz (ORM parametreli, `_EXCLUDED_SQL` statik); secret mgmt temiz (.env gitignore+git-dışı) | grep+git | ✅ |
+
+## Milestone 6 — artım 2 (P1-1, P1-22)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| P1-1 / BUG #136 | goals 6 datetime alanı `UtcDateTime` (GoalRead/AllocationRead/RuleRead) — naive→UTC suffix, JS 3h kayması önlendi | 795 test | ✅ |
+| P1-22 / BUG #137 | `load_cached_premortem` — aynı cockpit_snapshot_hash → LLM'siz cache dönüşü (maliyet/gecikme tasarrufu) | test_p1_22 (hit/miss) | ✅ |

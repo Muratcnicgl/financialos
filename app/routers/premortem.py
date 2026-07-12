@@ -21,6 +21,7 @@ from app.premortem import (
     PremortemScenario,
     generate_premortem,
     persist_premortem,
+    load_cached_premortem,  # BUG #137 (P1-22): cockpit değişmediyse LLM'siz cache dönüşü
 )
 
 router = APIRouter(prefix="/api/premortem", tags=["premortem"])
@@ -91,6 +92,20 @@ def run_premortem(
 
     snapshot = build_cockpit_snapshot(db, current_user.id)
     snapshot_hash = compute_snapshot_hash(snapshot)
+
+    # BUG #137 (P1-22): aynı cockpit_snapshot_hash için önceden üretilmiş premortem varsa
+    # LLM'i tekrar çağırma — cache'ten dön (cockpit değişmemiş = senaryolar geçerli).
+    cached = load_cached_premortem(db, action, current_user.id, snapshot_hash)
+    if cached:
+        dj_id, scenarios = cached
+        return PremortemResponse(
+            action_id=action.id,
+            scenarios=scenarios,
+            provider_used="cache",
+            model_name=None,
+            persisted_decision_journal_id=dj_id,
+            cached=True,
+        )
 
     try:
         result = generate_premortem(

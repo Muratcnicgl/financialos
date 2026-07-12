@@ -281,6 +281,31 @@ def generate_premortem(
 # ============================================================
 
 
+def load_cached_premortem(session: Session, action: PendingAction, user_id: int,
+                          snapshot_hash: str):
+    """
+    BUG #137 (P1-22): Aynı aksiyon + AYNI cockpit_snapshot_hash için önceden üretilmiş
+    premortem varsa onu döner (LLM'i tekrar çağırma — maliyet/gecikme tasarrufu). Cockpit
+    değiştiyse (hash farklı) None → yeniden üretilir. Dönüş: (dj_id, scenarios) veya None.
+    """
+    sentinel = f"PendingAction#{action.id}"
+    existing = session.execute(
+        select(DecisionJournal).where(
+            DecisionJournal.user_id == user_id,
+            DecisionJournal.decision_text == sentinel,
+        )
+    ).scalar_one_or_none()
+    if not existing or not existing.premortem_scenarios:
+        return None
+    if not snapshot_hash or existing.cockpit_snapshot_hash != snapshot_hash:
+        return None  # cockpit değişti → bayat, yeniden üret
+    try:
+        scen = [PremortemScenario(**s) for s in json.loads(existing.premortem_scenarios)]
+    except Exception:
+        return None
+    return existing.id, scen
+
+
 def persist_premortem(
     session: Session,
     action: PendingAction,

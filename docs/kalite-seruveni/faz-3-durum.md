@@ -31,8 +31,12 @@
 - **P1-23** link_premortem_outcome try/except (`actions.py`, BUG #131) — executed aksiyon sonrası 500.
 - Test: `tests/security/test_faz3_p1.py` (5).
 
+### ✅ DÜZELTİLDİ (M6 artım 2)
+- **P1-1** goals datetime UTC — GoalRead/GoalAllocationRead/GoalRuleRead 6 datetime alanı `UtcDateTime` (`schemas.py`, BUG #136); naive suffix'siz ISO → JS 3 saat kaymasını önler.
+- **P1-22** premortem cache — `load_cached_premortem` (aynı cockpit_snapshot_hash → LLM'siz cache dönüşü, `premortem.py`+router, BUG #137); cockpit değişmediyse tekrar LLM çağrısı YOK (maliyet/gecikme). Test `test_p1_22_*` (hit/miss).
+
 ### 🔧 OPEN — kalan (sonraki M6 artımları)
-- **P1-1** goals.py datetime UTC suffix (schemas.GoalRead naive) · **P1-4** coach_insights dormant sweep (decision_rhythm + mc_reference top-3-dışı) · **P1-5** explicit_red_line regex finansal-anchor · **P1-8** evaluate_rules_for_transaction ölü kod (bağla/kaldır) · **P1-13** transfer no-op (API'den kaldır/implement) · **P1-15** OperationName values_callable + migration · **P1-19** net_worth_delta yazılmıyor (DecisionJournal kolon/kaldır) · **P1-22** premortem cached hep False (hash karşılaştır) · **P1-24** evaluate_credit_card_strategy ölü kod · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite (float falsy→None, mark_debt guard, sell price/emanet).
+- **P1-4** coach_insights dormant sweep (decision_rhythm + mc_reference top-3-dışı) · **P1-5** explicit_red_line regex finansal-anchor · **P1-8** evaluate_rules_for_transaction ölü kod (bağla/kaldır) · **P1-13** transfer no-op (API'den kaldır/implement) · **P1-15** OperationName values_callable + migration (canlı veri `RULE_CHECK`→`rule_check`) · **P1-19** net_worth_delta yazılmıyor (kaldır/kolon) · **P1-24** evaluate_credit_card_strategy ölü kod · **P1-25** AnthropicProvider tool-history adapter · **P1-27** simulation_engine parite (float falsy→None, mark_debt guard, sell price/emanet).
 - SQL injection taraması: **temiz** (ORM parametreli; tek f-string `_EXCLUDED_SQL` statik sabit). Secret mgmt: **temiz** (.env gitignore'da + git'te yok).
 
 ## Güvenlik P1 (T-17) — Wave-3 prod-gate'e ertelenir (OTONOM KARAR kategori-b)

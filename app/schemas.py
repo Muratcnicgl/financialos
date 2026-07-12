@@ -7,6 +7,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator, computed_field
+from app.serializers import UtcDateTime  # BUG #136 (P1-1): goals datetime UTC-aware serialize
 
 
 # === ORTAK ===
@@ -284,10 +285,10 @@ class GoalRead(BaseModel):
     current_amount: Decimal
     progress_percent: Decimal
     projected_completion_date: Optional[date]
-    last_refreshed_at: Optional[datetime]
-    created_at: datetime
-    updated_at: datetime
-    achieved_at: Optional[datetime]
+    last_refreshed_at: Optional[UtcDateTime]  # BUG #136 (P1-1)
+    created_at: UtcDateTime  # BUG #136 (P1-1)
+    updated_at: UtcDateTime  # BUG #136 (P1-1)
+    achieved_at: Optional[UtcDateTime]  # BUG #136 (P1-1)
 
     @computed_field  # type: ignore[misc]
     @property
@@ -326,7 +327,7 @@ class GoalAllocationRead(BaseModel):
     amount: Decimal
     source: str
     rule_id: Optional[int]
-    created_at: datetime
+    created_at: UtcDateTime  # BUG #136 (P1-1)
 
 
 class GoalRuleCreate(BaseModel):
@@ -378,4 +379,4 @@ class GoalRuleRead(BaseModel):
     allocation_type: str
     allocation_value: Optional[Decimal]
     is_active: bool
-    created_at: datetime
+    created_at: UtcDateTime  # BUG #136 (P1-1)

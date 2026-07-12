@@ -120,7 +120,7 @@
 - **Aksiyon:** Kart son ödemesini upcoming_payment olarak modelle veya net_worth deltasında kart faizini işle; asimetriyi belgele.
 - **Etki:** Orta · **Efor:** M
 
-### [RULE-020] `_calculate_category_patterns` cari pencerede üst sınır yok → gelecek işlemler sızar
+### [RULE-020] `_calculate_category_patterns` cari pencerede üst sınır yok → gelecek işlemler sızar ✅ UYGULANDI (12 Tem 2026)
 - **Sorun:** `curr_30d` koşulu `transaction_date >= :curr_start` (üst sınır yok). Gelecek tarihli işlem curr penceresine girer → asimetrik pencere, çarpık anomali.
 - **Kanıt:** `app/rules_engine.py:581-584`
 - **Aksiyon:** `AND transaction_date <= :today`; iki pencereyi tam 30 güne kenetle.

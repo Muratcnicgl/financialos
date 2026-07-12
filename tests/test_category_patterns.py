@@ -91,3 +91,14 @@ def test_gelir_islemleri_sayilmaz(db):
                            amount=5000.0, category="maas", transaction_date=CURR))
     db.commit()
     assert _by_cat(_calculate_category_patterns(1, TODAY, db), "maas") is None
+
+
+def test_rule020_gelecek_islem_curra_sizmaz(db):
+    """RULE-020: gelecek tarihli (>today) gider curr_30d'ye sızmaz — sahte anomali üretmez."""
+    _exp(db, "market", 100.0, PREV, n=3)                       # prev 300 (yeni-kategori değil)
+    _exp(db, "market", 100.0, CURR, n=3)                       # curr normal 300
+    _exp(db, "market", 9000.0, TODAY + timedelta(days=10))     # GELECEK — sızmamalı
+    p = _by_cat(_calculate_category_patterns(1, TODAY, db), "market")
+    assert p is not None
+    assert p["curr_30d"] == 300.0        # gelecek 9000 dahil DEĞİL (sızsaydı 9300 olurdu)
+    assert p["anomaly_flag"] is False    # 300 vs 300 → sahte anomali yok

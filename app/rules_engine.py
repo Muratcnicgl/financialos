@@ -894,6 +894,7 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
         WHERE user_id       = :user_id
           AND transaction_type = 'expense'
           AND transaction_date >= :prev_start
+          AND transaction_date <= :today
           AND (category NOT IN ({_EXCLUDED_SQL}) OR category IS NULL)
         GROUP BY category
         HAVING COUNT(CASE WHEN transaction_date >= :curr_start THEN 1 END) >= :min_count
@@ -902,6 +903,7 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
         "user_id": user_id,
         "prev_start": str(prev_start),
         "curr_start": str(curr_start),
+        "today": str(today),  # RULE-020: üst sınır — GELECEK tarihli işlemler curr'e sızmasın
         "min_count": PATTERN_MIN_TRANSACTIONS,
     }).fetchall()
 

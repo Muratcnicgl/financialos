@@ -179,11 +179,13 @@ app.include_router(auth_router.users_router)   # /api/users (KVKK sil/export)
 # ============================================================
 
 def _health_payload() -> dict:
+    from app.auth import auth_enabled
     return {
         "status": "ok",
         "service": "FinancialOS",
         "version": "0.1.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "auth_enabled": auth_enabled(),  # M11: frontend login gate'i buna bakar
     }
 
 

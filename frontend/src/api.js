@@ -27,6 +27,31 @@ export class ApiError extends Error {
 }
 
 // =============================================================
+// AUTH TOKEN DEPOSU (M11 / ADR-033)
+// =============================================================
+// Access token bellekte + localStorage (sayfa yenilemede kalıcı). Refresh token da
+// localStorage'da. request() her istekte Authorization: Bearer ekler (varsa).
+
+const ACCESS_KEY = 'fos_access_token';
+const REFRESH_KEY = 'fos_refresh_token';
+
+export function getAccessToken() {
+  try { return localStorage.getItem(ACCESS_KEY) || null; } catch { return null; }
+}
+export function setTokens({ access_token, refresh_token }) {
+  try {
+    if (access_token) localStorage.setItem(ACCESS_KEY, access_token);
+    if (refresh_token) localStorage.setItem(REFRESH_KEY, refresh_token);
+  } catch { /* localStorage yoksa yoksay */ }
+}
+export function clearTokens() {
+  try { localStorage.removeItem(ACCESS_KEY); localStorage.removeItem(REFRESH_KEY); } catch { /* */ }
+}
+function getRefreshToken() {
+  try { return localStorage.getItem(REFRESH_KEY) || null; } catch { return null; }
+}
+
+// =============================================================
 // CORE FETCH
 // =============================================================
 
@@ -49,6 +74,10 @@ async function request(path, { method = 'GET', body, params } = {}) {
     method,
     headers: { 'Accept': 'application/json' },
   };
+
+  // M11: JWT varsa Authorization ekle (AUTH_ENABLED kapalıyken backend zaten yok sayar)
+  const _tok = getAccessToken();
+  if (_tok) init.headers['Authorization'] = `Bearer ${_tok}`;
 
   if (body !== undefined) {
     init.headers['Content-Type'] = 'application/json';
@@ -387,6 +416,39 @@ export const goalsApi = {
 
 export const healthApi = {
   check: () => request('/api/health'),
+};
+
+// =============================================================
+// AUTH API (M11 / ADR-033)
+// =============================================================
+
+export const authApi = {
+  async register({ email, password, name, kvkk_consent }) {
+    const t = await request('/api/auth/register', {
+      method: 'POST', body: { email, password, name, kvkk_consent },
+    });
+    setTokens(t);
+    return t;
+  },
+  async login({ email, password }) {
+    const t = await request('/api/auth/login', { method: 'POST', body: { email, password } });
+    setTokens(t);
+    return t;
+  },
+  async logout() {
+    const refresh_token = getRefreshToken();
+    try {
+      if (refresh_token) await request('/api/auth/logout', { method: 'POST', body: { refresh_token } });
+    } finally {
+      clearTokens();
+    }
+  },
+  me: () => request('/api/auth/me'),
+  exportData: () => request('/api/users/me/export'),
+  deleteMe: () => request('/api/users/me', { method: 'DELETE' }),
+  passwordResetRequest: (email) =>
+    request('/api/auth/password-reset-request', { method: 'POST', body: { email } }),
+  isLoggedIn: () => !!getAccessToken(),
 };
 
 // =============================================================

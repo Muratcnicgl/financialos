@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank,
+  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut,
 } from 'lucide-react';
-import { healthApi } from './api.js';
+import { healthApi, authApi } from './api.js';
+import Login from './panels/Login.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import CommandPalette from './components/CommandPalette.jsx';
@@ -93,12 +94,37 @@ function formatTodayTR() {
 export default function App() {
   return (
     <ToastProvider>
-      <AppContent />
+      <AuthGate />
     </ToastProvider>
   );
 }
 
-function AppContent() {
+// M11 (ADR-033): AUTH_ENABLED açık + token yoksa Login göster; aksi halde uygulama.
+function AuthGate() {
+  const [phase, setPhase] = useState('checking'); // checking | login | app
+
+  const check = useCallback(async () => {
+    try {
+      const h = await healthApi.get();
+      if (h?.auth_enabled && !authApi.isLoggedIn()) { setPhase('login'); return; }
+    } catch { /* backend erişilemezse yine app'i göster (health banner uyarır) */ }
+    setPhase('app');
+  }, []);
+
+  useEffect(() => { check(); }, [check]);
+
+  if (phase === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-400 text-sm">
+        Yükleniyor…
+      </div>
+    );
+  }
+  if (phase === 'login') return <Login onAuthed={() => setPhase('app')} />;
+  return <AppContent onLogout={async () => { await authApi.logout(); setPhase('login'); }} />;
+}
+
+function AppContent({ onLogout }) {
   const [theme, toggleTheme] = useTheme();
   const [activeTab, setActiveTab] = useState('cockpit');
   const { status, usagePct } = useBackendHealth();
@@ -160,6 +186,16 @@ function AppContent() {
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
+
+            {onLogout && authApi.isLoggedIn() && (
+              <button
+                onClick={onLogout}
+                className="btn btn-ghost btn-icon !p-2"
+                title="Çıkış yap"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 

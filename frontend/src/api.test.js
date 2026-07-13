@@ -4,11 +4,38 @@
  * her panelde kullanılıyor ama test edilmemişti. formatDate saat-dilimi sağlamlığı
  * (date-only string bir gün kaymamalı) özellikle PROJE.md'nin uyardığı bug sınıfı.
  */
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
   todayLocalISO, currentYearMonthLocal, parseTRNumber,
+  setTokens, getAccessToken, clearTokens,
 } from './api.js';
+
+describe('auth token deposu (M11)', () => {
+  beforeEach(() => {
+    const store = {};
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
+    });
+  });
+  afterEach(() => { clearTokens(); vi.unstubAllGlobals(); });
+  it('setTokens/getAccessToken çalışır', () => {
+    expect(getAccessToken()).toBeNull();
+    setTokens({ access_token: 'abc', refresh_token: 'ref' });
+    expect(getAccessToken()).toBe('abc');
+  });
+  it('clearTokens temizler', () => {
+    setTokens({ access_token: 'abc', refresh_token: 'ref' });
+    clearTokens();
+    expect(getAccessToken()).toBeNull();
+  });
+  it('sadece access verilse de kırılmaz', () => {
+    setTokens({ access_token: 'only' });
+    expect(getAccessToken()).toBe('only');
+  });
+});
 
 describe('parseTRNumber (W3-001)', () => {
   it('TR binlik + ondalık: "1.234,56" -> 1234.56 (eski bug: 1.234)', () => {

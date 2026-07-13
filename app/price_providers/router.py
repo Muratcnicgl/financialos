@@ -52,22 +52,50 @@ def get_fund_price(fund_code: str, target_date: Optional[date] = None) -> Option
 
 
 def get_stock_price(ticker: str, target_date: Optional[date] = None) -> Optional[Tuple[Decimal, str]]:
-    """BIST hisse fiyatı (İş Yatırım). Gelecek multi-asset; şu an best-effort."""
+    """Hisse fiyatı. Önce yfinance (global + '<KOD>.IS' BIST), sonra İş Yatırım fallback.
+
+    R3 (M12): yfinance bu ortamda Yahoo blok'u nedeniyle None dönebilir → İş Yatırım denenir.
+    """
     if not ticker:
         return None
+    from app.price_providers.yfinance_client import get_yfinance_price
+    price = get_yfinance_price(ticker)
+    if price is not None:
+        return price, PriceSource.YFINANCE.value
+    # Fallback: İş Yatırım (BIST) — '.IS' suffix'i çıkararak dener
     from app.fund_tracker import try_auto_fetch_stock_price
-    res = try_auto_fetch_stock_price(ticker)
+    bist = ticker[:-3] if ticker.upper().endswith(".IS") else ticker
+    res = try_auto_fetch_stock_price(bist)
     if res and res.get("price") is not None:
         return Decimal(str(res["price"])).quantize(Decimal("0.0001")), PriceSource.ISYATIRIM.value
     return None
 
 
+def get_fx_or_gold_price(symbol: str) -> Optional[Tuple[Decimal, str]]:
+    """Döviz/altın (TCMB EVDS). EVDS_API_KEY yoksa None (API_KEY_TALEP)."""
+    from app.price_providers.evds_client import get_evds_price
+    price = get_evds_price(symbol)
+    return (price, PriceSource.EVDS.value) if price is not None else None
+
+
 def fetch_for_account(account: Account) -> Optional[Tuple[Decimal, str]]:
-    """Hesaba göre fiyat çek. fund_code → fon (TEFAS). (Stock/fx tipleri Wave-3 multi-asset.)"""
+    """Hesaba göre fiyat çek — asset_type'a göre dispatch (M12 / ADR-031).
+
+    fund→TEFAS, stock→yfinance/İşYatırım, fx/gold→EVDS. asset_type None → 'fund' (geriye uyum).
+    crypto → Wave-4 (Numeric 28,8 gerekir).
+    """
     if account.account_type != AccountType.investment or not account.fund_code:
         return None
-    # Şu an tüm yatırımlar fon (fund_code). Gelecekte ticker ayrımı ADR-031 multi-asset ile.
-    return get_fund_price(account.fund_code)
+    atype = (account.asset_type or "fund").lower()
+    if atype == "fund":
+        return get_fund_price(account.fund_code)
+    if atype == "stock":
+        return get_stock_price(account.fund_code)
+    if atype in ("fx", "gold"):
+        return get_fx_or_gold_price(account.fund_code)
+    # crypto vb. → henüz desteklenmiyor (ADR-031: Wave-4)
+    logger.info("[price] %s: asset_type=%s desteklenmiyor (Wave-4)", account.name, atype)
+    return None
 
 
 def record_investment_price(db: Session, account: Account, price: Decimal, source: str) -> bool:

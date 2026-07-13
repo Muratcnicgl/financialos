@@ -174,8 +174,12 @@ class Account(Base):
     next_payment_date = Column(Date, nullable=True)
 
     # === Yatırım alanları ===
-    fund_code = Column(String(20), nullable=True)        # TEFAS kodu (örn: TLY)
-    lot_count = Column(Float, nullable=True)             # Lot sayısı
+    # M12 (ADR-031): varlık sınıfı discriminator. None/'fund'=TEFAS fonu (mevcut),
+    # 'stock'=BIST/global hisse (yfinance), 'gold'=altın, 'fx'=döviz (EVDS).
+    # 'crypto' Wave-4 (Numeric 28,8 gerekir). fund_code artık genel sembol (THYAO.IS, USDTRY).
+    asset_type = Column(String(10), nullable=True)
+    fund_code = Column(String(20), nullable=True)        # sembol (TLY, THYAO.IS, USDTRY, XAU)
+    lot_count = Column(Float, nullable=True)             # Lot/adet sayısı
     cost_per_lot = Column(Numeric(19, 4), nullable=True)          # Lot başı maliyet
     current_price = Column(Numeric(19, 4), nullable=True)         # Son güncel fiyat
     last_price_update = Column(DateTime, nullable=True)
@@ -596,6 +600,7 @@ class PriceSource(str, enum.Enum):
     MANUAL = "manual"
     YFINANCE = "yfinance"
     ISYATIRIM = "isyatirim"
+    EVDS = "evds"        # M12 (ADR-031): TCMB EVDS döviz/altın
 
 
 class PriceHistory(Base):

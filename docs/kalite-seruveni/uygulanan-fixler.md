@@ -381,3 +381,14 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ADR-035 | Deployment kararı D1(Firefly/fava/Maybe/Umami/Caddy)+K10: Docker Compose (backend uvicorn daemon + Caddy SPA/proxy/HTTPS) birincil, systemd alternatif. STUB→KARAR | ADR yazıldı | ✅ |
 | M10-cron | M4 cron production: prod'da uvicorn --reload YOK → tek-process daemon → APScheduler 02:45 çalışır. Kök çözüm deployment-config | uvicorn daemon smoke: scheduler start + fetch_investment_prices job kayıtlı + /health 200 | ✅ |
 | M10-artifacts | Dockerfile + Dockerfile.web + Caddyfile(HSTS/X-Frame W3-042) + docker-compose + .dockerignore + docker-entrypoint(alembic+uvicorn) + deploy/systemd(service+backup timer) + .env.example prod(DOMAIN/SECRET_KEY) + docs/deployment/README.md | compose YAML valid, fresh-db migration ✓ | ✅ |
+
+## Milestone 11 — Auth + Multi-user (Wave-3, 2026-07-13)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| ADR-033 | Auth kararı D1(Firefly Sanctum/Maybe Devise/Firebase vs Supabase)+K10: kendi JWT (external değil, veri egemen/KVKK), bcrypt, access+refresh, OAuth authlib, KVKK sil/export. STUB→KARAR | ADR yazıldı | ✅ |
+| M11-backend | User modeli (email/password_hash/oauth/kvkk/is_active) + RevokedToken + migration 380a9c1e7d8f (native ADD COLUMN, FK-güvenli). app/auth.py (bcrypt+PyJWT). routers/auth.py (register/login/refresh/logout/me/KVKK sil+export/rate-limit W3-041/OAuth+SMTP scaffold). get_current_user JWT+fallback (AUTH_ENABLED) | 17 auth testi, canlı migration ✓, 834 test | ✅ |
+| M11-frontend | api.js token deposu + Authorization + authApi. Login.jsx (KVKK checkbox). App.jsx AuthGate + logout. /api/health auth_enabled | 6 vitest, build ✓ | ✅ |
+| M11-kvkk | docs/legal/kvkk-consent-v1.md (KVKK m.4/7/11) + register açık rıza (kvkk_consent_at/version) + DELETE /api/users/me cascade + GET export | test_kvkk_delete/export | ✅ |
+| W3-041 | Rate limiting (M9'dan taşındı): auth endpoint'lerde in-memory per-IP sliding window (brute-force) | test_rate_limit_login | ✅ |
+| API_KEY_TALEP | OAuth Google/GitHub/Apple + SMTP Brevo (docs/api-key-talep-wave3.md) | scaffold + placeholder | ⏳ Murat |

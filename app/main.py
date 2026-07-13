@@ -110,11 +110,18 @@ async def lifespan(app: FastAPI):
 # APP YARATIMI
 # ============================================================
 
+# M34 (SEC-015): production'da /docs, /redoc, /openapi.json KAPALI (bilgi ifşası önlenir).
+# Development'ta açık (geliştirici kolaylığı).
+from app.settings import is_production as _is_prod
+_docs_disabled = _is_prod()
 app = FastAPI(
     title="FinancialOS API",
     description="160 IQ stratejik finansal koc — backend.",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None if _docs_disabled else "/docs",
+    redoc_url=None if _docs_disabled else "/redoc",
+    openapi_url=None if _docs_disabled else "/openapi.json",
 )
 
 

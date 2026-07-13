@@ -1,6 +1,6 @@
 # ADR-034 — Koç sağlayıcı Wave-3 (ADR-028 revize + sub-agent routing)
 
-**Tarih:** 13 Tem 2026 · **Durum:** 🟡 TASLAK — karar Wave-3 başında (M7 hazırlık, KARAR YOK) · **İlgili:** ADR-028 (fiilen Gemini-only), research-log OpenRouter D1, wave3-vision §1
+**Tarih:** 13 Tem 2026 · **Durum:** ✅ KARARA BAĞLANDI → **[adr-034-revize.md](adr-034-revize.md)** (Wave-3 M13, D1+K10). Bu dosya orijinal STUB soru listesidir; karar+quality-per-cost matrisi revize dosyasındadır. · **İlgili:** ADR-028 (fiilen Gemini-only), research-log OpenRouter D1, wave3-vision §1
 
 ## Bağlam
 ADR-028: koç fiilen Gemini (Groq/Cerebras TPM eler). Wave-3: (a) sağlayıcı çeşitliliği (OpenRouter fallback), (b) sub-agent routing (tek mega-prompt → intent classifier + uzman ajanlar, wave3-vision §1). P1-25 ile Anthropic artık tool-aware.

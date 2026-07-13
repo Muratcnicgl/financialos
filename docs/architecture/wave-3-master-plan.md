@@ -52,3 +52,8 @@
 
 ## Sonraki Adım
 Wave-3 başında: her ADR (031-034) için D1 araştırma (2-3 sektör referans, KURAL D1) → Research Log → karar. Bu belge + ADR stub'ları o kararların iskeleti. **Kararlar burada VERİLMEDİ (charter M7).**
+
+---
+
+## ✅ WAVE-3 TAMAMLANDI (13 Tem 2026)
+Bu master-plan v2 idi; Wave-3 8/8 milestone (M8-M15) bitti. 4 ADR STUB→KARAR (031/033/034/035). Kapanış: `docs/kalite-seruveni/milestone-log.md` (M15). Wave-4: `wave-4-skeleton.md`.

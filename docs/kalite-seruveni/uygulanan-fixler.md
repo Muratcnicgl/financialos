@@ -417,3 +417,9 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | W3-024 | goal_engine compare_strategies AttributeError: **R3 ZATEN FİX** (BUG #066/GE-001, dict-handling) | kod okuma | ✅ (R3-kapalı) |
 | W3-033 | create_allocation IDOR: **R3 ZATEN FİX** (goals.py:195 user_id==current_user.id + tx user_id filtresi + BUG #072 tutar sınırı) | kod okuma | ✅ (R3-kapalı) |
 | M14-kalan | W3-007/010/011/012/013/014/018/019/020/025/031/032/035/043/046/057 → çoğu küçük guard/a11y; bir kısmı R3-zaten-fix olası. Wave-4'e devredildi (kalite düşürmeden, KURAL 12) | — | ⏭️ Wave-4 |
+
+## Wave-3 Tamamlama (Wave-3-Tamamlama charter, 2026-07-14)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| M16 / BUG #157 | SECRET_KEY startup fail-fast: `app/settings.py` (`validate_security_config` — production'da boş/dev-default/<32char SECRET_KEY → RuntimeError, uygulama açılmaz; dev'de warning) + main.py lifespan çağrısı. R3: settings.py yoktu, auth.py lazy-raise ediyordu. ENVIRONMENT env. | tests/security/test_secret_key_fail_fast.py (6) | ✅ |

@@ -67,3 +67,4 @@ backups/
 scratchpad/
 scratchpad_cov.txt
 scratchpad_uvicorn.log
+openapi.json

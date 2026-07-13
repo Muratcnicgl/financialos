@@ -74,6 +74,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # M16 (BUG #157): güvenlik config fail-fast — production'da eksik/zayıf SECRET_KEY
+    # ile uygulama açılmaz (startup'ta, ilk auth isteğinde değil).
+    from app.settings import validate_security_config
+    validate_security_config()
+
     # Startup: catch-up backfill (eksik gunleri doldur)
     # ADR-013: Schema yonetimi alembic ile, burada sadece runtime is mantigi.
     logger.info("Backend baslatildi. Schema: alembic upgrade head ile.")

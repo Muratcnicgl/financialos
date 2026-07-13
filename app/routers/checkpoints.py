@@ -152,11 +152,17 @@ def delete_checkpoint(
     if not cp:
         raise HTTPException(404, f"Checkpoint bulunamadi (id={cp_id})")
 
-    if hard and cp.priority == 1 and cp.checkpoint_type == CheckpointType.red_line:
+    # W3-039 (RCH-002): sistem (Master) checkpoint'ler VEYA priority-1 red_line'lar hard
+    # delete edilemez. Eskiden yalnız priority-1+red_line korunuyordu → MC4/5/6/8 (type=rule)
+    # ?hard=true ile silinebiliyordu. Artık is_system flag'i format/priority'den bağımsız korur.
+    is_protected = cp.is_system or (
+        cp.priority == 1 and cp.checkpoint_type == CheckpointType.red_line
+    )
+    if hard and is_protected:
         raise HTTPException(
             status_code=403,
-            detail=f"Priority 1 red_line checkpoint hard delete edilemez "
-                   f"(MC{cp_id} '{cp.title}'). Pasiflestirmek icin ?hard=false kullanin.",
+            detail=f"Sistem/kritik checkpoint hard delete edilemez "
+                   f"('{cp.title}'). Pasiflestirmek icin ?hard=false kullanin.",
         )
 
     if hard:

@@ -327,6 +327,10 @@ class MasterCheckpoint(Base):
     checkpoint_type = Column(SQLEnum(CheckpointType), nullable=False)
     priority = Column(Integer, default=2, nullable=False)  # 1=en yüksek, 3=en düşük
     is_active = Column(Boolean, default=True, nullable=False)
+    # W3-039 (RCH-002): sistem (Master) checkpoint'i — hard-delete ve koruma-kaldıran
+    # düzenlemeye karşı korunur. MC2-MC8 gibi çekirdek kurallar kod seviyesinde bloklanır
+    # (Master Checkpoint enforcement — ADR-001 ruhuna paralel, prompt'a güvenilmez).
+    is_system = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="checkpoints")

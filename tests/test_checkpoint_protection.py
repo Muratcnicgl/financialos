@@ -37,9 +37,10 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
-def _cp(db, priority=1, ctype=CheckpointType.red_line, title="Emanet dokunulmaz"):
+def _cp(db, priority=1, ctype=CheckpointType.red_line, title="Emanet dokunulmaz",
+        is_system=False):
     cp = MasterCheckpoint(user_id=1, title=title, description="MC1", checkpoint_type=ctype,
-                          priority=priority, is_active=True)
+                          priority=priority, is_active=True, is_system=is_system)
     db.add(cp); db.commit(); db.refresh(cp)
     return cp
 
@@ -85,3 +86,34 @@ def test_067_korunmayan_hard_delete_edilebilir(client, db_session):
     r = client.delete(f"/api/checkpoints/{cp.id}?hard=true")
     assert r.status_code == 204
     assert db_session.get(MasterCheckpoint, cp.id) is None       # gerçekten silindi
+
+
+# --- W3-039 (RCH-002): is_system Master Checkpoint koruması (MC4/5/6/8 gibi rule tipi) ---
+
+def test_w3_039_system_rule_checkpoint_hard_delete_edilemez(db_session, client):
+    # MC5 gibi: type=rule, priority=2 → eski guard'da KORUNMUYORDU (red_line değil)
+    cp = _cp(db_session, priority=2, ctype=CheckpointType.rule,
+             title="MC5 - Dalkavukluk Yasak", is_system=True)
+    r = client.delete(f"/api/checkpoints/{cp.id}?hard=true")
+    assert r.status_code == 403
+    assert db_session.get(MasterCheckpoint, cp.id) is not None   # korundu
+
+
+def test_w3_039_system_checkpoint_soft_delete_edilebilir(db_session, client):
+    cp = _cp(db_session, priority=2, ctype=CheckpointType.rule,
+             title="MC8 - Hayatta Kalma", is_system=True)
+    r = client.delete(f"/api/checkpoints/{cp.id}?hard=false")
+    assert r.status_code == 204
+    db_session.refresh(cp)
+    assert cp.is_active is False
+
+
+def test_w3_039_is_system_api_ile_degistirilemez(db_session, client):
+    # CheckpointUpdate şemasında is_system yok → PUT ile unprotect edilemez
+    cp = _cp(db_session, priority=2, ctype=CheckpointType.rule,
+             title="MC6 - Varsayim Yasagi", is_system=True)
+    r = client.put(f"/api/checkpoints/{cp.id}", json={"is_system": False})
+    # Alan yok sayılır (200) ama koruma korunur
+    assert db_session.get(MasterCheckpoint, cp.id).is_system is True
+    r2 = client.delete(f"/api/checkpoints/{cp.id}?hard=true")
+    assert r2.status_code == 403

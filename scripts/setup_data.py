@@ -345,6 +345,7 @@ def main():
                 priority=priority,
                 description=description,
                 is_active=True,
+                is_system=True,  # W3-039: çekirdek Master Checkpoint — hard-delete korumalı
             )
             db.add(cp)
             print(f"  MC olusturuldu: {title}")

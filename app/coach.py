@@ -1914,7 +1914,13 @@ def _trim_history_to_size(messages: List[Dict]) -> List[Dict]:
 # 14. BUG #033 fix: Output katmanı post-processor
 # ============================================================
 
-_EMANET_HEADER_RE = re.compile(r'\[5\.\s*EMANET KASA\]', re.IGNORECASE)
+# W3-030 (CO-001) fix: eskiden yalnız köşeli-parantez `[5. EMANET KASA]` yakalanıyordu.
+# Prompt kural 13 markdown başlık (`## 5. Emanet Kasa`) istediği için o format sızıyordu.
+# Artık başlık işaretçilerini (#, [, *, >, -) tolere eder: `## 5. Emanet Kasa`,
+# `### 5. EMANET`, `**5. Emanet Kasa**`, `[5. EMANET KASA]`, `5. EMANET KASA`.
+_EMANET_HEADER_RE = re.compile(r'^[\s\[#*>\-]*5\s*[\.\)\:]?\s*EMANET\s*KASA', re.IGNORECASE)
+# Bir sonraki bölüm sınırı: markdown başlık (## ...) veya köşeli-parantez bölüm.
+_SECTION_BOUNDARY_RE = re.compile(r'^\s*(?:#{1,4}\s|\[)')
 # BUG #033 iter2: \d*\.? ile numaralı varyantları da yakala ([6. YENİ CHECKPOINT] vb.)
 _YC_HEADER_RE = re.compile(r'\[?\d*\.?\s*YENİ CHECKPOINT', re.IGNORECASE)
 _YC_CONDITIONAL_RE = re.compile(
@@ -1989,7 +1995,9 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
             i += 1
             while i < len(lines):
                 stripped = lines[i].strip()
-                if not stripped or stripped.startswith('[') or _YC_HEADER_RE.search(stripped):
+                # W3-030: bir sonraki bölüm başlığında (markdown ## veya [) dur → sonraki
+                # bölümleri yeme; boş satırda da dur.
+                if not stripped or _SECTION_BOUNDARY_RE.match(lines[i]) or _YC_HEADER_RE.search(stripped):
                     break
                 i += 1
             continue

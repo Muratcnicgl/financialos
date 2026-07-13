@@ -1,0 +1,7 @@
+[Unit]
+Description=FinancialOS yedek - her gün 03:00
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+[Install]
+WantedBy=timers.target

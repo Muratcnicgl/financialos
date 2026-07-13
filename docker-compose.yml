@@ -1,0 +1,39 @@
+# FinancialOS self-host — tek komut: `docker compose up -d`
+# .env dosyasında DOMAIN + LLM key'leri ver (docs/deployment/README.md).
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:////data/financialos.db
+      - LLM_PROVIDER=${LLM_PROVIDER:-fallback}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      - SECRET_KEY=${SECRET_KEY:-}
+    volumes:
+      - fos-data:/data
+    expose:
+      - "8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  fos-data:
+  caddy-data:
+  caddy-config:

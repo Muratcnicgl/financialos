@@ -1,0 +1,11 @@
+# Frontend'i derle, Caddy ile sun (SPA + /api reverse-proxy + otomatik HTTPS).
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM caddy:2-alpine
+COPY --from=build /app/dist /srv
+COPY Caddyfile /etc/caddy/Caddyfile

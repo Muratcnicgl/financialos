@@ -66,3 +66,4 @@ backups/
 # asistan araci gecici calisma dosyalari
 scratchpad/
 scratchpad_cov.txt
+scratchpad_uvicorn.log

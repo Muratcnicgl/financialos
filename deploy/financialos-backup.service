@@ -1,0 +1,7 @@
+[Unit]
+Description=FinancialOS SQLite günlük yedek
+[Service]
+Type=oneshot
+User=financialos
+WorkingDirectory=/opt/financialos
+ExecStart=/opt/financialos/venv/bin/python -m scripts.backup --keep-days 30

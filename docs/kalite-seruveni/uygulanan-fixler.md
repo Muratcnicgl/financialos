@@ -373,3 +373,11 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | W3-029 / AE-006 | action_executor 0-fiyat yok sayma: **R3 — ZATEN FİX** (BUG #102, :685 `if _ap is not None else current_price` — explicit 0 saygı görür, `or` değil; +SEC-032 finite). Kod değişikliği YOK | kod okuma | ✅ (R3-kapalı) |
 | W3-041 / SEC-004 | Rate limiting: **M11'e taşındı** (OTONOM KARAR — auth prod-gate/brute-force koruması ile birlikte, orta-süre; backlog notu da öyle işaret ediyor) | — | ⏭️ M11 |
 | W3-058 / ONERI #030 | Commit-öncesi test kapısı: `.githooks/pre-commit` (staged'e göre pytest -x / vitest) + `scripts/install-hooks.sh` + `core.hooksPath=.githooks` aktif. BUG #061 (38 test sessiz kırıldı) tam da bu eksik olduğu için sızmıştı. D1: pre-commit framework yerine solo-dev için hooksPath (dış bağımlılık yok) | hook dry-run ✓ | ✅ |
+
+## Milestone 10 — Production Deployment (Wave-3, 2026-07-13)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| ADR-035 | Deployment kararı D1(Firefly/fava/Maybe/Umami/Caddy)+K10: Docker Compose (backend uvicorn daemon + Caddy SPA/proxy/HTTPS) birincil, systemd alternatif. STUB→KARAR | ADR yazıldı | ✅ |
+| M10-cron | M4 cron production: prod'da uvicorn --reload YOK → tek-process daemon → APScheduler 02:45 çalışır. Kök çözüm deployment-config | uvicorn daemon smoke: scheduler start + fetch_investment_prices job kayıtlı + /health 200 | ✅ |
+| M10-artifacts | Dockerfile + Dockerfile.web + Caddyfile(HSTS/X-Frame W3-042) + docker-compose + .dockerignore + docker-entrypoint(alembic+uvicorn) + deploy/systemd(service+backup timer) + .env.example prod(DOMAIN/SECRET_KEY) + docs/deployment/README.md | compose YAML valid, fresh-db migration ✓ | ✅ |

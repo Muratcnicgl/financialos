@@ -1,0 +1,22 @@
+# DOMAIN=localhost → HTTP; gerçek domain verilirse Caddy otomatik Let's Encrypt HTTPS.
+{$DOMAIN:localhost} {
+    encode gzip
+    # API → backend (aynı origin, CORS gereksiz)
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    # SPA statik + client-side routing fallback
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+    header {
+        # W3-042 (SEC-005): temel güvenlik başlıkları reverse-proxy katmanında
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}

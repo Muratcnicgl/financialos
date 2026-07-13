@@ -1,0 +1,17 @@
+.git
+.gitignore
+venv/
+**/__pycache__/
+**/*.pyc
+frontend/node_modules/
+frontend/dist/
+data/
+scratchpad/
+scratchpad*/
+*.db
+data/backups/
+docs/
+tests/
+.env
+.pytest_cache/
+.vitest/

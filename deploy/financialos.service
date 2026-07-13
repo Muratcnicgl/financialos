@@ -1,0 +1,24 @@
+# Bare-metal (Docker'sız) alternatif. /opt/financialos'a klonla, venv kur.
+# Kurulum: cp deploy/financialos.service /etc/systemd/system/ && systemctl enable --now financialos
+[Unit]
+Description=FinancialOS backend (uvicorn + APScheduler cron)
+After=network.target
+
+[Service]
+Type=simple
+User=financialos
+Group=financialos
+WorkingDirectory=/opt/financialos
+Environment=DATABASE_URL=sqlite:///./data/financialos.db
+EnvironmentFile=/opt/financialos/.env
+# Şema göçü, sonra daemon (reload YOK → cron tek-process düzgün çalışır)
+ExecStartPre=/opt/financialos/venv/bin/python -m alembic upgrade head
+ExecStart=/opt/financialos/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+# Log rotation: journald yönetir (journalctl -u financialos)
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -62,10 +62,9 @@ from app.routers import wishlist as wishlist_router  # FEAT-032
 # LOGGING
 # ============================================================
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+# M23: merkezi logging (console + rotating file, prod JSON/dev text)
+from app.logging_config import setup_logging
+setup_logging()
 logger = logging.getLogger(__name__)
 
 

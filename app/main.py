@@ -130,11 +130,22 @@ _DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173,http://localhost:3000,"
     "http://127.0.0.1:5173,http://127.0.0.1:3000"
 )
-_cors_origins = [
-    o.strip()
-    for o in os.getenv("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",")
-    if o.strip()
-]
+def _compute_cors_origins() -> list[str]:
+    """M22: CORS_ORIGINS varsa onu; yoksa dev default + (varsa) FRONTEND_URL.
+
+    Prod'da tek `FRONTEND_URL` yeterli olsun (CORS_ORIGINS ayrıca zorunlu olmasın).
+    """
+    explicit = os.getenv("CORS_ORIGINS", "").strip()
+    if explicit:
+        return [o.strip() for o in explicit.split(",") if o.strip()]
+    origins = [o.strip() for o in _DEFAULT_CORS_ORIGINS.split(",") if o.strip()]
+    frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if frontend and frontend not in origins:
+        origins.append(frontend)
+    return origins
+
+
+_cors_origins = _compute_cors_origins()
 
 app.add_middleware(
     CORSMiddleware,

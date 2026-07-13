@@ -38,3 +38,26 @@ def test_cors_methods_wildcard_degil():
     allow_methods = r.headers.get("access-control-allow-methods", "")
     assert "*" not in allow_methods
     assert "GET" in allow_methods and "POST" in allow_methods
+
+
+# M22: _compute_cors_origins FRONTEND_URL birleştirme
+def test_cors_origins_explicit(monkeypatch):
+    from app.main import _compute_cors_origins
+    monkeypatch.setenv("CORS_ORIGINS", "https://a.com,https://b.com")
+    assert _compute_cors_origins() == ["https://a.com", "https://b.com"]
+
+
+def test_cors_origins_frontend_url_merge(monkeypatch):
+    from app.main import _compute_cors_origins
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    monkeypatch.setenv("FRONTEND_URL", "https://financialos.example.com/")
+    origins = _compute_cors_origins()
+    assert "https://financialos.example.com" in origins  # trailing slash temizlenir
+    assert "http://localhost:5173" in origins  # dev default korunur
+
+
+def test_cors_origins_default_only(monkeypatch):
+    from app.main import _compute_cors_origins
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("FRONTEND_URL", raising=False)
+    assert "http://localhost:5173" in _compute_cors_origins()

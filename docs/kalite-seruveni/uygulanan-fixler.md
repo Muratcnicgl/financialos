@@ -436,3 +436,4 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M34 / SEC-015 | /docs+/redoc+/openapi.json production'da kapalı (is_production gate), dev'de açık. Bilgi ifşası önlendi | tests/security/test_docs_gating.py (2) | ✅ |
 | M35 / FE-032,PERF-020 | vite.config sourcemap:true→false — prod build kaynak sızıntısı önlendi | dist .map yok doğrulandı | ✅ |
 | M27 | Test coverage: TOTAL %86→%87, 897 test. startup.py 0→**%100** (4 test, catch_up_snapshots 4 dal). Çekirdek motorlar zaten >%80. Rapor tests/README.md (router/external düşük-kapsam hedef listesi) | coverage ölçüldü | ✅ |
+| M28 | Frontend anti-pattern denetimi: 40 dosya R3. **Temiz** — doğrudan fetch 0 (api.js disiplini), parseFloat yalnız backend-değer, dinamik Tailwind safelist'li, kritik async-error M9/M14'te kapalı. Küçük (index-key 23, a11y) → Wave-4. Kritik anti-pattern: 0. Rapor frontend-audit-14tem.md | R3 tarama | ✅ |

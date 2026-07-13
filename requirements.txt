@@ -23,3 +23,9 @@ groq>=0.11.0
 pytefas==0.3.0
 alembic==1.14.0
 apscheduler>=3.10
+
+# === Auth (Wave-3 M11) ===
+bcrypt==5.0.0               # şifre hash (doğrudan kullanım; passlib bcrypt5 uyumsuz)
+PyJWT==2.9.0                # JWT access/refresh token
+email-validator==2.2.0     # Pydantic EmailStr
+authlib==1.3.2             # OAuth (Google/GitHub) — API key gerekli

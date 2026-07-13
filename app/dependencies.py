@@ -7,7 +7,7 @@ ileride JWT eklenince get_current_user gercek auth'a baglanir.
 """
 
 from typing import Generator
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
@@ -23,16 +23,49 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     """
-    Tek-kullanici MVP: ilk olusturulan User'i doner.
-    User yoksa 404 verir (kurulum yapilmasi gerektigini soyler).
+    M11 (ADR-033): JWT auth + geriye-uyum fallback.
 
-    Production'a gecince burasi JWT auth'a baglanir, soyle:
-        token = Depends(oauth2_scheme)
-        payload = jwt.decode(token, ...)
-        user = db.query(User).get(payload['sub'])
+    - `Authorization: Bearer <access-token>` varsa → JWT doğrula, user'ı DB'den çek.
+    - Token yok + `AUTH_ENABLED` kapalı (default) → tek-kullanıcı fallback (ilk User).
+      Mevcut 817 test + tek-kullanıcı lokal kurulum bu yolu kullanır (kırılmaz).
+    - Token yok + `AUTH_ENABLED` açık → 401 (multi-user prod).
+
+    Mimari sınır: auth SADECE burada bağlanır (app/PROJE.md).
     """
+    # Geç import: auth modülü (SECRET_KEY) yalnız gerektiğinde yüklensin
+    from app import auth as _auth
+    import jwt as _jwt
+
+    header = request.headers.get("Authorization", "")
+    token = header[7:].strip() if header.startswith("Bearer ") else ""
+
+    if token:
+        try:
+            payload = _auth.decode_token(token, expected_type="access")
+        except _jwt.PyJWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Geçersiz veya süresi geçmiş token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        user = db.get(User, int(payload["sub"]))
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Kullanıcı bulunamadı veya pasif.",
+            )
+        return user
+
+    if _auth.auth_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Kimlik doğrulama gerekli (Authorization: Bearer <token>).",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Geriye-uyum: tek-kullanıcı fallback
     user = db.query(User).order_by(User.id.asc()).first()
     if not user:
         raise HTTPException(

@@ -119,7 +119,15 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=True)  # M11: OAuth kullanıcıda başta boş olabilir
+    # M11 (ADR-033) auth alanları — hepsi nullable (mevcut tek-kullanıcı + OAuth uyumu)
+    email = Column(String(255), unique=True, nullable=True, index=True)
+    password_hash = Column(String(255), nullable=True)      # OAuth-only kullanıcıda None
+    oauth_provider = Column(String(20), nullable=True)      # 'google' | 'github' | 'apple'
+    oauth_sub = Column(String(255), nullable=True)          # provider subject id
+    kvkk_consent_at = Column(DateTime, nullable=True)       # KVKK açık rıza zamanı
+    kvkk_consent_version = Column(String(20), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")
@@ -888,3 +896,16 @@ class GoalAllocation(Base):
         Index("ix_goal_allocations_goal_id", "goal_id"),
         Index("ix_goal_allocations_transaction_id", "transaction_id"),
     )
+
+class RevokedToken(Base):
+    """M11 (ADR-033): logout/blacklist — geçersiz kılınan JWT'lerin jti'si.
+
+    Refresh token logout'ta buraya yazılır; auth doğrulaması jti burada mı diye bakar.
+    Süresi geçmiş kayıtlar periyodik temizlenebilir (jti + expiry).
+    """
+    __tablename__ = "revoked_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    jti = Column(String(64), unique=True, nullable=False, index=True)
+    revoked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)  # token'ın doğal son kullanımı (temizlik için)

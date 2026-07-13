@@ -34,3 +34,45 @@ UtcDateTime = Annotated[
     datetime,
     PlainSerializer(utc_isoformat, return_type=str, when_used="json"),
 ]
+
+
+def export_user_data(user, db) -> dict:
+    """
+    M11 (ADR-033 / KVKK taşınabilirlik): kullanıcının tüm verisini JSON-serileştir.
+    Basit, tam kapsam: ilişkili tabloları satır-satır dict'e çevirir (SQLAlchemy sütunları).
+    """
+    from sqlalchemy import inspect as _sa_inspect
+
+    def _row(obj) -> dict:
+        out = {}
+        for col in _sa_inspect(obj).mapper.column_attrs:
+            val = getattr(obj, col.key)
+            if isinstance(val, datetime):
+                val = utc_isoformat(val)
+            else:
+                # Decimal/enum/date → JSON-güvenli
+                try:
+                    import json as _json
+                    _json.dumps(val)
+                except (TypeError, ValueError):
+                    val = str(val)
+            out[col.key] = val
+        return out
+
+    data: dict = {
+        "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+        "user": _row(user),
+    }
+    # User üzerindeki tüm relationship koleksiyonlarını dök
+    for rel in _sa_inspect(user).mapper.relationships:
+        try:
+            related = getattr(user, rel.key)
+        except Exception:
+            continue
+        if related is None:
+            continue
+        if rel.uselist:
+            data[rel.key] = [_row(item) for item in related]
+        else:
+            data[rel.key] = _row(related)
+    return data

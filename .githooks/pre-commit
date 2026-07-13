@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# W3-058 (ONERI #030) — commit-öncesi test kapısı.
+# BUG #061 (H2G5 gizli regresyon, 38 test sessizce kırıldı) tam da testler commit
+# öncesi çalıştırılmadığı için sızmıştı. Bu hook staged dosyalara göre ilgili süiti koşar.
+#
+# Kurulum: git config core.hooksPath .githooks   (veya scripts/install-hooks.sh)
+# Atlama (WIP): git commit --no-verify   (bilinçli, sorumluluk sende)
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+staged="$(git diff --cached --name-only --diff-filter=ACM)"
+
+# Python (backend/test) değişti mi?
+if echo "$staged" | grep -qE '^(app/|tests/|scripts/|alembic/).*\.py$'; then
+  echo "[pre-commit] Python değişikliği — pytest çalışıyor (hızlı, ilk hatada durur)…"
+  py="./venv/Scripts/python.exe"
+  [ -x "$py" ] || py="python"
+  if ! "$py" -m pytest tests/ -q -x --tb=short -p no:cacheprovider; then
+    echo "[pre-commit] ❌ TESTLER KIRMIZI — commit engellendi. Düzelt veya bilinçliyse --no-verify."
+    exit 1
+  fi
+  echo "[pre-commit] ✅ pytest yeşil."
+fi
+
+# Frontend değişti mi?
+if echo "$staged" | grep -qE '^frontend/src/.*\.(js|jsx)$'; then
+  if [ -d frontend/node_modules/vitest ]; then
+    echo "[pre-commit] Frontend değişikliği — vitest çalışıyor…"
+    ( cd frontend && npx vitest run ) || {
+      echo "[pre-commit] ❌ vitest KIRMIZI — commit engellendi."
+      exit 1
+    }
+    echo "[pre-commit] ✅ vitest yeşil."
+  else
+    echo "[pre-commit] ⚠ frontend/node_modules yok — vitest atlandı (npm install gerekli)."
+  fi
+fi
+
+exit 0

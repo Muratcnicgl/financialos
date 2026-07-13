@@ -78,3 +78,15 @@ OLLAMA_TIMEOUT=120           # opsiyonel, yerel model yavaşsa artır
 gerekmez). Önce `ollama pull qwen2.5:7b-instruct` + `ollama serve`. Bulut sağlayıcı
 kullanıp yalnızca hepsi düşünce yerel yedek isteniyorsa `LLM_PROVIDER=fallback` +
 `OLLAMA_ENABLED=1` yeterli (Ollama zincirin son halkası olur).
+
+## Commit-Öncesi Test Kapısı (W3-058)
+
+Gizli regresyonları önlemek için (BUG #061 dersi) git pre-commit hook'u:
+
+```bash
+bash scripts/install-hooks.sh      # tek sefer: core.hooksPath=.githooks
+```
+
+Staged dosyalara göre ilgili süiti koşar: `app/`·`tests/`·`scripts/`·`alembic/` `.py` → pytest
+(`-x` ilk hatada durur); `frontend/src/*.jsx` → vitest. Kırmızıysa commit engellenir.
+Bilinçli atlama (WIP): `git commit --no-verify`.

@@ -60,3 +60,53 @@ Kaynak: `docs/kalite-seruveni/env-denetim-rapor-14tem.md` (14 Tem 2026 env denet
 - `/auth/oauth-success` sayfası: URL'den access_token+refresh_token okur, `setTokens()`, uygulamaya yönlendirir.
 - `/auth/reset` sayfası (M11 SMTP şifre sıfırlama linkini tüketen — backend hazır, UI eksik).
 - Not: token'lar şu an URL query'de (MVP); Wave-4'te httpOnly cookie güvenlik iyileştirmesi.
+
+---
+
+## Wave-4 Detay (M32, 14 Tem 2026)
+
+### ✅ BUG #157 KAPANDI (M16) — Security Hardening'den çıkarıldı
+SECRET_KEY startup fail-fast Wave-3-Tamamlama M16'da uygulandı (app/settings.py). Bu madde
+artık Wave-4 kapsamı DEĞİL. Kalan Security Hardening maddeleri (JWT rotation, HTTPS-enforce
+middleware, env-config genişletme) Wave-4'te.
+
+### 1. Mobil Platform (ADR-032 — karar bekliyor)
+- **Sorular:** React Native + Expo (native his, ayrı kod) vs PWA (kod %95 paylaşım, App Store yok)?
+  iOS Safari PWA kısıtları 2026? Offline-first? Push (vade hatırlatma) hangi yol?
+- Backend REST hazır (ikisi de tüketebilir). D1: Expo Router olgunluğu, iOS PWA capability.
+
+### 2. Aile Hesabı Paylaşımı (ADR başlık)
+- **İzin modeli:** owner + viewer + editor. Bir kullanıcının hesabını başkasıyla paylaşma.
+  Row-level yetki (user_id + shared_with + role). KVKK: paylaşım açık rızası.
+- ONERI #017 family_mode (anne emaneti gibi 3. taraf cüzdanlar).
+
+### 3. Kripto (ADR-031 devamı)
+- **Numeric(28,8) migration** (satoshi 8 ondalık) — para-kolonları geniş migration (ADR-030 revize-tetiği).
+- CoinGecko provider (free tier key'siz). TR kripto vergi/regülasyon araştırması (D1).
+
+### 4. PostgreSQL + RLS Geçişi (Wave-5+, ADR-030/033 depolama sınırı)
+- SQLite → PostgreSQL (multi-user ölçek + gerçek DECIMAL + Row-Level Security).
+- Migration stratejisi: alembic Postgres-uyumlu, veri taşıma script.
+
+### 5. TR Open Banking / ÖHVPS (H2 2026, ADR başlık)
+- BDDK Açık Bankacılık ile otomatik hesap/işlem senkron (elle giriş biter).
+- Sorular: ÖHVPS lisans/sandbox, hangi bankalar, KVKK (ADR-033 ile bağlı).
+
+### 6. Observability (Sentry — Wave-5)
+- Structured logging M23'te yapıldı (JSON prod). Sentry error tracking + APM Wave-5.
+
+### 7. Frontend Design System (Wave-4)
+- shadcn/ui geçişi değerlendirmesi (mevcut Tailwind utility → component sistemi). React Router
+  (mevcut router'sız tab-app → gerçek routing, M17/M18 handler'ları basitleşir).
+
+### 8. 🐛 BUG — Google OAuth Consent Screen "External Test" limiti
+- **Durum:** Google Cloud consent screen "External / Testing" modunda — **100 kullanıcı sınırı**
+  + her girişte "unverified app" uyarısı. Test users listesindeki (muraticgil@gmail.com) çalışır.
+- **Wave-4 fix:** consent screen "Publish"/"Production" → Google doğrulama süreci (privacy policy
+  URL, domain doğrulama, scope justification). ADR gerekli. Prod OAuth öncesi zorunlu.
+
+### 9. Kalan küçük Wave-4 (Wave-3'ten devreden)
+- Frontend a11y (W3-018 modal role/focus-trap, W3-019 dokunma-hedefi), index-key (W3-016),
+  router-refactor, raw-formatter consistency (M31). EVDS canlı endpoint doğrulama (M19 R3).
+- P2/P3 düşük: tema-duyarlılık (FE-008/UX-020), modal scroll (FE-031), DB CHECK constraint,
+  quantize konvansiyonu, pagination, N+1/cache (PERF). Query→select göçü (P2-1), coach.py böl (P2-12).

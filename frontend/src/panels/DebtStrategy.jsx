@@ -331,6 +331,21 @@ export default function DebtStrategy() {
         </button>
       </div>
 
+      {/* W3-023: Backend uyarıları (örn. faizi belirtilmemiş krediler FAİZSİZ varsayıldı →
+          months_to_freedom/toplam faiz İYİMSER). Kullanıcı bunu görmeden karar vermemeli. */}
+      {data.warnings?.length > 0 && (
+        <div className="rounded-lg border border-warn-600/50 bg-warn-950/30 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-warn-300 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              {data.warnings.map((w, i) => (
+                <p key={i} className="text-sm text-warn-200">{w}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Ekstra ödeme slider */}
       <div className="card p-4">
         <div className="flex items-center justify-between mb-2">

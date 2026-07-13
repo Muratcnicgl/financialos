@@ -49,6 +49,8 @@ from app.routers import debt_strategy as debt_strategy_router
 
 # M11: Auth + Multi-user (ADR-033)
 from app.routers import auth as auth_router
+# M19: Fiyat sorgulama (EVDS döviz/altın)
+from app.routers import prices as prices_router
 # Grup 5: H2G5 Goal Engine
 from app.routers import goals as goals_router
 from app.routers import subscriptions as subscriptions_router  # FEAT-006
@@ -177,6 +179,7 @@ app.include_router(wishlist_router.router)  # FEAT-032
 # M11: Auth + Multi-user (ADR-033)
 app.include_router(auth_router.router)         # /api/auth
 app.include_router(auth_router.users_router)   # /api/users (KVKK sil/export)
+app.include_router(prices_router.router)       # /api/prices (EVDS döviz/altın)
 
 
 # ============================================================

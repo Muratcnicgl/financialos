@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# M24 — MCP memory auto-sync (CAPTURE adımı).
+#
+# R3 GERÇEĞİ: Bir git hook (shell) MCP memory'ye DOĞRUDAN yazamaz — MCP Claude-runtime
+# aracıdır. Bu yüzden hook yalnız commit'i bir ledger'a YAKALAR; asistan araci (oturum
+# başında/milestone'da) ledger'ı okur ve MCP Working State'e FLUSH eder, sonra temizler.
+# Böylece "graph 2 ay bayat kalır" (Wave-3 dersi) sorunu yarı-otomatik çözülür.
+#
+# Kurulum: core.hooksPath=.githooks (W3-058 install-hooks.sh ile zaten aktif).
+set -e
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$repo_root" || exit 0
+
+hash="$(git log -1 --format='%h' 2>/dev/null)" || exit 0
+subject="$(git log -1 --format='%s' 2>/dev/null)"
+iso="$(git log -1 --format='%cI' 2>/dev/null)"
+
+# .mcp-sync-pending.log gitignore'da (repo kirletmez). Satır: <hash>|<iso>|<subject>
+printf '%s|%s|%s\n' "$hash" "$iso" "$subject" >> .mcp-sync-pending.log 2>/dev/null || true
+exit 0

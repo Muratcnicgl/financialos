@@ -68,3 +68,4 @@ scratchpad/
 scratchpad_cov.txt
 scratchpad_uvicorn.log
 openapi.json
+.mcp-sync-pending.log

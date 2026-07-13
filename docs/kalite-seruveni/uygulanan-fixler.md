@@ -435,3 +435,4 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M26 | Sections kapatma turu: R3 sections prose-format, P0/P1 zaten kapalı. Spot-check kritik boyutlar. **2 otonom milestone:** M34 (SEC-015 /docs prod kapalı), M35 (FE-032/PERF-020 sourcemap kapalı). Gerçek açık P0/P1: 0. Rapor faz-4-durum.md | R3 spot-check | ✅ |
 | M34 / SEC-015 | /docs+/redoc+/openapi.json production'da kapalı (is_production gate), dev'de açık. Bilgi ifşası önlendi | tests/security/test_docs_gating.py (2) | ✅ |
 | M35 / FE-032,PERF-020 | vite.config sourcemap:true→false — prod build kaynak sızıntısı önlendi | dist .map yok doğrulandı | ✅ |
+| M27 | Test coverage: TOTAL %86→%87, 897 test. startup.py 0→**%100** (4 test, catch_up_snapshots 4 dal). Çekirdek motorlar zaten >%80. Rapor tests/README.md (router/external düşük-kapsam hedef listesi) | coverage ölçüldü | ✅ |

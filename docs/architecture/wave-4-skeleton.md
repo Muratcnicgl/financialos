@@ -35,3 +35,22 @@
 
 ## Sonraki Adım
 Wave-4 başında: her özellik için D1 (2-3 sektör referans) → Research Log → karar. ADR-032 (mobil) + yeni ADR'ler. Bu belge iskelet.
+
+## Security Hardening (Wave-4 kritik milestone)
+
+Kaynak: `docs/kalite-seruveni/env-denetim-rapor-14tem.md` (14 Tem 2026 env denetimi).
+
+- **BUG #157 — SECRET_KEY startup validation (fail-fast).** R3: dev-default fallback YOK
+  (auth.py:_secret() boşsa RuntimeError raise — fail-closed); ama doğrulama **lazy** (ilk auth
+  çağrısında, boot'ta değil). Fix: `ENVIRONMENT=production` ise startup'ta SECRET_KEY var+entropy
+  (≥32) zorunlu → uygulama açılmaz; development'ta warning. (settings.py yok — env-config katmanı
+  bu milestone'da eklenebilir.)
+- **Environment-based config validation** (production vs development ayrımı — `ENVIRONMENT` env).
+- **Startup security check:** SECRET_KEY entropy · SMTP_PASS format · DATABASE_URL prod-safe
+  (SQLite→PostgreSQL uyarısı) · CORS non-wildcard doğrulaması.
+- **JWT rotation stratejisi:** SECRET_KEY değişince graceful token invalidation (mevcut RevokedToken
+  + `kid` header veya çift-secret geçiş penceresi).
+- **Rate limiting production değerleri** (Wave-3 dev değerleri: AUTH_RATE_MAX=10/60s → prod ayarı).
+- **CORS whitelist** production (Wave-3'te env-driven yapıldı, W3-040; prod domain zorunlu kıl).
+- **HTTPS enforce middleware** (reverse-proxy dışında app-katmanı redirect, ADR-035 Caddy tamamlayıcı).
+- **SMTP gönderen doğrulama** (env raporu: raw gmail SMTP_FROM → Brevo verified-sender/SPF/DKIM gerekli).

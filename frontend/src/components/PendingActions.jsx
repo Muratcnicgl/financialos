@@ -180,6 +180,8 @@ export default function PendingActions({ actions, onResolved, accounts }) {
   actionsRef.current = actions;
   const busyIdRef = useRef(busyId);
   busyIdRef.current = busyId;
+  const editingByIdRef = useRef(editingById); // W3-006: handler tek sefer bağlanıyor, güncel edit durumu için ref
+  editingByIdRef.current = editingById;
 
   useEffect(() => {
     const handler = (e) => {
@@ -192,6 +194,9 @@ export default function PendingActions({ actions, onResolved, accounts }) {
 
       const firstId = acts[0]?.id ?? acts[0]?.action_id;
       if (!firstId) return;
+      // W3-006: ilk aksiyon düzenleme modundaysa onay/red/düzenle butonları disabled —
+      // klavye kısayolu da bypass etmemeli (yanlış onay/red riski).
+      if (editingByIdRef.current[firstId]) return;
 
       if (e.key === 'y' || e.key === 'Y') {
         e.preventDefault();

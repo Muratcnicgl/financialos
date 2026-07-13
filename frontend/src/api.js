@@ -457,6 +457,14 @@ export const authApi = {
   },
 };
 
+// M18: Brevo şifre-sıfırlama linki FRONTEND_URL/auth/reset?token=.. adresine gelir.
+// SPA yüklenince token'ı çıkarır (yoksa null). AuthGate Login'i reset modunda açar.
+export function getResetTokenFromUrl() {
+  if (typeof window === 'undefined') return null;
+  if (!(window.location.pathname || '').includes('/auth/reset')) return null;
+  return new URLSearchParams(window.location.search || '').get('token');
+}
+
 // M17: OAuth callback redirect'ini yakala (router'sız tab-app). Backend
 // FRONTEND_URL/auth/oauth-success?access_token=..&refresh_token=.. adresine döner.
 // Token'ları kaydeder, URL'i temizler, durum döner. App.jsx AuthGate mount'ta çağırır.

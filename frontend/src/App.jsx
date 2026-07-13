@@ -3,7 +3,7 @@ import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
   Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut,
 } from 'lucide-react';
-import { healthApi, authApi, consumeOAuthRedirect } from './api.js';
+import { healthApi, authApi, consumeOAuthRedirect, getResetTokenFromUrl } from './api.js';
 import Login from './panels/Login.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
@@ -103,8 +103,12 @@ export default function App() {
 function AuthGate() {
   const [phase, setPhase] = useState('checking'); // checking | login | app
   const [oauthError, setOauthError] = useState(null);
+  const [resetToken, setResetToken] = useState(null); // M18: şifre sıfırlama linki
 
   const check = useCallback(async () => {
+    // M18: şifre-sıfırlama linki (/auth/reset?token=..) → Login reset modunda açılır
+    const rt = getResetTokenFromUrl();
+    if (rt) { setResetToken(rt); setPhase('login'); return; }
     // M17: OAuth callback redirect'ini yakala (token URL'de → kaydet, temizle)
     const oauth = consumeOAuthRedirect();
     if (oauth.status === 'success') { setPhase('app'); return; }
@@ -125,7 +129,10 @@ function AuthGate() {
       </div>
     );
   }
-  if (phase === 'login') return <Login onAuthed={() => setPhase('app')} initialError={oauthError} />;
+  if (phase === 'login') return (
+    <Login onAuthed={() => setPhase('app')} initialError={oauthError}
+      initialMode={resetToken ? 'reset' : 'login'} resetToken={resetToken} />
+  );
   return <AppContent onLogout={async () => { await authApi.logout(); setPhase('login'); }} />;
 }
 

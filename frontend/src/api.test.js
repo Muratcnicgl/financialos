@@ -8,8 +8,25 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
   todayLocalISO, currentYearMonthLocal, parseTRNumber,
-  setTokens, getAccessToken, clearTokens, consumeOAuthRedirect,
+  setTokens, getAccessToken, clearTokens, consumeOAuthRedirect, getResetTokenFromUrl,
 } from './api.js';
+
+describe('getResetTokenFromUrl (M18)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const stub = (pathname, search) => vi.stubGlobal('window', { location: { pathname, search } });
+  it('/auth/reset?token=X → token', () => {
+    stub('/auth/reset', '?token=RESET123');
+    expect(getResetTokenFromUrl()).toBe('RESET123');
+  });
+  it('reset path degil → null', () => {
+    stub('/', '?token=X');
+    expect(getResetTokenFromUrl()).toBeNull();
+  });
+  it('token yok → null', () => {
+    stub('/auth/reset', '');
+    expect(getResetTokenFromUrl()).toBeNull();
+  });
+});
 
 describe('consumeOAuthRedirect (M17)', () => {
   beforeEach(() => {

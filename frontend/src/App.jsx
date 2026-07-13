@@ -3,7 +3,7 @@ import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
   Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut,
 } from 'lucide-react';
-import { healthApi, authApi } from './api.js';
+import { healthApi, authApi, consumeOAuthRedirect } from './api.js';
 import Login from './panels/Login.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
@@ -102,8 +102,13 @@ export default function App() {
 // M11 (ADR-033): AUTH_ENABLED açık + token yoksa Login göster; aksi halde uygulama.
 function AuthGate() {
   const [phase, setPhase] = useState('checking'); // checking | login | app
+  const [oauthError, setOauthError] = useState(null);
 
   const check = useCallback(async () => {
+    // M17: OAuth callback redirect'ini yakala (token URL'de → kaydet, temizle)
+    const oauth = consumeOAuthRedirect();
+    if (oauth.status === 'success') { setPhase('app'); return; }
+    if (oauth.status === 'error') { setOauthError(oauth.error); setPhase('login'); return; }
     try {
       const h = await healthApi.get();
       if (h?.auth_enabled && !authApi.isLoggedIn()) { setPhase('login'); return; }
@@ -120,7 +125,7 @@ function AuthGate() {
       </div>
     );
   }
-  if (phase === 'login') return <Login onAuthed={() => setPhase('app')} />;
+  if (phase === 'login') return <Login onAuthed={() => setPhase('app')} initialError={oauthError} />;
   return <AppContent onLogout={async () => { await authApi.logout(); setPhase('login'); }} />;
 }
 

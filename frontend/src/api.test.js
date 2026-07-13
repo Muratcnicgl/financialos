@@ -8,8 +8,45 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   formatTL, formatTLSuffix, formatPercent, formatDate, signClass,
   todayLocalISO, currentYearMonthLocal, parseTRNumber,
-  setTokens, getAccessToken, clearTokens,
+  setTokens, getAccessToken, clearTokens, consumeOAuthRedirect,
 } from './api.js';
+
+describe('consumeOAuthRedirect (M17)', () => {
+  beforeEach(() => {
+    const store = {};
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
+    });
+  });
+  afterEach(() => { clearTokens(); vi.unstubAllGlobals(); });
+
+  function stubWindow(pathname, search) {
+    vi.stubGlobal('window', { location: { pathname, search }, history: { replaceState: () => {} } });
+  }
+
+  it('oauth-success token kaydeder + success döner', () => {
+    stubWindow('/auth/oauth-success', '?access_token=AAA&refresh_token=RRR');
+    const r = consumeOAuthRedirect();
+    expect(r.status).toBe('success');
+    expect(getAccessToken()).toBe('AAA');
+  });
+  it('oauth-error status=error', () => {
+    stubWindow('/auth/oauth-error', '?error=denied');
+    const r = consumeOAuthRedirect();
+    expect(r.status).toBe('error');
+    expect(r.error).toBe('denied');
+  });
+  it('token yoksa success DÖNMEZ', () => {
+    stubWindow('/auth/oauth-success', '');
+    expect(consumeOAuthRedirect().status).toBe('none');
+  });
+  it('normal path none', () => {
+    stubWindow('/', '');
+    expect(consumeOAuthRedirect().status).toBe('none');
+  });
+});
 
 describe('auth token deposu (M11)', () => {
   beforeEach(() => {

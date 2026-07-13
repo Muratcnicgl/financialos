@@ -448,8 +448,36 @@ export const authApi = {
   deleteMe: () => request('/api/users/me', { method: 'DELETE' }),
   passwordResetRequest: (email) =>
     request('/api/auth/password-reset-request', { method: 'POST', body: { email } }),
+  passwordResetConfirm: (token, new_password) =>
+    request('/api/auth/password-reset-confirm', { method: 'POST', body: { token, new_password } }),
   isLoggedIn: () => !!getAccessToken(),
+  // M17: OAuth tam-sayfa yönlendirme (proxy /api → backend → provider → callback → frontend)
+  oauthLogin(provider) {
+    window.location.href = `/api/auth/oauth/${provider}/login`;
+  },
 };
+
+// M17: OAuth callback redirect'ini yakala (router'sız tab-app). Backend
+// FRONTEND_URL/auth/oauth-success?access_token=..&refresh_token=.. adresine döner.
+// Token'ları kaydeder, URL'i temizler, durum döner. App.jsx AuthGate mount'ta çağırır.
+export function consumeOAuthRedirect() {
+  if (typeof window === 'undefined') return { status: 'none' };
+  const path = window.location.pathname || '';
+  const params = new URLSearchParams(window.location.search || '');
+  if (path.includes('/auth/oauth-success') && params.get('access_token')) {
+    setTokens({
+      access_token: params.get('access_token'),
+      refresh_token: params.get('refresh_token'),
+    });
+    try { window.history.replaceState({}, '', '/'); } catch { /* */ }
+    return { status: 'success' };
+  }
+  if (path.includes('/auth/oauth-error')) {
+    try { window.history.replaceState({}, '', '/'); } catch { /* */ }
+    return { status: 'error', error: params.get('error') || 'OAuth başarısız oldu' };
+  }
+  return { status: 'none' };
+}
 
 // =============================================================
 // FORMATTER YARDIMCILARI — Tum panellerde tekrar kullanilir

@@ -6,14 +6,14 @@ import { authApi } from '../api.js';
  * M11 (ADR-033) — Login / Register ekranı. AUTH_ENABLED açıkken ve token yokken
  * App.jsx bunu gösterir. Başarıda onAuthed() ile uygulamaya geçilir.
  */
-export default function Login({ onAuthed }) {
+export default function Login({ onAuthed, initialError = null }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [kvkk, setKvkk] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(initialError);  // M17: OAuth hata mesajı
 
   const isRegister = mode === 'register';
 
@@ -94,6 +94,21 @@ export default function Login({ onAuthed }) {
             {isRegister ? 'Kayıt ol' : 'Giriş yap'}
           </button>
         </form>
+
+        {/* M17: OAuth sosyal giriş */}
+        <div className="flex items-center gap-2 text-xs text-zinc-500">
+          <span className="flex-1 h-px bg-zinc-700" /> veya <span className="flex-1 h-px bg-zinc-700" />
+        </div>
+        <div className="space-y-2">
+          <button type="button" onClick={() => authApi.oauthLogin('google')}
+            className="btn btn-secondary w-full justify-center">
+            <span aria-hidden="true">🔵</span> Google ile devam et
+          </button>
+          <button type="button" onClick={() => authApi.oauthLogin('github')}
+            className="btn btn-secondary w-full justify-center">
+            <span aria-hidden="true">⚫</span> GitHub ile devam et
+          </button>
+        </div>
 
         <div className="text-center text-xs text-zinc-400">
           {isRegister ? 'Zaten hesabın var mı? ' : 'Hesabın yok mu? '}

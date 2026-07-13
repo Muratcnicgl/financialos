@@ -400,3 +400,10 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | ADR-031 | Multi-asset karar D1(Beancount commodities/Maybe/yfinance/EVDS)+K10: tek-tablo asset_type, kapsam stock+gold+fx (Numeric 19,4), kripto Wave-4. STUB→KARAR | ADR | ✅ |
 | M12 | Account.asset_type + migration 697027467ca8 (native, investment→fund). yfinance_client + evds_client (EVDS_API_KEY, API_KEY_TALEP) + PriceSource.EVDS. fetch_for_account asset_type dispatch. **R3: yfinance Yahoo blok bu env'de → graceful None, canlı Murat'ta.** | 11 mock testi, canlı migrate (TLY→fund), 845 test | ✅ |
 | M12-frontend | Accounts asset-type seçici UI | Wave-4 follow-up (backend dispatch hazır) | ⏭️ Wave-4 |
+
+## Milestone 13 — Koç Sağlayıcı Ücretsiz (Wave-3, 2026-07-13)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| ADR-034 revize | 5+ ücretsiz sağlayıcı D1 + quality-per-cost matrisi. **R3: coach.py ZATEN 6 provider** (Anthropic/Gemini/Groq/Cerebras/OpenRouter/Ollama). Fallback sırası revize: Gemini→OpenRouter→Cerebras→Together→DeepInfra→Groq→Ollama | docs/architecture/adr-034-revize.md | ✅ |
+| M13 | TogetherProvider + DeepInfraProvider (_OpenAICompatMixin — Cerebras deseni, P2-12 küçük DRY adımı) + _build_together/_build_deepinfra + zincir revize. API_KEY_TALEP (Together/DeepInfra) | 6 test, canlı smoke Murat'ta (key gerekli) | ✅ |

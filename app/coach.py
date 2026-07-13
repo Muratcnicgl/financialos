@@ -1557,6 +1557,69 @@ class CerebrasProvider(LLMProvider):
 
 
 # ============================================================
+# 10b/c. TOGETHER + DEEPINFRA (M13/ADR-034 revize — OpenAI-uyumlu, Cerebras deseni)
+# ============================================================
+
+class _OpenAICompatMixin:
+    """OpenAI-uyumlu _raw_chat — Cerebras/OpenRouter/Together/DeepInfra ortak gövdesi.
+
+    Alt sınıf `NAME`, `DEFAULT_MODEL`, `BASE_URL` verir. Kod tekrarını azaltır
+    (P2-12 refactor'ının küçük bir adımı; mevcut Cerebras/OpenRouter korunur).
+    """
+    def _raw_chat(self, system_prompt, messages, tools):
+        oai_tools = [
+            {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["parameters"]}}
+            for t in tools
+        ]
+        oai_messages = [{"role": "system", "content": system_prompt}]
+        oai_messages.extend(_to_openai_messages(messages))
+        kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2, "max_tokens": 4096}
+        if oai_tools:
+            kwargs["tools"] = oai_tools
+            kwargs["tool_choice"] = "auto"
+        response = self.client.chat.completions.create(**kwargs)
+        msg = response.choices[0].message
+        text = msg.content or ""
+        tool_calls = []
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.function and tc.function.name:
+                    try:
+                        args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                    except Exception:
+                        args = {}
+                    tool_calls.append({"name": tc.function.name, "input": args})
+        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                           usage=_openai_compat_usage(response),
+                           provider_used=self.NAME.lower(), model_name=self.model)
+
+    def chat(self, system_prompt, messages, tools):
+        return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
+
+
+class TogetherProvider(_OpenAICompatMixin, LLMProvider):
+    NAME = "Together"
+    DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+    BASE_URL = "https://api.together.xyz/v1"
+
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        from openai import OpenAI
+        self.client = OpenAI(api_key=api_key, base_url=self.BASE_URL)
+        self.model = model or self.DEFAULT_MODEL
+
+
+class DeepInfraProvider(_OpenAICompatMixin, LLMProvider):
+    NAME = "DeepInfra"
+    DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
+    BASE_URL = "https://api.deepinfra.com/v1/openai"
+
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        from openai import OpenAI
+        self.client = OpenAI(api_key=api_key, base_url=self.BASE_URL)
+        self.model = model or self.DEFAULT_MODEL
+
+
+# ============================================================
 # 11. OPENROUTER PROVIDER (BUG #028)
 # ============================================================
 
@@ -1797,6 +1860,20 @@ def _build_openrouter() -> Optional[OpenRouterProvider]:
     return OpenRouterProvider(api_key=api_key)
 
 
+def _build_together() -> Optional[TogetherProvider]:
+    api_key = os.getenv("TOGETHER_API_KEY", "").strip()
+    if not api_key:
+        return None
+    return TogetherProvider(api_key=api_key, model=os.getenv("TOGETHER_MODEL") or None)
+
+
+def _build_deepinfra() -> Optional[DeepInfraProvider]:
+    api_key = os.getenv("DEEPINFRA_API_KEY", "").strip()
+    if not api_key:
+        return None
+    return DeepInfraProvider(api_key=api_key, model=os.getenv("DEEPINFRA_MODEL") or None)
+
+
 def _build_ollama() -> Optional[OllamaProvider]:
     """Yerel Ollama — SADECE acikca etkinlestirilmisse (OLLAMA_ENABLED/BASE_URL/MODEL).
     Aksi halde fallback zincirinde localhost'a beyhude baglanti denemesi yapmaz."""
@@ -1842,7 +1919,9 @@ def build_provider() -> LLMProvider:
         # DEVRİMSEL #2: zincirin SON halkasi yerel Ollama (egemen guvenlik agi) —
         # sadece acikca etkinse (OLLAMA_ENABLED/BASE_URL/MODEL) eklenir.
         chain = []
-        for builder in [_build_groq, _build_cerebras, _build_gemini, _build_openrouter, _build_ollama]:
+        # M13/ADR-034 revize sırası: Gemini → OpenRouter → Cerebras → Together → DeepInfra → Groq → Ollama
+        for builder in [_build_gemini, _build_openrouter, _build_cerebras,
+                        _build_together, _build_deepinfra, _build_groq, _build_ollama]:
             p = builder()
             if p:
                 chain.append(p)

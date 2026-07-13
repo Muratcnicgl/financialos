@@ -22,3 +22,14 @@ Goal boyunca eklenen, harici API key / kimlik gerektiren araçlar. Kod placehold
 
 **Not:** yfinance (hisse) key gerektirmez ama R3: bu ortamda Yahoo erişilemez — canlı
 doğrulama Murat'ın sunucusunda gerekli. BIST için İş Yatırım fallback + '.IS' suffix.
+
+## M13 — Koç ücretsiz sağlayıcılar (ADR-034 revize)
+
+| Kaynak | Amaç | Zorunlu/Ops. | Kayıt URL | .env değişkeni | Ücretsiz tier |
+|--------|------|--------------|-----------|----------------|---------------|
+| Together AI | Koç fallback (Llama/Qwen) | Opsiyonel | https://api.together.xyz | TOGETHER_API_KEY | free modeller |
+| DeepInfra | Koç fallback | Opsiyonel | https://deepinfra.com | DEEPINFRA_API_KEY | free tier |
+| OpenRouter | Koç ikincil (mevcut) | Opsiyonel | https://openrouter.ai/keys | OPENROUTER_API_KEY | ~50/gün |
+| Cerebras/Groq | Koç fallback (mevcut) | Opsiyonel | console.cerebras.ai / console.groq.com | CEREBRAS/GROQ_API_KEY | ücretsiz |
+
+**Not:** En az bir sağlayıcı (Gemini önerilir) yeterli; diğerleri fallback. Ollama yerel key'siz.

@@ -14,6 +14,7 @@ Saglik kontrolu:
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from fastapi import FastAPI
@@ -113,17 +114,25 @@ app = FastAPI(
 # CORS
 # ============================================================
 
+# W3-040 (SEC-003/MN-002): origin'ler artık env-driven (prod domain'i CORS_ORIGINS ile
+# verilir), dev default localhost. Methods/headers wildcard yerine açık liste —
+# allow_credentials=True ile wildcard origin zaten yasak; en az yetki ilkesi.
+_DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173,http://localhost:3000,"
+    "http://127.0.0.1:5173,http://127.0.0.1:3000"
+)
+_cors_origins = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 

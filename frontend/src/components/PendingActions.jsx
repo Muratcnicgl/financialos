@@ -19,8 +19,14 @@ import HorizonsModal from './HorizonsModal.jsx';
  */
 // BUG #044 fix: add_transaction payload'ını okunabilir tabloya çevir
 // Improvement #027: inline edit modu
+// W3-009: bozuk JSON payload tüm listeyi çökertmesin — güvenli parse
+function safeParsePayload(payload) {
+  if (typeof payload !== 'string') return payload || {};
+  try { return JSON.parse(payload); } catch { return {}; }
+}
+
 function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: setParentEditing, editRequestedAt = 0 }) {
-  const p = typeof payload === 'string' ? JSON.parse(payload) : payload;
+  const p = safeParsePayload(payload); // W3-009
   const todayISO = todayLocalISO();   // LOCAL bugün (UTC slice gece vardiyasında bir gün kayardı)
 
   const [editing, setEditing] = useState(false);
@@ -295,8 +301,7 @@ export default function PendingActions({ actions, onResolved, accounts }) {
                     editRequestedAt={editRequestTimes[aid] || 0}
                     setEditing={(val) => setEditingById(prev => ({ ...prev, [aid]: val }))}
                     onEdited={(updated) => {
-                      const p = typeof updated.payload === 'string'
-                        ? JSON.parse(updated.payload) : updated.payload;
+                      const p = safeParsePayload(updated.payload); // W3-009
                       setPayloadById(prev => ({ ...prev, [aid]: p }));
                     }}
                   />

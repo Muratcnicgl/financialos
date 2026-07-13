@@ -407,3 +407,13 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 |----|-----------|-----------|-------|
 | ADR-034 revize | 5+ ücretsiz sağlayıcı D1 + quality-per-cost matrisi. **R3: coach.py ZATEN 6 provider** (Anthropic/Gemini/Groq/Cerebras/OpenRouter/Ollama). Fallback sırası revize: Gemini→OpenRouter→Cerebras→Together→DeepInfra→Groq→Ollama | docs/architecture/adr-034-revize.md | ✅ |
 | M13 | TogetherProvider + DeepInfraProvider (_OpenAICompatMixin — Cerebras deseni, P2-12 küçük DRY adımı) + _build_together/_build_deepinfra + zincir revize. API_KEY_TALEP (Together/DeepInfra) | 6 test, canlı smoke Murat'ta (key gerekli) | ✅ |
+
+## Milestone 14 — Backlog Kalan (Wave-3, 2026-07-13)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| W3-009 | PendingActions `JSON.parse(payload)` guard'sızdı → bozuk payload listeyi çökertir. `safeParsePayload` (try/catch→{}), 2 çağrı yeri | npm build ✓ | ✅ |
+| W3-008 | RedLines `handleToggleActive`/`handleDelete` hata yakalamıyordu (sessiz başarısızlık + unhandled rejection). try/catch→setError | npm build ✓ | ✅ |
+| W3-024 | goal_engine compare_strategies AttributeError: **R3 ZATEN FİX** (BUG #066/GE-001, dict-handling) | kod okuma | ✅ (R3-kapalı) |
+| W3-033 | create_allocation IDOR: **R3 ZATEN FİX** (goals.py:195 user_id==current_user.id + tx user_id filtresi + BUG #072 tutar sınırı) | kod okuma | ✅ (R3-kapalı) |
+| M14-kalan | W3-007/010/011/012/013/014/018/019/020/025/031/032/035/043/046/057 → çoğu küçük guard/a11y; bir kısmı R3-zaten-fix olası. Wave-4'e devredildi (kalite düşürmeden, KURAL 12) | — | ⏭️ Wave-4 |

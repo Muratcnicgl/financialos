@@ -119,14 +119,25 @@ export default function RedLines() {
   };
 
   const handleToggleActive = async (cp) => {
-    await checkpointsApi.update(cp.id, { is_active: !cp.is_active });
-    handleRefresh();
+    // W3-008: hata yakalanmalı — aksi halde sessiz başarısızlık + unhandled rejection
+    try {
+      setError(null);
+      await checkpointsApi.update(cp.id, { is_active: !cp.is_active });
+      handleRefresh();
+    } catch (e) {
+      setError(e.message || 'Durum değiştirilemedi');
+    }
   };
 
   const handleDelete = async () => {
-    await checkpointsApi.delete(confirmDelete.id);
-    setConfirmDelete(null);
-    handleRefresh();
+    try {
+      setError(null);
+      await checkpointsApi.delete(confirmDelete.id);
+      setConfirmDelete(null);
+      handleRefresh();
+    } catch (e) {
+      setError(e.message || 'Silinemedi');
+    }
   };
 
   // ============================================================

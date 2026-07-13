@@ -114,7 +114,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
     user = User(
         email=email,
         password_hash=_auth.hash_password(body.password),
-        name=body.name,
+        name=body.name or email.split("@")[0],  # name NOT NULL → e-posta local-part default
         kvkk_consent_at=datetime.now(timezone.utc).replace(tzinfo=None),
         kvkk_consent_version=KVKK_CONSENT_VERSION,
         is_active=True,

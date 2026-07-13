@@ -20,19 +20,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # M11 (ADR-033): User auth alanları + revoked_tokens (logout blacklist).
-    with op.batch_alter_table("users") as batch_op:
-        batch_op.add_column(sa.Column("email", sa.String(length=255), nullable=True))
-        batch_op.add_column(sa.Column("password_hash", sa.String(length=255), nullable=True))
-        batch_op.add_column(sa.Column("oauth_provider", sa.String(length=20), nullable=True))
-        batch_op.add_column(sa.Column("oauth_sub", sa.String(length=255), nullable=True))
-        batch_op.add_column(sa.Column("kvkk_consent_at", sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column("kvkk_consent_version", sa.String(length=20), nullable=True))
-        batch_op.add_column(
-            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1"))
-        )
-        # name artık nullable (OAuth kullanıcı) — SQLite batch ile yeniden oluşturur
-        batch_op.alter_column("name", existing_type=sa.String(length=100), nullable=True)
-        batch_op.create_index("ix_users_email", ["email"], unique=True)
+    # NATIVE ADD COLUMN (batch DEĞİL): `users` tablosuna çok sayıda inbound FK var
+    # (accounts/transactions/... .user_id). batch_alter_table table-recreate yapar →
+    # foreign_keys=ON (BUG #060) altında DROP TABLE users FK ihlaliyle kırılır.
+    # SQLite native ALTER TABLE ADD COLUMN recreate yapmaz, güvenli.
+    op.add_column("users", sa.Column("email", sa.String(length=255), nullable=True))
+    op.add_column("users", sa.Column("password_hash", sa.String(length=255), nullable=True))
+    op.add_column("users", sa.Column("oauth_provider", sa.String(length=20), nullable=True))
+    op.add_column("users", sa.Column("oauth_sub", sa.String(length=255), nullable=True))
+    op.add_column("users", sa.Column("kvkk_consent_at", sa.DateTime(), nullable=True))
+    op.add_column("users", sa.Column("kvkk_consent_version", sa.String(length=20), nullable=True))
+    op.add_column(
+        "users",
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+    )
+    op.create_index("ix_users_email", "users", ["email"], unique=True)
 
     op.create_table(
         "revoked_tokens",
@@ -47,12 +49,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("revoked_tokens")
-    with op.batch_alter_table("users") as batch_op:
-        batch_op.drop_index("ix_users_email")
-        batch_op.drop_column("is_active")
-        batch_op.drop_column("kvkk_consent_version")
-        batch_op.drop_column("kvkk_consent_at")
-        batch_op.drop_column("oauth_sub")
-        batch_op.drop_column("oauth_provider")
-        batch_op.drop_column("password_hash")
-        batch_op.drop_column("email")
+    op.drop_index("ix_users_email", table_name="users")
+    for col in ("is_active", "kvkk_consent_version", "kvkk_consent_at",
+                "oauth_sub", "oauth_provider", "password_hash", "email"):
+        op.drop_column("users", col)

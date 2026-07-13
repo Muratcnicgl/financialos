@@ -119,7 +119,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=True)  # M11: OAuth kullanıcıda başta boş olabilir
+    name = Column(String(100), nullable=False)  # register'da e-posta local-part'ından türetilir
     # M11 (ADR-033) auth alanları — hepsi nullable (mevcut tek-kullanıcı + OAuth uyumu)
     email = Column(String(255), unique=True, nullable=True, index=True)
     password_hash = Column(String(255), nullable=True)      # OAuth-only kullanıcıda None

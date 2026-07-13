@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart } from 'lucide-react';
+import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { debtStrategyApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 
@@ -247,14 +247,19 @@ export default function DebtStrategy() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null); // W3-005: hata ≠ boş ayrımı
 
   const fetchData = async (extra) => {
     try {
       const isInitial = data === null;
       isInitial ? setLoading(true) : setRefreshing(true);
+      setError(null);
       const res = await debtStrategyApi.compare({ extraMonthly: extra });
       setData(res);
     } catch (e) {
+      // W3-005: hatada data'yı null bırakma → "Aktif borç yok" yanlış mesajı yerine
+      // gerçek hata ekranı göster (mevcut data varsa korunur, yalnız toast).
+      setError(e.message || 'Bilinmeyen hata');
       toast.error(`Borç stratejisi yüklenemedi: ${e.message}`);
     } finally {
       setLoading(false);
@@ -275,6 +280,20 @@ export default function DebtStrategy() {
     return (
       <div className="flex items-center justify-center h-64 text-zinc-400">
         <Loader2 className="w-6 h-6 animate-spin mr-2" /> Yükleniyor…
+      </div>
+    );
+  }
+
+  // W3-005: veri yükleneMEDİ (hata) → boş-durum DEĞİL, hata ekranı + tekrar dene
+  if (error && !data) {
+    return (
+      <div className="card p-8 text-center">
+        <AlertTriangle className="w-10 h-10 mx-auto text-warn-400 mb-3" />
+        <h3 className="text-lg text-zinc-200 mb-1">Borç stratejisi yüklenemedi</h3>
+        <p className="text-sm text-zinc-400 mb-4">{error}</p>
+        <button onClick={() => fetchData(extraMonthly)} className="btn btn-secondary !text-xs">
+          <RefreshCw className="w-3.5 h-3.5" /> Tekrar dene
+        </button>
       </div>
     );
   }
@@ -329,6 +348,7 @@ export default function DebtStrategy() {
           onChange={(e) => setExtraMonthly(Number(e.target.value))}
           onMouseUp={handleExtraCommit}
           onTouchEnd={handleExtraCommit}
+          onKeyUp={handleExtraCommit}
           className="w-full accent-brand-500"
         />
         <div className="flex justify-between text-xs text-zinc-500 mt-1">

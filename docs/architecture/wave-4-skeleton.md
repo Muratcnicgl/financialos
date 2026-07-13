@@ -54,3 +54,9 @@ Kaynak: `docs/kalite-seruveni/env-denetim-rapor-14tem.md` (14 Tem 2026 env denet
 - **CORS whitelist** production (Wave-3'te env-driven yapıldı, W3-040; prod domain zorunlu kıl).
 - **HTTPS enforce middleware** (reverse-proxy dışında app-katmanı redirect, ADR-035 Caddy tamamlayıcı).
 - **SMTP gönderen doğrulama** (env raporu: raw gmail SMTP_FROM → Brevo verified-sender/SPF/DKIM gerekli).
+
+### 10. OAuth Frontend UI (M11 backend hazır)
+- Login.jsx'e "Google ile giriş" + "GitHub ile giriş" butonları (→ `/api/auth/oauth/{provider}/login`).
+- `/auth/oauth-success` sayfası: URL'den access_token+refresh_token okur, `setTokens()`, uygulamaya yönlendirir.
+- `/auth/reset` sayfası (M11 SMTP şifre sıfırlama linkini tüketen — backend hazır, UI eksik).
+- Not: token'lar şu an URL query'de (MVP); Wave-4'te httpOnly cookie güvenlik iyileştirmesi.

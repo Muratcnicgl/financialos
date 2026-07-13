@@ -17,13 +17,14 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import jwt as _jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app import auth as _auth
 from app.dependencies import get_db, get_current_user
 from app.models import User, RevokedToken
+from app.services.email import send_password_reset_email, smtp_configured
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 users_router = APIRouter(prefix="/api/users", tags=["users"])
@@ -177,7 +178,10 @@ def me(user: User = Depends(get_current_user)) -> User:
 
 @router.post("/password-reset-request")
 def password_reset_request(
-    body: PasswordResetRequestIn, request: Request, db: Session = Depends(get_db)
+    body: PasswordResetRequestIn,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ) -> dict:
     _rate_limit(request, "pwreset")
     email = body.email.lower().strip()
@@ -187,11 +191,13 @@ def password_reset_request(
     if not user or not user.password_hash:
         return generic
     token = _auth.create_password_reset_token(user.id)
-    # API_KEY_TALEP: SMTP (Brevo/Sendgrid) yapılandırılınca e-posta gönderilir.
-    # Şimdilik SMTP yoksa dev modda token log'a/response'a döner (yalnız AUTH_ENABLED kapalıyken).
-    if os.getenv("SMTP_HOST"):
-        _send_reset_email(email, token)  # scaffold
+    frontend = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    reset_link = f"{frontend}/auth/reset?token={token}"
+    # SMTP yapılandırılmışsa GERÇEK gönderim (BackgroundTasks — istek bloklanmaz).
+    if smtp_configured():
+        background_tasks.add_task(send_password_reset_email, email, reset_link)
         return generic
+    # SMTP yoksa dev modda token döner (yalnız non-prod kolaylığı).
     return {**generic, "_dev_token": token, "_note": "SMTP tanımsız — dev token (prod'da gösterilmez)."}
 
 
@@ -255,8 +261,3 @@ def _issue_tokens(user_id: int) -> TokenOut:
     return TokenOut(access_token=access, refresh_token=refresh_token)
 
 
-def _send_reset_email(email: str, token: str) -> None:
-    """SMTP scaffold — API_KEY_TALEP: SMTP_HOST/USER/PASS/FROM (Brevo/Sendgrid free tier)."""
-    # Tam implementasyon SMTP env'leri gelince (smtplib veya provider SDK).
-    import logging
-    logging.getLogger(__name__).info("[auth] şifre sıfırlama e-postası (scaffold) → %s", email)

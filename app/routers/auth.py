@@ -17,7 +17,10 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import jwt as _jwt
+import logging
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
@@ -25,6 +28,9 @@ from app import auth as _auth
 from app.dependencies import get_db, get_current_user
 from app.models import User, RevokedToken
 from app.services.email import send_password_reset_email, smtp_configured
+from app.services import oauth as _oauth
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 users_router = APIRouter(prefix="/api/users", tags=["users"])
@@ -215,25 +221,78 @@ def password_reset_confirm(body: PasswordResetConfirmIn, db: Session = Depends(g
     return {"message": "Şifre güncellendi."}
 
 
-# --- OAuth (scaffold — API_KEY_TALEP: Google/GitHub client_id+secret) ---
-
-_OAUTH_PROVIDERS = ("google", "github", "apple")
-
+# --- OAuth (Google + GitHub — gerçek akış, ADR-033) ---
 
 @router.get("/oauth/{provider}/login")
-def oauth_login(provider: str) -> dict:
-    if provider not in _OAUTH_PROVIDERS:
-        raise HTTPException(404, f"Bilinmeyen sağlayıcı. Desteklenen: {_OAUTH_PROVIDERS}")
-    client_id = os.getenv(f"OAUTH_{provider.upper()}_CLIENT_ID")
-    if not client_id:
-        # API_KEY_TALEP: OAUTH_<PROVIDER>_CLIENT_ID / _SECRET yapılandırılmalı
+def oauth_login(provider: str):
+    """Kullanıcıyı sağlayıcı (Google/GitHub) onay ekranına yönlendirir (307)."""
+    provider = provider.lower()
+    if provider not in _oauth.SUPPORTED:
+        raise HTTPException(404, f"Desteklenen sağlayıcılar: {_oauth.SUPPORTED}")
+    if not _oauth.provider_configured(provider):
         raise HTTPException(
             501,
-            f"{provider} OAuth yapılandırılmamış (OAUTH_{provider.upper()}_CLIENT_ID gerekli). "
+            f"{provider} OAuth yapılandırılmamış (OAUTH_{provider.upper()}_CLIENT_ID/SECRET gerekli). "
             f"docs/api-key-talep-wave3.md'ye bakın.",
         )
-    # authlib akışı burada başlar (yetki URL'ine redirect). Tam akış API key gelince.
-    raise HTTPException(501, f"{provider} OAuth akışı API key sonrası aktifleşir (scaffold).")
+    state = _oauth.new_state()
+    return RedirectResponse(_oauth.get_auth_url(provider, state), status_code=307)
+
+
+@router.get("/callback/{provider}")
+def oauth_callback(
+    provider: str,
+    code: str = "",
+    state: str = "",
+    db: Session = Depends(get_db),
+):
+    """Sağlayıcı callback'i: code→token→userinfo, user create/login, JWT + frontend redirect."""
+    provider = provider.lower()
+    if provider not in _oauth.SUPPORTED:
+        raise HTTPException(404, "Bilinmeyen sağlayıcı.")
+    if not code or not state:
+        raise HTTPException(400, "code veya state eksik.")
+    if not _oauth.consume_state(state):
+        raise HTTPException(400, "Geçersiz veya süresi geçmiş state (CSRF koruması).")
+    try:
+        info = _oauth.exchange_code(provider, code)
+    except Exception as e:  # noqa: BLE001 — dış OAuth hatası → 400
+        logger.warning("[oauth] %s code exchange başarısız: %s", provider, e)
+        raise HTTPException(400, f"OAuth doğrulama başarısız: {e}")
+
+    email = info["email"]
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        if not user.is_active:
+            raise HTTPException(403, "Hesap pasif.")
+        # İlk OAuth girişinde mevcut hesaba sağlayıcıyı bağla
+        if not user.oauth_provider:
+            user.oauth_provider = info["provider"]
+            user.oauth_sub = info["sub"]
+            db.commit()
+    else:
+        # Yeni OAuth kullanıcısı (şifresiz). KVKK: OAuth onayıyla açık rıza kaydı.
+        user = User(
+            email=email,
+            name=info.get("name") or email.split("@")[0],
+            oauth_provider=info["provider"],
+            oauth_sub=info["sub"],
+            password_hash=None,
+            kvkk_consent_at=now,
+            kvkk_consent_version=KVKK_CONSENT_VERSION,
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    logger.info("[oauth] login success provider=%s user_id=%s email=%s", provider, user.id, email)
+    tokens = _issue_tokens(user.id)
+    frontend = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    dest = (f"{frontend}/auth/oauth-success"
+            f"?access_token={tokens.access_token}&refresh_token={tokens.refresh_token}")
+    return RedirectResponse(dest, status_code=307)
 
 
 # --- KVKK (silme + export) ---

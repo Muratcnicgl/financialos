@@ -1,0 +1,138 @@
+"""
+M11 (ADR-033) — OAuth (Google + GitHub) sosyal giriş. scaffold → gerçek akış (14 Tem 2026).
+
+Karar (K10): Authlib `OAuth2Session` (requests-tabanlı, sync — router sync deseniyle uyumlu,
+SessionMiddleware gerektirmez). State kendi elimizde (in-memory dict, 10 dk expiry) →
+deterministik, ADR-001 ruhu (LLM yok, saf protokol). Token exchange + userinfo Authlib içinde.
+
+Wave-4: state store Redis'e taşınır (çok-instance için). Şimdilik tek-process in-memory yeterli.
+"""
+from __future__ import annotations
+
+import os
+import secrets
+import time
+from typing import Optional
+
+from authlib.integrations.requests_client import OAuth2Session
+
+# provider → endpoint + scope + env anahtarları
+_PROVIDERS = {
+    "google": {
+        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "userinfo_url": "https://openidconnect.googleapis.com/v1/userinfo",
+        "scope": "openid email profile",
+        "cid_env": "OAUTH_GOOGLE_CLIENT_ID",
+        "secret_env": "OAUTH_GOOGLE_CLIENT_SECRET",
+    },
+    "github": {
+        "authorize_url": "https://github.com/login/oauth/authorize",
+        "token_url": "https://github.com/login/oauth/access_token",
+        "userinfo_url": "https://api.github.com/user",
+        "emails_url": "https://api.github.com/user/emails",
+        "scope": "read:user user:email",
+        "cid_env": "OAUTH_GITHUB_CLIENT_ID",
+        "secret_env": "OAUTH_GITHUB_CLIENT_SECRET",
+    },
+}
+
+SUPPORTED = tuple(_PROVIDERS.keys())
+
+# state → oluşturma zamanı (10 dk expiry). CSRF + callback eşleştirme.
+_STATE_TTL = 600
+_states: dict[str, float] = {}
+
+
+def _creds(provider: str):
+    p = _PROVIDERS[provider]
+    return os.getenv(p["cid_env"], "").strip(), os.getenv(p["secret_env"], "").strip()
+
+
+def provider_configured(provider: str) -> bool:
+    if provider not in _PROVIDERS:
+        return False
+    cid, secret = _creds(provider)
+    return bool(cid and secret)
+
+
+def redirect_uri(provider: str) -> str:
+    """Google/GitHub konsolunda kayıtlı callback (varsayılan localhost:8000)."""
+    base = os.getenv("OAUTH_REDIRECT_BASE", "http://localhost:8000").rstrip("/")
+    return f"{base}/api/auth/callback/{provider}"
+
+
+def new_state() -> str:
+    _prune_states()
+    state = secrets.token_urlsafe(24)
+    _states[state] = time.time()
+    return state
+
+
+def consume_state(state: str) -> bool:
+    """State geçerli + süresi dolmamışsa True döner ve tek-kullanımlık tüketir."""
+    _prune_states()
+    ts = _states.pop(state, None)
+    return ts is not None and (time.time() - ts) <= _STATE_TTL
+
+
+def _prune_states() -> None:
+    now = time.time()
+    for s in [s for s, ts in _states.items() if now - ts > _STATE_TTL]:
+        _states.pop(s, None)
+
+
+def get_auth_url(provider: str, state: str) -> str:
+    """Kullanıcının yönlendirileceği sağlayıcı yetkilendirme URL'i."""
+    p = _PROVIDERS[provider]
+    cid, secret = _creds(provider)
+    sess = OAuth2Session(cid, secret, scope=p["scope"], redirect_uri=redirect_uri(provider))
+    kwargs = {}
+    if provider == "google":
+        kwargs = {"access_type": "offline", "prompt": "consent"}
+    uri, _ = sess.create_authorization_url(p["authorize_url"], state=state, **kwargs)
+    return uri
+
+
+def exchange_code(provider: str, code: str) -> dict:
+    """code → token → userinfo. Normalize dict döner: {provider, sub, email, name}.
+
+    Hata → ValueError (router 400'e çevirir). E-posta bulunamazsa ValueError.
+    """
+    p = _PROVIDERS[provider]
+    cid, secret = _creds(provider)
+    sess = OAuth2Session(cid, secret, redirect_uri=redirect_uri(provider))
+    # GitHub token endpoint varsayılan form-encoded döner → JSON iste
+    token = sess.fetch_token(
+        p["token_url"],
+        code=code,
+        grant_type="authorization_code",
+        headers={"Accept": "application/json"},
+    )
+    if not token or not token.get("access_token"):
+        raise ValueError(f"{provider}: access_token alınamadı")
+
+    if provider == "google":
+        info = sess.get(p["userinfo_url"], headers={"Accept": "application/json"}).json()
+        email = (info.get("email") or "").lower().strip()
+        if not email or not info.get("email_verified", True):
+            raise ValueError("Google: doğrulanmış e-posta alınamadı")
+        return {"provider": "google", "sub": str(info.get("sub")), "email": email,
+                "name": info.get("name") or info.get("given_name")}
+
+    # github
+    info = sess.get(p["userinfo_url"], headers={"Accept": "application/vnd.github+json"}).json()
+    email = (info.get("email") or "").lower().strip()
+    if not email:
+        # E-posta gizliyse /user/emails'ten birincil doğrulanmışı al
+        emails = sess.get(p["emails_url"], headers={"Accept": "application/vnd.github+json"}).json()
+        if isinstance(emails, list):
+            primary = next((e for e in emails if e.get("primary") and e.get("verified")), None)
+            verified = next((e for e in emails if e.get("verified")), None)
+            chosen = primary or verified
+            if chosen:
+                email = (chosen.get("email") or "").lower().strip()
+    if not email:
+        raise ValueError("GitHub: doğrulanmış e-posta alınamadı (user:email izni gerekli)")
+    return {"provider": "github", "sub": str(info.get("id")), "email": email,
+            "name": info.get("name") or info.get("login")}

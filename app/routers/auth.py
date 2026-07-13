@@ -37,26 +37,9 @@ users_router = APIRouter(prefix="/api/users", tags=["users"])
 
 KVKK_CONSENT_VERSION = "v1"
 
-# --- Basit in-memory rate limiter (W3-041): per-IP sliding window ---
-_RATE: dict[str, deque] = defaultdict(deque)
-
-
-def _rate_limit(request: Request, bucket: str) -> None:
-    # Env'i call-time'da oku (test/runtime yapılandırması modül import sırasına bağlı olmasın)
-    rate_max = int(os.getenv("AUTH_RATE_MAX", "10"))       # pencere başına istek
-    rate_window = int(os.getenv("AUTH_RATE_WINDOW", "60"))  # saniye
-    ip = request.client.host if request.client else "unknown"
-    key = f"{bucket}:{ip}"
-    now = time.monotonic()
-    q = _RATE[key]
-    while q and now - q[0] > rate_window:
-        q.popleft()
-    if len(q) >= rate_max:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Çok fazla deneme. Bir dakika sonra tekrar deneyin.",
-        )
-    q.append(now)
+# M21: rate limiter app/rate_limit.py'a taşındı (per-bucket production değerleri).
+# _rate_limit/_RATE alias'ları test uyumu için korunur (auth_mod._RATE.clear()).
+from app.rate_limit import rate_limit as _rate_limit, _RATE  # noqa: E402,F401
 
 
 # --- Şemalar ---
@@ -224,8 +207,9 @@ def password_reset_confirm(body: PasswordResetConfirmIn, db: Session = Depends(g
 # --- OAuth (Google + GitHub — gerçek akış, ADR-033) ---
 
 @router.get("/oauth/{provider}/login")
-def oauth_login(provider: str):
+def oauth_login(provider: str, request: Request):
     """Kullanıcıyı sağlayıcı (Google/GitHub) onay ekranına yönlendirir (307)."""
+    _rate_limit(request, "oauth")  # M21: 10/dk
     provider = provider.lower()
     if provider not in _oauth.SUPPORTED:
         raise HTTPException(404, f"Desteklenen sağlayıcılar: {_oauth.SUPPORTED}")

@@ -392,3 +392,11 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M11-kvkk | docs/legal/kvkk-consent-v1.md (KVKK m.4/7/11) + register açık rıza (kvkk_consent_at/version) + DELETE /api/users/me cascade + GET export | test_kvkk_delete/export | ✅ |
 | W3-041 | Rate limiting (M9'dan taşındı): auth endpoint'lerde in-memory per-IP sliding window (brute-force) | test_rate_limit_login | ✅ |
 | API_KEY_TALEP | OAuth Google/GitHub/Apple + SMTP Brevo (docs/api-key-talep-wave3.md) | scaffold + placeholder | ⏳ Murat |
+
+## Milestone 12 — Multi-asset (Wave-3, 2026-07-13)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| ADR-031 | Multi-asset karar D1(Beancount commodities/Maybe/yfinance/EVDS)+K10: tek-tablo asset_type, kapsam stock+gold+fx (Numeric 19,4), kripto Wave-4. STUB→KARAR | ADR | ✅ |
+| M12 | Account.asset_type + migration 697027467ca8 (native, investment→fund). yfinance_client + evds_client (EVDS_API_KEY, API_KEY_TALEP) + PriceSource.EVDS. fetch_for_account asset_type dispatch. **R3: yfinance Yahoo blok bu env'de → graceful None, canlı Murat'ta.** | 11 mock testi, canlı migrate (TLY→fund), 845 test | ✅ |
+| M12-frontend | Accounts asset-type seçici UI | Wave-4 follow-up (backend dispatch hazır) | ⏭️ Wave-4 |

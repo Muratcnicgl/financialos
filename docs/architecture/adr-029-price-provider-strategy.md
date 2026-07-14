@@ -25,3 +25,17 @@ BIST/altın/döviz eklendiğinde (Wave-3 multi-asset, ADR-031) stock/fx sağlay�
 
 ## Doğrulama
 Canlı: `fetch_investment_prices_job` → TLY=7277.90 (pytefas/tefas), 2/2 hesap current_price güncellendi (stale 4929→7277), PriceHistory'ye satır (TLY 2026-07-12 tefas). Cache tek çağrıya indirdi.
+
+## Revize (14 Tem 2026) — EVDS v2 → v3 geçişi (M19 regression fix)
+TCMB EVDS **v3'e taşındı**; eski `evds2.tcmb.gov.tr/service/evds/` 405/SPA döndürüyordu.
+- **Base URL:** `https://evds3.tcmb.gov.tr/igmevdsms-dis` (v2 deprecated ~May 2026).
+- **Format:** `{base}/series=<KOD-KOD>&startDate=<gg-aa-yyyy>&endDate=<gg-aa-yyyy>&type=json`
+  (series PATH'e gömülü, çoklu seri tire ile).
+- **Auth:** HTTP header `{"key": EVDS_API_KEY}` (query-param DEĞİL; iletmeyene 403).
+- **Seri kodları KORUNDU:** TP.DK.USD.A/.S (döviz alış/satış), TP.MK.F.BILESIK.TUM (altın bileşik-fon endeksi).
+- **Response:** noktalar `_` olur (TP.DK.USD.A → TP_DK_USD_A); değer string/null (hafta sonu).
+- **Kanıt (canlı 14 Tem):** USD alış 46.9121 / satış 46.9966 (14-07-2026). ✅
+- **R3 not:** `TP.MK.F.BILESIK.TUM` bileşik-fon endeksi (73804) döner — **gram-altın-TL değil**;
+  gram-gold ayrı seri gerektirir (Wave-4).
+- Kod: `app/price_providers/evds_client.py` (fetch_series/fetch_currency_rate/fetch_gold_price +
+  get_evds_price compat). Kaynak: EVDS Web Servis + Python Kılavuzu PDF (Murat 14 Tem).

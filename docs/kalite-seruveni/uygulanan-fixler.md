@@ -442,3 +442,9 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 | M31 | TR number locale denetimi: parseTRNumber 20 (text-input W3-001), Number() yalnız number/range-input (tarayıcı "." → doğru), parseFloat yalnız backend-değer, formatTL 19 dosya. Edge-case'ler W3-001 testli. 3 raw toLocaleString display-tutarlılık (Wave-4). Kritik TR-locale bug: 0. Rapor tr-locale-audit.md | R3 tarama | ✅ |
 | M32 | Wave-4 skeleton detay: BUG #157 kapandı-işaretlendi (M16), mobil (ADR-032)/aile hesabı/kripto Numeric(28,8)/PostgreSQL+RLS/OHVPS/Sentry/design-system detaylandı. **Google OAuth "External Test" 100-limit + unverified uyarısı BUG olarak eklendi** (Wave-4 publish/doğrulama). Kalan küçük Wave-4 listesi | wave-4-skeleton.md (112 satır) | ✅ |
 | M33 | Wave-3-Tamamlama kapanış: 20 milestone (18 planlı M16-M32 + 2 otonom M34/M35), 897 backend + 33 vitest, TOTAL %87. Durma kriteri KARŞILANDI: kapatılabilir kritik/orta açık iş 0. PROJE.md baseline + milestone-log kapanış tablosu | git senkron | ✅ GOAL TAMAM |
+
+## M19-v3 EVDS Regression Fix (2026-07-14)
+
+| ID | Değişiklik | Doğrulama | Durum |
+|----|-----------|-----------|-------|
+| M19-v3 / EVDS regression | EVDS v2→v3 geçişi: evds_client.py base `evds3.tcmb.gov.tr/igmevdsms-dis`, series PATH'e gömülü, header `{"key":...}` auth. fetch_series/fetch_currency_rate(buy+sell)/fetch_gold_price + get_evds_price compat. prices.py buy/sell response + date param. Scheduler otomatik v3 (get_evds_price). ADR-029 revize. **CANLI: USD 46.9121/46.9966 (14 Tem) 200 ✓.** R3: altın TP.MK.F.BILESIK.TUM bileşik-endeks (gram değil, Wave-4) | 7 endpoint testi + canlı curl 200 | ✅ |

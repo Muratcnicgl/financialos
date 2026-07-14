@@ -1,52 +1,62 @@
 """
-M19 (ADR-031) — Fiyat sorgulama HTTP endpoint'leri (TCMB EVDS döviz + altın).
+M19-v3 (ADR-029 revize) — Fiyat sorgulama HTTP endpoint'leri (TCMB EVDS v3 döviz + altın).
 
-R3 (14 Tem 2026): EVDS `evds2.tcmb.gov.tr/service/evds/` şu an SPA HTML döndürüyor
-(API endpoint taşınmış/erişilemez — M12 yfinance durumunun tekrarı). Kod doğru-yapılı;
-canlı fiyat gelene kadar `get_evds_price` None döner → endpoint 502 (net mesaj).
-Doğru EVDS endpoint/key doğrulaması Murat'ın ortamında.
+R3 (14 Tem 2026): EVDS v3 geçişi (M19 regression fix) — evds2→evds3 canlı doğrulandı
+(USD alış 46.91 / satış 47.00, 14 Tem). Döviz kusursuz. Altın `TP.MK.F.BILESIK.TUM`
+TCMB **bileşik-fon endeksi** döner (gram-altın-TL değil; charter/PDF örnek serisi).
 
-Endpoint'ler PUBLIC (piyasa verisi, auth yok). Scheduler zaten fx/gold hesaplarını
-`fetch_for_account` dispatch'i ile çeker (M12); bunlar on-demand sorgu içindir.
+Endpoint'ler PUBLIC (piyasa verisi, auth yok). Scheduler fx/gold hesaplarını
+`fetch_for_account` dispatch'i ile çeker (M12).
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from datetime import date, datetime
+from typing import Optional
 
-from app.price_providers.evds_client import get_evds_price
+from fastapi import APIRouter, HTTPException, Query
+
+from app.price_providers.evds_client import fetch_currency_rate, fetch_gold_price
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
 
-# Altın türü → EVDS sembolü (evds_client._SERIES ile uyumlu)
-_GOLD_SYMBOLS = {
-    "gram": "XAU", "gram_altin": "XAU", "gramaltin": "XAU",
-    "xau": "XAU", "gold": "GOLD", "altin": "XAU",
-}
+
+def _parse_date(d: Optional[str]) -> Optional[date]:
+    if not d:
+        return None
+    try:
+        return datetime.strptime(d, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(422, "date formatı YYYY-MM-DD olmalı.")
 
 
 @router.get("/currency/{currency_code}")
-def currency_price(currency_code: str) -> dict:
-    """Döviz kuru (TCMB EVDS). Örn: /api/prices/currency/USD → USD/TRY."""
-    code = currency_code.upper().strip()
-    symbol = code if code.endswith("TRY") else f"{code}TRY"
-    price = get_evds_price(symbol)
-    if price is None:
+def currency_price(currency_code: str, date_str: Optional[str] = Query(None, alias="date")) -> dict:
+    """Döviz kuru alış+satış (TCMB EVDS v3). Örn: /api/prices/currency/USD."""
+    target = _parse_date(date_str)
+    rate = fetch_currency_rate(currency_code, target)
+    if not rate or (rate.get("buy") is None and rate.get("sell") is None):
         raise HTTPException(
             status_code=502,
-            detail=(f"{code} kuru alınamadı (EVDS erişilemedi veya seri tanımsız). "
+            detail=(f"{currency_code.upper()} kuru alınamadı (EVDS erişilemedi veya seri yok). "
                     f"EVDS_API_KEY + endpoint yapılandırmasını kontrol edin."),
         )
-    return {"currency": code, "rate": str(price), "source": "TCMB_EVDS"}
+    return {
+        "currency": currency_code.upper().replace("TRY", "") or currency_code.upper(),
+        "rate_buy": str(rate["buy"]) if rate.get("buy") is not None else None,
+        "rate_sell": str(rate["sell"]) if rate.get("sell") is not None else None,
+        "date": rate["date"],
+        "source": rate["source"],
+    }
 
 
 @router.get("/gold/{gold_type}")
-def gold_price(gold_type: str) -> dict:
-    """Altın fiyatı (TCMB EVDS). Örn: /api/prices/gold/gram."""
-    symbol = _GOLD_SYMBOLS.get(gold_type.lower().strip(), "XAU")
-    price = get_evds_price(symbol)
-    if price is None:
-        raise HTTPException(
-            status_code=502,
-            detail="Altın fiyatı alınamadı (EVDS erişilemedi). EVDS yapılandırmasını kontrol edin.",
-        )
-    return {"type": gold_type, "price": str(price), "source": "TCMB_EVDS"}
+def gold_price(gold_type: str, date_str: Optional[str] = Query(None, alias="date")) -> dict:
+    """Altın fiyatı (TCMB EVDS v3 bileşik-fon endeksi). Örn: /api/prices/gold/bilesik.
+
+    NOT: TP.MK.F.BILESIK.TUM TCMB bileşik-fon endeksidir (gram-altın-TL değil).
+    """
+    target = _parse_date(date_str)
+    g = fetch_gold_price(gold_type, target)
+    if not g:
+        raise HTTPException(502, "Altın fiyatı alınamadı (EVDS erişilemedi). Yapılandırmayı kontrol edin.")
+    return {"type": gold_type, "price": str(g["price"]), "date": g["date"], "source": g["source"]}

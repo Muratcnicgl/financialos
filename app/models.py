@@ -111,6 +111,17 @@ class OperationName(str, enum.Enum):
     FINAL_ANSWER = "final_answer"
 
 
+class WorkspaceRole(str, enum.Enum):
+    """M40 (ADR-036): workspace üyelik rolü. owner > editor > viewer.
+
+    owner: her şey (üye davet/çıkar, workspace sil). editor: finansal veri
+    ekle/değiştir (davet/silme yok). viewer: yalnız okuma (asla yazamaz).
+    """
+    owner = "owner"
+    editor = "editor"
+    viewer = "viewer"
+
+
 # ============================================================
 # ANA TABLOLAR (8)
 # ============================================================
@@ -148,6 +159,15 @@ class User(Base):
     decision_journal_entries = relationship(
         "DecisionJournal", back_populates="user", cascade="all, delete-orphan"
     )
+    # M40 (ADR-036): sahip olunan workspace'ler + üyelikler — KVKK silme cascade eder
+    owned_workspaces = relationship(
+        "Workspace", foreign_keys="Workspace.owner_user_id",
+        back_populates="owner", cascade="all, delete-orphan"
+    )
+    workspace_memberships = relationship(
+        "WorkspaceMembership", foreign_keys="WorkspaceMembership.user_id",
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Account(Base):
@@ -155,6 +175,7 @@ class Account(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
     account_type = Column(SQLEnum(AccountType), nullable=False)
 
@@ -201,6 +222,7 @@ class RecurringIncome(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
     day_of_month = Column(Integer, nullable=False)  # Ayın kaçında gelir (1-31)
@@ -218,6 +240,7 @@ class RecurringExpense(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)  # zorunlu: kart mı nakit mi
@@ -243,6 +266,7 @@ class Envelope(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     category = Column(String(50), nullable=False)          # Transaction.category ile eşleşir
     monthly_amount = Column(Numeric(14, 2), nullable=False)  # aylık bütçe (Decimal — RULE-006)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -268,6 +292,7 @@ class WishlistItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     item = Column(String(200), nullable=False)             # ne almak isteniyor
     amount = Column(Numeric(14, 2), nullable=False)        # tahmini tutar (Decimal — RULE-006)
     note = Column(Text, nullable=True)
@@ -285,6 +310,7 @@ class Transaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     transaction_type = Column(SQLEnum(TransactionType), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
@@ -312,6 +338,7 @@ class PersonalDebt(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     counterparty = Column(String(100), nullable=False)  # Örn: "Efe"
     direction = Column(SQLEnum(DebtDirection), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
@@ -334,6 +361,7 @@ class MasterCheckpoint(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=False)
     checkpoint_type = Column(SQLEnum(CheckpointType), nullable=False)
@@ -378,6 +406,7 @@ class PendingAction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     action_type = Column(String(50), nullable=False)
     # Aksiyon türleri:
     # - update_account_balance
@@ -564,6 +593,7 @@ class NetWorthSnapshot(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     snapshot_date = Column(Date, nullable=False)
 
     net_worth_seen = Column(Numeric(19, 4), nullable=False)       # Görülen (operasyonel, alacaksız)
@@ -675,6 +705,7 @@ class DecisionJournal(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     # index tek-sutunlu degil; idx_decision_journal_user_time composite'i kapsıyor
 
     # KARAR
@@ -832,6 +863,7 @@ class Goal(Base):
     # 'debt_freedom' | 'cash_target' — index __table_args__'da
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     title = Column(String(200), nullable=False)
     target_amount = Column(Numeric(14, 2), nullable=False)
     target_date = Column(Date, nullable=True)
@@ -914,3 +946,52 @@ class RevokedToken(Base):
     jti = Column(String(64), unique=True, nullable=False, index=True)
     revoked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=True)  # token'ın doğal son kullanımı (temizlik için)
+
+
+# ============================================================
+# WAVE-4 M40 (ADR-036) — Workspace + İzin Sistemi (Aile Hesabı)
+# ============================================================
+
+class Workspace(Base):
+    """M40 (ADR-036): finansal veri kabı. Her User'ın bir `is_personal` workspace'i
+    vardır (geriye-uyum backfill); aile paylaşımı ek workspace + membership ile olur.
+
+    Workspace-scoped tablolar (Account, Transaction, Goal, PersonalDebt, MasterCheckpoint,
+    RecurringIncome/Expense, Envelope, WishlistItem, PendingAction, NetWorthSnapshot,
+    DecisionJournal) `workspace_id` taşır. Kişisel/koç tabloları (CoachMemory, CoachInsight,
+    ReasoningTrace, ApiCallLog, ActionHistory) workspace'e taşınmaz — viewer owner'ın
+    özel AI sohbetini görmemeli (K10 gizlilik kararı, ADR-036).
+    """
+    __tablename__ = "workspaces"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    is_personal = Column(Boolean, default=False, nullable=False)  # backfill'de yaratılan kişisel workspace
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    owner = relationship("User", foreign_keys=[owner_user_id], back_populates="owned_workspaces")
+    memberships = relationship("WorkspaceMembership", back_populates="workspace",
+                               cascade="all, delete-orphan")
+
+
+class WorkspaceMembership(Base):
+    """M40 (ADR-036): user × workspace × rol (çoktan-çoğa). Bir kullanıcı hem kendi
+    personal'ında hem eşinin workspace'inde olabilir (farklı rollerle)."""
+    __tablename__ = "workspace_memberships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(SQLEnum(WorkspaceRole, values_callable=lambda x: [e.value for e in x]),
+                  nullable=False, default=WorkspaceRole.viewer)
+    invited_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    joined_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    workspace = relationship("Workspace", back_populates="memberships")
+    user = relationship("User", foreign_keys=[user_id], back_populates="workspace_memberships")
+
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "user_id", name="uq_membership_workspace_user"),
+        Index("ix_membership_user", "user_id"),
+    )

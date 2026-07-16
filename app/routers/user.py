@@ -24,6 +24,7 @@ from app.models import (
     # KVKK/egemenlik tamlığı: kullanıcının eylem/karar/hedef-izleme kayıtları da dahil.
     PendingAction, ActionHistory, DecisionJournal, ReasoningTrace, ApiCallLog,
     GoalAllocation, GoalRule, WishlistItem,
+    Workspace, WorkspaceMembership,  # M40 (ADR-036) — KVKK tamlığı
 )
 
 router = APIRouter(prefix="/api/user", tags=["user"])
@@ -155,4 +156,8 @@ def export_data(
         # koç şeffaflığı (Sovereign OS: koçun para hakkındaki muhakemesi de kullanıcınındır)
         "reasoning_traces": dump(ReasoningTrace),
         "api_call_log": dump(ApiCallLog),
+        # M40 (ADR-036) — workspace üyelikleri + sahip olunan workspace'ler (owner_user_id)
+        "workspace_memberships": dump(WorkspaceMembership),
+        "workspaces": [_row_to_dict(r) for r in
+                       db.query(Workspace).filter(Workspace.owner_user_id == user.id).all()],
     }

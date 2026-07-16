@@ -242,6 +242,29 @@ async def fetch_investment_prices_job() -> None:
         db.close()
 
 
+async def weekly_smoke_test_job() -> None:
+    """
+    M37 (Wave-4) — Haftalık dış API canlı smoke testi (pazartesi 05:00 Istanbul).
+
+    Ders 11: "pytest yeşil ≠ canlı çalışıyor" (M19 EVDS regression'ı mock-yeşilken ölüydü).
+    Her dış API'ye (EVDS/SMTP/OAuth google+github) GERÇEK smoke atar; başarısızlıkları
+    `.mcp-sync-pending.log`'a `SMOKE_FAIL:<api>` olarak yakalar (scheduler MCP'ye doğrudan
+    yazamaz → M24 capture→flush; asistan araci oturum başında flush eder). Akışı bozmaz.
+    """
+    from app.services.smoke_tests import run_all_smoke_tests, capture_smoke_failures
+    logger.info("[smoke] haftalık smoke test başladı %s", datetime.utcnow().isoformat())
+    try:
+        results = run_all_smoke_tests()
+        for r in results:
+            level = logger.info if r["ok"] else logger.warning
+            level("[smoke] %s %s: %s", "OK" if r["ok"] else "FAIL", r["api"], r["detail"])
+        captured = capture_smoke_failures(results)
+        if captured:
+            logger.warning("[smoke] %d başarısızlık ledger'a yakalandı (SMOKE_FAIL)", captured)
+    except Exception:  # noqa: BLE001
+        logger.exception("[smoke] weekly_smoke_test_job başarısız")
+
+
 def start_scheduler() -> AsyncIOScheduler:
     """Lifespan startup'tan cagirilir."""
     global _scheduler
@@ -278,9 +301,17 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
         misfire_grace_time=3600,
     )
+    _scheduler.add_job(
+        weekly_smoke_test_job,
+        CronTrigger(day_of_week="mon", hour=5, minute=0),  # M37: haftalık dış API smoke
+        id="weekly_smoke_test",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
 
     _scheduler.start()
-    logger.info("FinancialOS scheduler started: nightly_batch 03:00, k2_batch 03:30, trace_cleanup 04:00 Istanbul")
+    logger.info("FinancialOS scheduler started: prices 02:45, nightly_batch 03:00, k2_batch 03:30, "
+                "trace_cleanup 04:00, smoke pazartesi 05:00 Istanbul")
     return _scheduler
 
 

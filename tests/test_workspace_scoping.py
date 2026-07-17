@@ -18,6 +18,7 @@ from app.dependencies import get_db, get_current_user
 from app.models import (
     Base, User, Workspace, WorkspaceMembership, WorkspaceRole, Account, Transaction,
     RecurringIncome, RecurringExpense, PersonalDebt, MasterCheckpoint,
+    Envelope, WishlistItem,
 )
 
 
@@ -222,3 +223,35 @@ def test_checkpoints_scoping(client, env, db):
     assert [c["title"] for c in r.json()] == ["Kişisel Kural"]
     r2 = client.get("/api/checkpoints", headers={"X-Workspace-Id": str(env["shared"].id)})
     assert [c["title"] for c in r2.json()] == ["Aile Kural"]
+
+
+# ============================================================
+# ENVELOPES / WISHLIST
+# ============================================================
+
+def test_envelopes_scoping(client, env, db):
+    db.add_all([
+        Envelope(user_id=env["u1"].id, workspace_id=env["personal"].id,
+                 category="kişisel-market", monthly_amount=100),
+        Envelope(user_id=env["u1"].id, workspace_id=env["shared"].id,
+                 category="aile-market", monthly_amount=300),
+    ])
+    db.commit()
+    r = client.get("/api/envelopes")
+    assert [e["category"] for e in r.json()["envelopes"]] == ["kişisel-market"]
+    r2 = client.get("/api/envelopes", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert [e["category"] for e in r2.json()["envelopes"]] == ["aile-market"]
+
+
+def test_wishlist_scoping(client, env, db):
+    db.add_all([
+        WishlistItem(user_id=env["u1"].id, workspace_id=env["personal"].id,
+                     item="Kişisel Kulaklık", amount=100, status="pending"),
+        WishlistItem(user_id=env["u1"].id, workspace_id=env["shared"].id,
+                     item="Aile Fırın", amount=500, status="pending"),
+    ])
+    db.commit()
+    r = client.get("/api/wishlist")
+    assert [i["item"] for i in r.json()["items"]] == ["Kişisel Kulaklık"]
+    r2 = client.get("/api/wishlist", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert [i["item"] for i in r2.json()["items"]] == ["Aile Fırın"]

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.serializers import UtcDateTime
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43
 from app.models import User, Envelope, Account, AccountType
 from app.rules_engine import calculate_envelopes
 
@@ -51,13 +52,14 @@ class EnvelopeOut(BaseModel):
 def list_envelopes(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Zarfları BU AY durumuyla döner: kayıtlar + calculate_envelopes özeti (harcanan/kalan/aşıldı)."""
-    kayitlar = db.query(Envelope).filter(Envelope.user_id == user.id).order_by(Envelope.category).all()
+    kayitlar = db.query(Envelope).filter(scope_filter(Envelope, user.id, ws_id)).order_by(Envelope.category).all()
     durum = calculate_envelopes(user.id, date.today(), db)
     # FEAT-002 (Ready to Assign): zarflara taahhüt edilmemiş nakit
     nakit = sum(float(a.balance) for a in db.query(Account).filter(
-        Account.user_id == user.id, Account.account_type == AccountType.cash).all())
+        scope_filter(Account, user.id, ws_id), Account.account_type == AccountType.cash).all())
     taahhut = sum(max(0.0, z["kalan"]) for z in durum["zarflar"])
     return {
         "envelopes": [EnvelopeOut.model_validate(e).model_dump() for e in kayitlar],
@@ -71,15 +73,16 @@ def create_envelope(
     payload: EnvelopeCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> EnvelopeOut:
     """Yeni kategori bütçe zarfı. (user, category) tekildir — aynı kategori iki kez eklenemez."""
     existing = db.query(Envelope).filter(
-        Envelope.user_id == user.id, Envelope.category == payload.category,
+        scope_filter(Envelope, user.id, ws_id), Envelope.category == payload.category,
     ).first()
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT,
                             detail=f"'{payload.category}' için zarf zaten var (id={existing.id}).")
-    env = Envelope(user_id=user.id, category=payload.category,
+    env = Envelope(user_id=user.id, workspace_id=ws_id, category=payload.category,
                    monthly_amount=payload.monthly_amount, notes=payload.notes)
     db.add(env)
     db.commit()
@@ -93,9 +96,10 @@ def update_envelope(
     payload: EnvelopeUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> EnvelopeOut:
     env = db.query(Envelope).filter(
-        Envelope.id == envelope_id, Envelope.user_id == user.id,
+        Envelope.id == envelope_id, scope_filter(Envelope, user.id, ws_id),
     ).first()
     if not env:
         raise HTTPException(404, f"Zarf bulunamadi (id={envelope_id})")
@@ -111,9 +115,10 @@ def delete_envelope(
     envelope_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
     env = db.query(Envelope).filter(
-        Envelope.id == envelope_id, Envelope.user_id == user.id,
+        Envelope.id == envelope_id, scope_filter(Envelope, user.id, ws_id),
     ).first()
     if not env:
         raise HTTPException(404, f"Zarf bulunamadi (id={envelope_id})")

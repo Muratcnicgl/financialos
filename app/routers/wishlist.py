@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.serializers import UtcDateTime
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
 from app.models import User, WishlistItem
 
 router = APIRouter(prefix="/api/wishlist", tags=["wishlist"])
@@ -52,11 +53,12 @@ def _to_out(w: WishlistItem, now: datetime) -> WishlistOut:
 
 
 @router.get("", response_model=dict)
-def list_wishlist(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def list_wishlist(db: Session = Depends(get_db), user: User = Depends(get_current_user),
+                  ws_id: Optional[int] = Depends(active_workspace_id)):  # M43
     now = datetime.utcnow()
     rows = (
         db.query(WishlistItem)
-        .filter(WishlistItem.user_id == user.id, WishlistItem.status == "pending")
+        .filter(scope_filter(WishlistItem, user.id, ws_id), WishlistItem.status == "pending")
         .order_by(WishlistItem.created_at.asc())
         .all()
     )
@@ -70,8 +72,9 @@ def list_wishlist(db: Session = Depends(get_db), user: User = Depends(get_curren
 
 @router.post("", response_model=WishlistOut, status_code=201)
 def add_wishlist(payload: WishlistCreate, db: Session = Depends(get_db),
-                 user: User = Depends(get_current_user)):
-    w = WishlistItem(user_id=user.id, item=payload.item, amount=payload.amount,
+                 user: User = Depends(get_current_user),
+                 ws_id: Optional[int] = Depends(active_workspace_id)):  # M43
+    w = WishlistItem(user_id=user.id, workspace_id=ws_id, item=payload.item, amount=payload.amount,
                      note=payload.note, status="pending")
     db.add(w)
     db.commit()
@@ -81,9 +84,10 @@ def add_wishlist(payload: WishlistCreate, db: Session = Depends(get_db),
 
 @router.post("/{item_id}/resolve", response_model=WishlistOut)
 def resolve_wishlist(item_id: int, status: str = Query(..., pattern="^(bought|dismissed)$"),
-                     db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+                     db: Session = Depends(get_db), user: User = Depends(get_current_user),
+                     ws_id: Optional[int] = Depends(active_workspace_id)):  # M43
     w = db.query(WishlistItem).filter(
-        WishlistItem.id == item_id, WishlistItem.user_id == user.id).first()
+        WishlistItem.id == item_id, scope_filter(WishlistItem, user.id, ws_id)).first()
     if not w:
         raise HTTPException(status_code=404, detail="İstek bulunamadı")
     if w.status != "pending":

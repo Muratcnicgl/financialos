@@ -110,6 +110,10 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
         is_active=True,
     )
     db.add(user)
+    db.flush()  # user.id gerekli
+    # M62 (ADR-037): personal workspace + owner membership AYNI transaction'da
+    from app.services.workspace_setup import ensure_personal_workspace
+    ensure_personal_workspace(db, user, commit=False)
     db.commit()
     db.refresh(user)
     return _issue_tokens(user.id)
@@ -270,6 +274,10 @@ def oauth_callback(
         db.add(user)
         db.commit()
         db.refresh(user)
+
+    # M62 (ADR-037): her user'ın personal workspace'i olsun (yeni VEYA mevcut, idempotent)
+    from app.services.workspace_setup import ensure_personal_workspace
+    ensure_personal_workspace(db, user, commit=True)
 
     logger.info("[oauth] login success provider=%s user_id=%s email=%s", provider, user.id, email)
     tokens = _issue_tokens(user.id)

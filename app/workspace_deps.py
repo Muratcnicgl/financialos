@@ -79,7 +79,21 @@ def active_workspace_id(
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Bu workspace'e erişiminiz yok.")
         return x_workspace_id
     ws = _personal_workspace(db, user)
-    return ws.id if ws else None
+    if ws is not None:
+        return ws.id
+    # M62 (ADR-037): personal workspace YOK. Production'da bu sessiz veri-sızma riskidir
+    # (scope_filter legacy user_id'ye düşer) → fail-fast. Dev'de warning + None (legacy yol).
+    from app.settings import is_production
+    if is_production():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Kullanıcı {user.id} için personal workspace yok — veri izolasyonu "
+                   "garanti edilemez. scripts/create_personal_workspaces.py çalıştırın.",
+        )
+    import logging
+    logging.getLogger(__name__).warning(
+        "[workspace] user %s personal workspace YOK → legacy user_id yolu (dev)", user.id)
+    return None
 
 
 def scope_filter(model, user_id: int, workspace_id: Optional[int]):

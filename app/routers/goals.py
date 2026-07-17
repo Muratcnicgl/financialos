@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43
 from app.goal_engine import (
     calculate_baseline_for_debt_freedom,
     link_transaction,
@@ -52,6 +53,7 @@ def create_goal(
     payload: schemas.GoalCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Yeni hedef yarat.
 
@@ -60,6 +62,7 @@ def create_goal(
     """
     goal = models.Goal(
         user_id=current_user.id,
+        workspace_id=ws_id,
         goal_type=payload.goal_type,
         title=payload.title,
         target_amount=payload.target_amount,
@@ -89,9 +92,10 @@ def list_goals(
     goal_type: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Tüm hedefler. Opsiyonel status + goal_type query filtresi."""
-    q = db.query(models.Goal).filter(models.Goal.user_id == current_user.id)
+    q = db.query(models.Goal).filter(scope_filter(models.Goal, current_user.id, ws_id))
     if status_filter:
         q = q.filter(models.Goal.status == status_filter)
     if goal_type:
@@ -104,10 +108,11 @@ def get_goal(
     goal_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -120,10 +125,11 @@ def update_goal(
     payload: schemas.GoalUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -145,10 +151,11 @@ def delete_goal(
     goal_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -162,11 +169,12 @@ def refresh_goal_endpoint(
     goal_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Progress cache'ini yeniden hesapla (manuel veya cron trigger)."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -188,11 +196,12 @@ def create_allocation(
     payload: schemas.GoalAllocationCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Bir transaction'ı manuel olarak goal'e bağla."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -251,10 +260,11 @@ def list_allocations(
     goal_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -272,6 +282,7 @@ def delete_allocation(
     allocation_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     alloc = db.query(models.GoalAllocation).filter(
         models.GoalAllocation.id == allocation_id,
@@ -282,7 +293,7 @@ def delete_allocation(
     # Sadece kendi goal'ine ait allocation silinebilir
     goal = db.query(models.Goal).filter(
         models.Goal.id == alloc.goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -304,10 +315,11 @@ def create_rule(
     payload: schemas.GoalRuleCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -333,10 +345,11 @@ def list_rules(
     goal_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -354,6 +367,7 @@ def update_rule(
     payload: schemas.GoalRuleUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     rule = db.query(models.GoalRule).filter(
         models.GoalRule.id == rule_id
@@ -364,7 +378,7 @@ def update_rule(
     # Kural sahibinin goal'i current_user'a ait mi?
     goal = db.query(models.Goal).filter(
         models.Goal.id == rule.goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -382,6 +396,7 @@ def delete_rule(
     rule_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     rule = db.query(models.GoalRule).filter(
         models.GoalRule.id == rule_id
@@ -391,7 +406,7 @@ def delete_rule(
 
     goal = db.query(models.Goal).filter(
         models.Goal.id == rule.goal_id,
-        models.Goal.user_id == current_user.id,
+        scope_filter(models.Goal, current_user.id, ws_id),
     ).first()
     if not goal:
         raise HTTPException(status_code=403, detail="Access denied")

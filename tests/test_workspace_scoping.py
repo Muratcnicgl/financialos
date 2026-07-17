@@ -18,7 +18,7 @@ from app.dependencies import get_db, get_current_user
 from app.models import (
     Base, User, Workspace, WorkspaceMembership, WorkspaceRole, Account, Transaction,
     RecurringIncome, RecurringExpense, PersonalDebt, MasterCheckpoint,
-    Envelope, WishlistItem,
+    Envelope, WishlistItem, Goal,
 )
 
 
@@ -255,3 +255,30 @@ def test_wishlist_scoping(client, env, db):
     assert [i["item"] for i in r.json()["items"]] == ["Kişisel Kulaklık"]
     r2 = client.get("/api/wishlist", headers={"X-Workspace-Id": str(env["shared"].id)})
     assert [i["item"] for i in r2.json()["items"]] == ["Aile Fırın"]
+
+
+# ============================================================
+# GOALS
+# ============================================================
+
+def test_goals_scoping(client, env, db):
+    from decimal import Decimal
+    db.add_all([
+        Goal(user_id=env["u1"].id, workspace_id=env["personal"].id,
+             goal_type="cash_target", title="Kişisel Acil Fon", target_amount=Decimal("1000")),
+        Goal(user_id=env["u1"].id, workspace_id=env["shared"].id,
+             goal_type="cash_target", title="Aile Tatil", target_amount=Decimal("5000")),
+    ])
+    db.commit()
+    r = client.get("/api/goals")
+    assert [g["title"] for g in r.json()] == ["Kişisel Acil Fon"]
+    r2 = client.get("/api/goals", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert [g["title"] for g in r2.json()] == ["Aile Tatil"]
+
+
+def test_goal_create_workspace_baglanir(client, env, db):
+    from decimal import Decimal
+    r = client.post("/api/goals", headers={"X-Workspace-Id": str(env["shared"].id)},
+                    json={"goal_type": "cash_target", "title": "Yeni Aile Hedef", "target_amount": "2000"})
+    assert r.status_code == 201, r.text
+    assert db.query(Goal).filter_by(title="Yeni Aile Hedef").one().workspace_id == env["shared"].id

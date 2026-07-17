@@ -219,8 +219,15 @@ def propose_action(
                     )
                     logger.warning(f"BUG #027: {warning}")
 
+    # M43: koç/tetikleyici önerileri kullanıcının personal workspace'ine bağlanır (varsayılan
+    # bağlam). Böylece pending listesi workspace'e göre güvenle filtrelenebilir (NULL kalmaz).
+    from app.models import Workspace
+    _pw = (db.query(Workspace)
+           .filter(Workspace.owner_user_id == user_id, Workspace.is_personal.is_(True))
+           .first())
     pending = PendingAction(
         user_id=user_id,
+        workspace_id=_pw.id if _pw else None,  # M43
         action_type=action_type,
         payload=json.dumps(payload, ensure_ascii=False, default=str),
         summary=summary,

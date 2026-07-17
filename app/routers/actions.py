@@ -211,12 +211,14 @@ class ActionHistoryOut(BaseModel):
 def get_pending_actions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
-    """Onay bekleyen tum aksiyonlari listele."""
+    """Onay bekleyen tum aksiyonlari listele (aktif workspace)."""
+    from app.workspace_deps import scope_filter
     actions = (
         db.query(PendingAction)
         .filter(
-            PendingAction.user_id == current_user.id,
+            scope_filter(PendingAction, current_user.id, ws_id),  # M43
             PendingAction.status == ActionStatus.pending,
         )
         .order_by(PendingAction.created_at.desc())

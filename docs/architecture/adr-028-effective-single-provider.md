@@ -1,6 +1,11 @@
 # ADR-028 — Koç fiilen tek-sağlayıcı gerçeği (Gemini-only, Wave-2)
 
-**Tarih:** 12 Temmuz 2026 · **Durum:** Kabul edildi (Wave-2) · **İlgili:** ADR-002 (provider-agnostic mimari), memory `reference_groq_tpm_limiti`
+**Tarih:** 12 Temmuz 2026 · **Durum:** ⚠️ **SUPERSEDED by ADR-034 + ADR-034-revize (Wave-3 M13)** · **İlgili:** ADR-002, ADR-034, memory `reference_groq_tpm_limiti`
+
+> **SUPERSEDED (17 Tem 2026, tam-proje-durum-raporu §B7):** Bu ADR Wave-2'nin "fiilen Gemini-only"
+> gerçeğini kaydediyordu. Wave-3 M13'te koç 8 sağlayıcıya genişledi (Anthropic/Gemini/Groq/Cerebras/
+> OpenRouter/Together/DeepInfra/Ollama) + `LLM_PROVIDER=fallback` 7-halkalı zincir. Artık geçerli olan
+> ADR-034 + ADR-034-revize. Bu belge tarihsel kayıt olarak korunur.
 
 ## Bağlam
 ADR-002 provider-agnostic bir `FallbackProvider` zinciri tanımlar (Groq → Cerebras → Gemini → OpenRouter → Ollama). Ancak **disk gerçeği (R3):** zengin veride koç isteği ~8000+ token; Groq HEM Cerebras (gpt-oss-120b, ücretsiz ~8000 TPM) TPM'i aşar → RESIL-008 circuit breaker ikisini de eler → **koç FİİLEN yalnız Gemini'de çalışır.** Bu bir kod defekti değil, dış kısıt; prompt-trim RİSKLİ (davranış sözleşmesini — KURAL SIFIR, rapor formatı — zayıflatır, docs uyarısı).

@@ -37,7 +37,8 @@ from app.action_executor import (
     execute_pending_action, reject_pending_action, _normalize_transaction_payload,
 )
 from app.premortem import link_premortem_outcome
-from app.rules_engine import generate_cockpit
+from app.rules_engine import generate_cockpit, workspace_scope  # M43
+from app.workspace_deps import active_workspace_id  # M43
 
 router = APIRouter(prefix="/api/actions", tags=["actions"])
 
@@ -230,14 +231,16 @@ def approve_action(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Aksiyonu onayla ve uygula. ActionHistory'e snapshot yaz.
     Reflection hook router'da tetiklenir — execute commit sonrası,
     reflection hatası aksiyonu etkilemez (rollback güvenliği)."""
     from datetime import date
 
-    # Oncelik: net worth snapshot al (execute oncesi)
-    cockpit_before = generate_cockpit(current_user.id, date.today(), db)
+    # Oncelik: net worth snapshot al (execute oncesi) — M43: aktif workspace deltası
+    with workspace_scope(ws_id):
+        cockpit_before = generate_cockpit(current_user.id, date.today(), db)
     net_worth_before = cockpit_before.get("net_deger")
     cash_before = cockpit_before.get("nakit_kasa")
 
@@ -261,8 +264,9 @@ def approve_action(
             detail=result.get("error", "Aksiyon uygulanamadi."),
         )
 
-    # Execute sonrasi snapshot
-    cockpit_after = generate_cockpit(current_user.id, date.today(), db)
+    # Execute sonrasi snapshot — M43: aktif workspace deltası
+    with workspace_scope(ws_id):
+        cockpit_after = generate_cockpit(current_user.id, date.today(), db)
     net_worth_after = cockpit_after.get("net_deger")
     cash_after = cockpit_after.get("nakit_kasa")
 

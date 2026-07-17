@@ -38,6 +38,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id  # M43
+from app.rules_engine import workspace_scope  # M43
 from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus, PendingAction, ActionStatus, ReasoningTrace
 from app.coach import CoachEngine
 
@@ -295,6 +297,7 @@ def chat(
     payload: ChatRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> ChatResponse:
     """
     Koc'a mesaj gonder.
@@ -326,12 +329,13 @@ def chat(
     tool_calls_count = 0
 
     try:
-        result = engine.chat(
-            db=db,
-            user_id=user.id,
-            user_message=payload.message,
-            include_cockpit=payload.include_cockpit,
-        )
+        with workspace_scope(ws_id):  # M43: koç bağlamı (cockpit) aktif workspace'ten
+            result = engine.chat(
+                db=db,
+                user_id=user.id,
+                user_message=payload.message,
+                include_cockpit=payload.include_cockpit,
+            )
         tool_calls_count = len(result.get("proposed_actions") or [])
     except Exception as e:
         # BE-009 fix: graceful degradation (chat UX için 200) AMA ham hata (str(e)) kullanıcıya

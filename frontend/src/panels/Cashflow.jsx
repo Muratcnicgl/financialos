@@ -102,7 +102,7 @@ export default function Cashflow() {
           </div>
 
           {/* Yenile */}
-          <button onClick={handleRefresh} disabled={loading || refreshing} className="btn btn-secondary !text-xs">
+          <button type="button" onClick={handleRefresh} disabled={loading || refreshing} className="btn btn-secondary !text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Yenile</span>
           </button>

@@ -158,8 +158,8 @@ function AuthGate() {
 }
 
 // M43: header workspace seçici — değiştirince aktif workspace kaydedilir + sayfa yenilenir
-// (tüm paneller yeni X-Workspace-Id header'ıyla yeniden yükler).
-function WorkspaceSwitcher() {
+// (tüm paneller yeni X-Workspace-Id header'ıyla yeniden yükler). M64: test için export.
+export function WorkspaceSwitcher() {
   const [list, setList] = useState([]);
   const [active, setActive] = useState(getActiveWorkspaceId());
 

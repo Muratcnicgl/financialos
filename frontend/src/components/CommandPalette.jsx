@@ -65,7 +65,7 @@ export default function CommandPalette({ onClose, setActiveTab }) {
             placeholder="Komut ara..."
             className="flex-1 bg-transparent outline-none text-sm placeholder-zinc-400 min-h-0"
           />
-          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1 text-zinc-400">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1 text-zinc-400">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>

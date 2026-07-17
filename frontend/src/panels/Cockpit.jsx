@@ -91,7 +91,7 @@ export default function Cockpit({ setActiveTab }) {
               Cockpit yüklenemedi
             </h3>
             <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{error}</p>
-            <button onClick={handleRefresh} className="btn btn-secondary !text-xs mt-3">
+            <button type="button" onClick={handleRefresh} className="btn btn-secondary !text-xs mt-3">
               <RefreshCw className="w-3 h-3" /> Tekrar dene
             </button>
           </div>

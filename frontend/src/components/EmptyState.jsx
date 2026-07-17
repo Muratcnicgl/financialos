@@ -32,7 +32,7 @@ export default function EmptyState({
           <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">{description}</p>
         )}
         {ctaLabel && onCta && (
-          <button onClick={onCta} className="btn btn-primary !text-xs mb-4">{ctaLabel}</button>
+          <button type="button" onClick={onCta} className="btn btn-primary !text-xs mb-4">{ctaLabel}</button>
         )}
         {children}
       </div>
@@ -51,7 +51,7 @@ export default function EmptyState({
         <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto mb-4">{description}</p>
       )}
       {ctaLabel && onCta && (
-        <button onClick={onCta} className="btn btn-primary !text-xs">{ctaLabel}</button>
+        <button type="button" onClick={onCta} className="btn btn-primary !text-xs">{ctaLabel}</button>
       )}
       {children && <div className="mt-4">{children}</div>}
     </div>

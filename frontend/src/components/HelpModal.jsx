@@ -37,7 +37,7 @@ export default function HelpModal({ onClose }) {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">Klavye Kısayolları</h3>
-          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

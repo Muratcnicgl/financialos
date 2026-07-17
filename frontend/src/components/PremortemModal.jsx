@@ -106,7 +106,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1.5 flex-shrink-0" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5 flex-shrink-0" title="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -129,7 +129,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
                 Premortem motoru cevap veremedi: {error}
               </p>
             </div>
-            <button onClick={runPremortem} className="btn btn-secondary !text-xs">
+            <button type="button" onClick={runPremortem} className="btn btn-secondary !text-xs">
               Tekrar Dene
             </button>
           </div>
@@ -190,7 +190,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
 
         {/* FOOTER */}
         <div className="flex flex-wrap gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-          <button onClick={onClose} className="btn btn-ghost !text-xs">
+          <button type="button" onClick={onClose} className="btn btn-ghost !text-xs">
             İptal
           </button>
           <button

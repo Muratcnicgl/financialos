@@ -102,11 +102,11 @@ export default function Wishlist() {
                   </span>
                 )}
               </div>
-              <button onClick={() => resolve(w.id, 'bought')} title="Aldım"
+              <button type="button" onClick={() => resolve(w.id, 'bought')} title="Aldım"
                 className="p-1 rounded text-positive-600 dark:text-positive-400 hover:bg-positive-50 dark:hover:bg-positive-900/30">
                 <Check className="w-4 h-4" />
               </button>
-              <button onClick={() => resolve(w.id, 'dismissed')} title="Vazgeçtim"
+              <button type="button" onClick={() => resolve(w.id, 'dismissed')} title="Vazgeçtim"
                 className="p-1 rounded text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700">
                 <X className="w-4 h-4" />
               </button>

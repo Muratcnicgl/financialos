@@ -149,7 +149,7 @@ export default function Workspace() {
                   <span className="ml-2 text-xs text-zinc-500">{ROLE_TR[m.role]}</span>
                 </span>
                 {isOwner && m.user_id !== detail.owner_user_id && (
-                  <button onClick={() => removeMember(m.user_id)}
+                  <button type="button" onClick={() => removeMember(m.user_id)}
                           className="text-zinc-500 hover:text-red-400" title="Üyeyi çıkar">
                     <Trash2 size={15} />
                   </button>
@@ -226,7 +226,7 @@ export function WorkspaceJoin({ token, onDone }) {
           </p>
         )}
         {state === 'error' && <p className="text-sm text-red-400">{msg}</p>}
-        <button onClick={onDone}
+        <button type="button" onClick={onDone}
                 className="w-full px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm">
           Uygulamaya git
         </button>

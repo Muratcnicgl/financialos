@@ -148,13 +148,13 @@ export default function Reports() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {[30, 90].map(d => (
-            <button key={d} onClick={() => setDays(d)}
+            <button type="button" key={d} onClick={() => setDays(d)}
               className={`btn !text-xs !px-3 ${days === d ? 'btn-primary' : 'btn-secondary'}`}>
               {d} gün
             </button>
           ))}
           {Object.entries(TYPE_META).map(([k, meta]) => (
-            <button key={k} onClick={() => setType(k)}
+            <button type="button" key={k} onClick={() => setType(k)}
               className={`btn !text-xs !px-3 ${type === k ? meta.btnClass : 'btn-secondary'}`}>
               {meta.label}
             </button>
@@ -271,7 +271,7 @@ export default function Reports() {
           </div>
           <div className="flex gap-2 flex-wrap">
             {TREND_RANGES.map(r => (
-              <button key={r.days} onClick={() => setTrendDays(r.days)}
+              <button type="button" key={r.days} onClick={() => setTrendDays(r.days)}
                 className={`btn !text-xs !px-3 ${trendDays === r.days ? 'btn-primary' : 'btn-secondary'}`}>
                 {r.label}
               </button>
@@ -367,7 +367,7 @@ export default function Reports() {
           </div>
           <div className="flex gap-2">
             {[30, 60].map(d => (
-              <button key={d} onClick={() => setCashflowDays(d)}
+              <button type="button" key={d} onClick={() => setCashflowDays(d)}
                 className={`btn !text-xs !px-3 ${cashflowDays === d ? 'btn-primary' : 'btn-secondary'}`}>
                 {d} gün
               </button>

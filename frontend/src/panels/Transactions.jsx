@@ -188,7 +188,7 @@ export default function Transactions() {
               İşlemler yüklenemedi
             </h3>
             <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{error}</p>
-            <button onClick={handleRefresh} className="btn btn-secondary !text-xs mt-3">
+            <button type="button" onClick={handleRefresh} className="btn btn-secondary !text-xs mt-3">
               <RefreshCw className="w-3 h-3" /> Tekrar dene
             </button>
           </div>
@@ -208,11 +208,11 @@ export default function Transactions() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={handleRefresh} disabled={refreshing} className="btn btn-secondary !text-xs">
+          <button type="button" onClick={handleRefresh} disabled={refreshing} className="btn btn-secondary !text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Yenile</span>
           </button>
-          <button onClick={() => setEditing('new')} className="btn btn-primary !text-xs">
+          <button type="button" onClick={() => setEditing('new')} className="btn btn-primary !text-xs">
             <Plus className="w-3.5 h-3.5" />
             Yeni işlem
           </button>
@@ -263,7 +263,7 @@ export default function Transactions() {
             )}
           </div>
           {isFiltered && (
-            <button onClick={resetFilters} className="btn btn-ghost !text-xs !py-1 !px-2">
+            <button type="button" onClick={resetFilters} className="btn btn-ghost !text-xs !py-1 !px-2">
               <X className="w-3 h-3" /> Sıfırla
             </button>
           )}
@@ -479,10 +479,10 @@ function TransactionRow({ txn, account, onEdit, onDelete }) {
             {sign}{formatTL(txn.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -699,10 +699,10 @@ function ConfirmDeleteModal({ txn, onClose, onConfirm }) {
       </div>
       {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
       <div className="flex gap-2">
-        <button onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
+        <button type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Evet, sil'}
         </button>
-        <button onClick={onClose} className="btn btn-secondary">İptal</button>
+        <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
       </div>
     </Modal>
   );
@@ -724,7 +724,7 @@ function Modal({ title, children, onClose }) {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

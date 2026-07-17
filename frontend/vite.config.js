@@ -22,4 +22,10 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,  // M35 (FE-032/PERF-020): prod build'de kaynak sızıntısı önlenir
   },
+  // M64: component testleri için jsdom + testing-library (regresyon ağı)
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test-setup.js'],
+  },
 });

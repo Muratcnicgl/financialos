@@ -201,7 +201,7 @@ export default function IncomeDebt() {
               Veri yüklenemedi
             </h3>
             <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{error}</p>
-            <button onClick={handleRefresh} className="btn btn-secondary !text-xs mt-3">
+            <button type="button" onClick={handleRefresh} className="btn btn-secondary !text-xs mt-3">
               <RefreshCw className="w-3 h-3" /> Tekrar dene
             </button>
           </div>
@@ -220,7 +220,7 @@ export default function IncomeDebt() {
             {incomes.length} gelir · {expenses.length} gider · {debts.length} borç/alacak
           </p>
         </div>
-        <button onClick={handleRefresh} disabled={refreshing} className="btn btn-secondary !text-xs">
+        <button type="button" onClick={handleRefresh} disabled={refreshing} className="btn btn-secondary !text-xs">
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Yenile</span>
         </button>
@@ -296,7 +296,7 @@ export default function IncomeDebt() {
             <TrendingUp className="w-5 h-5 text-positive-600 dark:text-positive-400" />
             <h3 className="font-semibold">Düzenli Gelirler</h3>
           </div>
-          <button onClick={() => setEditingIncome('new')} className="btn btn-primary !text-xs">
+          <button type="button" onClick={() => setEditingIncome('new')} className="btn btn-primary !text-xs">
             <Plus className="w-3.5 h-3.5" /> Yeni
           </button>
         </div>
@@ -328,7 +328,7 @@ export default function IncomeDebt() {
             <Receipt className="w-5 h-5 text-negative-600 dark:text-negative-400" />
             <h3 className="font-semibold">Düzenli Giderler</h3>
           </div>
-          <button onClick={() => setEditingExpense('new')} className="btn btn-primary !text-xs">
+          <button type="button" onClick={() => setEditingExpense('new')} className="btn btn-primary !text-xs">
             <Plus className="w-3.5 h-3.5" /> Yeni
           </button>
         </div>
@@ -361,7 +361,7 @@ export default function IncomeDebt() {
             <ArrowDownToLine className="w-5 h-5 text-brand-600 dark:text-brand-400" />
             <h3 className="font-semibold">Borç / Alacak ({debts.length})</h3>
           </div>
-          <button onClick={() => setEditingDebt('new')} className="btn btn-primary !text-xs">
+          <button type="button" onClick={() => setEditingDebt('new')} className="btn btn-primary !text-xs">
             <Plus className="w-3.5 h-3.5" /> Yeni
           </button>
         </div>
@@ -479,13 +479,13 @@ function IncomeRow({ income, onToggle, onEdit, onDelete }) {
             +{formatTL(income.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
+            <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
               <Power className={`w-3 h-3 ${income.is_active ? 'text-positive-500' : 'text-zinc-400'}`} />
             </button>
-            <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -527,13 +527,13 @@ function ExpenseRow({ expense, accounts, onToggle, onEdit, onDelete }) {
             −{formatTL(expense.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
+            <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
               <Power className={`w-3 h-3 ${expense.is_active ? 'text-positive-500' : 'text-zinc-400'}`} />
             </button>
-            <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -624,10 +624,10 @@ function DebtRow({ debt, onEdit, onDelete, onMarkPaid }) {
                 <CheckCircle className="w-3.5 h-3.5" />
               </button>
             )}
-            <button onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -1024,10 +1024,10 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }) {
       </div>
       {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
       <div className="flex gap-2">
-        <button onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
+        <button type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Evet, sil'}
         </button>
-        <button onClick={onClose} className="btn btn-secondary">İptal</button>
+        <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
       </div>
     </Modal>
   );
@@ -1049,7 +1049,7 @@ function Modal({ title, children, onClose }) {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

@@ -253,7 +253,7 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
                 Simülasyon motoru cevap veremedi: {error}
               </p>
             </div>
-            <button onClick={runSimulation} className="btn btn-secondary !text-xs">
+            <button type="button" onClick={runSimulation} className="btn btn-secondary !text-xs">
               Tekrar Dene
             </button>
           </div>
@@ -320,7 +320,7 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
 
         {/* FOOTER */}
         <div className="flex flex-wrap gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-          <button onClick={onClose} className="btn btn-ghost !text-xs">
+          <button type="button" onClick={onClose} className="btn btn-ghost !text-xs">
             İptal
           </button>
           <button

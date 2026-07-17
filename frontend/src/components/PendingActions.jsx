@@ -127,12 +127,12 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
         </div>
         {editErr && <p className="text-red-500">{editErr}</p>}
         <div className="flex gap-1.5 mt-1">
-          <button onClick={handleSave} disabled={saving}
+          <button type="button" onClick={handleSave} disabled={saving}
             className="btn btn-positive !py-1 !text-[11px]">
             {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
             Kaydet
           </button>
-          <button onClick={cancelEdit} disabled={saving}
+          <button type="button" onClick={cancelEdit} disabled={saving}
             className="btn btn-secondary !py-1 !text-[11px]">
             <X className="w-3 h-3" /> İptal
           </button>
@@ -160,7 +160,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
         </tbody>
       </table>
       <div className="flex items-center gap-2 mt-1.5">
-        <button onClick={startEdit}
+        <button type="button" onClick={startEdit}
           className="btn btn-ghost !text-xs hover:!text-brand-600 dark:hover:!text-brand-400">
           <Pencil className="w-3 h-3" /> Düzenle
         </button>

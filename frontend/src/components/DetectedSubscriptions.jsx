@@ -66,7 +66,7 @@ export default function DetectedSubscriptions() {
               {s.fiyat_degisti && <span className="text-warn-600 dark:text-warn-400"> · zam var</span>}
             </p>
           </div>
-          <button onClick={() => convert(s)} disabled={busy === s.anahtar}
+          <button type="button" onClick={() => convert(s)} disabled={busy === s.anahtar}
                   className="btn btn-secondary !text-xs flex items-center gap-1 shrink-0">
             {busy === s.anahtar ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
             Düzenli gidere ekle

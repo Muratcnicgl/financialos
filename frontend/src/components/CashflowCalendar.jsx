@@ -54,13 +54,13 @@ export default function CashflowCalendar({ days }) {
           Takvim Görünümü
         </h3>
         <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="btn btn-ghost btn-icon !p-1">
+          <button type="button" onClick={prevMonth} className="btn btn-ghost btn-icon !p-1">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 min-w-[110px] text-center">
             {TR_MONTHS[viewMonth]} {viewYear}
           </span>
-          <button onClick={nextMonth} className="btn btn-ghost btn-icon !p-1">
+          <button type="button" onClick={nextMonth} className="btn btn-ghost btn-icon !p-1">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -127,7 +127,7 @@ export default function CashflowCalendar({ days }) {
             <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
               {selected.date} olayları
             </p>
-            <button onClick={() => setSelected(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+            <button type="button" onClick={() => setSelected(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>

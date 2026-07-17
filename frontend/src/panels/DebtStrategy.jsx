@@ -138,7 +138,7 @@ function ConsolidationSimulator({ debts }) {
             onChange={(e) => setTerm(e.target.value)}
             className="block mt-1 w-28 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
         </label>
-        <button onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
+        <button type="button" onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Combine className="w-3.5 h-3.5" />}
           Hesapla
         </button>
@@ -216,7 +216,7 @@ function OpportunityCost({ hasDebt }) {
             onChange={(e) => setAmount(e.target.value)}
             className="block mt-1 w-40 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
         </label>
-        <button onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
+        <button type="button" onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5" />}
           Hesapla
         </button>
@@ -291,7 +291,7 @@ export default function DebtStrategy() {
         <AlertTriangle className="w-10 h-10 mx-auto text-warn-400 mb-3" />
         <h3 className="text-lg text-zinc-200 mb-1">Borç stratejisi yüklenemedi</h3>
         <p className="text-sm text-zinc-400 mb-4">{error}</p>
-        <button onClick={() => fetchData(extraMonthly)} className="btn btn-secondary !text-xs">
+        <button type="button" onClick={() => fetchData(extraMonthly)} className="btn btn-secondary !text-xs">
           <RefreshCw className="w-3.5 h-3.5" /> Tekrar dene
         </button>
       </div>

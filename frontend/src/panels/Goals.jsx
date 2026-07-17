@@ -255,7 +255,7 @@ function GoalDetailModal({ goal, onClose }) {
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Yenile
             </button>
-            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
+            <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -428,7 +428,7 @@ function GoalCreateWizard({ onClose }) {
           <h3 className="text-lg font-semibold text-zinc-100">
             {step === 1 ? 'Hedef Türü Seç' : 'Hedef Detayları'}
           </h3>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
             <X className="w-5 h-5" />
           </button>
         </div>

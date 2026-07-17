@@ -282,3 +282,22 @@ def test_goal_create_workspace_baglanir(client, env, db):
                     json={"goal_type": "cash_target", "title": "Yeni Aile Hedef", "target_amount": "2000"})
     assert r.status_code == 201, r.text
     assert db.query(Goal).filter_by(title="Yeni Aile Hedef").one().workspace_id == env["shared"].id
+
+
+# ============================================================
+# COCKPIT (rules_engine, contextvar köprüsü)
+# ============================================================
+
+def test_cockpit_workspace_scoping(client, env, db):
+    """Cockpit nakit_kasa aktif workspace'e göre değişir (rules_engine _scope)."""
+    from decimal import Decimal
+    # personal hesap (Kişisel Nakit) bakiye 1000, shared hesap (Aile Nakit) bakiye 7000
+    db.query(Account).filter_by(workspace_id=env["personal"].id).update({"balance": Decimal("1000")})
+    db.query(Account).filter_by(workspace_id=env["shared"].id).update({"balance": Decimal("7000")})
+    db.commit()
+    r_personal = client.get("/api/cockpit")
+    assert r_personal.status_code == 200
+    assert float(r_personal.json()["nakit_kasa"]) == 1000.0
+    r_shared = client.get("/api/cockpit", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert r_shared.status_code == 200
+    assert float(r_shared.json()["nakit_kasa"]) == 7000.0

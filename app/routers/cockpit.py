@@ -23,19 +23,26 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id  # M43
 from app.models import User, NetWorthSnapshot
-from app.rules_engine import generate_cockpit
+from app.rules_engine import generate_cockpit, workspace_scope  # M43
 from app.fund_tracker import get_freshness_summary
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cockpit", tags=["cockpit"])
 
 
-def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict) -> None:
-    """Bugünkü net değer snapshot'ını yaz (idempotent — günde bir kez)."""
+def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict,
+                           workspace_id: Optional[int] = None) -> None:
+    """Bugünkü net değer snapshot'ını yaz (idempotent — workspace başına günde bir kez)."""
     today = date.today()
-    if db.query(NetWorthSnapshot).filter_by(user_id=user_id, snapshot_date=today).first():
+    # M43: workspace varsa o workspace'in snapshot'ı, yoksa legacy user snapshot'ı
+    q = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.snapshot_date == today)
+    q = q.filter(NetWorthSnapshot.workspace_id == workspace_id) if workspace_id is not None \
+        else q.filter(NetWorthSnapshot.user_id == user_id)
+    if q.first():
         return
     # BUG #117 fix (#116 takibi): net_deger_tam artık payable de düşüyor → (net_deger_tam −
     # net_deger) = alacak − borç olurdu (yanlış "receivables"). Alacağı doğrudan cockpit'ten al.
@@ -43,6 +50,7 @@ def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict) -> None:
                               max(0.0, cockpit.get("net_deger_tam", cockpit["net_deger"]) - cockpit["net_deger"]))
     snap = NetWorthSnapshot(
         user_id=user_id,
+        workspace_id=workspace_id,  # M43
         snapshot_date=today,
         net_worth_seen=cockpit["net_deger"],
         net_worth_full=cockpit.get("net_deger_tam", cockpit["net_deger"]),
@@ -60,6 +68,7 @@ def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict) -> None:
 def get_cockpit(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> dict:
     """
     Frontend'in tek bilgi kaynagi. Cockpit panel + birkac diger panel buradan beslenir.
@@ -76,7 +85,8 @@ def get_cockpit(
     - price_freshness (Wave-1 mukemmellestirici: fund fiyat yasi rozetleri)
     """
     today = date.today()
-    cockpit = generate_cockpit(user.id, today, db)
+    with workspace_scope(ws_id):  # M43: cockpit aktif workspace verisinden üretilir
+        cockpit = generate_cockpit(user.id, today, db)
 
     # Mukemmellestirici: fund fiyat bayatligi
     # Imza: get_freshness_summary(db, user_id)
@@ -95,7 +105,7 @@ def get_cockpit(
 
     # B2: bugünkü snapshot'ı kaydet (idempotent)
     try:
-        _ensure_today_snapshot(db, user.id, cockpit)
+        _ensure_today_snapshot(db, user.id, cockpit, ws_id)
     except Exception:
         # BE-010: snapshot best-effort (cockpit'i durdurmaz) AMA sürekli başarısızsa görünür
         # olmalı (net-worth trendi sessizce boş kalmasın).

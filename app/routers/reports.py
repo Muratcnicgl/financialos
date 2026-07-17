@@ -23,7 +23,9 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.rules_engine import (
     generate_monthly_summary, calculate_networth_attribution, calculate_real_networth,
+    workspace_scope,  # M43
 )
+from app.workspace_deps import active_workspace_id, scope_filter  # M43
 from app.models import (
     Transaction, TransactionType, User, NetWorthSnapshot,
     Account, AccountType, PersonalDebt, DebtDirection,
@@ -53,6 +55,7 @@ def category_breakdown(
     type: Literal["expense", "income", "both"] = Query(default="expense"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     since = date.today() - timedelta(days=days)
 
@@ -65,7 +68,7 @@ def category_breakdown(
         func.sum(Transaction.amount).label("total"),
         func.count(Transaction.id).label("cnt"),
     ).filter(
-        Transaction.user_id == current_user.id,
+        scope_filter(Transaction, current_user.id, ws_id),
         Transaction.transaction_date >= since,
     )
 
@@ -121,6 +124,7 @@ def net_worth_trend(
     days: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     Son N gündeki günlük net değer snapshot'larını döner.
@@ -131,7 +135,7 @@ def net_worth_trend(
     rows = (
         db.query(NetWorthSnapshot)
         .filter(
-            NetWorthSnapshot.user_id == current_user.id,
+            scope_filter(NetWorthSnapshot, current_user.id, ws_id),
             NetWorthSnapshot.snapshot_date >= since,
         )
         .order_by(NetWorthSnapshot.snapshot_date.asc())
@@ -153,12 +157,14 @@ def net_worth_trend(
 def net_worth_attribution(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     FEAT-021: Bu ayki net değer değişimini sürücülerine ayrıştırır (nakit, kart/kredi ödeme,
     yatırım, alacak). Yeterli snapshot geçmişi yoksa {available: false}.
     """
-    r = calculate_networth_attribution(current_user.id, date.today(), db)
+    with workspace_scope(ws_id):  # M43
+        r = calculate_networth_attribution(current_user.id, date.today(), db)
     if r is None:
         return {"available": False}
     return {"available": True, **r}
@@ -168,12 +174,14 @@ def net_worth_attribution(
 def real_net_worth(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     FEAT-024: Enflasyon-düzeltilmiş (reel) net değer — nominal vs reel değişim + enflasyon etkisi.
     Türkiye'de servetin gerçek yönünü gösterir. Yeterli snapshot geçmişi yoksa {available: false}.
     """
-    r = calculate_real_networth(current_user.id, date.today(), db)
+    with workspace_scope(ws_id):  # M43
+        r = calculate_real_networth(current_user.id, date.today(), db)
     if r is None:
         return {"available": False}
     return {"available": True, **r}
@@ -201,6 +209,7 @@ def upcoming_cashflow(
     days: int = Query(default=30, ge=1, le=180),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     Gelecek N günde vadesi gelen alacak, borç, kredi taksiti ve
@@ -212,7 +221,7 @@ def upcoming_cashflow(
 
     # --- PersonalDebt: alacaklar (receivable) ---
     for d in db.query(PersonalDebt).filter(
-        PersonalDebt.user_id == current_user.id,
+        scope_filter(PersonalDebt, current_user.id, ws_id),
         PersonalDebt.direction == DebtDirection.receivable,
         PersonalDebt.is_paid == False,   # noqa: E712
         PersonalDebt.due_date.isnot(None),
@@ -224,7 +233,7 @@ def upcoming_cashflow(
 
     # --- PersonalDebt: borçlar (payable) ---
     for d in db.query(PersonalDebt).filter(
-        PersonalDebt.user_id == current_user.id,
+        scope_filter(PersonalDebt, current_user.id, ws_id),
         PersonalDebt.direction == DebtDirection.payable,
         PersonalDebt.is_paid == False,   # noqa: E712
         PersonalDebt.due_date.isnot(None),
@@ -241,7 +250,7 @@ def upcoming_cashflow(
     # başlayarak ufuk sonuna kadar, kalan taksit sayısıyla sınırlı aylık taksitler üretilir.
     import calendar as _cal
     for acc in db.query(Account).filter(
-        Account.user_id == current_user.id,
+        scope_filter(Account, current_user.id, ws_id),
         Account.account_type == AccountType.loan,
         Account.next_payment_date.isnot(None),
     ).all():
@@ -262,7 +271,7 @@ def upcoming_cashflow(
 
     # --- RecurringIncome: aylık tekrar tarihleri ---
     for inc in db.query(RecurringIncome).filter(
-        RecurringIncome.user_id == current_user.id,
+        scope_filter(RecurringIncome, current_user.id, ws_id),
         RecurringIncome.is_active == True,   # noqa: E712
     ).all():
         for d in _next_occurrences(today, horizon, inc.day_of_month):
@@ -271,7 +280,7 @@ def upcoming_cashflow(
 
     # --- RecurringExpense: aylık tekrar tarihleri ---
     for exp in db.query(RecurringExpense).filter(
-        RecurringExpense.user_id == current_user.id,
+        scope_filter(RecurringExpense, current_user.id, ws_id),
         RecurringExpense.is_active == True,   # noqa: E712
     ).all():
         for d in _next_occurrences(today, horizon, exp.day_of_month):
@@ -307,6 +316,7 @@ def monthly_summary(
     month: Optional[int] = Query(default=None, ge=1, le=12),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     A3: Aylık özet rapor — gelir/gider/net değişim + gider kategori dağılımı +
@@ -316,4 +326,5 @@ def monthly_summary(
     today = date.today()
     y = year or today.year
     m = month or today.month
-    return generate_monthly_summary(current_user.id, y, m, db)
+    with workspace_scope(ws_id):  # M43
+        return generate_monthly_summary(current_user.id, y, m, db)

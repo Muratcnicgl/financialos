@@ -20,7 +20,7 @@ from app.serializers import UtcDateTime
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter  # M43
 from app.models import User, Envelope, Account, AccountType
-from app.rules_engine import calculate_envelopes
+from app.rules_engine import calculate_envelopes, workspace_scope  # M43
 
 router = APIRouter(prefix="/api/envelopes", tags=["envelopes"])
 
@@ -56,7 +56,8 @@ def list_envelopes(
 ):
     """Zarfları BU AY durumuyla döner: kayıtlar + calculate_envelopes özeti (harcanan/kalan/aşıldı)."""
     kayitlar = db.query(Envelope).filter(scope_filter(Envelope, user.id, ws_id)).order_by(Envelope.category).all()
-    durum = calculate_envelopes(user.id, date.today(), db)
+    with workspace_scope(ws_id):  # M43: durum özeti aktif workspace'ten
+        durum = calculate_envelopes(user.id, date.today(), db)
     # FEAT-002 (Ready to Assign): zarflara taahhüt edilmemiş nakit
     nakit = sum(float(a.balance) for a in db.query(Account).filter(
         scope_filter(Account, user.id, ws_id), Account.account_type == AccountType.cash).all())

@@ -114,6 +114,39 @@ from app.models import (
 from app.money import D, ZERO, floatify  # ADR-030: iç aritmetik Decimal, public sınır float(floatify)
 
 # ============================================================
+# M43 (ADR-036) — WORKSPACE SCOPING (contextvar köprüsü)
+# ============================================================
+# rules_engine ~50 fonksiyon user_id ile filtreler. Threading yerine contextvar:
+# router `with workspace_scope(ws_id):` içinde çağırırsa _scope workspace_id'ye göre
+# filtreler; contextvar set edilmemişse (test/legacy çağrı) user_id'ye düşer → mevcut
+# 955 test kırılmaz. FastAPI sync endpoint threadpool'da çalışır; anyio contextvar'ı
+# worker thread'e kopyalar, ama context manager'ı endpoint gövdesinde (aynı thread)
+# kullandığımız için sorun yok.
+import contextvars
+from contextlib import contextmanager
+
+_active_workspace: "contextvars.ContextVar[Optional[int]]" = contextvars.ContextVar(
+    "rules_active_workspace_id", default=None
+)
+
+
+@contextmanager
+def workspace_scope(workspace_id: Optional[int]):
+    """rules_engine çağrılarını aktif workspace'e kapsar. None → legacy user_id davranışı."""
+    token = _active_workspace.set(workspace_id)
+    try:
+        yield
+    finally:
+        _active_workspace.reset(token)
+
+
+def _scope(model, user_id: int):
+    """M43: aktif workspace varsa workspace_id, yoksa legacy user_id filtresi."""
+    ws = _active_workspace.get()
+    return (model.workspace_id == ws) if ws is not None else (model.user_id == user_id)
+
+
+# ============================================================
 # A3 ROLLING PATTERN SABİTLERİ
 # ============================================================
 
@@ -417,7 +450,7 @@ def _calculate_expected_income_until_eom(
     last_day = monthrange(today.year, today.month)[1]
     incomes = (
         db.query(RecurringIncome)
-        .filter(RecurringIncome.user_id == user_id, RecurringIncome.is_active == True)
+        .filter(_scope(RecurringIncome, user_id), RecurringIncome.is_active == True)
         .all()
     )
 
@@ -459,7 +492,7 @@ def _calculate_receivables_until_eom(
     debts = (
         db.query(PersonalDebt)
         .filter(
-            PersonalDebt.user_id == user_id,
+            _scope(PersonalDebt, user_id),
             PersonalDebt.direction == DebtDirection.receivable,
             PersonalDebt.is_paid == False,
         )
@@ -483,7 +516,7 @@ def _calculate_loan_payments_until_eom(
     loans = (
         db.query(Account)
         .filter(
-            Account.user_id == user_id,
+            _scope(Account, user_id),
             Account.account_type == AccountType.loan,
         )
         .all()
@@ -507,7 +540,7 @@ def _collect_upcoming_loan_payments(
     loans = (
         db.query(Account)
         .filter(
-            Account.user_id == user_id,
+            _scope(Account, user_id),
             Account.account_type == AccountType.loan,
         )
         .all()
@@ -536,7 +569,7 @@ def _collect_upcoming_receivables(
     debts = (
         db.query(PersonalDebt)
         .filter(
-            PersonalDebt.user_id == user_id,
+            _scope(PersonalDebt, user_id),
             PersonalDebt.direction == DebtDirection.receivable,
             PersonalDebt.is_paid == False,
         )
@@ -570,7 +603,7 @@ def _calculate_total_receivables(user_id: int, db: Session) -> float:
     debts = (
         db.query(PersonalDebt)
         .filter(
-            PersonalDebt.user_id == user_id,
+            _scope(PersonalDebt, user_id),
             PersonalDebt.direction == DebtDirection.receivable,
             PersonalDebt.is_paid == False,
         )
@@ -592,7 +625,7 @@ def _calculate_total_payables(user_id: int, db: Session) -> float:
     debts = (
         db.query(PersonalDebt)
         .filter(
-            PersonalDebt.user_id == user_id,
+            _scope(PersonalDebt, user_id),
             PersonalDebt.direction == DebtDirection.payable,
             PersonalDebt.is_paid == False,
         )
@@ -634,7 +667,7 @@ def _collect_upcoming_reminders(
 
     # RecurringIncome
     for inc in db.query(RecurringIncome).filter(
-        RecurringIncome.user_id == user_id,
+        _scope(RecurringIncome, user_id),
         RecurringIncome.is_active == True,
     ).all():
         if inc.last_triggered_year_month == year_month:
@@ -654,7 +687,7 @@ def _collect_upcoming_reminders(
 
     # RecurringExpense
     for exp in db.query(RecurringExpense).filter(
-        RecurringExpense.user_id == user_id,
+        _scope(RecurringExpense, user_id),
         RecurringExpense.is_active == True,
     ).all():
         if exp.last_triggered_year_month == year_month:
@@ -678,7 +711,7 @@ def _collect_upcoming_reminders(
 
     # PersonalDebt (payable, unpaid, due soon)
     for debt in db.query(PersonalDebt).filter(
-        PersonalDebt.user_id == user_id,
+        _scope(PersonalDebt, user_id),
         PersonalDebt.is_paid == False,
         PersonalDebt.direction == DebtDirection.payable,
         PersonalDebt.due_date != None,
@@ -700,7 +733,7 @@ def _collect_upcoming_reminders(
     # olduğundan (günlük 62 TL) zamanında tahsilat solvency-kritik; roadmap A1'in açık
     # hedefi. card_risk=False (risk değil, giriş fırsatı → sıralamada risklerden sonra).
     for debt in db.query(PersonalDebt).filter(
-        PersonalDebt.user_id == user_id,
+        _scope(PersonalDebt, user_id),
         PersonalDebt.is_paid == False,
         PersonalDebt.direction == DebtDirection.receivable,
         PersonalDebt.due_date != None,
@@ -753,7 +786,7 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
     Sıralama: en çok geciken önce (aciliyet).
     """
     debts = db.query(PersonalDebt).filter(
-        PersonalDebt.user_id == user_id,
+        _scope(PersonalDebt, user_id),
         PersonalDebt.is_paid == False,
         PersonalDebt.due_date != None,
         PersonalDebt.due_date < today,
@@ -870,7 +903,7 @@ def _calculate_cash_runway(
         return 0
     start = today - timedelta(days=window_days)
     spent = D(db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-        Transaction.user_id == user_id,
+        _scope(Transaction, user_id),
         Transaction.transaction_type == TransactionType.expense,
         Transaction.transaction_date >= start,
         Transaction.transaction_date <= today,
@@ -880,7 +913,7 @@ def _calculate_cash_runway(
     # burn'e dahil et. Aksi halde runway (sadece harcama) aynı kredilerin ürettiği nakit-krizi
     # öngörüsüyle ÇELİŞİR (uçtan-uca gözlem: runway 300 gün derken crunch "10 gün sonra kriz").
     loan_monthly = D(db.query(func.coalesce(func.sum(Account.monthly_payment), 0)).filter(
-        Account.user_id == user_id,
+        _scope(Account, user_id),
         Account.account_type == AccountType.loan,
         Account.remaining_installments > 0,
     ).scalar() or 0.0)
@@ -963,7 +996,7 @@ def _collect_recent_transactions(user_id: int, db: Session, limit: int = 8) -> L
     """
     txns = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user_id)
+        .filter(_scope(Transaction, user_id))
         .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
         .limit(limit)
         .all()
@@ -1018,7 +1051,7 @@ def _category_overspend_alerts(
     prev_by_cat = {c["category"]: c["total"] for c in _month_aggregates(db, user_id, ps, pe)["expense_categories"]}
     # FEAT-001: aktif zarf bütçeleri (varsa gerçek referans)
     envelopes = {e.category: D(e.monthly_amount) for e in db.query(Envelope).filter(
-        Envelope.user_id == user_id, Envelope.is_active == True).all()}  # noqa: E712
+        _scope(Envelope, user_id), Envelope.is_active == True).all()}  # noqa: E712
 
     warnings: List[Dict] = []
     for c in curr["expense_categories"]:
@@ -1059,7 +1092,7 @@ def _month_aggregates(db: Session, user_id: int, start: date, end: date) -> Dict
         func.sum(Transaction.amount).label("total"),
         func.count(Transaction.id).label("cnt"),
     ).filter(
-        Transaction.user_id == user_id,
+        _scope(Transaction, user_id),
         Transaction.transaction_date >= start,
         Transaction.transaction_date <= end,
         Transaction.transaction_type.in_([TransactionType.income, TransactionType.expense]),
@@ -1169,7 +1202,7 @@ def detect_subscriptions(
     txns = (
         db.query(Transaction)
         .filter(
-            Transaction.user_id == user_id,
+            _scope(Transaction, user_id),
             Transaction.transaction_type == TransactionType.expense,
             Transaction.transaction_date >= start,
             Transaction.description.isnot(None),
@@ -1421,7 +1454,7 @@ def calculate_envelopes(user_id: int, today: date, db: Session) -> Dict:
              toplam_harcanan, toplam_kalan, asan_adet}. Zarf yoksa boş.
     """
     envs = db.query(Envelope).filter(
-        Envelope.user_id == user_id, Envelope.is_active == True,  # noqa: E712
+        _scope(Envelope, user_id), Envelope.is_active == True,  # noqa: E712
     ).all()
     if not envs:
         return {"zarflar": [], "toplam_butce": 0.0, "toplam_harcanan": 0.0,
@@ -1478,7 +1511,7 @@ def calculate_receivables_aging(user_id: int, today: date, db: Session) -> Optio
     yoksa None. Gecikme = (today - due_date).gün; due_date None → "tarihsiz" (kör nokta).
     """
     debts = db.query(PersonalDebt).filter(
-        PersonalDebt.user_id == user_id,
+        _scope(PersonalDebt, user_id),
         PersonalDebt.direction == DebtDirection.receivable,
         PersonalDebt.is_paid == False,  # noqa: E712
     ).all()
@@ -1539,7 +1572,7 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
     interest_rate yoksa (None) o hesap atlanır. Emanet/yatırım hariç.
     """
     accs = db.query(Account).filter(
-        Account.user_id == user_id,
+        _scope(Account, user_id),
         Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
     ).all()
     kalemler: List[Dict] = []
@@ -1601,7 +1634,7 @@ def calculate_debt_progress(
     Diskret kutlama sürekli metrikten daha motive edici (Ramsey), ama sadece GERÇEK geçişte.
     """
     earliest = db.query(NetWorthSnapshot).filter(
-        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
+        _scope(NetWorthSnapshot, user_id)).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
     if not earliest:
         return None
     gun = (today - earliest.snapshot_date).days
@@ -1618,7 +1651,7 @@ def calculate_debt_progress(
     yeni_milestone = None
     if milestone > 0:
         prev = db.query(NetWorthSnapshot).filter(
-            NetWorthSnapshot.user_id == user_id,
+            _scope(NetWorthSnapshot, user_id),
             NetWorthSnapshot.snapshot_date < today,
         ).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
         if prev is not None:
@@ -1663,7 +1696,7 @@ def calculate_card_utilization(
     re-query yapılmaz (generate_cockpit zaten çekmiştir).
     """
     if accounts is None:
-        accounts = db.query(Account).filter(Account.user_id == user_id).all()
+        accounts = db.query(Account).filter(_scope(Account, user_id)).all()
     cards = [a for a in accounts if a.account_type == AccountType.credit_card]
     toplam_limit = sum(D(c.credit_limit or 0) for c in cards)
     toplam_borc = sum(D(c.balance or 0) for c in cards)
@@ -1683,7 +1716,7 @@ def calculate_card_utilization(
     # İyileşme trendi — limit stabil varsayımıyla geçmiş kart borcunu bugünkü limitle oranla.
     trend = None
     earliest = db.query(NetWorthSnapshot).filter(
-        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
+        _scope(NetWorthSnapshot, user_id)).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
     if earliest:
         gun = (today - earliest.snapshot_date).days
         if gun >= 7:
@@ -1742,9 +1775,9 @@ def calculate_real_networth(
     if annual_inflation is None:
         annual_inflation = _INFLATION_ANNUAL
     earliest = db.query(NetWorthSnapshot).filter(
-        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
+        _scope(NetWorthSnapshot, user_id)).order_by(NetWorthSnapshot.snapshot_date.asc()).first()
     latest = db.query(NetWorthSnapshot).filter(
-        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+        _scope(NetWorthSnapshot, user_id)).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
     if not earliest or not latest or earliest.id == latest.id:
         return None
     gun = (latest.snapshot_date - earliest.snapshot_date).days
@@ -1778,12 +1811,12 @@ def calculate_networth_attribution(user_id: int, today: date, db: Session) -> Op
     Referans: bu ayın 1'ine (veya öncesine) en yakın snapshot. Yeterli geçmiş yoksa None.
     """
     latest = db.query(NetWorthSnapshot).filter(
-        NetWorthSnapshot.user_id == user_id).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+        _scope(NetWorthSnapshot, user_id)).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
     if not latest:
         return None
     ref_date = date(today.year, today.month, 1)
     ref = db.query(NetWorthSnapshot).filter(
-        NetWorthSnapshot.user_id == user_id,
+        _scope(NetWorthSnapshot, user_id),
         NetWorthSnapshot.snapshot_date <= ref_date,
     ).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
     if not ref or ref.id == latest.id:
@@ -1861,7 +1894,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     - net_deger_tam  = Tam Net Değer (stratejik; net_deger + alacaklar)
     """
     # Hesapları çek
-    accounts = db.query(Account).filter(Account.user_id == user_id).all()
+    accounts = db.query(Account).filter(_scope(Account, user_id)).all()
 
     nakit = ZERO
     kart_borcu = ZERO
@@ -2071,7 +2104,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
 
     # FEAT-022: finansal sağlık skoru (şeffaf composite)
     _aylik_gelir = D(db.query(func.coalesce(func.sum(RecurringIncome.amount), 0)).filter(
-        RecurringIncome.user_id == user_id, RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
+        _scope(RecurringIncome, user_id), RecurringIncome.is_active == True).scalar() or 0.0)  # noqa: E712
     saglik_skoru = calculate_health_score(
         reel_butce=reel_butce, kart_borcu=kart_borcu,
         kart_limit=sum((a.credit_limit or 0) for a in accounts if a.account_type == AccountType.credit_card),

@@ -79,7 +79,12 @@ async function request(path, { method = 'GET', body, params, headers: extraHeade
   const _tok = getAccessToken();
   if (_tok) init.headers['Authorization'] = `Bearer ${_tok}`;
 
-  // M42: X-Workspace-Id gibi ek header'lar (workspace izin bağlamı)
+  // M43: aktif workspace her istekte gönderilir (panel'ler workspace'e göre filtrelenir).
+  // Backend header yoksa personal'a düşer (köprü-desen), varsa üyelik doğrular.
+  const _ws = getActiveWorkspaceId();
+  if (_ws) init.headers['X-Workspace-Id'] = String(_ws);
+
+  // M42: çağrı-özel ek header'lar (extraHeaders global aktif-workspace'i ezebilir)
   if (extraHeaders) Object.assign(init.headers, extraHeaders);
 
   if (body !== undefined) {

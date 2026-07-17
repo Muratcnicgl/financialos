@@ -3,7 +3,8 @@ import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
   Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut, Users,
 } from 'lucide-react';
-import { healthApi, authApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl } from './api.js';
+import { healthApi, authApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl,
+  workspaceApi, getActiveWorkspaceId, setActiveWorkspaceId } from './api.js';
 import Login from './panels/Login.jsx';
 import Workspace, { WorkspaceJoin } from './panels/Workspace.jsx';
 import { ToastProvider } from './components/Toast.jsx';
@@ -148,6 +149,47 @@ function AuthGate() {
   return <AppContent onLogout={async () => { await authApi.logout(); setPhase('login'); }} />;
 }
 
+// M43: header workspace seçici — değiştirince aktif workspace kaydedilir + sayfa yenilenir
+// (tüm paneller yeni X-Workspace-Id header'ıyla yeniden yükler).
+function WorkspaceSwitcher() {
+  const [list, setList] = useState([]);
+  const [active, setActive] = useState(getActiveWorkspaceId());
+
+  useEffect(() => {
+    let alive = true;
+    workspaceApi.list().then((ws) => {
+      if (!alive) return;
+      setList(ws);
+      if (!getActiveWorkspaceId() && ws.length) {
+        const personal = ws.find((w) => w.is_personal) || ws[0];
+        setActiveWorkspaceId(personal.id);
+        setActive(String(personal.id));
+      }
+    }).catch(() => { /* auth kapalı / tek-kullanıcı: seçiciyi gösterme */ });
+    return () => { alive = false; };
+  }, []);
+
+  if (list.length <= 1) return null;  // tek workspace varsa seçici gereksiz
+
+  const onChange = (e) => {
+    const id = e.target.value;
+    setActiveWorkspaceId(id);
+    window.location.reload();  // panellerin yeni workspace ile yeniden yüklenmesi
+  };
+
+  return (
+    <select value={active || ''} onChange={onChange}
+      title="Aktif workspace"
+      className="chip bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg px-2 py-1 text-xs max-w-[140px]">
+      {list.map((w) => (
+        <option key={w.id} value={w.id}>
+          {w.is_personal ? '👤 ' : '👥 '}{w.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function AppContent({ onLogout }) {
   const [theme, toggleTheme] = useTheme();
   const [activeTab, setActiveTab] = useState('cockpit');
@@ -178,6 +220,7 @@ function AppContent({ onLogout }) {
           <div className="flex-1" />
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <WorkspaceSwitcher />
             <div className="flex items-center gap-1.5">
               {status === 'online' ? (
                 <span className="chip chip-positive">

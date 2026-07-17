@@ -1,0 +1,111 @@
+"""
+M43 (ADR-036) — Endpoint workspace scoping testleri (köprü-desen).
+
+Kanıt: X-Workspace-Id header'ı verildiğinde endpoint o workspace'in verisini döner
+(user_id değil workspace_id filtresi). Header yoksa personal workspace'e düşer; personal
+yoksa legacy user_id (mevcut testler bu yolla korunur). Her endpoint scoping'i buraya eklenir.
+"""
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.main import app
+from app.dependencies import get_db, get_current_user
+from app.models import (
+    Base, User, Workspace, WorkspaceMembership, WorkspaceRole, Account,
+)
+
+
+@pytest.fixture
+def db():
+    eng = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False},
+                        poolclass=StaticPool)
+    Base.metadata.create_all(eng)
+    s = sessionmaker(bind=eng)()
+    yield s
+    s.close()
+
+
+@pytest.fixture
+def env(db):
+    """u1: personal ws(1) + shared ws(2, u1 owner, u2 viewer). Her ws'de 1 account."""
+    u1 = User(name="murat", email="m@x.com")
+    u2 = User(name="es", email="es@x.com")
+    db.add_all([u1, u2]); db.commit()
+    personal = Workspace(owner_user_id=u1.id, name="Murat (Kişisel)", is_personal=True)
+    shared = Workspace(owner_user_id=u1.id, name="Aile", is_personal=False)
+    db.add_all([personal, shared]); db.commit()
+    db.add_all([
+        WorkspaceMembership(workspace_id=personal.id, user_id=u1.id, role=WorkspaceRole.owner),
+        WorkspaceMembership(workspace_id=shared.id, user_id=u1.id, role=WorkspaceRole.owner),
+        WorkspaceMembership(workspace_id=shared.id, user_id=u2.id, role=WorkspaceRole.viewer),
+    ])
+    db.add_all([
+        Account(user_id=u1.id, workspace_id=personal.id, name="Kişisel Nakit", account_type="cash"),
+        Account(user_id=u1.id, workspace_id=shared.id, name="Aile Nakit", account_type="cash"),
+    ])
+    db.commit()
+    return {"u1": u1, "u2": u2, "personal": personal, "shared": shared}
+
+
+@pytest.fixture
+def client(db, env):
+    app.dependency_overrides[get_db] = lambda: db
+    state = {"user": env["u1"]}
+    app.dependency_overrides[get_current_user] = lambda: state["user"]
+    c = TestClient(app)
+    c._who = state
+    yield c
+    app.dependency_overrides.clear()
+
+
+def _as(client, user):
+    client._who["user"] = user
+
+
+# ============================================================
+# ACCOUNTS
+# ============================================================
+
+def test_accounts_personal_header_yoksa(client, env):
+    """Header yoksa personal workspace → yalnız kişisel hesap."""
+    r = client.get("/api/accounts")
+    assert r.status_code == 200
+    names = [a["name"] for a in r.json()]
+    assert names == ["Kişisel Nakit"]
+
+
+def test_accounts_shared_header_ile(client, env):
+    """X-Workspace-Id=shared → yalnız aile hesabı."""
+    r = client.get("/api/accounts", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert r.status_code == 200
+    names = [a["name"] for a in r.json()]
+    assert names == ["Aile Nakit"]
+
+
+def test_accounts_uye_olmayan_workspace_403(client, env):
+    """u2 personal(1)'in üyesi değil → 403."""
+    _as(client, env["u2"])
+    r = client.get("/api/accounts", headers={"X-Workspace-Id": str(env["personal"].id)})
+    assert r.status_code == 403
+
+
+def test_accounts_create_aktif_workspace_e_baglanir(client, env, db):
+    """Shared header ile yaratılan hesap workspace_id=shared alır."""
+    r = client.post("/api/accounts", headers={"X-Workspace-Id": str(env["shared"].id)},
+                    json={"name": "Yeni Aile Kart", "account_type": "credit_card"})
+    assert r.status_code == 201
+    acc = db.query(Account).filter_by(name="Yeni Aile Kart").one()
+    assert acc.workspace_id == env["shared"].id
+
+
+def test_accounts_viewer_shared_gorur(client, env):
+    """viewer u2 shared workspace'in hesabını görebilir (okuma)."""
+    _as(client, env["u2"])
+    r = client.get("/api/accounts", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert r.status_code == 200
+    assert [a["name"] for a in r.json()] == ["Aile Nakit"]

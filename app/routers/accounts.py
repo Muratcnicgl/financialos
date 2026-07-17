@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
 from app.models import User, Account, AccountType, Transaction, RecurringExpense
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 # SEC-032: finansal float alanları sonlu olmalı (inf/NaN/taşma rules_engine'i çökertir).
@@ -96,11 +97,12 @@ def list_accounts(
     account_type: Optional[AccountType] = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> List[AccountOut]:
     """
     Tum hesaplari listele. Opsiyonel filtre: ?account_type=cash|credit_card|loan|investment
     """
-    q = db.query(Account).filter(Account.user_id == user.id)
+    q = db.query(Account).filter(scope_filter(Account, user.id, ws_id))  # M43 workspace scoping
     if account_type:
         q = q.filter(Account.account_type == account_type)
     return q.order_by(Account.account_type, Account.id).all()
@@ -111,6 +113,7 @@ def create_account(
     payload: AccountCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> AccountOut:
     """Yeni hesap olustur."""
     data = payload.model_dump()
@@ -121,7 +124,7 @@ def create_account(
             and data.get("current_price") is not None):
         data["balance"] = float(data["lot_count"]) * float(data["current_price"])
 
-    acc = Account(user_id=user.id, **data)
+    acc = Account(user_id=user.id, workspace_id=ws_id, **data)  # M43: aktif workspace'e bağla
     if data.get("current_price") is not None:
         acc.last_price_update = datetime.utcnow()
 
@@ -136,11 +139,12 @@ def get_account(
     account_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> AccountOut:
     """Tek hesap detayi."""
     acc = db.query(Account).filter(
         Account.id == account_id,
-        Account.user_id == user.id,
+        scope_filter(Account, user.id, ws_id),  # M43 workspace scoping
     ).first()
     if not acc:
         raise HTTPException(status_code=404, detail=f"Hesap bulunamadi (id={account_id})")
@@ -153,6 +157,7 @@ def update_account(
     payload: AccountUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> AccountOut:
     """
     Hesap guncelle. Sadece None olmayan alanlar yazilir.
@@ -167,7 +172,7 @@ def update_account(
     """
     acc = db.query(Account).filter(
         Account.id == account_id,
-        Account.user_id == user.id,
+        scope_filter(Account, user.id, ws_id),  # M43 workspace scoping
     ).first()
     if not acc:
         raise HTTPException(status_code=404, detail=f"Hesap bulunamadi (id={account_id})")
@@ -201,6 +206,7 @@ def delete_account(
     account_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
     """
     Hesabi sil. EMANET hesaplari korumaliyiz - silmesini engelliyoruz.
@@ -211,7 +217,7 @@ def delete_account(
     """
     acc = db.query(Account).filter(
         Account.id == account_id,
-        Account.user_id == user.id,
+        scope_filter(Account, user.id, ws_id),  # M43 workspace scoping
     ).first()
     if not acc:
         raise HTTPException(status_code=404, detail=f"Hesap bulunamadi (id={account_id})")

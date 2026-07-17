@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M43
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43, require_write
 from app.goal_engine import (
     calculate_baseline_for_debt_freedom,
     link_transaction,
@@ -40,7 +40,7 @@ from app.goal_engine import (
 )
 
 
-router = APIRouter(prefix="/api/goals", tags=["goals"])
+router = APIRouter(prefix="/api/goals", tags=["goals"], dependencies=[Depends(require_write())])
 
 
 # ============================================================

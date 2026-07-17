@@ -38,9 +38,9 @@ from app.action_executor import (
 )
 from app.premortem import link_premortem_outcome
 from app.rules_engine import generate_cockpit, workspace_scope  # M43
-from app.workspace_deps import active_workspace_id  # M43
+from app.workspace_deps import active_workspace_id, require_write  # M43, require_write
 
-router = APIRouter(prefix="/api/actions", tags=["actions"])
+router = APIRouter(prefix="/api/actions", tags=["actions"], dependencies=[Depends(require_write())])
 
 logger = logging.getLogger(__name__)
 

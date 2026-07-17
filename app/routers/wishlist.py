@@ -18,10 +18,10 @@ from sqlalchemy.orm import Session
 
 from app.serializers import UtcDateTime
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, WishlistItem
 
-router = APIRouter(prefix="/api/wishlist", tags=["wishlist"])
+router = APIRouter(prefix="/api/wishlist", tags=["wishlist"], dependencies=[Depends(require_write())])
 
 REVIEW_AFTER_HOURS = 24  # 24-saat kuralı — bu süre sonra koç "hâlâ istiyor musun?" sorar
 

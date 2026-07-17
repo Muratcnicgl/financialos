@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.serializers import utc_isoformat  # BUG #092: datetime UTC suffix
 # SEC-032: işlem tutarı SONLU olmalı (inf/NaN/taşma reddedilir); ≤0 kontrolü handler'daki
 # manuel doğrulamada (dostça Türkçe mesaj + quick_text modu) kalır → FinansOptBakiye (sign-agnostik sonlu).
@@ -30,7 +30,7 @@ from app.models import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+router = APIRouter(prefix="/api/transactions", tags=["transactions"], dependencies=[Depends(require_write())])
 
 
 # ============================================================

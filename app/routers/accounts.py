@@ -20,14 +20,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, Account, AccountType, Transaction, RecurringExpense
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 # SEC-032: finansal float alanları sonlu olmalı (inf/NaN/taşma rules_engine'i çökertir).
 # balance negatif olabilir (FinansBakiye); limit/faiz/lot/fiyat ≥0 (FinansOptOran).
 from app.schema_types import FinansBakiye, FinansOptBakiye, FinansOptOran
 
-router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+router = APIRouter(prefix="/api/accounts", tags=["accounts"], dependencies=[Depends(require_write())])
 
 
 # ============================================================

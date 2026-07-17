@@ -301,3 +301,53 @@ def test_cockpit_workspace_scoping(client, env, db):
     r_shared = client.get("/api/cockpit", headers={"X-Workspace-Id": str(env["shared"].id)})
     assert r_shared.status_code == 200
     assert float(r_shared.json()["nakit_kasa"]) == 7000.0
+
+
+# ============================================================
+# M63 (BUG #160) — viewer YAZMA kilidi (ADR-036 izin matrisi)
+# ============================================================
+
+def test_viewer_yazma_403(client, env):
+    """viewer u2 shared workspace'e POST/PUT/DELETE yapamaz → 403 (yalnız okuma)."""
+    _as(client, env["u2"])  # u2 = viewer
+    hdr = {"X-Workspace-Id": str(env["shared"].id)}
+    # POST account
+    r = client.post("/api/accounts", headers=hdr, json={"name": "Viewer Kart", "account_type": "cash"})
+    assert r.status_code == 403, f"viewer yazabildi: {r.status_code}"
+    # POST transaction
+    r2 = client.post("/api/transactions", headers=hdr,
+                     json={"transaction_type": "expense", "amount": 5, "description": "x"})
+    assert r2.status_code == 403
+    # POST goal
+    r3 = client.post("/api/goals", headers=hdr,
+                     json={"goal_type": "cash_target", "title": "x", "target_amount": "10"})
+    assert r3.status_code == 403
+
+
+def test_viewer_okuma_serbest(client, env):
+    """viewer u2 shared workspace'i OKUYABİLİR (GET) → 200."""
+    _as(client, env["u2"])
+    hdr = {"X-Workspace-Id": str(env["shared"].id)}
+    assert client.get("/api/accounts", headers=hdr).status_code == 200
+    assert client.get("/api/transactions", headers=hdr).status_code == 200
+    assert client.get("/api/goals", headers=hdr).status_code == 200
+
+
+def test_owner_yazabilir(client, env, db):
+    """owner u1 shared workspace'e yazabilir → 201."""
+    _as(client, env["u1"])  # u1 = owner
+    r = client.post("/api/accounts", headers={"X-Workspace-Id": str(env["shared"].id)},
+                    json={"name": "Owner Kart", "account_type": "credit_card"})
+    assert r.status_code == 201, r.text
+
+
+def test_editor_yazabilir(client, env, db):
+    """editor rolü yazabilir → 201 (viewer'dan farkı)."""
+    # u2'yi editor yap
+    m = db.query(WorkspaceMembership).filter_by(workspace_id=env["shared"].id, user_id=env["u2"].id).one()
+    m.role = WorkspaceRole.editor
+    db.commit()
+    _as(client, env["u2"])
+    r = client.post("/api/accounts", headers={"X-Workspace-Id": str(env["shared"].id)},
+                    json={"name": "Editor Kart", "account_type": "cash"})
+    assert r.status_code == 201, r.text

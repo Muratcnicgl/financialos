@@ -16,13 +16,13 @@ from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, RecurringExpense, Account, PendingAction, ActionStatus
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/expenses/recurring", tags=["recurring-expenses"])
+router = APIRouter(prefix="/api/expenses/recurring", tags=["recurring-expenses"], dependencies=[Depends(require_write())])
 
 
 # ============================================================

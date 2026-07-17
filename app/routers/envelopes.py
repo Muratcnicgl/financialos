@@ -18,11 +18,11 @@ from sqlalchemy.orm import Session
 
 from app.serializers import UtcDateTime
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M43
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43, require_write
 from app.models import User, Envelope, Account, AccountType
 from app.rules_engine import calculate_envelopes, workspace_scope  # M43
 
-router = APIRouter(prefix="/api/envelopes", tags=["envelopes"])
+router = APIRouter(prefix="/api/envelopes", tags=["envelopes"], dependencies=[Depends(require_write())])
 
 
 class EnvelopeCreate(BaseModel):

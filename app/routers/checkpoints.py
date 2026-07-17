@@ -23,6 +23,7 @@ from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
 from app.models import User, MasterCheckpoint, CheckpointType
 
 router = APIRouter(prefix="/api/checkpoints", tags=["checkpoints"])
@@ -69,11 +70,12 @@ def list_checkpoints(
     checkpoint_type: Optional[CheckpointType] = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> List[CheckpointOut]:
     """
     Kirmizi cizgileri listele. Default sadece aktif olanlar; tarihce icin ?active_only=false.
     """
-    q = db.query(MasterCheckpoint).filter(MasterCheckpoint.user_id == user.id)
+    q = db.query(MasterCheckpoint).filter(scope_filter(MasterCheckpoint, user.id, ws_id))
     if active_only:
         q = q.filter(MasterCheckpoint.is_active == True)
     if checkpoint_type:
@@ -86,9 +88,10 @@ def create_checkpoint(
     payload: CheckpointCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> CheckpointOut:
     """Yeni Master Checkpoint olustur."""
-    cp = MasterCheckpoint(user_id=user.id, **payload.model_dump())
+    cp = MasterCheckpoint(user_id=user.id, workspace_id=ws_id, **payload.model_dump())
     db.add(cp)
     db.commit()
     db.refresh(cp)
@@ -101,10 +104,11 @@ def update_checkpoint(
     payload: CheckpointUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> CheckpointOut:
     """Master Checkpoint guncelle."""
     cp = db.query(MasterCheckpoint).filter(
-        MasterCheckpoint.id == cp_id, MasterCheckpoint.user_id == user.id
+        MasterCheckpoint.id == cp_id, scope_filter(MasterCheckpoint, user.id, ws_id)
     ).first()
     if not cp:
         raise HTTPException(404, f"Checkpoint bulunamadi (id={cp_id})")
@@ -138,6 +142,7 @@ def delete_checkpoint(
     ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
     """
     Default: SOFT DELETE — is_active=False yapar, tarihce kalir.
@@ -147,7 +152,7 @@ def delete_checkpoint(
     silinmesin — bunlar MC1 emanet gibi kritik kurallar, yanlislikla kaybolmamali.
     """
     cp = db.query(MasterCheckpoint).filter(
-        MasterCheckpoint.id == cp_id, MasterCheckpoint.user_id == user.id
+        MasterCheckpoint.id == cp_id, scope_filter(MasterCheckpoint, user.id, ws_id)
     ).first()
     if not cp:
         raise HTTPException(404, f"Checkpoint bulunamadi (id={cp_id})")

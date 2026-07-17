@@ -17,7 +17,7 @@ from app.main import app
 from app.dependencies import get_db, get_current_user
 from app.models import (
     Base, User, Workspace, WorkspaceMembership, WorkspaceRole, Account, Transaction,
-    RecurringIncome, RecurringExpense,
+    RecurringIncome, RecurringExpense, PersonalDebt, MasterCheckpoint,
 )
 
 
@@ -190,3 +190,35 @@ def test_expenses_scoping(client, env, db):
     assert [e["name"] for e in r.json()] == ["Kişisel Netflix"]
     r2 = client.get("/api/expenses/recurring", headers={"X-Workspace-Id": str(env["shared"].id)})
     assert [e["name"] for e in r2.json()] == ["Aile Fatura"]
+
+
+# ============================================================
+# DEBTS / CHECKPOINTS
+# ============================================================
+
+def test_debts_scoping(client, env, db):
+    db.add_all([
+        PersonalDebt(user_id=env["u1"].id, workspace_id=env["personal"].id,
+                     counterparty="Kişisel Efe", direction="receivable", amount=100),
+        PersonalDebt(user_id=env["u1"].id, workspace_id=env["shared"].id,
+                     counterparty="Aile Komşu", direction="payable", amount=50),
+    ])
+    db.commit()
+    r = client.get("/api/debts")
+    assert [d["counterparty"] for d in r.json()] == ["Kişisel Efe"]
+    r2 = client.get("/api/debts", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert [d["counterparty"] for d in r2.json()] == ["Aile Komşu"]
+
+
+def test_checkpoints_scoping(client, env, db):
+    db.add_all([
+        MasterCheckpoint(user_id=env["u1"].id, workspace_id=env["personal"].id,
+                         title="Kişisel Kural", description="x", checkpoint_type="rule"),
+        MasterCheckpoint(user_id=env["u1"].id, workspace_id=env["shared"].id,
+                         title="Aile Kural", description="y", checkpoint_type="rule"),
+    ])
+    db.commit()
+    r = client.get("/api/checkpoints")
+    assert [c["title"] for c in r.json()] == ["Kişisel Kural"]
+    r2 = client.get("/api/checkpoints", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert [c["title"] for c in r2.json()] == ["Aile Kural"]

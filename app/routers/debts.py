@@ -17,6 +17,7 @@ from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
 from app.models import User, PersonalDebt, DebtDirection
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
@@ -68,13 +69,14 @@ def list_debts(
     counterparty: Optional[str] = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> List[DebtOut]:
     """
     Borc/alacak listesi.
     ornek: GET /api/debts?direction=receivable&paid=false
     -> Tahsil edilmemis tum alacaklar (Efe alacaklari icin)
     """
-    q = db.query(PersonalDebt).filter(PersonalDebt.user_id == user.id)
+    q = db.query(PersonalDebt).filter(scope_filter(PersonalDebt, user.id, ws_id))
 
     if direction:
         q = q.filter(PersonalDebt.direction == direction)
@@ -91,9 +93,10 @@ def create_debt(
     payload: DebtCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> DebtOut:
     """Yeni borc/alacak ekle. is_paid default False."""
-    debt = PersonalDebt(user_id=user.id, **payload.model_dump())
+    debt = PersonalDebt(user_id=user.id, workspace_id=ws_id, **payload.model_dump())
     db.add(debt)
     db.commit()
     db.refresh(debt)
@@ -106,6 +109,7 @@ def update_debt(
     payload: DebtUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> DebtOut:
     """
     Guncelle. Mukemmellestirici akilli davranis:
@@ -113,7 +117,7 @@ def update_debt(
     - is_paid=False verilirse paid_date otomatik None olur (geri al)
     """
     debt = db.query(PersonalDebt).filter(
-        PersonalDebt.id == debt_id, PersonalDebt.user_id == user.id
+        PersonalDebt.id == debt_id, scope_filter(PersonalDebt, user.id, ws_id)
     ).first()
     if not debt:
         raise HTTPException(404, f"Borc/alacak bulunamadi (id={debt_id})")
@@ -143,10 +147,11 @@ def delete_debt(
     debt_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
     """Borc/alacak kaydini sil."""
     debt = db.query(PersonalDebt).filter(
-        PersonalDebt.id == debt_id, PersonalDebt.user_id == user.id
+        PersonalDebt.id == debt_id, scope_filter(PersonalDebt, user.id, ws_id)
     ).first()
     if not debt:
         raise HTTPException(404, f"Borc/alacak bulunamadi (id={debt_id})")

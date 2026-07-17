@@ -14,6 +14,12 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.dependencies import get_db, get_current_user
 from app.models import Base, User, Workspace, WorkspaceMembership, WorkspaceRole
+import app.routers.workspaces as ws_mod
+
+
+@pytest.fixture(autouse=True)
+def _secret(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key-workspace-invite-0123456789abc")
 
 
 @pytest.fixture
@@ -125,4 +131,99 @@ def test_personal_workspace_uye_cikarilamaz(client, db, users):
     u1, u2, ws = users  # ws personal
     r = client.request("DELETE", f"/api/workspaces/{ws.id}/members/{u1.id}",
                        headers={"X-Workspace-Id": str(ws.id)})
+    assert r.status_code == 400
+
+
+# ============================================================
+# M42 — davet + join
+# ============================================================
+
+def _make_shared(client, db, users, monkeypatch):
+    """u1 paylaşımlı workspace yaratır; send_invite_email mock'lanır (SMTP yok)."""
+    sent = {}
+    import app.services.workspace_invite as inv
+    def _fake_send(to, name, role, link):
+        sent["to"] = to
+        return True
+    monkeypatch.setattr(inv, "send_invite_email", _fake_send)
+    r = client.post("/api/workspaces", json={"name": "Aile"})
+    return r.json()["id"], sent
+
+
+def test_invite_owner_link_uretir(client, db, users, monkeypatch):
+    wsid, sent = _make_shared(client, db, users, monkeypatch)
+    r = client.post(f"/api/workspaces/{wsid}/invite",
+                    json={"email": "es@x.com", "role": "editor"},
+                    headers={"X-Workspace-Id": str(wsid)})
+    assert r.status_code == 201
+    body = r.json()
+    assert "token=" in body["invite_link"] and body["email_sent"] is True
+    assert sent["to"] == "es@x.com"
+
+
+def test_invite_owner_rolu_yasak(client, db, users, monkeypatch):
+    wsid, _ = _make_shared(client, db, users, monkeypatch)
+    r = client.post(f"/api/workspaces/{wsid}/invite",
+                    json={"email": "es@x.com", "role": "owner"},
+                    headers={"X-Workspace-Id": str(wsid)})
+    assert r.status_code == 400
+
+
+def test_invite_viewer_403(client, db, users, monkeypatch):
+    wsid, _ = _make_shared(client, db, users, monkeypatch)
+    u1, u2, _ = users
+    db.add(WorkspaceMembership(workspace_id=wsid, user_id=u2.id, role=WorkspaceRole.viewer))
+    db.commit()
+    _as(client, u2)
+    r = client.post(f"/api/workspaces/{wsid}/invite",
+                    json={"email": "x@x.com", "role": "viewer"},
+                    headers={"X-Workspace-Id": str(wsid)})
+    assert r.status_code == 403
+
+
+def test_invite_personal_yasak(client, db, users, monkeypatch):
+    u1, u2, ws = users  # ws personal
+    import app.services.workspace_invite as inv
+    monkeypatch.setattr(inv, "send_invite_email", lambda *a: True)
+    r = client.post(f"/api/workspaces/{ws.id}/invite",
+                    json={"email": "x@x.com", "role": "viewer"},
+                    headers={"X-Workspace-Id": str(ws.id)})
+    assert r.status_code == 400
+
+
+def test_join_dogru_email_katilir(client, db, users, monkeypatch):
+    wsid, _ = _make_shared(client, db, users, monkeypatch)
+    u1, u2, _ = users
+    u2.email = "es@x.com"
+    db.commit()
+    from app.services.workspace_invite import create_invite_token
+    token = create_invite_token(wsid, "es@x.com", WorkspaceRole.editor)
+    _as(client, u2)
+    r = client.get(f"/api/workspaces/join?token={token}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["joined"] is True and body["role"] == "editor" and body["workspace_id"] == wsid
+    # idempotent: ikinci kez joined=False
+    r2 = client.get(f"/api/workspaces/join?token={token}")
+    assert r2.status_code == 200 and r2.json()["joined"] is False
+
+
+def test_join_yanlis_email_403(client, db, users, monkeypatch):
+    wsid, _ = _make_shared(client, db, users, monkeypatch)
+    u1, u2, _ = users
+    u2.email = "baska@x.com"
+    db.commit()
+    from app.services.workspace_invite import create_invite_token
+    token = create_invite_token(wsid, "es@x.com", WorkspaceRole.editor)
+    _as(client, u2)
+    r = client.get(f"/api/workspaces/join?token={token}")
+    assert r.status_code == 403
+
+
+def test_join_gecersiz_token_400(client, db, users):
+    u1, u2, _ = users
+    u2.email = "es@x.com"
+    db.commit()
+    _as(client, u2)
+    r = client.get("/api/workspaces/join?token=SAHTE.TOKEN.XYZ")
     assert r.status_code == 400

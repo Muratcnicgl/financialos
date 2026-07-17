@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut,
+  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut, Users,
 } from 'lucide-react';
-import { healthApi, authApi, consumeOAuthRedirect, getResetTokenFromUrl } from './api.js';
+import { healthApi, authApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl } from './api.js';
 import Login from './panels/Login.jsx';
+import Workspace, { WorkspaceJoin } from './panels/Workspace.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import CommandPalette from './components/CommandPalette.jsx';
@@ -34,6 +35,7 @@ const TABS = [
   { id: 'debtstrategy', label: 'Borç Stratejisi', icon: CreditCard  },
   { id: 'goals',        label: 'Hedefler',        icon: Target      },
   { id: 'budget',       label: 'Bütçe',           icon: PiggyBank   },
+  { id: 'workspace',    label: 'Aile',            icon: Users       },
 ];
 
 function useTheme() {
@@ -101,11 +103,15 @@ export default function App() {
 
 // M11 (ADR-033): AUTH_ENABLED açık + token yoksa Login göster; aksi halde uygulama.
 function AuthGate() {
-  const [phase, setPhase] = useState('checking'); // checking | login | app
+  const [phase, setPhase] = useState('checking'); // checking | login | app | join
   const [oauthError, setOauthError] = useState(null);
   const [resetToken, setResetToken] = useState(null); // M18: şifre sıfırlama linki
+  const [joinToken, setJoinToken] = useState(null);   // M42: workspace davet linki
 
   const check = useCallback(async () => {
+    // M42: workspace davet linki (/workspaces/join?token=..) → kabul ekranı
+    const jt = getJoinTokenFromUrl();
+    if (jt) { setJoinToken(jt); setPhase('join'); return; }
     // M18: şifre-sıfırlama linki (/auth/reset?token=..) → Login reset modunda açılır
     const rt = getResetTokenFromUrl();
     if (rt) { setResetToken(rt); setPhase('login'); return; }
@@ -129,6 +135,12 @@ function AuthGate() {
       </div>
     );
   }
+  if (phase === 'join') return (
+    <WorkspaceJoin token={joinToken} onDone={() => {
+      try { window.history.replaceState({}, '', '/'); } catch { /* */ }
+      setJoinToken(null); setPhase('checking'); check();
+    }} />
+  );
   if (phase === 'login') return (
     <Login onAuthed={() => setPhase('app')} initialError={oauthError}
       initialMode={resetToken ? 'reset' : 'login'} resetToken={resetToken} />
@@ -262,6 +274,7 @@ function AppContent({ onLogout }) {
             {activeTab === 'debtstrategy' && <DebtStrategy />}
             {activeTab === 'goals' && <Goals />}
             {activeTab === 'budget' && <Budget />}
+            {activeTab === 'workspace' && <Workspace />}
           </ErrorBoundary>
         </div>
       </main>

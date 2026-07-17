@@ -55,7 +55,7 @@ function getRefreshToken() {
 // CORE FETCH
 // =============================================================
 
-async function request(path, { method = 'GET', body, params } = {}) {
+async function request(path, { method = 'GET', body, params, headers: extraHeaders } = {}) {
   let url = path;
 
   // Query string ekle
@@ -78,6 +78,9 @@ async function request(path, { method = 'GET', body, params } = {}) {
   // M11: JWT varsa Authorization ekle (AUTH_ENABLED kapalıyken backend zaten yok sayar)
   const _tok = getAccessToken();
   if (_tok) init.headers['Authorization'] = `Bearer ${_tok}`;
+
+  // M42: X-Workspace-Id gibi ek header'lar (workspace izin bağlamı)
+  if (extraHeaders) Object.assign(init.headers, extraHeaders);
 
   if (body !== undefined) {
     init.headers['Content-Type'] = 'application/json';
@@ -456,6 +459,49 @@ export const authApi = {
     window.location.href = `/api/auth/oauth/${provider}/login`;
   },
 };
+
+// =============================================================
+// WORKSPACES (M41/M42, ADR-036) — aile hesabı + izin
+// =============================================================
+
+const ACTIVE_WS_KEY = 'financialos_active_workspace_id';
+
+export function getActiveWorkspaceId() {
+  if (typeof localStorage === 'undefined') return null;
+  return localStorage.getItem(ACTIVE_WS_KEY) || null;
+}
+
+export function setActiveWorkspaceId(id) {
+  if (typeof localStorage === 'undefined') return;
+  if (id) localStorage.setItem(ACTIVE_WS_KEY, String(id));
+  else localStorage.removeItem(ACTIVE_WS_KEY);
+}
+
+// Aktif workspace başlığı (seçili değilse backend personal'a düşer)
+function _wsHeaders(workspaceId) {
+  const id = workspaceId ?? getActiveWorkspaceId();
+  return id ? { 'X-Workspace-Id': String(id) } : undefined;
+}
+
+export const workspaceApi = {
+  list:   () => request('/api/workspaces'),
+  create: (name) => request('/api/workspaces', { method: 'POST', body: { name } }),
+  get:    (id) => request(`/api/workspaces/${id}`),
+  invite: (id, email, role) => request(`/api/workspaces/${id}/invite`, {
+    method: 'POST', body: { email, role }, headers: _wsHeaders(id),
+  }),
+  removeMember: (id, userId) => request(`/api/workspaces/${id}/members/${userId}`, {
+    method: 'DELETE', headers: _wsHeaders(id),
+  }),
+  join: (token) => request('/api/workspaces/join', { params: { token } }),
+};
+
+// M42: davet linki FRONTEND_URL/workspaces/join?token=.. adresine gelir.
+export function getJoinTokenFromUrl() {
+  if (typeof window === 'undefined') return null;
+  if (!(window.location.pathname || '').includes('/workspaces/join')) return null;
+  return new URLSearchParams(window.location.search || '').get('token');
+}
 
 // M18: Brevo şifre-sıfırlama linki FRONTEND_URL/auth/reset?token=.. adresine gelir.
 // SPA yüklenince token'ı çıkarır (yoksa null). AuthGate Login'i reset modunda açar.

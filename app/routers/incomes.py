@@ -19,6 +19,7 @@ from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
 from app.models import User, RecurringIncome, Account, AccountType, PendingAction, ActionStatus
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
@@ -67,9 +68,10 @@ def list_incomes(
     active_only: bool = Query(False, description="True: sadece aktif gelirler"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> List[IncomeOut]:
     """Duzenli gelirleri listele. Default tumu, ?active_only=true ile filtrele."""
-    q = db.query(RecurringIncome).filter(RecurringIncome.user_id == user.id)
+    q = db.query(RecurringIncome).filter(scope_filter(RecurringIncome, user.id, ws_id))
     if active_only:
         q = q.filter(RecurringIncome.is_active == True)
     return q.order_by(RecurringIncome.day_of_month, RecurringIncome.id).all()
@@ -80,9 +82,10 @@ def create_income(
     payload: IncomeCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> IncomeOut:
     """Yeni duzenli gelir kaydi (maaş, kira, abonelik vs)."""
-    inc = RecurringIncome(user_id=user.id, **payload.model_dump())
+    inc = RecurringIncome(user_id=user.id, workspace_id=ws_id, **payload.model_dump())  # M43
     db.add(inc)
     db.commit()
     db.refresh(inc)
@@ -95,6 +98,7 @@ def update_income(
     payload: IncomeUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> IncomeOut:
     """
     Geliri guncelle. Mukemmellestirici kullanim ornegi:
@@ -102,7 +106,7 @@ def update_income(
     Boylece tarihte kayit kalir, Cockpit gelirden saymaz.
     """
     inc = db.query(RecurringIncome).filter(
-        RecurringIncome.id == income_id, RecurringIncome.user_id == user.id
+        RecurringIncome.id == income_id, scope_filter(RecurringIncome, user.id, ws_id)
     ).first()
     if not inc:
         raise HTTPException(404, f"Gelir bulunamadi (id={income_id})")
@@ -120,6 +124,7 @@ def update_income(
 def trigger_due_incomes(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     A2 Recurring Trigger: Vadesi gelen duzenli gelirleri propose_action olarak olustur.
@@ -134,7 +139,7 @@ def trigger_due_incomes(
     year_month = f"{today.year}-{today.month:02d}"
 
     cash_acc = db.query(Account).filter(
-        Account.user_id == user.id,
+        scope_filter(Account, user.id, ws_id),  # M43
         Account.account_type == AccountType.cash,
     ).first()
     if not cash_acc:
@@ -145,7 +150,7 @@ def trigger_due_incomes(
     last_day = calendar.monthrange(today.year, today.month)[1]
 
     incomes = db.query(RecurringIncome).filter(
-        RecurringIncome.user_id == user.id,
+        scope_filter(RecurringIncome, user.id, ws_id),
         RecurringIncome.is_active == True,
     ).all()
 
@@ -205,10 +210,11 @@ def delete_income(
     income_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
     """Geliri tamamen sil. Soft-delete icin PUT ile is_active=false tercih edin."""
     inc = db.query(RecurringIncome).filter(
-        RecurringIncome.id == income_id, RecurringIncome.user_id == user.id
+        RecurringIncome.id == income_id, scope_filter(RecurringIncome, user.id, ws_id)
     ).first()
     if not inc:
         raise HTTPException(404, f"Gelir bulunamadi (id={income_id})")

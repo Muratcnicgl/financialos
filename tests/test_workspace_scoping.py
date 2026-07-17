@@ -17,6 +17,7 @@ from app.main import app
 from app.dependencies import get_db, get_current_user
 from app.models import (
     Base, User, Workspace, WorkspaceMembership, WorkspaceRole, Account, Transaction,
+    RecurringIncome, RecurringExpense,
 )
 
 
@@ -147,3 +148,45 @@ def test_transactions_create_shared_baglanir(client, txns, db):
     assert r.status_code == 201, r.text
     t = db.query(Transaction).filter_by(description="yeni aile").one()
     assert t.workspace_id == txns["shared"].id
+
+
+# ============================================================
+# INCOMES / EXPENSES
+# ============================================================
+
+def test_incomes_scoping(client, env, db):
+    db.add_all([
+        RecurringIncome(user_id=env["u1"].id, workspace_id=env["personal"].id,
+                        name="Kişisel Maaş", amount=100, day_of_month=1),
+        RecurringIncome(user_id=env["u1"].id, workspace_id=env["shared"].id,
+                        name="Aile Kira Geliri", amount=200, day_of_month=5),
+    ])
+    db.commit()
+    r = client.get("/api/incomes")
+    assert [i["name"] for i in r.json()] == ["Kişisel Maaş"]
+    r2 = client.get("/api/incomes", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert [i["name"] for i in r2.json()] == ["Aile Kira Geliri"]
+
+
+def test_income_create_workspace_baglanir(client, env, db):
+    r = client.post("/api/incomes", headers={"X-Workspace-Id": str(env["shared"].id)},
+                    json={"name": "Yeni Gelir", "amount": 50, "day_of_month": 10})
+    assert r.status_code == 201
+    assert db.query(RecurringIncome).filter_by(name="Yeni Gelir").one().workspace_id == env["shared"].id
+
+
+def test_expenses_scoping(client, env, db):
+    # gider account_id gerektirir → her ws'nin hesabını kullan
+    pa = db.query(Account).filter_by(workspace_id=env["personal"].id).one()
+    sa = db.query(Account).filter_by(workspace_id=env["shared"].id).one()
+    db.add_all([
+        RecurringExpense(user_id=env["u1"].id, workspace_id=env["personal"].id,
+                         name="Kişisel Netflix", amount=10, account_id=pa.id, day_of_month=1),
+        RecurringExpense(user_id=env["u1"].id, workspace_id=env["shared"].id,
+                         name="Aile Fatura", amount=30, account_id=sa.id, day_of_month=5),
+    ])
+    db.commit()
+    r = client.get("/api/expenses/recurring")
+    assert [e["name"] for e in r.json()] == ["Kişisel Netflix"]
+    r2 = client.get("/api/expenses/recurring", headers={"X-Workspace-Id": str(env["shared"].id)})
+    assert [e["name"] for e in r2.json()] == ["Aile Fatura"]

@@ -16,6 +16,7 @@ from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
 from app.models import User, RecurringExpense, Account, PendingAction, ActionStatus
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 
@@ -69,9 +70,10 @@ def list_expenses(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> List[ExpenseOut]:
     """Düzenli giderleri listele."""
-    q = db.query(RecurringExpense).filter(RecurringExpense.user_id == user.id)
+    q = db.query(RecurringExpense).filter(scope_filter(RecurringExpense, user.id, ws_id))  # M43
     if active_only:
         q = q.filter(RecurringExpense.is_active == True)
     return q.order_by(RecurringExpense.day_of_month, RecurringExpense.id).all()
@@ -82,17 +84,18 @@ def create_expense(
     payload: ExpenseCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> ExpenseOut:
     """Yeni düzenli gider kaydı (Netflix, kira, fatura vb.)."""
     # account_id kullanıcıya ait mi doğrula
     acc = db.query(Account).filter(
         Account.id == payload.account_id,
-        Account.user_id == user.id,
+        scope_filter(Account, user.id, ws_id),  # M43
     ).first()
     if not acc:
         raise HTTPException(404, f"Hesap bulunamadi: id={payload.account_id}")
 
-    exp = RecurringExpense(user_id=user.id, **payload.model_dump())
+    exp = RecurringExpense(user_id=user.id, workspace_id=ws_id, **payload.model_dump())  # M43
     db.add(exp)
     db.commit()
     db.refresh(exp)
@@ -105,11 +108,12 @@ def update_expense(
     payload: ExpenseUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> ExpenseOut:
     """Düzenli gideri güncelle. is_active=False ile pasifleştir, True ile aktive et."""
     exp = db.query(RecurringExpense).filter(
         RecurringExpense.id == expense_id,
-        RecurringExpense.user_id == user.id,
+        scope_filter(RecurringExpense, user.id, ws_id),  # M43
     ).first()
     if not exp:
         raise HTTPException(404, f"Gider bulunamadi: id={expense_id}")
@@ -120,7 +124,7 @@ def update_expense(
     if "account_id" in update_data and update_data["account_id"] is not None:
         target = db.query(Account).filter(
             Account.id == update_data["account_id"],
-            Account.user_id == user.id,
+            scope_filter(Account, user.id, ws_id),  # M43
         ).first()
         if not target:
             raise HTTPException(404, "Hedef hesap bulunamadi veya size ait degil.")
@@ -136,11 +140,12 @@ def delete_expense(
     expense_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
     """Düzenli gideri sil. Soft-delete için PUT yerine is_active=false kullan."""
     exp = db.query(RecurringExpense).filter(
         RecurringExpense.id == expense_id,
-        RecurringExpense.user_id == user.id,
+        scope_filter(RecurringExpense, user.id, ws_id),  # M43
     ).first()
     if not exp:
         raise HTTPException(404, f"Gider bulunamadi: id={expense_id}")
@@ -152,6 +157,7 @@ def delete_expense(
 def trigger_due_expenses(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     A3 Recurring Trigger: Vadesi gelen düzenli giderler için propose_action oluştur.
@@ -172,7 +178,7 @@ def trigger_due_expenses(
     last_day = calendar.monthrange(today.year, today.month)[1]
 
     exps = db.query(RecurringExpense).filter(
-        RecurringExpense.user_id == user.id,
+        scope_filter(RecurringExpense, user.id, ws_id),  # M43
         RecurringExpense.is_active == True,
     ).all()
 

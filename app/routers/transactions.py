@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M43 workspace scoping
 from app.serializers import utc_isoformat  # BUG #092: datetime UTC suffix
 # SEC-032: işlem tutarı SONLU olmalı (inf/NaN/taşma reddedilir); ≤0 kontrolü handler'daki
 # manuel doğrulamada (dostça Türkçe mesaj + quick_text modu) kalır → FinansOptBakiye (sign-agnostik sonlu).
@@ -273,11 +274,12 @@ def list_transactions(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     limit: int = Query(200, ge=1, le=1000),  # BUG #154 (P2-5): ust sinir
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Son N transaction (en yeni once)."""
     txns = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user.id)
+        .filter(scope_filter(Transaction, user.id, ws_id))  # M43 workspace scoping
         .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
         .limit(limit)
         .all()
@@ -290,6 +292,7 @@ def create_transaction(
     payload: TransactionCreate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     Yeni islem ekle. Iki mod:
@@ -329,14 +332,14 @@ def create_transaction(
         if data.get("is_card_expense"):
             acc = (
                 db.query(Account)
-                .filter(Account.user_id == user.id,
+                .filter(scope_filter(Account, user.id, ws_id),  # M43
                         Account.account_type == AccountType.credit_card)
                 .first()
             )
         else:
             acc = (
                 db.query(Account)
-                .filter(Account.user_id == user.id,
+                .filter(scope_filter(Account, user.id, ws_id),  # M43
                         Account.account_type == AccountType.cash)
                 .first()
             )
@@ -362,14 +365,14 @@ def create_transaction(
         )
     account = (
         db.query(Account)
-        .filter(Account.id == data["account_id"], Account.user_id == user.id)
+        .filter(Account.id == data["account_id"], scope_filter(Account, user.id, ws_id))  # M43
         .first()
     )
     if not account:
         raise HTTPException(status_code=404, detail="Hesap bulunamadi")
 
-    # Transaction kaydi olustur
-    txn = Transaction(user_id=user.id, **data)
+    # Transaction kaydi olustur — M43: aktif workspace'e bağla (yoksa None=legacy)
+    txn = Transaction(user_id=user.id, workspace_id=ws_id, **data)
     db.add(txn)
 
     if auto_update and account:
@@ -397,11 +400,12 @@ def update_transaction(
     payload: TransactionUpdate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """Transaction guncelle. Eski tutarın etkisini geri al, yeniyi uygula."""
     txn = (
         db.query(Transaction)
-        .filter(Transaction.id == txn_id, Transaction.user_id == user.id)
+        .filter(Transaction.id == txn_id, scope_filter(Transaction, user.id, ws_id))  # M43
         .first()
     )
     if not txn:
@@ -420,7 +424,7 @@ def update_transaction(
     if "account_id" in update_data and update_data["account_id"] is not None:
         target = (
             db.query(Account)
-            .filter(Account.id == update_data["account_id"], Account.user_id == user.id)
+            .filter(Account.id == update_data["account_id"], scope_filter(Account, user.id, ws_id))  # M43
             .first()
         )
         if not target:
@@ -430,7 +434,7 @@ def update_transaction(
     if auto_update and txn.account_id:
         old_account = (
             db.query(Account)
-            .filter(Account.id == txn.account_id, Account.user_id == user.id)
+            .filter(Account.id == txn.account_id, scope_filter(Account, user.id, ws_id))  # M43
             .first()
         )
         if old_account:
@@ -444,7 +448,7 @@ def update_transaction(
     if auto_update and txn.account_id:
         new_account = (
             db.query(Account)
-            .filter(Account.id == txn.account_id, Account.user_id == user.id)
+            .filter(Account.id == txn.account_id, scope_filter(Account, user.id, ws_id))  # M43
             .first()
         )
         if new_account:
@@ -461,6 +465,7 @@ def delete_transaction(
     auto_revert_balance: bool = True,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
     """
     Transaction sil. Default: silinen transaction'in bakiyeye olan etkisi
@@ -469,7 +474,7 @@ def delete_transaction(
     """
     txn = (
         db.query(Transaction)
-        .filter(Transaction.id == txn_id, Transaction.user_id == user.id)
+        .filter(Transaction.id == txn_id, scope_filter(Transaction, user.id, ws_id))  # M43
         .first()
     )
     if not txn:
@@ -479,7 +484,7 @@ def delete_transaction(
     if auto_revert_balance and txn.account_id:
         account = (
             db.query(Account)
-            .filter(Account.id == txn.account_id, Account.user_id == user.id)
+            .filter(Account.id == txn.account_id, scope_filter(Account, user.id, ws_id))  # M43
             .first()
         )
         if account:

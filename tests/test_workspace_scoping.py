@@ -16,7 +16,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.dependencies import get_db, get_current_user
 from app.models import (
-    Base, User, Workspace, WorkspaceMembership, WorkspaceRole, Account,
+    Base, User, Workspace, WorkspaceMembership, WorkspaceRole, Account, Transaction,
 )
 
 
@@ -109,3 +109,41 @@ def test_accounts_viewer_shared_gorur(client, env):
     r = client.get("/api/accounts", headers={"X-Workspace-Id": str(env["shared"].id)})
     assert r.status_code == 200
     assert [a["name"] for a in r.json()] == ["Aile Nakit"]
+
+
+# ============================================================
+# TRANSACTIONS
+# ============================================================
+
+@pytest.fixture
+def txns(db, env):
+    db.add_all([
+        Transaction(user_id=env["u1"].id, workspace_id=env["personal"].id,
+                    transaction_type="expense", amount=10, description="kişisel harcama"),
+        Transaction(user_id=env["u1"].id, workspace_id=env["shared"].id,
+                    transaction_type="expense", amount=20, description="aile harcama"),
+    ])
+    db.commit()
+    return env
+
+
+def test_transactions_personal_default(client, txns):
+    r = client.get("/api/transactions")
+    assert r.status_code == 200
+    descs = [t["description"] for t in r.json()]
+    assert descs == ["kişisel harcama"]
+
+
+def test_transactions_shared_header(client, txns):
+    r = client.get("/api/transactions", headers={"X-Workspace-Id": str(txns["shared"].id)})
+    assert r.status_code == 200
+    assert [t["description"] for t in r.json()] == ["aile harcama"]
+
+
+def test_transactions_create_shared_baglanir(client, txns, db):
+    # shared workspace'te bir nakit hesap var (Aile Nakit) → default hesap seçilir
+    r = client.post("/api/transactions", headers={"X-Workspace-Id": str(txns["shared"].id)},
+                    json={"transaction_type": "expense", "amount": 5, "description": "yeni aile"})
+    assert r.status_code == 201, r.text
+    t = db.query(Transaction).filter_by(description="yeni aile").one()
+    assert t.workspace_id == txns["shared"].id

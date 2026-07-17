@@ -219,3 +219,62 @@ describe('todayLocalISO / currentYearMonthLocal — gece vardiyası TZ güvenli�
     expect(currentYearMonthLocal()).toBe('2026-06');
   });
 });
+
+// =============================================================
+// M61 (BUG #158) — 401 stale-token kurtarma
+// =============================================================
+import { cockpitApi } from './api.js';
+
+describe('401 stale-token kurtarma (M61 / BUG #158)', () => {
+  let store;
+  let events;
+  beforeEach(() => {
+    store = {};
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
+    });
+    events = [];
+    vi.stubGlobal('window', {
+      dispatchEvent: (e) => { events.push(e.type); return true; },
+      addEventListener: () => {}, removeEventListener: () => {},
+    });
+    // CustomEvent yoksa (jsdom dışı) basit polyfill
+    if (typeof CustomEvent === 'undefined') {
+      vi.stubGlobal('CustomEvent', class { constructor(type) { this.type = type; } });
+    }
+  });
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it('401 → refresh başarılı → orijinal istek retry edilir, yeni access token kaydedilir', async () => {
+    store.fos_access_token = 'eski-olu-token';
+    store.fos_refresh_token = 'gecerli-refresh';
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ status: 401, ok: false,
+        headers: { get: () => 'application/json' }, json: async () => ({ detail: { code: 'token_expired' } }) })
+      .mockResolvedValueOnce({ status: 200, ok: true,
+        headers: { get: () => 'application/json' }, json: async () => ({ access_token: 'yeni-token' }) })
+      .mockResolvedValueOnce({ status: 200, ok: true,
+        headers: { get: () => 'application/json' }, json: async () => ({ nakit_kasa: 100 }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const data = await cockpitApi.get();
+    expect(data).toEqual({ nakit_kasa: 100 });
+    expect(store.fos_access_token).toBe('yeni-token');        // yeni token kaydedildi
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/auth/refresh');  // refresh çağrıldı
+    expect(fetchMock).toHaveBeenCalledTimes(3);               // cockpit + refresh + retry
+  });
+
+  it('401 → refresh token yok → token temizlenir + auth-expired yayılır (beyaz ekran yok)', async () => {
+    store.fos_access_token = 'olu-token';  // refresh yok
+    const fetchMock = vi.fn().mockResolvedValueOnce({ status: 401, ok: false,
+      headers: { get: () => 'application/json' }, json: async () => ({ detail: { code: 'token_expired' } }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(cockpitApi.get()).rejects.toMatchObject({ status: 401 });
+    expect(store.fos_access_token).toBeUndefined();  // temizlendi
+    expect(events).toContain('fos:auth-expired');    // AuthGate'e sinyal
+    expect(fetchMock).toHaveBeenCalledTimes(1);       // retry yok (refresh imkansız)
+  });
+});

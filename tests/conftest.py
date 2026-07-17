@@ -13,6 +13,16 @@ from sqlalchemy.pool import StaticPool
 from app.models import Base, User
 
 
+@pytest.fixture(autouse=True)
+def _neutralize_dotenv_auth(monkeypatch):
+    """M61: .env'de AUTH_ENABLED=true var (gerçek app login ister). Testler .env'e BAĞLI
+    OLMAMALI — auth gerektiren testler kendi fixture'ında `monkeypatch.setenv` ile açar.
+    Autouse (auth test fixture'larından ÖNCE koşar) → onların setenv'i kazanır; diğer ~900
+    test AUTH_ENABLED'sız (fallback) koşar. ENVIRONMENT de nötrlenir (settings fail-fast dev)."""
+    monkeypatch.delenv("AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+
+
 @pytest.fixture
 def db_session():
     """İzole in-memory DB session — her test kendi taze DB'sinde, canlı veriye dokunmadan."""

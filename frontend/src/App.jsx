@@ -129,6 +129,14 @@ function AuthGate() {
 
   useEffect(() => { check(); }, [check]);
 
+  // M61 (BUG #158): api.js oturumu kurtaramazsa 'fos:auth-expired' yayar → Login'e düş
+  // (ölü token uygulamayı beyaz ekranda/hata döngüsünde bırakmasın).
+  useEffect(() => {
+    const onExpired = () => { setResetToken(null); setJoinToken(null); setPhase('login'); };
+    window.addEventListener('fos:auth-expired', onExpired);
+    return () => window.removeEventListener('fos:auth-expired', onExpired);
+  }, []);
+
   if (phase === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-400 text-sm">

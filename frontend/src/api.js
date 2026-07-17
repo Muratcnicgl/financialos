@@ -51,11 +51,43 @@ function getRefreshToken() {
   try { return localStorage.getItem(REFRESH_KEY) || null; } catch { return null; }
 }
 
+// M61 (BUG #158): 401 kurtarma. Ölü/süresi-geçmiş token uygulamayı KİLİTLEMESİN.
+// Aynı anda çok istek 401 alırsa tek refresh yapılır (_refreshing guard).
+let _refreshing = null;
+async function _tryRefresh() {
+  const rt = getRefreshToken();
+  if (!rt) return false;
+  if (!_refreshing) {
+    _refreshing = (async () => {
+      try {
+        const r = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ refresh_token: rt }),
+        });
+        if (!r.ok) return false;
+        const d = await r.json().catch(() => null);
+        if (d && d.access_token) { setTokens({ access_token: d.access_token }); return true; }
+        return false;
+      } catch { return false; }
+    })();
+  }
+  const ok = await _refreshing;
+  _refreshing = null;
+  return ok;
+}
+
+// Oturum kurtarılamadı → token temizle + AuthGate'e sinyal (App.jsx dinler → Login).
+function _emitAuthExpired() {
+  clearTokens();
+  try { window.dispatchEvent(new CustomEvent('fos:auth-expired')); } catch { /* SSR/test */ }
+}
+
 // =============================================================
 // CORE FETCH
 // =============================================================
 
-async function request(path, { method = 'GET', body, params, headers: extraHeaders } = {}) {
+async function request(path, { method = 'GET', body, params, headers: extraHeaders, _retry = false } = {}) {
   let url = path;
 
   // Query string ekle
@@ -114,6 +146,16 @@ async function request(path, { method = 'GET', body, params, headers: extraHeade
     }
   } else {
     data = await res.text();
+  }
+
+  // M61 (BUG #158): 401 → oturumu kurtarmayı dene (auth endpoint'lerinde DEĞİL, sonsuz döngü olmasın)
+  if (res.status === 401 && !_retry && !path.startsWith('/api/auth/')) {
+    const recovered = await _tryRefresh();
+    if (recovered) {
+      return request(path, { method, body, params, headers: extraHeaders, _retry: true });
+    }
+    // Kurtarılamadı: token'ı temizle + AuthGate'e sinyal (beyaz ekran/kilitlenme ASLA)
+    _emitAuthExpired();
   }
 
   if (!res.ok) {

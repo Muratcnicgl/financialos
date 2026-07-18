@@ -50,6 +50,7 @@ tutarlılık turunda oluşturuldu ("ADR-index güncel mi" boşluğu kapandı).
 | 035 | Production Deployment Strategy | ✅ (Wave-3 M10) | Docker+Caddy (M80 statik-doğrulandı) |
 | 036 | Workspace + İzin Sistemi (Aile) | ✅ (Wave-4 M39) | owner/editor/viewer |
 | 037 | Workspace köprü-deseni + fail-fast | ✅ (Wave-4 M42) | ADR-036 uygular (M43 bridge) |
+| 038 | PostgreSQL hibrit + RLS + dual-dialect Alembic | ✅ (Wave-7 M49-53) | dev SQLite / prod Postgres; RLS 2. savunma |
 
 ## Tutarlılık turu bulguları (M89)
 - **Superseded zincirleri tutarlı:** ADR-028 → 034 (dosyada "SUPERSEDED by ADR-034" notu var, M75); ADR-004 sıra

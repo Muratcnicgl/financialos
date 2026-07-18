@@ -65,6 +65,27 @@ if IS_SQLITE:
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
+# M51 (Wave-7): PostgreSQL RLS workspace-context hook. rules_engine.workspace_scope aktif workspace'i
+# bir contextvar'da tutar; her transaction başında o değeri Postgres GUC'una (app.current_workspace_id)
+# yazarız → RLS policy (ws_isolation) satırları DB-katmanında filtreler (2. savunma). Contextvar None ise
+# (legacy/scope'suz) GUC yazılmaz → RLS "tümüne izin" (app-katmanı birincil). YALNIZ postgresql; SQLite no-op.
+if IS_POSTGRES:
+    from sqlalchemy import event as _event
+
+    @_event.listens_for(SessionLocal, "after_begin")
+    def _set_rls_workspace(session, transaction, connection):
+        try:
+            from app.rules_engine import _active_workspace  # lazy: circular import önle
+            ws = _active_workspace.get()
+        except Exception:
+            ws = None
+        if ws is not None:
+            # SET LOCAL → yalnız bu transaction; parametreli set_config (SQL injection'sız)
+            connection.exec_driver_sql(
+                "SELECT set_config('app.current_workspace_id', %s, true)", (str(ws),)
+            )
+
 # Tüm modellerin türeyeceği taban sınıf
 Base = declarative_base()
 

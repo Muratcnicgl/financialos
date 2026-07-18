@@ -108,3 +108,36 @@ delete/update `{id}` → item çek + goal-scope → 403). goal_id join workspace
 **Kanıt:** `tests/test_goal_workspace_isolation.py` 3 test — baseline shared=20000 / personal=50000 /
 legacy=70000; debt_freedom progress %25 (yalnız shared borç azalınca); personal borç değişimi shared
 goal'ü ETKİLEMİYOR. Scanner 2 passed (goal_engine/debt_strategy dahil, ihlal yok). Tam süit 986 passed, 1 skipped.
+
+---
+
+## M73 — Gece batch cron'ları workspace-kör + coach insight'larına cross-workspace karışma riski
+
+**Bulgu (rapor §B12, R3-doğrulandı):** 5 cron job `workspace_scope` contextvar'ı SET ETMİYORDU. R3
+inceleme her job'u ayrı değerlendirdi (rapor "hepsi eksik" derken 3'ü aslında BİLİNÇLİ global):
+- `fetch_investment_prices` (02:45) — `Account.account_type==investment` GLOBAL sorgu (user/ws filtresi
+  YOK), tüm hesapları işler → paylaşımlı ws dahil. Fon fiyatı ws'e bağlı değil → workspace-scope GEREKMEZ, olsa YANLIŞ olur. ✓
+- `nightly_trace_cleanup` (04:00) — `ReasoningTrace` global retention (workspace-scoped değil). ✓
+- `weekly_smoke_test` (Pzt) — DB'siz dış-API smoke. ✓
+- `nightly_batch` (03:00) + `k2_batch` (03:30) — **coach insight extractor'ları.** GERÇEK risk buradaydı.
+
+**Kök neden:** Coach insight'ları USER-SEVİYELİ (schema R3: `CoachInsight`/`CoachMemory`'de `workspace_id`
+YOK). Ama 4 extractor workspace-scoped modelleri ham `user_id ==` ile okuyordu:
+`extract_category_account_preference` (Account+Transaction), `extract_action_rejection_pattern` (PendingAction),
+`extract_breakthrough`/`extract_setback` (NetWorthSnapshot). Paylaşımlı (aile) workspace eklenince o veri
+kişinin PERSONAL insight'larına karışırdı — örn. aile net-değeri kişisel "breakthrough"a sızardı.
+
+**Fix (KURAL 12 tam çözüm, 4 parça):**
+1. **Canlı backfill:** `create_personal_workspaces.run` çalıştırıldı (idempotent, backup-guard'lı) — 1 kalan
+   `NetWorthSnapshot` NULL `workspace_id` → personal ws=1. Artık user 1'in TÜM scoped verisi ws=1 (0 NULL kaldı).
+   Bu, batch'i personal-scope'a almanın eski (NULL) snapshot'ları düşürmeden yapılabilmesi için önkoşuldu.
+2. **Extractor'lar:** 7 ham `user_id ==` filtresi → `_scope(Model, user_id)` (contextvar yoksa user_id = legacy korunur).
+3. **Batch job'lar:** `run_periodic_batch_for_user` + `run_k2_batch_for_user` `workspace_scope(_personal_workspace_id(...))`
+   ile sarıldı → scoped okumalar kişinin KENDİ verisini görür. `_personal_workspace_id` None fallback → test/legacy korunur.
+   (Olay-tetikli extractor'lar request bağlamındaki ambient scope'u kullanır — dokunulmadı, doğru.)
+4. **M70 tarayıcısı:** `_TARGETS += coach_insights.py` → extractor'ların scoped okumaları kilitlendi.
+
+**Kanıt:** `tests/test_scheduler_workspace.py` 3 test — `_personal_workspace_id` çözümü; batch personal-scope'ta
+category_account_preference YALNIZ KisiselKart'ı sayıyor (6, 12 değil = izole, AileKart görünmez); köprü kanıtı:
+scope yokken personal+shared karışıp dominant %70 eşiğini bozuyor (insight yaratılmıyor — karışımın neden zararlı
+olduğunun kanıtı). coach_insights+scheduler 67 mevcut test yeşil. Scanner 2 passed. Tam süit 989 passed, 1 skipped.

@@ -35,7 +35,8 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from sqlalchemy import delete
-from app.models import User, ReasoningTrace
+from app.models import User, ReasoningTrace, Workspace
+from app.rules_engine import workspace_scope  # M73: batch job'ları personal-workspace kapsamında koşar
 from app.coach_insights import (
     extract_breakthrough,
     extract_setback,
@@ -124,18 +125,36 @@ def run_extractor(name: str, db: Session, user_id: int) -> dict:
         return {"error": str(e)[:200], "extractor": name}
 
 
+def _personal_workspace_id(db: Session, user_id: int) -> int | None:
+    """M73: user'ın personal workspace id'si (yoksa None → köprü legacy user_id yolu).
+
+    Coach insight'ları USER-SEVİYELİ (CoachInsight/CoachMemory'de workspace_id YOK). Batch
+    bunları kişinin KENDİ finansal hayatı (personal workspace) üzerinden üretmeli; ileride
+    paylaşımlı (aile) workspace eklenince o verinin kişisel insight'lara karışmaması için.
+    None fallback: personal ws yoksa (test/legacy) _scope user_id'ye düşer → mevcut testler korunur."""
+    ws = (db.query(Workspace)
+          .filter(Workspace.owner_user_id == user_id, Workspace.is_personal.is_(True))
+          .order_by(Workspace.id.asc())
+          .first())
+    return ws.id if ws else None
+
+
 def run_periodic_batch_for_user(db: Session, user_id: int) -> dict:
     """Tek user icin gece batch extractor'larini sirayla calistir.
-    Bir extractor coker diger 4'u devam eder."""
+    Bir extractor coker diger 4'u devam eder.
+    M73: personal-workspace kapsamında — scoped-model okumaları (snapshot/hesap/işlem) kişinin
+    kendi verisini görür, paylaşımlı workspace verisi karışmaz."""
     results = {}
-    for name in NIGHTLY_BATCH_EXTRACTORS:
-        results[name] = run_extractor(name, db, user_id)
+    with workspace_scope(_personal_workspace_id(db, user_id)):  # M73
+        for name in NIGHTLY_BATCH_EXTRACTORS:
+            results[name] = run_extractor(name, db, user_id)
     return results
 
 
 def run_k2_batch_for_user(db: Session, user_id: int) -> dict:
-    """K2 ayri job - K1 olay-tetikleme sonrasi calismali."""
-    return {K2_BATCH_EXTRACTOR: run_extractor(K2_BATCH_EXTRACTOR, db, user_id)}
+    """K2 ayri job - K1 olay-tetikleme sonrasi calismali. M73: personal-workspace kapsamında."""
+    with workspace_scope(_personal_workspace_id(db, user_id)):  # M73
+        return {K2_BATCH_EXTRACTOR: run_extractor(K2_BATCH_EXTRACTOR, db, user_id)}
 
 
 def _get_active_user_ids(db: Session) -> list[int]:

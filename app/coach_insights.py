@@ -51,6 +51,7 @@ from app.models import (
     Account,
     MasterCheckpoint,
 )
+from app.rules_engine import _scope  # M73: extractor'lar aktif workspace kapsamında (batch personal-scope'lar)
 
 logger = logging.getLogger(__name__)
 
@@ -900,14 +901,14 @@ def extract_category_account_preference(db: Session, user_id: int) -> dict:
         cutoff = datetime.utcnow() - timedelta(days=CAP_PERIOD_DAYS)
 
         # 1) Account isimlerini bir defa cek (label icin)
-        accounts = db.query(Account).filter(Account.user_id == user_id).all()
+        accounts = db.query(Account).filter(_scope(Account, user_id)).all()
         account_name_map = {a.id: a.name for a in accounts}
 
         # 2) Son 90 gun expense + category NOT NULL + account NOT NULL
         rows = (
             db.query(Transaction.category, Transaction.account_id, func.count(Transaction.id))
             .filter(
-                Transaction.user_id == user_id,
+                _scope(Transaction, user_id),  # M73 workspace-scope
                 Transaction.transaction_type == TransactionType.expense,
                 Transaction.category.isnot(None),
                 Transaction.account_id.isnot(None),
@@ -1057,7 +1058,7 @@ def extract_action_rejection_pattern(db: Session, user_id: int) -> dict:
                 func.count(PendingAction.id),
             )
             .filter(
-                PendingAction.user_id == user_id,
+                _scope(PendingAction, user_id),  # M73 workspace-scope
                 PendingAction.created_at >= cutoff,
                 PendingAction.status.in_([ActionStatus.rejected, ActionStatus.executed]),
             )
@@ -1213,7 +1214,7 @@ def extract_breakthrough(db: Session, user_id: int) -> dict:
         recent_snaps = (
             db.query(NetWorthSnapshot)
             .filter(
-                NetWorthSnapshot.user_id == user_id,
+                _scope(NetWorthSnapshot, user_id),  # M73 workspace-scope
                 NetWorthSnapshot.snapshot_date >= recent_cutoff,
             )
             .all()
@@ -1221,7 +1222,7 @@ def extract_breakthrough(db: Session, user_id: int) -> dict:
         baseline_snaps = (
             db.query(NetWorthSnapshot)
             .filter(
-                NetWorthSnapshot.user_id == user_id,
+                _scope(NetWorthSnapshot, user_id),  # M73 workspace-scope
                 NetWorthSnapshot.snapshot_date >= baseline_cutoff,
                 NetWorthSnapshot.snapshot_date < recent_cutoff,
             )
@@ -1460,7 +1461,7 @@ def extract_setback(db: Session, user_id: int) -> dict:
         recent_snaps = (
             db.query(NetWorthSnapshot)
             .filter(
-                NetWorthSnapshot.user_id == user_id,
+                _scope(NetWorthSnapshot, user_id),  # M73 workspace-scope
                 NetWorthSnapshot.snapshot_date >= recent_cutoff,
             )
             .all()
@@ -1468,7 +1469,7 @@ def extract_setback(db: Session, user_id: int) -> dict:
         baseline_snaps = (
             db.query(NetWorthSnapshot)
             .filter(
-                NetWorthSnapshot.user_id == user_id,
+                _scope(NetWorthSnapshot, user_id),  # M73 workspace-scope
                 NetWorthSnapshot.snapshot_date >= baseline_cutoff,
                 NetWorthSnapshot.snapshot_date < recent_cutoff,
             )

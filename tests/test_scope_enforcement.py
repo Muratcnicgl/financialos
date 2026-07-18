@@ -29,6 +29,7 @@ _TARGETS = list((_ROOT / "app" / "routers").glob("*.py")) + [
     _ROOT / "app" / "rules_engine.py",
     _ROOT / "app" / "goal_engine.py",     # M72: debt_freedom Account kaçağı buradaydı
     _ROOT / "app" / "debt_strategy.py",   # M72: collect_debts kaçağı buradaydı
+    _ROOT / "app" / "coach_insights.py",  # M73: nightly batch extractor'ları scoped model okur
 ]
 
 # `<Model>.user_id ==` (models. öneki opsiyonel)

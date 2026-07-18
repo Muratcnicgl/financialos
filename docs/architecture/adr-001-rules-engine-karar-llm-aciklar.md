@@ -14,3 +14,22 @@ Enforcement: Master Checkpoint kod seviyesinde (`action_executor.py`), grounding
 - Sağlayıcı-bağımsız güvenilirlik (koç Gemini/Groq/Ollama fark etmez, matematik aynı).
 - "LLM'e soralım öğrensin" tembelliği **YASAK**. Yeni özellikte ilk soru: "bu deterministik olabilir mi?"
 - **İSİMLENDİRME:** Bu ilkenin gayri-resmi kişi-ismi kullanımı kod/docstring/commit'te **YASAKLANMIŞTIR**; isimsiz form ("ADR-001" / "Rules Engine karar verir, LLM açıklar" / "algoritma karar verir, kullanıcı seçer, AI açıklar") kullanılır.
+
+## İstisna — LLM-çıkarım (dil işleme) katmanı (M75, R3 ile belgelendi)
+
+"LLM hesap yapmaz, karar vermez" ifadesi **finansal/sayısal kararlar** içindir. Sistemde LLM'in
+**doğal-dil çıkarımı** yaptığı meşru bir katman vardır ve bu ilkeyi İHLAL ETMEZ:
+
+- **`app/coach_insights.py:extract_explicit_red_line_k2`** — kullanıcının geçmiş mesajlarından ima edilen
+  davranışsal "kırmızı çizgileri" (red line) LLM ile çıkarır ve `CoachInsight` olarak yazar. Bu bir **dil
+  sınıflandırma/özetleme** işidir (kullanıcının kendi ifadelerini insight'a dönüştürür) — **para hesaplamaz,
+  finansal eylem kararı vermez, DB'ye finansal veri yazmaz.** Ürettiği insight yalnız koça bağlam olur;
+  yine tüm sayısal kararlar rules_engine'de kalır.
+
+**Sınır kuralı:** LLM yalnız (a) cockpit'i açıklama ve (b) kullanıcı ifadelerinden dil-düzeyi çıkarım
+(insight/red-line) yapabilir. **Aritmetik, bakiye, strateji, hedef ilerlemesi = HER ZAMAN kural motoru.**
+`app/rules_engine.py`'de LLM çağrısı YOKTUR (R3 grep ile kanıtlı) — çekirdek saf.
+
+## Durum notu (M75)
+- **ADR-028** ("koç fiilen tek-sağlayıcı") ADR-034 ile SUPERSEDED (dosyada işaretli).
+- `rules_engine.py` LLM-çağrısız (kanıtlı); dil-çıkarım istisnası yukarıda sınırlandı.

@@ -862,6 +862,13 @@ class Goal(Base):
     goal_type = Column(String(20), nullable=False)
     # 'debt_freedom' | 'cash_target' — index __table_args__'da
 
+    # M75 TUTARLILIK NOTU: user_id burada nullable=True — diğer 16 scoped model nullable=False.
+    # Sebep: goals tablosuna user_id sonradan eklendi (migration f3dda4d3996d), mevcut satırları
+    # kırmamak için nullable bırakıldı. NOT NULL'a sıkılaştırmak `goals` batch-recreate gerektirir;
+    # goal_allocations + goal_rules INBOUND FK'leri var → SQLite'da inbound-FK'li batch recreate riskli
+    # (M11 dersi, ADR-036 asset_type deseni). Bu yüzden schema-seviyesi sıkılaştırma Blok D (PostgreSQL)
+    # geçişine ertelendi. UYGULAMA GARANTİSİ: create_goal HER ZAMAN user_id=current_user.id set eder
+    # (goals.py); API üzerinden NULL-user goal YARATILAMAZ (tests/test_goal_user_id_guard.py kilitler).
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     title = Column(String(200), nullable=False)

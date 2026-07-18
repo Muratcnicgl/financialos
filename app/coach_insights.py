@@ -251,8 +251,11 @@ def get_active_insights_for_prompt(
                 CoachInsight.status == "active",
             )
             .order_by(
-                CoachInsight.sort_priority.desc(),
-                CoachInsight.last_seen_at.desc(),
+                # M92 (Wave-7): nullslast — SQLite NULL'ları DESC'te sona, Postgres başa koyar (dialect
+                # divergence). NULL-öncelikli/tarihsiz insight'lar Postgres'te YANLIŞ olarak başa sıralanıp
+                # Top-N prompt enjeksiyonunu bozardı. Açık nullslast iki dialect'i hizalar (format_insights ile tutarlı).
+                CoachInsight.sort_priority.desc().nullslast(),
+                CoachInsight.last_seen_at.desc().nullslast(),
             )
             .limit(limit)
         )

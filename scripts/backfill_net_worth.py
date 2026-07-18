@@ -109,13 +109,15 @@ def _balance_at(db: Session, account: Account, target_date: date) -> float:
         Transaction.transaction_date > target_date,
     ).all()
 
-    bal = account.balance
+    # SBN-001 fix (M53): geri-alma HESAP-TİPİ FARKINDA olmalı — eski kod tip-agnostik'ti (income −, expense +),
+    # nakit için doğru AMA kredi/kart için TERS (kart harcaması borcu ARTIRIR; agnostik undo geçmiş net-değeri
+    # bozuyordu). Artık işaret konvansiyonu tek kaynağı balance_delta'dan geçer: undo = −delta.
+    from app.balance_rules import balance_delta
+    from app.money import D
+    bal = D(account.balance)
     for t in after:
-        if t.transaction_type == TransactionType.income:
-            bal -= t.amount   # undo: income +bakiye → geri al
-        elif t.transaction_type == TransactionType.expense:
-            bal += t.amount   # undo: expense -bakiye → geri al
-    return bal
+        bal -= balance_delta(account.account_type, t.transaction_type, t.amount)
+    return float(bal)
 
 
 def _receivables_at(db: Session, user_id: int, target_date: date) -> float:
@@ -168,8 +170,10 @@ def snapshot_for(db: Session, user: User, target_date: date) -> dict:
             investment_value += _investment_value_at(db, acc, target_date)
 
     receivables = _receivables_at(db, user.id, target_date)
-    seen = round(cash + investment_value - card_debt - loan_debt, 2)
-    full = round(seen + receivables, 2)
+    # M53: net-worth formülü TEK KAYNAK (balance_rules) — cockpit ile aynı işaret konvansiyonu.
+    from app.balance_rules import net_worth_seen, net_worth_full
+    seen = round(float(net_worth_seen(cash, investment_value, card_debt, loan_debt)), 2)
+    full = round(float(net_worth_full(seen, receivables)), 2)
 
     return dict(
         snapshot_date=target_date,

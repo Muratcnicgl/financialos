@@ -1976,14 +1976,16 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
 
     # Görülen Net Değer (operasyonel, MC1 — emanet hariç, alacaklar hariç)
     # MC8 ruhuna uygun: cüzdanı açtığında ne görüyorsun
-    net_deger = round(nakit + yatirim_deger - kart_borcu - kredi_borcu, 2)
+    # M53: net-worth formülü TEK KAYNAK (balance_rules.net_worth_seen) — backfill ile aynı işaret konvansiyonu.
+    from app.balance_rules import net_worth_seen as _nws, net_worth_full as _nwf
+    net_deger = round(_nws(nakit, yatirim_deger, kart_borcu, kredi_borcu), 2)
 
     # BUG #006 fix: Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
     # Efe takvimi gibi sözleşmeli alacaklar varlık olarak sayılır.
     alacaklar_toplami = _calculate_total_receivables(user_id, db)
     borclar_toplami = _calculate_total_payables(user_id, db)  # BUG #116: kişisel payable
     # Simetri + finansal doğruluk: alacaklar varlık (+), kişisel borçlar yükümlülük (−).
-    net_deger_tam = round(net_deger + alacaklar_toplami - borclar_toplami, 2)
+    net_deger_tam = round(_nwf(net_deger, alacaklar_toplami, borclar_toplami), 2)
 
     # Günlük limit
     days_remaining = get_month_remaining_days(today)

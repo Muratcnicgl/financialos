@@ -109,32 +109,10 @@ def _apply_to_balance(account: Account, txn_type, amount: float, reverse: bool =
     if account is None:
         return
 
-    sign = -1 if reverse else 1
-    amount = D(amount)  # ADR-030: bakiye Numeric(Decimal); amount (float payload) → Decimal
-
-    # Enum normalization (hem string hem enum gelebilir)
-    atype = account.account_type
-    ttype = txn_type
-    if hasattr(atype, "value"):
-        atype = atype.value
-    if hasattr(ttype, "value"):
-        ttype = ttype.value
-
-    if atype == "cash":
-        if ttype == "expense":
-            account.balance -= sign * amount
-        elif ttype == "income":
-            account.balance += sign * amount
-
-    elif atype == "credit_card":
-        if ttype == "expense":
-            account.balance += sign * amount
-        elif ttype == "income":
-            account.balance -= sign * amount
-
-    elif atype == "loan":
-        if ttype == "expense":
-            account.balance -= sign * amount
+    # M53: işaret konvansiyonu TEK KAYNAK (app/balance_rules.balance_delta). reverse = deltayı ters çevir.
+    from app.balance_rules import balance_delta
+    delta = balance_delta(account.account_type, txn_type, amount)
+    account.balance += (-delta if reverse else delta)
 
 
 # ============================================================

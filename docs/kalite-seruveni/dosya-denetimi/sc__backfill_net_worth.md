@@ -1,5 +1,8 @@
 # Denetim: scripts/backfill_net_worth.py
 
+> **✅ SBN-001 KAPANDI (M53, Wave-7):** `_balance_at` artık hesap-tipi-farkında (`app/balance_rules.balance_delta` tek kaynak); kredi/kart geçmiş net-değeri doğru. İşaret konvansiyonu tek yere toplandı (BUG #161 ailesi). Test: `tests/test_net_worth_sign_source_m53.py`. NOT: eski buggy backfill ile üretilmiş geçmiş snapshot'lar varsa `python -m scripts.backfill_net_worth` yeniden-üretir.
+
+
 > **M86 güncellik:** 🟢 GÜNCEL — 7 bulgu 0 bayat (SBN-001 net-worth kredi/kart yanlış hâlâ CANLI BUG)
 
 

@@ -1,0 +1,65 @@
+# FinancialOS nginx — MA2 (Wave-8): HTTPS reverse proxy + Let's Encrypt.
+# nginx:alpine entrypoint bu template'i envsubst ile /etc/nginx/conf.d/*.conf'a çevirir.
+# YALNIZ ${DOMAIN} env'den gelir; nginx runtime değişkenleri ($host, $uri, $scheme…) env'de OLMADIĞI için
+# envsubst onlara DOKUNMAZ (güvenli). Canlı sertifika Blok B'de certbot ile alınır.
+
+# ---- HTTP :80 → ACME challenge + HTTPS'e yönlendir ----
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # Let's Encrypt webroot doğrulaması (certbot bu yola yazar)
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    # geri kalan her şey HTTPS'e (kalıcı)
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ---- HTTPS :443 → SPA + /api proxy + güvenlik ----
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    # A-rating hedef: modern protokol + cipher (TLS1.2+1.3)
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    client_max_body_size 1m;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+    gzip_min_length 512;
+
+    # API → backend (aynı origin; CORS gerekmez)
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # SPA statik + client-side routing fallback
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Güvenlik başlıkları (HSTS yalnız HTTPS'te; W3-042 / SEC-005)
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
+    server_tokens off;
+}

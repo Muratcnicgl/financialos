@@ -70,10 +70,28 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      # MA2: nginx template ${DOMAIN}'i buradan doldurur (envsubst). IP-only deploy'da DOMAIN=IP olur.
+      DOMAIN: ${DOMAIN:?DOMAIN .env.prod'da zorunlu (nginx server_name + TLS cert)}
     ports:
       - "80:80"
-      # - "443:443"   # MA2: TLS eklenince açılır
-    # MA2: certbot volume'leri (letsencrypt) burada bağlanacak
+      - "443:443"     # MA2: HTTPS
+    volumes:
+      # Let's Encrypt sertifikaları (certbot yazar, nginx okur) + ACME webroot doğrulama
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot
+
+  # MA2: Let's Encrypt certbot — canlı sertifika Blok B'de alınır/yenilenir (deploy/init-letsencrypt.sh).
+  # Yenileme: 12 saatte bir dener (Let's Encrypt 90 gün, ~60. günde yeniler).
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'
 
 volumes:
   pg-data:
+  letsencrypt:
+  certbot-webroot:

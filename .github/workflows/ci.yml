@@ -1,0 +1,80 @@
+name: CI
+
+# M69 (Wave-5): backend testleri + kullanım-döngüsü e2e her push/PR'da koşar.
+# Gerekçe (tam-proje-durum-raporu §B24): UI→DB→rules_engine döngüsü 74 gün hiç işletilmedi;
+# bu boşluk bir daha sessiz kalmasın diye e2e CI'a bağlandı.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Fresh DB migration lock (ADR-013a)
+        run: python scripts/test_fresh_db_migration.py
+      - name: Pytest
+        env:
+          SECRET_KEY: ci-test-secret-key-min-32-characters-long-0123456789
+        run: python -m pytest tests/ -q
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Migrate fresh DB
+        env:
+          DATABASE_URL: sqlite:///./data/ci.db
+        run: |
+          mkdir -p data
+          python -m alembic upgrade head
+      - name: Start backend (AUTH on, rate-limit relaxed for e2e)
+        env:
+          DATABASE_URL: sqlite:///./data/ci.db
+          SECRET_KEY: ci-test-secret-key-min-32-characters-long-0123456789
+          AUTH_ENABLED: 'true'
+          RATE_LIMIT_REGISTER_MAX: '1000'
+          RATE_LIMIT_LOGIN_MAX: '1000'
+        run: |
+          python -m uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/api/health && break; sleep 1; done
+      - name: Install frontend deps + Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev &
+          for i in $(seq 1 30); do curl -sf http://localhost:5173 && break; sleep 1; done
+      - name: E2E (kullanım döngüsü + panel smoke)
+        working-directory: frontend
+        run: npm run e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

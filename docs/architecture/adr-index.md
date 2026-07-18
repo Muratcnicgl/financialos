@@ -1,0 +1,65 @@
+# ADR İndeksi (M89, Wave-6 — 18 Tem 2026)
+
+FinancialOS mimari kararlarının (ADR) tam envanteri. **39 dosya, ADR-001..037** (+013a addendum, +034-revize).
+Kaynak: `docs/architecture/adr-*.md`. Wave-5 M74'te 21 eksik ADR MCP'den materyalize edildi; bu index M89
+tutarlılık turunda oluşturuldu ("ADR-index güncel mi" boşluğu kapandı).
+
+## Durum lejantı
+✅ Kabul edildi (yürürlükte) · 🔴 SUPERSEDED (aşıldı) · 🟡 TASLAK · 🔵 REDDEDİLDİ (karar: yapma)
+
+## Envanter
+
+| ADR | Başlık | Durum | Zincir / Not |
+|---|---|---|---|
+| 001 | Rules Engine karar verir, LLM açıklar | ✅ temel ilke | M75: LLM-çıkarım istisnası eklendi |
+| 002 | Provider-agnostic LLM (fallback zinciri) | ✅ | zincir sırası → ADR-004/034 |
+| 003 | İki net değer metriği (Görülen vs Tam) | ✅ | — |
+| 004 | FallbackProvider sıralaması | ✅ (revize) | sıra **ADR-034 ile revize** |
+| 005 | is_question() deterministik ön-sınıflandırıcı | ✅ | — |
+| 006 | Wave-2 mimari üçgeni (öğrenen koç) | ✅ | ADR-016/017/020 uygular |
+| 007 | Tool-aware history (CoachMemory tool kolonları) | ✅ | — |
+| 008 | İki katmanlı LLM savunma (input+output) | ✅ | — |
+| 009 | PWA → RN+Expo mobil yol haritası | ✅ (yol haritası) | → ADR-032 (mobil platform) |
+| 010 | Apple HIG 44px hit area | ✅ | .btn-icon (A11Y-006 kapandı) |
+| 011 | PRICE_PROVIDER hibrit kanal | ✅ (güncellendi) | **ADR-029 ile güncellendi** |
+| 012 | PriceHistory kompozit PK + çoklu-kaynak | ✅ | — |
+| 013 | Alembic şema tek doğruluk kaynağı | ✅ | addendum: **ADR-013a** |
+| 013a | Migration Genesis Collapse (013 addendum) | ✅ (M1) | — |
+| 014 | Fiyat geçmişi backfill 1 yıl | ✅ | — |
+| 015 | Yatırım değeri tarihsel backfill | ✅ | lot-history → Wave-3 (ADR-019) |
+| 016 | Coach Insights iki helper paterni | ✅ | — |
+| 017 | Coach Insights iki tip dormant sweep | ✅ | — |
+| 018 | ReAct Reasoning Layer (UX+retention) | ✅ | — |
+| 019 | Wave-3 Multi-Asset Vizyonu | ✅ (vizyon) | uygulama → **ADR-031** |
+| 020 | Davranışsal hafıza prompt enjeksiyonu | ✅ | coach.py:1149 canlı |
+| 021 | Cashflow Forecast Engine | ✅ KAPALI | +REV1-3 |
+| 022 | 3-Ufuklu Karar Masası (T+0/30/90) | ✅ | T+1095 → Wave-3 |
+| 023 | H2G4-G7 sıra değişikliği (veri-gerçeklik) | ✅ | — |
+| 024 | Goal Engine kapsam daraltma (4→2 tip) | ✅ (Murat onayladı) | ADR-025 uygular |
+| 025 | Goal Engine — Allocation-Based Pattern | ✅ (Wave-2 uygulandı) | Monarch Goals 3.0 |
+| 026 | ZikZak (devreden bakiye) additive-red | ✅ | — |
+| 027 | Koç raporu "structured output" | 🔵 REDDEDİLDİ | karar: yapma |
+| 028 | Koç fiilen tek-sağlayıcı (Gemini-only) | 🔴 **SUPERSEDED by ADR-034** | M75 notu eklendi |
+| 029 | Fiyat sağlayıcı stratejisi (pytefas cron) | ✅ (M4) | +EVDS v3 revize (14 Tem) |
+| 030 | Para Float → Numeric(19,4) + Decimal | ✅ (M5) | canlı DB migrated |
+| 031 | Multi-asset (asset_type kolonu) | ✅ (Wave-3 M12) | ADR-019 uygular; kripto→Wave-4 |
+| 032 | Mobil platform (PWA vs RN+Expo) | 🟡 **TASLAK** | KAPSAM DIŞI (Wave-6 ÜRÜN-DNA) — ayrı karar bekliyor |
+| 033 | Auth + Multi-user (JWT, KVKK) | ✅ (Wave-3 M11) | canlı AUTH_ENABLED |
+| 034 | Koç sağlayıcı Wave-3 (028 revize) | ✅ (Wave-3 M13) | ADR-028'i aşar |
+| 034-revize | Koç sağlayıcı ücretsiz alternatifler | ✅ | — |
+| 035 | Production Deployment Strategy | ✅ (Wave-3 M10) | Docker+Caddy (M80 statik-doğrulandı) |
+| 036 | Workspace + İzin Sistemi (Aile) | ✅ (Wave-4 M39) | owner/editor/viewer |
+| 037 | Workspace köprü-deseni + fail-fast | ✅ (Wave-4 M42) | ADR-036 uygular (M43 bridge) |
+
+## Tutarlılık turu bulguları (M89)
+- **Superseded zincirleri tutarlı:** ADR-028 → 034 (dosyada "SUPERSEDED by ADR-034" notu var, M75); ADR-004 sıra
+  → 034 revize; ADR-011 → 029 güncelleme; ADR-019 vizyon → 031 uygulama. Hepsi ilgili dosyalarda referanslı.
+- **ADR-032 (mobil) TASLAK — DOĞRU:** mobil Wave-6 ÜRÜN-DNA'sında KAPSAM DIŞI; taslak kalması tutarlı (karar ertelenmiş).
+- **ADR-027 REDDEDİLDİ — DOĞRU:** "structured output yapma" kararı; kod structured-output kullanmıyor (tutarlı).
+- **Kod-tutarlılık (M85 çapraz-doğrulama):** çekirdek ADR'ler kanıtlı-uygulanmış — 001 (rules_engine LLM-çağrısız),
+  013 (create_all kaldırıldı), 030 (Numeric canlı), 036/037 (workspace scope Wave-5'te kilitlendi). Çelişki bulunmadı.
+- **Çelişki YOK:** hiçbir yürürlükteki ADR bir diğeriyle çelişmiyor (aşılanlar açıkça işaretli).
+
+## Not
+Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = mimari hafızanın tam repo-envanteri
+(BORÇ #3 kapandı, M74). Detaylı gerekçeler ilgili `adr-XXX-*.md` dosyalarında.

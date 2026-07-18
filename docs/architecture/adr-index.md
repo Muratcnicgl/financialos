@@ -51,11 +51,14 @@ tutarlılık turunda oluşturuldu ("ADR-index güncel mi" boşluğu kapandı).
 | 036 | Workspace + İzin Sistemi (Aile) | ✅ (Wave-4 M39) | owner/editor/viewer |
 | 037 | Workspace köprü-deseni + fail-fast | ✅ (Wave-4 M42) | ADR-036 uygular (M43 bridge) |
 | 038 | PostgreSQL hibrit + RLS + dual-dialect Alembic | ✅ (Wave-7 M49-53) | dev SQLite / prod Postgres; RLS 2. savunma |
+| 039 | Deploy implementasyonu (Docker+Compose+nginx/HTTPS) | ✅ kod, canlı-deploy Murat bekliyor (Wave-8 MA1-4) | ADR-035'i somutlaştırır; statik-doğrulandı |
+| 040 | PWA + mobil-uyum (native yerine) | ✅ kod, canlı PWA-gate deploy bekliyor (Wave-8 MC1-2) | ADR-009/032'yi kesinleştirir; mobil=PWA |
 
 ## Tutarlılık turu bulguları (M89)
 - **Superseded zincirleri tutarlı:** ADR-028 → 034 (dosyada "SUPERSEDED by ADR-034" notu var, M75); ADR-004 sıra
   → 034 revize; ADR-011 → 029 güncelleme; ADR-019 vizyon → 031 uygulama. Hepsi ilgili dosyalarda referanslı.
-- **ADR-032 (mobil) TASLAK — DOĞRU:** mobil Wave-6 ÜRÜN-DNA'sında KAPSAM DIŞI; taslak kalması tutarlı (karar ertelenmiş).
+- **ADR-032 (mobil) TASLAK → ADR-040 ile KESİNLEŞTİ (Wave-8):** Wave-6'da mobil KAPSAM DIŞI'ydı (taslak doğru). Wave-8
+  ÜRÜN-DNA'sı mobili PWA olarak kapsam-içine aldı → ADR-040 (mobil=PWA, native kapsam-dışı) kararı verdi.
 - **ADR-027 REDDEDİLDİ — DOĞRU:** "structured output yapma" kararı; kod structured-output kullanmıyor (tutarlı).
 - **Kod-tutarlılık (M85 çapraz-doğrulama):** çekirdek ADR'ler kanıtlı-uygulanmış — 001 (rules_engine LLM-çağrısız),
   013 (create_all kaldırıldı), 030 (Numeric canlı), 036/037 (workspace scope Wave-5'te kilitlendi). Çelişki bulunmadı.

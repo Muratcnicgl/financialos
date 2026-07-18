@@ -45,12 +45,15 @@ def _compare_type_ignore_string_text(ctx, inspected_column, metadata_column, ins
 def run_migrations_offline() -> None:
     """SQL script üretme modu - DB'ye bağlanmadan."""
     url = str(engine.url)
+    # M50 (Wave-7): render_as_batch YALNIZ SQLite'ta. Postgres native ALTER destekler;
+    # batch (tablo-recreate) Postgres'te gereksiz + inbound-FK'li tabloları kırabilir.
+    is_sqlite = engine.url.get_backend_name() == "sqlite"
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,  # SQLite için ALTER TABLE desteği
+        render_as_batch=is_sqlite,
     )
 
     with context.begin_transaction():
@@ -60,10 +63,12 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Canlı DB'ye bağlanıp migration uygulama modu."""
     with engine.connect() as connection:
+        # M50: render_as_batch dialect-koşullu (SQLite ALTER kısıtı için, Postgres native).
+        is_sqlite = connection.dialect.name == "sqlite"
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=True,  # SQLite için ALTER TABLE desteği (kolon ekleme/silme)
+            render_as_batch=is_sqlite,
             compare_type=_compare_type_ignore_string_text,  # SQLite String/Text false positive'i ignore et
         )
 

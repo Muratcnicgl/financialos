@@ -32,7 +32,7 @@ def upgrade() -> None:
     op.add_column("users", sa.Column("kvkk_consent_version", sa.String(length=20), nullable=True))
     op.add_column(
         "users",
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),  # M50: dialect-aware boolean
     )
     op.create_index("ix_users_email", "users", ["email"], unique=True)
 

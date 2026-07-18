@@ -23,10 +23,12 @@ def upgrade() -> None:
     # SQLite batch (render_as_batch=True). Mevcut satırlar server_default=0 alır.
     with op.batch_alter_table("master_checkpoints") as batch_op:
         batch_op.add_column(
-            sa.Column("is_system", sa.Boolean(), nullable=False, server_default=sa.text("0"))
+            sa.Column("is_system", sa.Boolean(), nullable=False, server_default=sa.false())  # M50: dialect-aware boolean
         )
     # Çekirdek Master Checkpoint'ler "MC<n> -" konvansiyonuyla seed edilir → is_system=1.
-    op.execute("UPDATE master_checkpoints SET is_system = 1 WHERE title LIKE 'MC%'")
+    # M50: dialect-aware boolean literal (Postgres TRUE, SQLite 1)
+    _true = "TRUE" if op.get_bind().dialect.name == "postgresql" else "1"
+    op.execute(f"UPDATE master_checkpoints SET is_system = {_true} WHERE title LIKE 'MC%'")
 
 
 def downgrade() -> None:

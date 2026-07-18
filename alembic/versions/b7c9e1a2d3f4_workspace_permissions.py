@@ -46,7 +46,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column("owner_user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("name", sa.String(length=100), nullable=False),
-        sa.Column("is_personal", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column("is_personal", sa.Boolean(), nullable=False, server_default=sa.false()),  # M50: dialect-aware boolean
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
     op.create_index("ix_workspaces_id", "workspaces", ["id"])  # model: PK index=True

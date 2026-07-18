@@ -65,6 +65,29 @@ from app.rules_engine import simulate_partial_sale
 from app.money import D, ZERO  # ADR-030: para Decimal (DB Numeric kolonlarına Decimal yazılır)
 
 
+# ============================================================
+# M82 (Wave-6) — action_type TEK DOĞRULUK KAYNAĞI
+# ============================================================
+# BUG #161 (M68) kaçağının kök nedeni: action_type string'leri 3 yerde AYRI listeleniyordu
+# (propose_action valid_types + execute dispatcher + coach.py tool enum) → biri güncellenip
+# diğeri unutulunca koç geçerli bir aksiyon önerip execute "Bilinmeyen aksiyon" diyordu.
+# Çözüm (komut-registry / dispatch-table deseni): action_type isimleri BURADA tek yerde tanımlı.
+#   - `propose_action` valid_types = ACTION_TYPES (türetilir, yeniden-listelenmez).
+#   - execute dispatcher = ACTION_HANDLERS (modül-altında, import-anı assert ile ACTION_TYPES'a kilitli).
+#   - `app/coach.py` tool enum = sorted(ACTION_TYPES) (import ederek türetir).
+# Yeni action_type eklerken: (1) buraya ekle, (2) _execute_* handler yaz + ACTION_HANDLERS'a koy.
+# Senkron testi: tests/test_action_type_single_source.py — 3 gate + prompt prose eşleşmesini kilitler.
+ACTION_TYPES: frozenset = frozenset({
+    "update_account_balance",
+    "add_transaction",
+    "mark_debt_paid",
+    "pay_credit_card",
+    "sell_investment",
+    "update_fund_price",
+    "add_master_checkpoint",
+})
+
+
 # BUG #025/#026 fix: Kart kategorileri (QUICK_KEYWORDS'deki is_card=True olanlar)
 _CARD_CATEGORIES = {"yemek", "eglence", "sigara", "alisveris", "market"}
 _TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiоsuCGIOSU")  # BUG #026: Türkçe karakter normalize
@@ -178,16 +201,8 @@ def propose_action(
     Returns:
         Yeni oluşturulan PendingAction kaydı (status=pending)
     """
-    valid_types = {
-        "update_account_balance",
-        "add_transaction",
-        "mark_debt_paid",
-        "pay_credit_card",  # BUG #161 fix (M68) — koç enum'u + execute dispatcher ile senkron
-        "sell_investment",
-        "update_fund_price",
-        "add_master_checkpoint",
-    }
-    if action_type not in valid_types:
+    # M82: tek kaynak — yeniden listelenmez, ACTION_TYPES'tan türetilir (BUG #161 drift kökü kapandı)
+    if action_type not in ACTION_TYPES:
         raise ValueError(f"Bilinmeyen aksiyon türü: {action_type}")
 
     warning = None
@@ -358,17 +373,8 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
         _mark_failed(db, pending, f"Payload parse hatasi: {e}")
         return {"success": False, "error": str(e)}
 
-    # Dispatcher
-    handlers = {
-        "update_account_balance": _execute_update_account_balance,
-        "add_transaction": _execute_add_transaction,
-        "mark_debt_paid": _execute_mark_debt_paid,
-        "pay_credit_card": _execute_pay_credit_card,  # BUG #161 fix (M68)
-        "sell_investment": _execute_sell_investment,
-        "update_fund_price": _execute_update_fund_price,
-        "add_master_checkpoint": _execute_add_master_checkpoint,
-    }
-    handler = handlers.get(pending.action_type)
+    # M82: dispatcher tek kaynak ACTION_HANDLERS (modül-altı, import-anı ACTION_TYPES'a kilitli)
+    handler = ACTION_HANDLERS.get(pending.action_type)
     if not handler:
         _mark_failed(db, pending, f"Bilinmeyen aksiyon: {pending.action_type}")
         return {"success": False, "error": f"Handler yok: {pending.action_type}"}
@@ -875,3 +881,26 @@ def _execute_add_master_checkpoint(db: Session, user_id: int, payload: Dict) -> 
         "type": cp.checkpoint_type.value,
         "priority": cp.priority,
     }
+
+# ============================================================
+# M82 (Wave-6) — DISPATCH REGISTRY (tek kaynak, import-anı drift kilidi)
+# ============================================================
+# Tüm _execute_* handler'ları tanımlandıktan sonra registry'yi kur. execute_pending_action
+# ve propose_action bu global'i çağrı-anında okur. Import-anı assert: handler anahtarları
+# ACTION_TYPES ile BİREBİR eşleşmezse modül YÜKLENMEZ (drift derhal patlar, sessiz kaçak yok).
+ACTION_HANDLERS = {
+    "update_account_balance": _execute_update_account_balance,
+    "add_transaction": _execute_add_transaction,
+    "mark_debt_paid": _execute_mark_debt_paid,
+    "pay_credit_card": _execute_pay_credit_card,
+    "sell_investment": _execute_sell_investment,
+    "update_fund_price": _execute_update_fund_price,
+    "add_master_checkpoint": _execute_add_master_checkpoint,
+}
+
+# Drift kilidi: propose valid_types (ACTION_TYPES) ↔ execute dispatcher (ACTION_HANDLERS) senkron mu?
+assert set(ACTION_HANDLERS) == set(ACTION_TYPES), (
+    "M82 DRIFT: ACTION_HANDLERS ile ACTION_TYPES uyuşmuyor — "
+    f"yalnız handlers'ta: {set(ACTION_HANDLERS) - set(ACTION_TYPES)}, "
+    f"yalnız types'ta: {set(ACTION_TYPES) - set(ACTION_HANDLERS)}"
+)

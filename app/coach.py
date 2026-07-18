@@ -99,7 +99,7 @@ from app.models import (
     User, MasterCheckpoint, CoachMemory, PendingAction, ActionStatus,
 )
 from app.rules_engine import generate_cockpit, turkish_date, generate_monthly_summary
-from app.action_executor import propose_action, _fmt
+from app.action_executor import propose_action, _fmt, ACTION_TYPES  # M82: enum tek kaynak
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
@@ -444,15 +444,8 @@ PROPOSE_ACTION_SCHEMA = {
         "properties": {
             "action_type": {
                 "type": "string",
-                "enum": [
-                    "update_account_balance",
-                    "add_transaction",
-                    "mark_debt_paid",
-                    "pay_credit_card",
-                    "sell_investment",
-                    "update_fund_price",
-                    "add_master_checkpoint",
-                ],
+                # M82: enum ACTION_TYPES'tan türetilir (yeniden-listelenmez → BUG #161 drift kökü kapandı)
+                "enum": sorted(ACTION_TYPES),
                 "description": "Aksiyon türü.",
             },
             "payload": {

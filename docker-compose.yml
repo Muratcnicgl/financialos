@@ -5,6 +5,11 @@ services:
     build: .
     restart: unless-stopped
     environment:
+      # M80: prod güvenlik kapıları — ENVIRONMENT=production SECRET_KEY fail-fast'i (BUG #157)
+      # aktive eder (zayıf/boş anahtarla açılmaz) + /docs kapatır (SEC-015); AUTH_ENABLED=true
+      # JWT'yi zorunlu kılar (public self-host auth gerektirir). Değiştirmek isteyen .env'de ezer.
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
       - DATABASE_URL=sqlite:////data/financialos.db
       - LLM_PROVIDER=${LLM_PROVIDER:-fallback}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}

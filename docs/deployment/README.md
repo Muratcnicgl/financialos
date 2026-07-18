@@ -131,6 +131,15 @@ process** olarak sürekli ayakta → APScheduler job'ı (02:45) düzgün tetikle
 | `DOMAIN` | evet (HTTPS için) | Caddy domain'i; localhost dışında → otomatik Let's Encrypt |
 | `LLM_PROVIDER` | evet | `fallback` \| `gemini` \| … |
 | `GEMINI_API_KEY` (vb.) | en az 1 | Koç için LLM sağlayıcı |
-| `SECRET_KEY` | M11'de | Oturum/JWT — şimdiden üret |
+| `SECRET_KEY` | **EVET** | Oturum/JWT. **Boşsa uygulama AÇILMAZ** (M80: compose `ENVIRONMENT=production` → fail-fast, BUG #157). `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `CORS_ORIGINS` | opsiyonel | Prod domain (aynı-origin'de gereksiz) |
 | `DATABASE_URL` | opsiyonel | Docker'da `/data` volume'e sabit |
+| `ENVIRONMENT` | opsiyonel | Compose default `production` (SECRET_KEY fail-fast + /docs kapalı). Dev için `.env`'de `development` yaz. |
+| `AUTH_ENABLED` | opsiyonel | Compose default `true` (JWT zorunlu). Tek-kullanıcı fallback için `.env`'de `false`. |
+
+> **M80 doğrulama notu (18 Tem 2026):** `docker-compose.yml` + `Dockerfile` + `Dockerfile.web` + `Caddyfile` +
+> `docker-entrypoint.sh` **statik olarak doğrulandı** (YAML geçerli, `/api/health` healthcheck hedefi mevcut,
+> uvicorn/alembic bağımlılıkları var, vite `outDir=dist` ↔ Caddy COPY tutarlı, reverse-proxy + güvenlik başlıkları
+> doğru). **Canlı `docker compose up` bu Windows dev ortamında KOŞTURULAMADI** (docker CLI yok — ADR-035'in
+> "prod'da daemon" gerekçesi + rapor §B23 KANIT YOK maddesi). Compose artık prod-güvenli default'larla gelir:
+> `ENVIRONMENT=production` + `AUTH_ENABLED=true` → zayıf/boş SECRET_KEY ile açılmaz (fail-fast R3 ile doğrulandı).

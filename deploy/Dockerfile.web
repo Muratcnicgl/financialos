@@ -1,0 +1,16 @@
+# FinancialOS frontend — production (MA1, Wave-8): Vite build → nginx serve.
+# nginx: SPA statik + /api reverse-proxy backend'e (HTTPS/güvenlik başlıkları MA2 nginx.conf'ta).
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM nginx:1.27-alpine
+# Varsayılan nginx config'i kaldır, prod config'i koy (MA2: reverse-proxy + güvenlik başlıkları)
+RUN rm /etc/nginx/conf.d/default.conf
+COPY deploy/nginx.conf /etc/nginx/conf.d/financialos.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1

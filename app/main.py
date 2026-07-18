@@ -92,19 +92,31 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Catch-up backfill hatasi: {type(e).__name__}: {e}")
 
     # Davranissal hafiza scheduler'i baslat
-    from app.scheduler import start_scheduler, shutdown_scheduler
-    try:
-        start_scheduler()
-    except Exception as e:
-        logger.warning(f"Scheduler baslatilamadi: {type(e).__name__}: {e}")
+    # MA1 (Wave-8): SCHEDULER_ENABLED gate — production'da gunicorn ÇOK worker çalıştırır; APScheduler
+    # her worker'da başlarsa cron N kez tetiklenir (çift fiyat/batch). Prod'da web worker'ları
+    # SCHEDULER_ENABLED=false, ayrı bir "scheduler" servisi SCHEDULER_ENABLED=true ile TEK scheduler koşar.
+    # Dev/tek-process (uvicorn) default AÇIK (geriye uyum) — env verilmemişse true.
+    _sched_on = os.getenv("SCHEDULER_ENABLED", "true").strip().lower() not in ("0", "false", "no")
+    _scheduler_started = False
+    if _sched_on:
+        from app.scheduler import start_scheduler
+        try:
+            start_scheduler()
+            _scheduler_started = True
+        except Exception as e:
+            logger.warning(f"Scheduler baslatilamadi: {type(e).__name__}: {e}")
+    else:
+        logger.info("[scheduler] SCHEDULER_ENABLED=false → bu process'te scheduler başlatılmadı (ayrı servis koşar).")
 
     yield
 
-    # Shutdown: scheduler'i durdur
-    try:
-        shutdown_scheduler()
-    except Exception as e:
-        logger.warning(f"Scheduler durdurma hatasi: {type(e).__name__}: {e}")
+    # Shutdown: scheduler'i durdur (yalnız başlatıldıysa)
+    if _scheduler_started:
+        try:
+            from app.scheduler import shutdown_scheduler
+            shutdown_scheduler()
+        except Exception as e:
+            logger.warning(f"Scheduler durdurma hatasi: {type(e).__name__}: {e}")
 
 
 # ============================================================

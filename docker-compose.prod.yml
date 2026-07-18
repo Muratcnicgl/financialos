@@ -1,0 +1,79 @@
+# FinancialOS — PRODUCTION compose (MA1, Wave-8). Canlı deploy (Blok B) bunu kullanır.
+# Kullanım: cp .env.prod.example .env.prod (gerçek secret'larla doldur — .gitignore'da) →
+#           docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Mimari: db (postgres) + backend (gunicorn web, scheduler KAPALI) + scheduler (ayrı, scheduler AÇIK) + nginx (SPA+proxy).
+# Scheduler ayrı servis → çok-worker'lı web'de cron çift-tetiklenmez; tek scheduler 7/24 fiyat/batch (MA4).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: financialos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod'da zorunlu}
+      POSTGRES_DB: financialos
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U financialos -d financialos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Port DIŞARI AÇILMAZ (yalnız iç ağ) — güvenlik
+    expose:
+      - "5432"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SERVICE_MODE: web
+      ENVIRONMENT: production
+      AUTH_ENABLED: "true"
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY .env.prod'da zorunlu (fail-fast)}
+      # RLS'in etkili olması için app NON-superuser rol (financialos) ile bağlanır (ADR-038, M51)
+      DATABASE_URL: postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      LLM_PROVIDER: ${LLM_PROVIDER:-fallback}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    expose:
+      - "8000"
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started   # backend migrate ettikten sonra
+    environment:
+      SERVICE_MODE: scheduler
+      ENVIRONMENT: production
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY zorunlu}
+      DATABASE_URL: postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+      LLM_PROVIDER: ${LLM_PROVIDER:-fallback}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      # - "443:443"   # MA2: TLS eklenince açılır
+    # MA2: certbot volume'leri (letsencrypt) burada bağlanacak
+
+volumes:
+  pg-data:

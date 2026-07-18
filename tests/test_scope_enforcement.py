@@ -7,8 +7,10 @@ filtrelerse workspace verisi **sessizce sızar** (derleme/test hatası YOK). Bu 
 kapatır: scoped-model'in her `user_id ==` karşılaştırması ya `scope_filter`/`_scope` içinden
 geçmeli ya da açık `# scope-exempt: <sebep>` ile işaretlenmeli. Aksi halde TEST KIRILIR.
 
-Kapsam: app/routers/*.py + app/rules_engine.py. Koç/kişisel modeller (workspace_id'siz)
-kapsam dışı — yalnız ADR-036 workspace-scoped 12 model denetlenir.
+Kapsam: app/routers/*.py + app/rules_engine.py + app/goal_engine.py + app/debt_strategy.py.
+(M72: goal_engine/debt_strategy eklendi — debt_freedom goal'lerindeki Account.user_id kaçağı
+bu iki dosya taranmadığı için M70'te görülmemişti; kör nokta kapandı.) Koç/kişisel modeller
+(workspace_id'siz) kapsam dışı — yalnız ADR-036 workspace-scoped 12 model denetlenir.
 """
 from __future__ import annotations
 
@@ -23,7 +25,11 @@ SCOPED_MODELS = {
 }
 
 _ROOT = Path(__file__).resolve().parent.parent
-_TARGETS = list((_ROOT / "app" / "routers").glob("*.py")) + [_ROOT / "app" / "rules_engine.py"]
+_TARGETS = list((_ROOT / "app" / "routers").glob("*.py")) + [
+    _ROOT / "app" / "rules_engine.py",
+    _ROOT / "app" / "goal_engine.py",     # M72: debt_freedom Account kaçağı buradaydı
+    _ROOT / "app" / "debt_strategy.py",   # M72: collect_debts kaçağı buradaydı
+]
 
 # `<Model>.user_id ==` (models. öneki opsiyonel)
 _PATTERN = re.compile(r"\b(?:models\.)?([A-Z][A-Za-z_]+)\.user_id\s*==")

@@ -76,3 +76,35 @@ actions approve/reject ownership (id+user), expenses/incomes pending-dedup (user
 lookup. Her biri `# scope-exempt: <sebep>` ile işaretli — tarayıcı bunları atlar, sebep kod-içi görünür.
 
 **Kanıt:** `pytest tests/test_scope_enforcement.py` 2 passed; tam süit 975 passed, 1 skipped (M69'da 973 idi, +2 tarayıcı).
+
+---
+
+## M72 — debt_freedom goal'lerinde workspace borç-kaçağı (tarayıcı KÖR NOKTASI: goal_engine/debt_strategy)
+
+**Bulgu:** `debt_freedom` tipi goal'lerin ilerleme hesabı, workspace izolasyonunu DELİYORDU. M70
+tarayıcısı yalnız `routers/*.py + rules_engine.py` tarıyordu; **goal_engine.py ve debt_strategy.py
+taranmıyordu** → oradaki 3 `Account.user_id ==` sızıntısı görülmemişti:
+- `goal_engine.calculate_baseline_for_debt_freedom` — goal yaratımında baseline TÜM workspace'lerin
+  kredi+kart toplamından alınıyordu (aile ws goal'ü Murat'ın kişisel kredilerini de sayardı).
+- `goal_engine._compute_debt_freedom` — güncel borç aynı şekilde `Account.user_id == goal.user_id`.
+- `debt_strategy.collect_debts` — snowball/avalanche + debt_freedom projeksiyonu için borçları
+  `Account.user_id == user_id` ile topluyordu (workspace-kör).
+
+**Anlamı:** İki workspace aynı user_id'yi paylaştığından (köprü-desen), aile ws'indeki bir "borçsuzluk"
+hedefi kişisel workspace'in kredilerini karıştırıp progress'i YANLIŞ gösterirdi. Tek-kullanıcı gerçekte
+tek personal ws olduğu için canlıda tetiklenmemişti — ama aile özelliği kullanılınca patlardı (§B23b RISK #2 sınıfı).
+
+**Fix (köprü-uyumlu, ADR-037):**
+- goal_engine + debt_strategy: `Account.user_id ==` → `_scope(Account, user_id)` (contextvar yoksa user_id = legacy korunur).
+- `refresh_goal`: `compute_progress` çağrısı `with workspace_scope(goal.workspace_id)` ile sarıldı — tek
+  noktada hem borç sorgusu hem projeksiyon (compare_strategies→collect_debts) doğru workspace'e kapanır.
+- `goals.create_goal`: baseline hesabı `with workspace_scope(ws_id)` içinde.
+- **M70 tarayıcısı genişletildi:** `_TARGETS` artık goal_engine.py + debt_strategy.py de kapsar → kör nokta kapandı, regresyon kilidi bu iki dosyayı da koruyor.
+
+**GoalAllocation/GoalRule (rapordaki asıl M72 endişesi):** İNCELENDİ, GÜVENLİ. user_id'leri yok ama her
+router erişimi önce parent goal'ü `scope_filter(Goal, …)` ile doğruluyor (list/create `/{goal_id}/…` → 404;
+delete/update `{id}` → item çek + goal-scope → 403). goal_id join workspace-bound goal üzerinden izole.
+
+**Kanıt:** `tests/test_goal_workspace_isolation.py` 3 test — baseline shared=20000 / personal=50000 /
+legacy=70000; debt_freedom progress %25 (yalnız shared borç azalınca); personal borç değişimi shared
+goal'ü ETKİLEMİYOR. Scanner 2 passed (goal_engine/debt_strategy dahil, ihlal yok). Tam süit 986 passed, 1 skipped.

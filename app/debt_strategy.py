@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Account, AccountType
+from app.rules_engine import _scope  # M72: aktif workspace kapsamı (köprü; contextvar yoksa user_id)
 
 
 # ============================================================
@@ -86,7 +87,7 @@ class StrategyResult:
 def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
     """DB'den borc hesaplarini cek, DebtItem listesi don."""
     stmt = select(Account).where(
-        Account.user_id == user_id,
+        _scope(Account, user_id),  # M72: workspace_scope set ise o workspace, değilse user_id (legacy)
         Account.account_type.in_([AccountType.credit_card, AccountType.loan]),
         Account.balance > 0,
     )

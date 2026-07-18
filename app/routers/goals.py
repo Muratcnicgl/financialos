@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43, require_write
+from app.rules_engine import workspace_scope  # M72: baseline hesabı aktif workspace kapsamında
 from app.goal_engine import (
     calculate_baseline_for_debt_freedom,
     link_transaction,
@@ -71,9 +72,11 @@ def create_goal(
     )
 
     if payload.goal_type == "debt_freedom":
-        goal.baseline_amount = calculate_baseline_for_debt_freedom(
-            current_user.id, db
-        )
+        # M72: baseline aktif workspace'in borcundan alınır (başka workspace'in kredileri karışmaz)
+        with workspace_scope(ws_id):
+            goal.baseline_amount = calculate_baseline_for_debt_freedom(
+                current_user.id, db
+            )
 
     db.add(goal)
     db.commit()

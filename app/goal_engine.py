@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.models import Account, AccountType, GoalAllocation, PersonalDebt
+from app.rules_engine import _scope, workspace_scope  # M72: debt_freedom workspace izolasyonu (köprü)
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def calculate_baseline_for_debt_freedom(user_id: int, db: Session) -> Decimal:
     total = db.query(
         func.coalesce(func.sum(Account.balance), 0)
     ).filter(
-        Account.user_id == user_id,
+        _scope(Account, user_id),  # M72: aktif workspace varsa o workspace'in borcu (köprü)
         Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
         Account.balance > 0,
     ).scalar()
@@ -88,7 +89,7 @@ def _compute_debt_freedom(goal: models.Goal, db: Session) -> dict:
     current_debt = db.query(
         func.coalesce(func.sum(Account.balance), 0)
     ).filter(
-        Account.user_id == goal.user_id,
+        _scope(Account, goal.user_id),  # M72: goal.workspace_id kapsamında (refresh_goal wrap eder)
         Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
         Account.balance > 0,
     ).scalar()
@@ -255,7 +256,10 @@ def refresh_goal(goal_id: int, db: Session) -> models.Goal:
     if not goal:
         raise ValueError(f"Goal {goal_id} not found")
 
-    result = compute_progress(goal, db)
+    # M72: progress hesabı goal'in workspace'i kapsamında — debt_freedom borç sorgusu ve
+    # projeksiyon (compare_strategies→collect_debts) başka workspace'in hesaplarını görmez.
+    with workspace_scope(goal.workspace_id):
+        result = compute_progress(goal, db)
     goal.current_amount = result["current_amount"]
     goal.progress_percent = result["progress_percent"]
     goal.projected_completion_date = result["projected_completion_date"]

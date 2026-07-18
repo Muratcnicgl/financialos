@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/HorizonsModal.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FHM-001] Escape tuşu dinleyicisi modal kapaliyken de global olarak bağlı kalıyor
 Sorun: Escape keydown handler'i barındıran useEffect, isOpen durumuna bağlı değil (satır 117-121). `isOpen=false` olduğunda component `null` render ediyor (satır 171) ama hook zaten çalışmış ve `window` üzerine `keydown` listener eklenmiş oluyor. Parent component bu modalı `isOpen=false` iken de mount edilmiş tutuyorsa (örn. koşullu render yerine prop ile aç/kapa yapılıyorsa), kullanıcı uygulamanın herhangi bir yerinde Escape'e bastığında bu modalın `onClose()` fonksiyonu tetiklenir — modal görünür olmasa bile.
 Kanıt (satır 117-121):

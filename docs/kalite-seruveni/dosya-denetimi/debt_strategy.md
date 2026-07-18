@@ -1,5 +1,8 @@
 # Denetim: app/debt_strategy.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [DS-001] Kart minimum odemesi baslangic bakiyesinden SABIT hesaplaniyor, gercek TR banka pratigini yansitmiyor
 - **Sorun:** `collect_debts` icinde kart minimum odemesi bir kez, o anki bakiyenin %25'i olarak hesaplanip `DebtItem.min_payment` alanina sabitleniyor (satir 104). `_simulate` boyunca (satir 172, 191-195) bu SABIT deger her ay ayni sekilde uygulaniyor — bakiye kucüldükce minimum odeme de kucülmuyor. Gercekte TR bankalarinda asgari odeme her ay GUNCEL (kesim) bakiyesinin yuzdesi olarak yeniden hesaplanir; bu da bakiyenin cok daha yavas (bazen pratik olarak hic) erimesine yol acar.
 - **Kanit:** satir 104 (`min_pay = max(float(a.balance) * MIN_CARD_PAYMENT_RATIO, 50.0)`), satir 172 ve 191-195 (`d.min_payment` sabit deger olarak tuketiliyor).

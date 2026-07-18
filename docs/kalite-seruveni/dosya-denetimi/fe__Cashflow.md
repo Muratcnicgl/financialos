@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/Cashflow.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FCF-001] handleRefresh icin cleanup/iptal mekanizmasi yok
 Sorun: Ana veri yukleme useEffect'i (satir 31-48) unmount veya hizli parametre degisiminde `cancelled` bayragiyla korunuyor, ama `handleRefresh` (satir 50-57) ayni korumaya sahip degil. Kullanici Yenile'ye basip component unmount olursa ya da art arda birden fazla kez tiklarsa, gec donen bir `.then` cagrisi unmount sonrasi `setData`/`setRefreshing` calistirir (React "state update on unmounted component" uyarisi) veya daha eski bir istegin cevabi daha yeni istegi ezebilir (race condition).
 Kanit (satir 50-57):

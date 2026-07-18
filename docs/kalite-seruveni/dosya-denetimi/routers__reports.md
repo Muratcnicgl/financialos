@@ -1,5 +1,8 @@
 # Denetim: app/routers/reports.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RRE-001] "both" modunda gelir ve gider ayni kategori satirinda karisiyor
 - **Sorun:** category_breakdown endpoint'inde group_by sadece Transaction.category'e gore yapiliyor (satir 74-75), transaction_type'a gore degil. type="both" secildiginde bir kullanicinin ayni kategori adini hem gelir hem gider icin kullanmasi (orn. "diger", "yatirim") o kategoriye ait income amount'lari ile expense amount'lari tek bir "total" alaninda toplaniyor.
 - **Kanit:** satir 56-78 (query + group_by), ozellikle satir 65-72 (type filtresi) ve satir 74-78 (group_by/order_by sadece category uzerinden)

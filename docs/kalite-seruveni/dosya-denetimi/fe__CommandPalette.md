@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/CommandPalette.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FCMD-001] Klavye olay yonetimi sadece input elemanina bagli, odak baska yere gectiginde kirilir
 Sorun: `handleKeyDown` (satir 31-42) sadece input'un `onKeyDown`'ina baglanmis (satir 59). Escape, ArrowUp/ArrowDown ve Enter mantigi yalnizca input odaktayken calisir. Kullanici Tab ile kapatma butonuna (satir 63) veya bir komut satirina (satir 72) odaklanirsa, o noktada Escape ile kapatma ve ok tuslariyla gezinme calismaz.
 Kanit (satir 31, 59, 63, 72): `handleKeyDown` tanimi input disina baglanmamis; `onKeyDown={handleKeyDown}` sadece satir 59'daki `<input>` uzerinde.

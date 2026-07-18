@@ -1,5 +1,8 @@
 # Denetim: app/routers/cashflow.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RCF-001] include parametresi validasyonsuz - gecersiz chip'ler sessizce yutuluyor
 - **Sorun:** Satir 107'de `include_set = {s.strip() for s in include.split(",") if s.strip()}` uretiliyor ama bu set hicbir yerde `app.cashflow.VALID_INCLUDE = {"incomes","expenses","receivables","payables"}` ile karsilastirilmiyor. Kullanici yazim hatasi yapip `include=incomes,exspenses` gonderirse "exspenses" sessizce yok sayilir, hicbir 400/422 donmez; kullanici "tum giderler dahil" sanirken aslinda gider kalemleri tahmine hic girmez.
 - **Kanit:** satir 90-93 (Query tanimi, hicbir validator yok), satir 107 (split + set, dogrulama yok); karsilastirma icin app/cashflow.py satir 228 (`VALID_INCLUDE`) tanimli ama router'da hic kullanilmiyor.

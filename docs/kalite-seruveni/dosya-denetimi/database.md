@@ -1,5 +1,8 @@
 # Denetim: app/database.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [DB-001] init_db()/create_all, alembic (ADR-013) ile senkron degil - schema drift riski
 - **Sorun:** `init_db()` (satir 75-82) `Base.metadata.create_all(bind=engine)` cagirir. Ancak repo `alembic` ile schema yonetimine gecmis (bkz. `alembic/env.py` - `Base, engine` dogrudan `app.database`'den import ediliyor, `app/main.py:112-113` "ADR-013: Schema yonetimi alembic ile" diyor). `scripts/setup_data.py:36-37` ise `Base.metadata.drop_all(bind=engine)` + `create_all(bind=engine)` calistiriyor - bu `alembic_version` tablosunu da siler. Sonrasinda DB, modellerin GUNCEL haline sahip olur ama alembic bunu bilmez (alembic_version kaydi yok). Bir sonraki `alembic upgrade head` calistirildiginda alembic ya "DB zaten guncel ama versiyon kaydi yok" belirsizligine duser ya da migration tekrar CREATE TABLE denerse "table already exists" hatasi verir.
 - **Kanit:** satir 75-82 (`init_db`); capraz referans `scripts/setup_data.py:36-37`, `alembic/env.py:7`, `app/main.py:112-113`.

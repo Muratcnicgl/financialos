@@ -1,5 +1,8 @@
 # Denetim: app/routers/simulation.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RSI-001] reel_butce / daily_limit / kart_kullanim_orani hicbir zaman doldurulmuyor
 - **Sorun:** `HorizonSnapshot` semasi `reel_butce`, `daily_limit`, `kart_kullanim_orani` alanlarini vaat ediyor ve `_snapshot_to_horizon` bunlari `snap.get(...)` ile okuyor (satir 73-75). Ama bu dict'leri ureten `app/simulation_engine.py::_snapshot_to_dict` (satir 418-441) SADECE `label, as_of, nakit_kasa, kart_borcu, kredi_borcu, yatirim_deger, emanet_kasa, net_deger, accounts` anahtarlarini yaziyor. `reel_butce`/`daily_limit` rules_engine.generate_cockpit'in shadow-accounting hesabidir (app/rules_engine.py satir 718-783: recurring_income + loan_payments_eom dahil edilerek hesaplaniyor) ve simulation_engine bunu hic tekrarlamiyor/cagirmiyor.
 - **Kanit:** simulation.py satir 44-45, 73-75; simulation_engine.py satir 418-441 (anahtar listesi).

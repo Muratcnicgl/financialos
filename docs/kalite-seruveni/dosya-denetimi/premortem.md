@@ -1,5 +1,8 @@
 # Denetim: app/premortem.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [PM-001] net_worth_delta parametresi kabul edilir ama hicbir yere yazilmaz
 - **Sorun:** `link_premortem_outcome` fonksiyonu `net_worth_delta: Optional[float] = None` parametresini alir ve docstring'de "Karar oncesi/sonrasi net deger farki (opsiyonel)" olarak tanimlar. Ancak fonksiyon govdesinde (348-352. satirlar) sadece `related_action_id`, `actual_outcome`, `outcome_evaluated_at`, `outcome_score` alanlarina yazar — `net_worth_delta` degeri hicbir DecisionJournal kolonuna aktarilmaz, sessizce dusurulur. `DecisionJournal` modelinde (app/models.py) bu degeri tutacak bir kolon da yok. Caller (`app/routers/actions.py:292`) bu farki gercek cockpit before/after degerlerinden ozenle hesaplayip gonderiyor (`float(net_worth_after or 0.0) - float(net_worth_before or 0.0)`) ama bu deger bosa gidiyor. Sonuc: `outcome_score` sadece kaba +1/-1 basari bayragi tasiyor, DecisionJournal'in "Pain + Reflection = Progress" (models.py:600) ay-sonu retro amacinin gerektirdigi sayisal etki hic kaydedilmiyor.
 - **Kanit:** satir 317-356 (ozellikle parametre tanimi 323, kullanilmadigi govde 348-352); caller app/routers/actions.py:286-293

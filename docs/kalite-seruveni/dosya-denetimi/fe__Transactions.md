@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/Transactions.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FTR-001] Tutar parse tek virgulu degistiriyor, binlik ayiracli girisi sessizce bozuyor
 Sorun: Kullanici Turkce binlik/ondalik formatinda ("1.234,56" gibi, uygulamanin formatTL'nin urettigi bicim) bir tutar yapistirir veya yazarsa, `amount.replace(',', '.')` sadece ILK virgulu noktaya cevirir. "1.234,56" -> "1.234.56" olur, `parseFloat` bunu 1.234 olarak okur, ",56" kismi sessizce kaybolur. Kullaniciya hicbir uyari gitmez, yanlis tutar DB'ye yazilir.
 Kanit (satir 525): `const amt = parseFloat(amount.replace(',', '.'));`

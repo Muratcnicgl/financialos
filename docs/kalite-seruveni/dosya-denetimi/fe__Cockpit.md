@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/Cockpit.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FCP-001] Index-key kullanımı: alerts, upcoming_reminders, upcoming_payments, upcoming_receivables listeleri
 Sorun: Dört ayrı liste render'ında React key olarak dizi index'i kullanılıyor. Backend her `load()` çağrısında bu dizileri yeniden üretiyor (sıralama/eleman sayısı fetch'ler arasında değişebilir); index-key ile React DOM elemanlarını yanlış eşleştirebilir (stale içerik, gereksiz remount, animasyon/transition glitch).
 Kanit (satir 230-232, satir 376-385, satir 417-419, satir 456-459):

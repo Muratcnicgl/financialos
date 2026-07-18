@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/CashflowCalendar.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FCC-001] "Bugün" isaretlemesi UTC/local karisimi yuzunden yanlis gun gosterebilir
 Sorun: `isToday` hesabi, takvim hucrelerinin ISO tarihini local wall-clock (`viewYear`/`viewMonth`/`day`) ile uretirken (`isoStr`), karsilastirdigi degeri `today.toISOString().slice(0,10)` ile yani UTC gune gore aliyor. Turkiye UTC+3 oldugu icin, yerel saat 00:00-03:00 arasinda `today.toISOString()` bir onceki UTC gunu doner; boylece "bugun" halkasi (ring-1 ring-brand-500) yanlis hucrede gorunur. Bu proje PROJE.md'de tanimli bilinen tarih/timezone tuzagiyla ayni sinif hata.
 Kanit (satir 86): `const isToday = iso === today.toISOString().slice(0, 10);` — `iso` local `isoStr(viewYear, viewMonth, day)` (satir 84), `today` ise `new Date()` (satir 27).

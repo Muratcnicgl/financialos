@@ -1,5 +1,8 @@
 # Denetim: app/routers/incomes.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RIN-001] day_of_month=29/30/31 olan gelirler bazi aylarda tamamen atlaniyor (Subat, 30 gunluk aylar)
 - **Sorun:** `trigger_due_incomes` tetikleme kosulu `RecurringIncome.day_of_month <= today.day` (satir 145). Eger day_of_month o ayin gun sayisindan buyukse (ornegin day_of_month=31 iken Nisan/Haziran/Eylul/Kasim 30 gun cekiyor, ya da day_of_month=29/30/31 iken Subat), o ay boyunca kosul hicbir gun `True` olmuyor. `last_triggered_year_month` sadece basarili tetiklemede yazildigi icin (satir 181) bu ay icin hicbir yakalama/telafi mekanizmasi yok — gelir o ay icin sessizce hic tetiklenmiyor, sonraki ay `year_month` degistigi icin de "atlanan ay" asla telafi edilmiyor.
 - **Kanit:** satir 142-146 (sorgu), satir 181 (dedup yazimi); `day_of_month` alani `ge=1, le=31` ile sinirlandirilmis (satir 35) ama ay uzunlugu kontrolu hicbir yerde yok.

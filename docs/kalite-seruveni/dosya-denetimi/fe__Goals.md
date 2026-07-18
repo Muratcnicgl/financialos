@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/Goals.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FGO-001] Promise.all kismi hata durumunda eski hedefin allocation/rule verisi ekranda kalabilir
 Sorun: `GoalDetailModal` icinde `loadDetail` iki cagriyi `Promise.all` ile paralel yapiyor. Herhangi biri reddedilirse `catch` bloguna dusuluyor ve `setAllocations`/`setRules` hic cagrilmiyor. Kullanici bir hedeften digerine gectiginde (ayni modal instance'i yeniden acilmadan `goal` prop'u degisirse) ya da `onRefresh` sonrasi ikinci cagri basarisiz olursa, ekranda onceki hedefin/durumun allocation-rule listesi yanlislikla gorunmeye devam eder.
 Kanit (satir N): 193-206, 208

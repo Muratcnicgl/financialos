@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/PremortemModal.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FPM-001] Escape keydown listener isOpen kontrolu olmadan her zaman aktif
 Sorun: 29-33. satirdaki useEffect, bagimlilik dizisinde sadece `[onClose]` var; `isOpen`e bakmiyor. React hook kurallari geregi bu effect, bilesen mount edildigi surece (modal kapali gorunse bile, ust bilesen `isOpen={false}` ile PremortemModal'i mount tutuyorsa) window'a keydown listener ekliyor ve her Escape basisinda `onClose()` cagiriyor — modal gorunmuyor olsa dahi.
 Kanit (satir 29): `useEffect(() => { const handler = (e) => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, [onClose]);`

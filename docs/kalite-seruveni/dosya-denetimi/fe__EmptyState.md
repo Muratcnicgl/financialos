@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/EmptyState.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FES-001] CTA butonlarinda type="button" eksik
 Sorun: Buton elemanlarina explicit type verilmemis. HTML spesifikasyonuna gore bir <button>, bir <form> icinde render edildiginde varsayilan type="submit" olur. EmptyState bir form icinde kullanilirsa (orn. bos sonuc gosteren bir arama/filtre formu icinde), CTA tiklamasi beklenmedik sekilde formu submit edebilir.
 Kanit (satir 35): <button onClick={onCta} className="btn btn-primary !text-xs mb-4">{ctaLabel}</button>

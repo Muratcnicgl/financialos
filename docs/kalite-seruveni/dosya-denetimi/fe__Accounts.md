@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/Accounts.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FAC-001] Dinamik Tailwind sinifi (purge riski)
 Sorun: Grup basligindaki ikon rengi `text-${color}-600 dark:text-${color}-400` seklinde calisma-zamaninda birlestirilen bir string ile veriliyor. Tailwind JIT derleyicisi kaynak dosyalarda tam class string'i statik olarak taramadigi icin bu class'lar production build'de purge edilip hic uretilmeyebilir (safelist'e eklenmedigi surece).
 Kanit (satir 141): `<Icon className={`w-5 h-5 text-${color}-600 dark:text-${color}-400`} />`

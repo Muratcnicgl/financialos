@@ -1,5 +1,8 @@
 # Denetim: app/routers/checkpoints.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RCH-001] created_at timezone-naive donuyor, PROJE.md kuralini ihlal ediyor
 - **Sorun:** `app/models.py:281` MasterCheckpoint.created_at `Column(DateTime, default=datetime.utcnow)` ile timezone-naive UTC olarak saklaniyor. `CheckpointOut.created_at: datetime` (satir 56) bu degeri `tzinfo=timezone.utc` eklemeden dogrudan serialize ediyor. `app/PROJE.md` ve `docs/architecture.md` acikca bu adimi zorunlu kilar: "Frontend'e tarih donen her endpoint'te serialize oncesi tzinfo=timezone.utc ekle... eksik birakirsan JS Turkiye saatinde 3 saat geri gosterir."
 - **Kanit:** satir 56 (CheckpointOut.created_at), satir 66-81 (list_checkpoints donus degeri), models.py satir 281

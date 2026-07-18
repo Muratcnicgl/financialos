@@ -1,5 +1,8 @@
 # Denetim: app/routers/accounts.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RAC-001] Datetime alanlari tzinfo=utc olmadan frontend'e donuyor
 - **Sorun:** AccountOut icindeki last_price_update, created_at, updated_at alanlari ORM'den direkt Pydantic'e geciyor. app/PROJE.md kurali acik: "Frontend'e tarih donen her endpoint'te serialize oncesi tzinfo=timezone.utc ekle" -- aksi halde Pydantic suffix'siz ISO string yayar, JS bunu local time sanip Turkiye saatinde 3 saat geri gosterir. Bu dosyada hicbir yerde tzinfo eklenmiyor (create_account, get_account, update_account, list_accounts hepsi ayni AccountOut'u donuyor).
 - **Kanit:** satir 77-79 (AccountOut alan tanimlari), satir 121/187 (last_price_update = datetime.utcnow() -- naive atama), satir 101/126/142/191 (response donusleri)

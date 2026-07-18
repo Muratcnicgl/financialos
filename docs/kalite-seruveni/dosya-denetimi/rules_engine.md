@@ -1,5 +1,8 @@
 # Denetim: app/rules_engine.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 > Not: Bu dosya daha once docs/kalite-seruveni/sections/RULE.md altinda dimension-bazli
 > taranmis (RULE-001..040, ozellikle RULE-003/004/005/006/007/008/009/020/021/022/024/026/
 > 027/028/035/036/039 bu dosyayla ilgili). Asagidaki bulgular o taramanin KACIRDIGI, ozellikle

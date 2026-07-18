@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/RedLines.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FRL-001] handleToggleActive hata yakalama eksigi - unhandled promise rejection
 Sorun: `handleToggleActive` (satir 121-124) `checkpointsApi.update` cagrisini try/catch olmadan await ediyor. Bu fonksiyon `CheckpointCard` icindeki Power butonundan dogrudan `onClick={onToggleActive}` ile tetikleniyor (satir 259, 341) - cagri zincirinde hicbir yerde catch yok. `handleSave` (satir 114-119) ve `handleDelete` (satir 126-130) buyuk resimde modal katmaninda try/catch ile sarilirken (satir 381-392, 495-504), toggle icin boyle bir sarmalayici yok.
 Kanit (satir 121-124):

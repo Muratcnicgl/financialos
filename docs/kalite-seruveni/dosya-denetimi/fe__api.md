@@ -1,5 +1,8 @@
 # Denetim: frontend/src/api.js
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FAPI-001] ApiError mesaji parse edilemeyen/null JSON govdesinde "null" string'i oluyor
 Sorun: `data?.detail ?? data` sonucu `null` oldugunda (ornegin 500 hatasi JSON govdesi `null` donerse ya da `res.json()` catch'e dusup `data = null` atandiysa) `ApiError` constructor'indaki mesaj hesaplamasi yanlis dala giriyor. `typeof null !== 'string'`, `null?.message` -> `undefined`, ardindan `undefined || JSON.stringify(null)` calisiyor ve `JSON.stringify(null)` **"null" stringini** dondurur — bu deger truthy oldugu icin `|| \`HTTP ${status}\`` fallback'ine hic ulasilmiyor. Kullaniciya "null" diye anlamsiz bir hata mesaji gosterilir.
 Kanit (satir N): 18-26 (constructor), 74-77 (JSON parse hatasinda `data = null`), 84 (`const detail = data?.detail ?? data`)

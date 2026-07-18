@@ -1,5 +1,8 @@
 # Denetim: app/dependencies.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [DP-001] get_db exception path'inde rollback yok
 - **Sorun:** get_db (satir 17-23) sadece finally blogunda db.close() cagiriyor. Bir router icinde exception firlarsa (orn. IntegrityError, ValueError, HTTPException disi bir hata) generator'a exception `throw()` edilir, ancak try/finally sadece close() yapar, rollback() yapmaz. SQLAlchemy session'i pending/failed transaction durumunda kapatilirsa, bagli connection pool'a kirli state ile donebilir; sonraki istekte ayni connection tekrar kullanildiginda "This transaction is inactive" gibi ikincil hatalar veya sessizce yarim-commit edilmis veri riski olusabilir. Standart FastAPI+SQLAlchemy pattern'i genelde `except: db.rollback(); raise` ekler.
 - **Kanit:** satir 19-23

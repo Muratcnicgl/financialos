@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/DebtStrategy.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FDS-001] Klavye kullanıcısı ekstra ödeme değerini asla commit edemiyor
 Sorun: Range input değeri onChange ile state'e yazılıyor ama backend'e gönderme (handleExtraCommit) sadece onMouseUp ve onTouchEnd ile tetikleniyor. Klavye ile (Tab + ok tuşları) slider'ı odaklayıp değiştiren bir kullanıcı hiçbir zaman mouseup/touchend eventi üretmez, dolayısıyla değişiklik asla fetchData'yı tetiklemez — kullanıcı arayüzde değeri değişmiş görür ama strateji hesabı hiç güncellenmez.
 Kanıt (satır 164-174): `onChange={(e) => setExtraMonthly(Number(e.target.value))}` + `onMouseUp={handleExtraCommit}` + `onTouchEnd={handleExtraCommit}` — onKeyUp veya benzeri bir klavye commit yolu yok.

@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/Toast.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FTO-001] Context value her render'da yeniden yaratiliyor (memoizasyon eksigi)
 Sorun: `api` nesnesi `ToastProvider` govdesinde her render'da yeni referansla olusturuluyor ve `ToastContext.Provider value={api}` olarak geciliyor. Bu, `useToast()` kullanan tum tuketici bilesenlerin gereksiz yere yeniden render olmasina yol acar (context value referans esitligiyle karsilastirilir).
 Kanit (satir 82-88): `const api = { success: ..., error: ..., info: ..., warning: ..., dismiss };` — `useMemo` veya `useCallback` ile sarmalanmamis.

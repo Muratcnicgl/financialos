@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/Coach.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FCO-001] handleSend ve handleReset'te unmount sonrasi state guncelleme korumasi yok
 Sorun: Sayfa yuklerken kullanilan history-fetch useEffect'i (satir 158-182) `mounted` flag'i ile unmount sonrasi setState'i engelliyor, ama `handleSend` (satir 198-248) ve `handleReset` (satir 261-287) ayni korumaya sahip degil. Kullanici mesaj gonderip yanit beklerken paneli/sekmeyi degistirip CoachInner unmount olursa, `await coachApi.chat(text)` donduğunde `setMessages`, `setUsage`, `setError`, `setSending` cagrilari unmount olmus bilesen uzerinde calisir.
 Kanit (satir 208-247, 265-286): `const res = await coachApi.chat(text); ... setMessages((prev) => [...prev, coachMsg]);` — araya `mounted` kontrolu girmiyor.

@@ -1,5 +1,8 @@
 # Denetim: scripts/backfill_price_history.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 Denetim tarihi: 2026-07-10. Kapsam: dosyanin tamami (satir 1-236), satir satir okundu. `app/models.py` PriceHistory tanimi (satir 540-579) capraz kontrol edildi.
 
 Genel not: bu script `setup_data.py`'nin aksine **drop_all cagirmiyor**. Yazma islemi `INSERT ... ON CONFLICT DO NOTHING` (satir 149-152), PriceHistory'nin kompozit PK'si (`fund_code, price_date, source` - `app/models.py:573-577`) ile eslesiyor, dolayisiyla tekrar calistirmak veri kaybina veya duplike satira yol acmaz. Asagidaki bulgular veri kaybindan cok gozlemlenebilirlik, dayaniklilik ve ic tutarlilik ile ilgili.

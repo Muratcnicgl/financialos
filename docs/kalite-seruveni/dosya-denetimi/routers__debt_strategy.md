@@ -1,5 +1,8 @@
 # Denetim: app/routers/debt_strategy.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RDS-001] Exception detayi HTTPException'a sizdiriliyor
 - **Sorun:** `except Exception as e: raise HTTPException(status_code=500, detail=f"Strateji hesabi hatasi: {e}")` — herhangi bir alt katman hatasinin `str(e)` metni dogrudan HTTP yanitina yaziliyor. Ornegin DB baglanti hatasi, dosya yolu, ya da SQLAlchemy hata mesaji client'a gorunur hale gelebilir.
 - **Kanit:** satir 79-81

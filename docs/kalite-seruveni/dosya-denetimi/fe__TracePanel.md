@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/TracePanel.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FTP-001] trace.steps undefined/null ise crash riski
 Sorun: Backend `/api/coach/trace/{memoryId}` yanitinda `steps` alani eksik veya null donerse (orn. eski kayit, kismi hata, migration edge-case), `trace.steps.length` cagrisi TypeError firlatir ve tum Coach paneli beyaz ekrana duser (ust seviyede Error Boundary yoksa).
 Kanit (satir 99, 105): `trace && trace.steps.length === 0` ve `trace && trace.steps.length > 0` — `trace` truthy kontrolu var ama `trace.steps` icin yok.

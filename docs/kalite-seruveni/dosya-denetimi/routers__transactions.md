@@ -1,5 +1,8 @@
 # Denetim: app/routers/transactions.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RTR-001] created_at serialize edilirken tzinfo=timezone.utc eklenmiyor
 - **Sorun:** `_txn_to_dict` icinde `created_at` DateTime alani, PROJE.md / docs/architecture.md kuralina ragmen `tzinfo=timezone.utc` eklenmeden isoformat() ile donduruluyor. Kural acikca: "Frontend'e tarih dönen her endpoint'te serialize öncesi tzinfo=timezone.utc ekle" ve referans pattern `_memory_to_history_item` (app/routers/coach.py) olarak gosteriliyor. Bu dosyada o pattern uygulanmamis.
 - **Kanit:** satir 76 (`"created_at": txn.created_at.isoformat() if txn.created_at else None,`) — karsilastir: docs/architecture.md "Datetime / Timezone" bolumu ve app/PROJE.md ayni kural.

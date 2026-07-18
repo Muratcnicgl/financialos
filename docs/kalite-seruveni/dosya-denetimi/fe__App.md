@@ -1,5 +1,8 @@
 # Denetim: frontend/src/App.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FAPP-001] usagePct hicbir zaman guncellenmiyor - her zaman 0% gosteriyor
 Sorun: `useBackendHealth` icinde `usagePct` state'i `useState(0)` ile baslatiliyor ama `setUsagePct` fonksiyonu dosyanin hicbir yerinde cagrilmiyor. `healthApi.check()` (`api.js:344-346`) da sadece `/api/health` GET edip donen deger kullanilmiyor - deger atanmiyor.
 Kanit (satir 56, 62-69, 80, 145-151): `const [usagePct, setUsagePct] = useState(0);` tanimlaniyor, `check()` icinde sadece `status` set ediliyor, `return { status, usagePct }` ile hep 0 donuyor, header'da `usagePct > 80` / `> 50` kosullu renklendirme (chip-negative/chip-warn) hicbir zaman tetiklenmiyor, kullaniciya surekli "0%" gosteriliyor.

@@ -1,5 +1,8 @@
 # Denetim: app/routers/user.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RUS-001] created_at timezone-naive olarak frontend'e donuyor
 - **Sorun:** UserOut.created_at, User.created_at'i (app/models.py:123, Column(DateTime, default=datetime.utcnow) - naive UTC) dogrudan Pydantic'e veriyor. GET/POST/PUT /api/user endpoint'lerinin ucunde tzinfo=timezone.utc eklenmiyor. PROJE.md / docs/architecture.md acikca "Frontend'e tarih yansitan endpoint'lerde serialize oncesi tzinfo=timezone.utc ile aware'e cevrilmeli, aksi halde JS Turkiye saatinde 3 saat geri gosterir" diyor.
 - **Kanit:** satir 29 (UserOut.created_at: datetime), satir 48-50 (get_user donusu), satir 66-70 (create_user donusu), satir 78-84 (update_user donusu) - hicbirinde donen user objesi uzerinde created_at.replace(tzinfo=timezone.utc) yapilmiyor.

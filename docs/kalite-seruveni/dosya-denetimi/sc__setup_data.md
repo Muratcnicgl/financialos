@@ -1,5 +1,8 @@
 # Denetim: scripts/setup_data.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [SSD-001] drop_all icin hicbir guardrail/onay adimi yok
 Sorun: Script calistirildigi an, hangi ortama bagli oldugu (DATABASE_URL) veya kullanicidan onay alinmadan tum veritabanini siliyor. PROJE.md bu scriptin "manuel veri silinir, sadece test oncesi calistir" seklinde davranissal bir kural olarak belgelenmis olmasi, kod seviyesinde bir korumanin yoklugunu telafi etmiyor.
 Kanit (satir): 35-38 `Base.metadata.drop_all(bind=engine)` / `Base.metadata.create_all(bind=engine)` — herhangi bir `input()` onayi, `--yes` flag kontrolu veya `DATABASE_URL` icerik kontrolu yok.

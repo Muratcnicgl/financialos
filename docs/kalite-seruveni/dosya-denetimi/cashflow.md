@@ -1,5 +1,8 @@
 # Denetim: app/cashflow.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [CF-001] Kredi taksitleri account_id filtresine tabi degil, RecurringExpense ile tutarsiz
 - **Sorun:** `generate_forecast` icinde "expenses" chip'i altinda iki farkli kaynak genisletiliyor: `RecurringExpense` (satir 280-287) VE loan hesaplarinin taksitleri (satir 288-293). RecurringExpense sorgusu `account_id` verildiginde `exp_q.filter(RecurringExpense.account_id == account_id)` ile dogru sekilde tek hesaba daraltiliyor (satir 284-285). Ama loan dongusu boyle bir filtre uygulamiyor: `db.query(Account).filter(Account.user_id == user_id, Account.account_type == AccountType.loan)` — account_id parametresi tamamen goz ardi ediliyor. Sonuc: kullanici tek bir nakit hesap icin forecast istediginde (`account_id=X`), o hesaptan hicbir ilgisi olmayan BASKA kredi hesaplarinin taksitleri de o hesabin acilis bakiyesinden dusuluyor.
 - **Kanit:** satir 279-293 (ozellikle 284-285 vs 289-293 karsilastirmasi)

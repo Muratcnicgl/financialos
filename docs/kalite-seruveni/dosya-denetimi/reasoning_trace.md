@@ -1,5 +1,8 @@
 # Denetim: app/reasoning_trace.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RT-001] Docstring "otomatik nesting" vaadi kodda yok
 - **Sorun:** Modul docstring'i (satir 12-27 kullanim ornegi) ve `step()` docstring'i (satir 128-129) soyle diyor: "parent_step_id: ... None ise en son yazilan step parent olur (otomatik nesting)." Ancak `step()` govdesinde (satir 134-143) `parent_step_id` degeri hicbir fallback/otomatik-atama olmadan dogrudan `ReasoningTrace(...)` constructor'ina geciriliyor. `self._step_ids` listesi son yazilan step id'lerini tutuyor ama bu liste `parent_step_id=None` durumunda hic okunmuyor. Sonuc: caller `parent_step_id` gecmedigi surece HER step kok seviyede (`parent_step_id=None`) yaziliyor, "otomatik nesting" gerceklesmiyor.
 - **Kanit:** satir 128-129 (docstring vaadi) vs satir 134-143 (gercek implementasyon, fallback yok)

@@ -1,5 +1,8 @@
 # Denetim: app/coach_insights.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [CI-001] extract_decision_rhythm eski dominant dilim insight'ini asla sweep etmiyor + counter_evidence hicbir zaman artmiyor
 - **Sorun:** extract_decision_rhythm (satir 276-374) her calistiginda sadece O ANKI dominant dilim icin bir baslik uretir (`Buyuk kararlarin cogu {dominant_slot} dilminde`, satir 347). Baslik dilim adini icerdigi icin dilim degisince (orn. "sabah" -> "aksam") YENI bir CoachInsight satiri olusur, eski "sabah" satiri hicbir yerde dormant/invalidated'a dusurulmez - kategori diger 6 periyodik extractor'in (category_account_preference, action_rejection_pattern, breakthrough, setback) hepsinde bulunan "DORMANT SWEEP" pass'i burada YOK. Ayrica `is_supporting_evidence=True` sabit oldugu icin (satir 369) `counter_evidence_count` hicbir zaman artmiyor, dolayisiyla `_check_and_invalidate`'in (satir 199-235) `counter_evidence_count >= 3` kosulu bu insight tipi icin pratikte asla tetiklenmiyor.
 - **Kanit:** satir 347 (title dilim adini iceriyor), satir 361-372 (sweep yok), satir 369 (is_supporting_evidence=True sabit)

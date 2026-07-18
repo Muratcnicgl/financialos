@@ -1,5 +1,8 @@
 # Denetim: frontend/src/panels/IncomeDebt.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FID-001] Toggle/markPaid aksiyonlarinda hata yakalama yok, unhandled rejection riski
 Sorun: handleToggleIncome, handleToggleExpense ve handleMarkPaid fonksiyonlari try/catch icermeden dogrudan API cagirir. Bu fonksiyonlar buton onClick'lerinden `() => handleXxx(item)` seklinde cagriliyor; donen Promise hicbir yerde await/catch edilmiyor.
 Kanit (satir 123-126, 135-138, 147-153; cagri noktalari 467, 515, 605): `onClick={onToggle}` -> `onToggle={() => handleToggleIncome(inc)}` -> `await incomesApi.update(...)` catch yok.

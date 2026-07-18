@@ -1,5 +1,8 @@
 # Denetim: frontend/src/components/CashflowSummary.jsx
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [FCSU-001] summary undefined/null ise crash
 Sorun: Bilesen `summary` prop'unu default deger olmadan doğrudan destructure ediyor. `summary` undefined veya null gelirse (ornegin cagiran tarafta `data.summary` alani backend cevabinda eksikse) `Cannot destructure property 'lowest_balance' of 'undefined'` hatasi ile tum bilesen crash olur, error boundary yoksa beyaz ekran.
 Kanit (satir 5): `const { lowest_balance, lowest_date, total_receivable, total_payable, net_flow, crunch_count, opening_balance } = summary;`

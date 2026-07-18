@@ -1,5 +1,8 @@
 # Denetim: app/routers/fund_price.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RFP-001] Timestamp alani timezone-naive donuyor, PROJE.md kuralini ihlal ediyor
 - **Sorun:** `FundPriceUpdateResponse.timestamp: str` alani, `app/fund_tracker.py`'deki `update_fund_price_manual()` fonksiyonunun urettigi `account.last_price_update.isoformat()` degerini oldugu gibi tasiyor (fund_price.py satir 112, kaynak: fund_tracker.py satir 131 `datetime.utcnow()` + satir 149 `.isoformat()`). `datetime.utcnow()` timezone-naive bir deger uretir; `.isoformat()` bu deger uzerinde cagrilinca suffix'siz string uretir (orn. `2026-07-10T14:00:00.123456`, `+00:00` yok). `app/PROJE.md` ve `docs/architecture.md` acikca bu davranisi "eksik birakirsan JS Turkiye saatinde 3 saat geri gosterir" seklinde bug olarak tanimliyor ve `tzinfo=timezone.utc` eklenmesini zorunlu kiliyor. Bu router bunu yapmiyor.
 - **Kanit:** satir 112 (`timestamp=result["timestamp"]`), kaynak fund_tracker.py satir 131 ve 149

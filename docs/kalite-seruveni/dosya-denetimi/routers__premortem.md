@@ -1,5 +1,8 @@
 # Denetim: app/routers/premortem.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RPM-001] "cached" alani hep False donuyor, snapshot_hash hic karsilastirilmiyor
 - **Sorun:** Router her cagrida `compute_snapshot_hash(snapshot)` hesaplayip `persist_premortem`'e geciriyor ve DecisionJournal.cockpit_snapshot_hash alanina yaziyor (app/premortem.py satir 296/306). Ancak bu hash hicbir zaman mevcut DJ kaydindaki eski hash ile karsilastirilmiyor. Sonuc: `PremortemResponse.cached` alani satir 121'de sabit `False` donuyor — degistirilemez, hicbir kod yolu `True` uretemez. Bu, hash altyapisinin (Bridgewater pattern, cockpit_snapshot.py docstring'i) bir caching/idempotency kontrolu icin tasarlandigini ama router'da hic kullanilmadigini gosteriyor.
 - **Kanit:** satir 92-93 (hash hesaplanir), satir 108 (kullanilmadan persist edilir), satir 121 (`cached=False` sabit)

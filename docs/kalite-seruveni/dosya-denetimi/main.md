@@ -1,5 +1,8 @@
 # Denetim: app/main.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [MN-001] app/PROJE.md ile kod arasinda create_all celiskisi
 - **Sorun:** app/PROJE.md acikca soyle diyor: "main.py kucuk tutulur: app yaratimi, CORS, router kayit, startup `create_all`." Ancak gercek main.py'de create_all cagrisi yok; lifespan sadece log basip catch-up backfill ve scheduler calistiriyor. Kod ADR-013'e atifla "Schema yonetimi alembic ile" diyor (satir 112). Bu, ADR-013'un app/PROJE.md'ye hic yansitilmamis olmasindan kaynaklaniyor — dokumantasyon kod gercekligini yansitmiyor. Yeni bir gelistirici app/PROJE.md'yi okuyup create_all bekleyebilir ya da migration'i unutup DB schema'sinin kendiliginden olusacagini sanabilir.
 - **Kanit:** satir 112-113 (kod); app/PROJE.md "Yapi" bolumu (create_all ifadesi)

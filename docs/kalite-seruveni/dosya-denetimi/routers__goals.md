@@ -1,5 +1,8 @@
 # Denetim: app/routers/goals.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [RGO-001] Manuel allocation tutari gercek transaction tutariyla dogrulanmiyor -> sanal zenginlik riski
 - **Sorun:** create_allocation (POST /{goal_id}/allocations) payload.amount degerini dogrudan link_transaction'a geciriyor. Transaction bulunup sahiplik kontrolu yapiliyor (200-205) ama tx.amount ile payload.amount arasinda hicbir iliski/sinir kontrolu yok. schemas.GoalAllocationCreate.amount da herhangi bir gt/le kisiti tasimiyor (app/schemas.py:290-292). Kullanici 10 TL'lik bir transaction'i goal'e "1.000.000 TL katki" olarak baglayabilir; current_amount/progress_percent bu uydurma degerden hesaplanir (goal_engine._compute_cash_target, current = sum(GoalAllocation.amount)).
 - **Kanit:** satir 186-222 (ozellikle 200-214); schemas.py satir 290-292 destekleyici kanit.

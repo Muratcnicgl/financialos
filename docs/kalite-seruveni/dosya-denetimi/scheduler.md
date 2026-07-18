@@ -1,5 +1,8 @@
 # Denetim: app/scheduler.py
 
+> **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
+
+
 ### [SC-001] run_extractor hatada db.rollback() yapmiyor - paylasilan session zehirleniyor, hata izolasyonu vaadi bozuluyor
 - **Sorun:** `run_extractor` (satir 88-120) her extractor cagrisini `try/except Exception` ile sarar ama except blogunda (satir 118-120) `db.rollback()` cagrilmaz, sadece log'lanip `{"error": ...}` donulur. Extractor'lardan biri `db.commit()` sirasinda hata atarsa (orn. IntegrityError, OperationalError, StaleDataError) SQLAlchemy session'i "pending rollback" durumuna gecer. Bu `db` nesnesi cagiran yerden geliyor ve fonksiyon donduktan sonra da AYNI session kullanilmaya devam ediyor:
   - `app/coach.py:1813-1832` — `self._save_message(db, user_id, "user", ...)` sonrasi satir 1816'da `trigger_after_user_message(db, user_id)` cagrilir, hemen ardindan satir 1827-1832'de AYNI `db` ile `self._save_message(db, user_id, "assistant", ...)` calisir. Extractor sirasinda session zehirlenirse bu ikinci yazim `PendingRollbackError` ile patlar ve Coach yaniti kullaniciya hic donmez.

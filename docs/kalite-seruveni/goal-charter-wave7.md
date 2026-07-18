@@ -75,6 +75,26 @@ OTONOM KARAR. asistan arayuzu'a "ne yapayım" YASAK.
 
 ---
 
+# BLOK C2 — HİSSE OTOMASYON CANLI DOĞRULAMA (M53 sonrası)
+
+**Blok gerekçesi:** R3 tanısı (18 Tem) — fon otomasyonu TAM çalışıyor (tefas bugün yazdı), **hisse otomasyonu YAZILMIŞ
+AMA HİÇ İŞLETİLMEMİŞ.** yfinance bu ortamda bloklu (dış kısıt, kod eksiği değil). İş Yatırım fallback kodda var ama canlı
+HİÇ denenmemiş (PriceHistory `isyatirim` source=0). 0 hisse hesabı. **Bu, `transactions=0` ile aynı hastalık: yeşil test,
+sıfır gerçek çalışma.**
+
+### M-hisse — İş Yatırım fallback + uçtan uca BIST
+1. 1 gerçek BIST hesabı ekle (örnek THYAO veya bir gerçek pozisyon).
+2. `get_stock_price` İş Yatırım fallback dalını CANLI test et — fiyat dönüyor mu.
+3. `fetch_for_account(asset_type='stock')` → PriceHistory'ye `isyatirim` source satırı düştü mü.
+4. **GATE (KULLANIM-GATE — gerçek veriyle uçtan uca):** gerçek BIST hesabı → scheduler job → PriceHistory'de
+   `isyatirim` source > 0 + cockpit'te hisse değeri göründü.
+5. **İş Yatırım da bu ortamda erişilemezse:** OTONOM KARAR (b) yaz — "hisse otomasyonu kod-tam, canlı doğrulama
+   Wave-8 deploy ortamına ertelendi, dış-kısıt yfinance+isyatirim lokal blok", tag'le, GEÇ. **Körlemesine "tamam" DEME.**
+- **NOT:** Bu milestone iki-dialect gate'ine tabi DEĞİL (Postgres-ilgisiz), yalnız kendi KULLANIM-GATE'ine tabi.
+- **Tag:** `milestone-stock-price-verification`.
+
+---
+
 # BLOK D — POSTGRES'İN DOKUNDUĞU VERİ-KATMANI BORÇLARI (M92+)
 
 **Blok gerekçesi:** 273 backlog'dan yalnız Postgres geçişinin ZATEN dokunduğu DATA maddeleri.

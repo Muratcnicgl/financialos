@@ -34,11 +34,29 @@ RULE-037 (sıfır-tutar yutma), RULE-038 (magic number + işaret maskesi).
 ### RULE'da KISMEN (3)
 RULE-029 (datetime karışımı default yolda), RULE-030 (kredi kartı döngüsü kapsam dışı), RULE-033 (banker's rounding).
 
-## Diğer 17 boyut (481 madde) — DÜRÜST SINIR
-`Durum` alanı **eklendi** ama madde-madde kod-doğrulaması YAPILMADI (yalnız RULE tam doğrulandı).
-Bu boyutlarda `🔲 AÇIK — kod-doğrulaması bekliyor` = "durum belirsiz", "kesin açık" DEĞİL. RULE'daki %42
-stale oranı ekstrapole edilirse bu 481 maddenin önemli bir kısmının da zaten düzeltilmiş olması beklenir —
-ama bu bir TAHMİN, kanıt değil. Boyut-bazlı tam doğrulama Wave-6 işi (her boyut bir subagent turu).
+## Diğer 17 boyut (445 madde) — M85'te TAM DOĞRULANDI (Wave-6)
+Wave-5 M76 yalnız alan ekledi; **Wave-6 M85** kalan 17 boyutun 445 `🔲 AÇIK` maddesini 7 paralel subagent ile
+madde-madde güncel koda karşı R3 doğruladı. Artık her DURUM alanı `M85 R3 doğrulama:` + kod-kanıtı taşıyor.
+
+### GERÇEK STALE ORANI ÖLÇÜLDÜ (445 madde)
+| Sonuç | Adet | Oran |
+|---|---|---|
+| ✅ KAPANDI (sessizce düzeltilmiş) | **78** | %18 — gerçek stale |
+| 🟡 KISMEN (kısmi ilerleme) | 76 | %17 |
+| ⏸️ KAPSAM DIŞI (kripto/deploy/PostgreSQL/mobil/PWA) | 17 | %4 |
+| ⚪ DEFEKT-DEĞİL | 1 | — |
+| 🔲 hâlâ AÇIK | 273 | %61 |
+
+**Yorum:** Non-RULE backlog'ta **%18 sessizce düzeltilmiş + %17 kısmi = %35'i yanlış "açık" etiketliydi** (RULE %42
+ile aynı örüntü — backlog bayatlığı iki bağımsız ölçümle doğrulandı). Ama çoğunluk (%61) GERÇEKTEN açık:
+büyük oranda **mimari refactor** (god-module bölme BE-001/003/004/LLM-015, service/repository katmanı, config
+merkezileştirme), **altyapı** (OTel/Prometheus/Sentry OBS-003/004/012, lint/mypy/gitleaks DEVOPS-002/007/012,
+CHECK-constraint DATA-009), ve **yapılmamış özellikler** (FEAT-* çoğu). Bunlar iç-sağlamlaştırmanın gerçek borcu.
+
+### Boyut-bazlı öne çıkanlar
+- **En olgun (çok KAPANDI):** TEST (23/35 kapandı — Wave-5/6 test işi gerçek), RESIL (9/20).
+- **En ham (çoğu açık):** OBS (19 açık — observability altyapısı yok), PERF (14), UX (35 açık — UX katmanı büyük borç), FEAT (yapılmamış özellikler).
+- **En stale (yanlış-açık):** DOCS (5 kapandı — ADR seti/README güncellenmişti), RESIL (BE-010 logging işi backlog'a yansımamıştı).
 
 ## Metodoloji notu (gelecek için)
 Bir madde düzeltildiğinde: inline başlığa `✅ UYGULANDI (BUG #NNN)` + `- **Durum:**` satırını güncelle.

@@ -35,7 +35,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Durum:** `sinking_fund_plan` (goal_engine, saf) — aylık gereken = kalan / kalan_ay + gecikmiş/tamamlandı. **Tasarım kararı:** yeni goal_type YERİNE "cash_target + target_date = sinking fund" (daha az yüzey, geri-uyumlu). `GoalRead.sinking_fund` **computed_field** (serileştirmede türetilir → şema/DB DEĞİŞMEZ, Alembic'siz güvenli). Goals.jsx "💧 Aylık gereken X TL/ay · N ay" satırı. 10 test.
 
 ### [FEAT-004] Paranın yaşı (Age of Money) metriği
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Age of Money FIFO yok
 - **Değer/Fırsat:** Harcanan paranın kaç gün önce kazanıldığını gösterir; buffer sağlığının tek sayılık göstergesi, "maaştan maaşa" yaşamaktan çıkışı ölçer.
 - **Kaynak/İlham:** YNAB Age of Money.
 - **Nasıl (mimari):** rules_engine'de gelir/gider FIFO eşleştirmesiyle saf hesap; Cockpit metriği. Sadece okuma.
@@ -66,7 +66,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Durum:** `_subscription_price_alerts` — detect_subscriptions'a eklenen `eski_tutar`/`yeni_tutar` üzerinden; yeni > eski ise uyarı seviyesi cockpit alert'i (%artış + eski→yeni). Yalnızca artış (düşüş değil). generate_cockpit'e bağlı → koç Kural 14 ile proaktif. 4 test. Bağımlı: FEAT-006.
 
 ### [FEAT-008] Abonelik iptal hatırlatıcı + yıllık maliyet paneli
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: is_subscription iptal hatirlatici yok
 - **Değer/Fırsat:** Deneme süresi/yenileme yaklaşınca proaktif hatırlatma ve "bu abonelik yılda X TL" çerçevesi; iptal kararını kolaylaştırır.
 - **Kaynak/İlham:** Rocket Money cancellation reminders.
 - **Nasıl (mimari):** RecurringExpense üzerine `is_subscription`+yenileme günü; scheduler nightly batch koça hatırlatma insight'ı yazar (FEAT-006 ile bağlı). LLM açıklar.
@@ -89,7 +89,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Durum:** `_calculate_cash_runway` — `nakit_runway_gun = nakit / (son 30g gider / 30)`; nakit çağırandan (re-query yok), gider yoksa None. Cockpit kutusu (Clock, <30g kırmızı) + koç context. 5 test. İleriye-dönük solvency üçlüsünü (#121 kriz + FEAT-009 safe-to-spend + FEAT-010 runway) tamamlar.
 
 ### [FEAT-011] Maaş-öncesi tükeniş erken uyarısı
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: maas-dongusu tukenis gunu yok
 - **Değer/Fırsat:** Mevcut harcama hızıyla bir sonraki maaştan önce bakiyenin sıfırın altına ineceği günü önceden bildirir ve kaç TL kısılması gerektiğini söyler.
 - **Kaynak/İlham:** Copilot / cash-flow forecasting; davranışsal "payday cliff".
 - **Nasıl (mimari):** cashflow crunch tespitini maaş döngüsüne bağlar; detect_alerts'e proaktif uyarı. LLM açıklar, gerekirse harcama kısma önerisi (aksiyon değil).
@@ -143,21 +143,21 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Kilometre taşı (12 Tem 2026):** `calculate_debt_progress` artık `milestone` (ulaşılan en yüksek band %10/25/50/75) + `yeni_milestone` (bir önceki snapshot'tan BUGÜNE band ARTTIYSA taze geçiş) döner. Taze geçişte koç COŞKUYLA kutlar ("🏆 Borcunu %25 azalttın — dönüm noktası") — Ramsey: DİSKRET kutlama sürekli metrikten daha motive edici, ama yalnız GERÇEK geçişte (gürültü yok). Insight/scheduler sistemini (2212 satır) riske atmadan saf-fonksiyon + koç bloğu ile; ağır insight-katmanı entegrasyonu bilinçli ertelendi (orta-ertelenmiş değer, working sistemi riske atmaya değmez). 12 test.
 
 ### [FEAT-018] Acil durum fonu hedefi (otomatik target)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: emergency_fund goal_type yok
 - **Değer/Fırsat:** Ortalama aylık giderden 3-6 aylık acil fon hedefini otomatik hesaplar ve ilerlemeyi izler; finansal dayanıklılığın temel taşı.
 - **Kaynak/İlham:** Emergency fund (kişisel finans standardı), Monarch/YNAB.
 - **Nasıl (mimari):** goal_engine'e `emergency_fund` goal_type; target = ortalama aylık gider (reports altyapısı) × N. Allocation mevcut mekanizma.
 - **Etki:** Yüksek · **Efor:** M
 
 ### [FEAT-019] Yuvarlama birikimi (round-up)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: round-up birikim yok
 - **Değer/Fırsat:** Her harcamayı bir üst 10/100 TL'ye yuvarlayıp farkı bir hedefe otomatik yönlendirmeyi önerir; fark edilmeden biriktirme.
 - **Kaynak/İlham:** Acorns / Qapital round-ups (nötr otomasyon, yatırım değil birikim).
 - **Nasıl (mimari):** goal_rules'a round-up kural tipi; her Transaction sonrası fark hesaplanır, GoalAllocation propose_action ile önerilir/onaylanır. LLM DB yazmaz.
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-020] Harcama molası / no-spend streak challenge
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: no-spend streak yok
 - **Değer/Fırsat:** "Harcamasız gün" serisi sayacı ve mikro meydan okuma; impuls harcamayı oyunlaştırarak azaltır.
 - **Kaynak/İlham:** No-spend challenge (davranışsal), Lunch Money etiketleme kültürü.
 - **Nasıl (mimari):** rules_engine gün bazında harcama=0 serisi; Cockpit rozeti + koç teşviki. Salt okuma + insight.
@@ -178,7 +178,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-023] Tasarruf oranı metriği
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: savings_rate var ama cok-ayli seri yok
 - **Değer/Fırsat:** Aylık (gelir − gider) / gelir oranını gösterir ve önceki aylarla kıyaslar; "ne kadar biriktiriyorum" sorusunun net cevabı.
 - **Kaynak/İlham:** Savings rate (FIRE / kişisel finans temel metriği).
 - **Nasıl (mimari):** reports/rules_engine mevcut gelir-gider toplamlarından; NetWorthSnapshot benzeri aylık seri. Salt okuma.
@@ -192,14 +192,14 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Yüksek · **Efor:** M
 
 ### [FEAT-025] TEFAS çoklu fon karşılaştırma + enflasyon benchmark
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: TEFAS coklu fon karsilastirma yok
 - **Değer/Fırsat:** Birden fazla TEFAS fonunu yan yana getirir ve getirilerini enflasyon/mevduat gibi nötr referanslarla kıyaslar. Görünürlük sağlar, "al/sat" önermez.
 - **Kaynak/İlham:** TEFAS fon takibi; Maybe Finance benchmark görünümü.
 - **Nasıl (mimari):** fund_tracker + PriceHistory zaman serisi; reports'ta karşılaştırma çıktısı. LLM sadece açıklar, tavsiye vermez (KISIT).
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-026] Altın/döviz varlık takibi
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: altin/doviz manuel-varlik yok
 - **Değer/Fırsat:** Gram altın, USD/EUR gibi varlıkları manuel fiyatla portföye ekleyip net değere dahil eder; Türkiye'de yaygın tasarruf araçlarının görünürlüğü.
 - **Kaynak/İlham:** Türkiye döviz/altın tasarruf kültürü; Maybe multi-asset.
 - **Nasıl (mimari):** Account investment tipine alt-tür + fund_tracker manuel fiyat/tazelik mekanizması yeniden kullanılır. rules_engine net değere ekler. Nötr, tavsiye yok.
@@ -214,14 +214,14 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Durum:** `calculate_receivables_aging` (rules_engine, saf) — kovalar (öncelik: en çok geciken önce) 60+ / 31-60 / 1-30 gün gecikmiş · vadesi gelmemiş · tarihsiz (kör nokta). Boş kova atlanır; `en_riskli` = en çok geciken 3 kalem. Cockpit `alacak_yaslanma` + koç context block (grounding'e tanıtıldı, koç Kural 12 "zamanında tahsil et") + Cockpit.jsx kartı. `_collect_overdue_debts` per-kalem alert'ini GRUPLU stratejik özetle tamamlar. 7 test.
 
 ### [FEAT-028] Alacak hatırlatma mesaj taslağı
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: alacak hatirlatma taslagi yok
 - **Değer/Fırsat:** Vadesi gelen bir alacak için gönderilmeye hazır nazik hatırlatma mesajı taslar ("Efe, geçen ay konuştuğumuz 2.500 TL..."). Tahsilatın sosyal sürtünmesini azaltır.
 - **Kaynak/İlham:** Davranışsal — sosyal borç tahsilatı; müşteri iletişim şablonları.
 - **Nasıl (mimari):** coach LLM alacak bağlamıyla metin üretir — SADECE açıklama/metin, DB'ye yazmaz, mesaj göndermez. Kullanıcı kopyalar. Mimariyi bozmaz.
 - **Etki:** Orta · **Efor:** S
 
 ### [FEAT-029] Yıllık yükümlülük takvimi (MTV, vergi, sigorta)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: yillik yukumluluk takvimi yok
 - **Değer/Fırsat:** Türkiye'ye özgü yıllık/dönemsel zorunlu ödemeleri (MTV iki taksit, trafik sigortası, aidat) tanımlayıp sinking fund ile aylık ayırır ve vadesinde hatırlatır.
 - **Kaynak/İlham:** Türkiye vergi/yükümlülük takvimi; sinking funds.
 - **Nasıl (mimari):** FEAT-003 sinking fund + cashflow forecast'a yıllık olay tipi; scheduler hatırlatma. propose_action ile ödeme kaydı onaylanır.
@@ -236,7 +236,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Durum:** `simulate_purchase_opportunity_cost` (debt_strategy, saf): baseline avalanche vs amount'ı EN YÜKSEK FAİZLİ borca ŞİMDİ ödeyince yeniden avalanche → fark (kaç ay geç + kaç TL fazla faiz). Assumption-free (mevcut avalanche motoru; dataclasses.replace ile RAM kopyası). `GET /api/debt-strategy/opportunity-cost?amount` (borç yoksa 404, amount≤0 → 422). DebtStrategy.jsx "Harcama Fırsat Maliyeti" formu. Murat kanonik: 8000 TL harcamak = ~1517 TL fazla faiz. 8 test. İnvariant: borca ödeme toplam faizi ARTIRMAZ (faiz_tasarrufu ≥ 0). collect_debts paylaşımlı.
 
 ### [FEAT-031] Harcama tetikleyici / duygu etiketi günlüğü
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: duygu/tetikleyici etiket yok
 - **Değer/Fırsat:** İşleme opsiyonel bağlam/duygu etiketi (stres, sıkıntı, kutlama) eklenir; koç zamanla "stresliyken market harcaman 2x" gibi desenleri ortaya çıkarır.
 - **Kaynak/İlham:** Lunch Money etiketleme; davranışsal harcama tetikleyicileri (emotional spending).
 - **Nasıl (mimari):** Transaction'a etiket alanı; coach_insights yeni extractor (deterministik desen). Koç açıklar, DB yazmaz.
@@ -250,7 +250,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-033] Ay-karşılaştırma otomatik anlatı (MoM)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: MoM trend var ama kategori kaymalari yok
 - **Değer/Fırsat:** "Bu ay geçen aya göre" gelir/gider/net değişim ve kategori kaymalarını otomatik anlatı olarak üretir; salt grafiğin ötesinde yorum.
 - **Kaynak/İlham:** Copilot aylık "recap"; Monarch monthly review.
 - **Nasıl (mimari):** rules_engine iki ay karşılaştırması hesaplar (sayılar), coach açıklar. Aylık rapor (A3) planlı olsa da bu, ay-üstü karşılaştırma yorumu olarak ayrı katman.
@@ -265,42 +265,42 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Uygulama:** `suggest_category()` (`app/routers/transactions.py`) — MERCHANT_KEYWORDS (marka: Migros/Opet/Netflix…) + mevcut QUICK_KEYWORDS; **kelime-sınırı token eşleşmesi** (substring değil → "sokak" yanlış pozitifi yok). `create_transaction` yalnız gider + kategori BOŞ ise açıklamadan türetir; kullanıcının açık seçimini asla ezmez. UI formunda kategori opsiyonel + ipucu metni. Test: `tests/test_auto_categorization.py` (9 test: marka/genel/none/case/kelime-sınırı + 3 endpoint entegrasyon).
 
 ### [FEAT-035] Fatura tutar anomali uyarısı
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: fatura grubu anomali yok
 - **Değer/Fırsat:** Bir tekrarlayan faturanın (elektrik, doğalgaz) her zamankinden belirgin yüksek gelmesini işaretler ("elektrik geçen 3 ay ortalamasının %60 üstünde").
 - **Kaynak/İlham:** Rocket Money bill anomaly; mevcut ANOMALY_THRESHOLD altyapısı.
 - **Nasıl (mimari):** rules_engine mevcut rolling pattern/ANOMALY_THRESHOLD'ı tekrarlayan gider gruplarına uygular; detect_alerts. Salt görünürlük.
 - **Etki:** Orta · **Efor:** S
 
 ### [FEAT-036] Hedefe otomatik allocation önerisi
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ay sonu artik nakit propose yok
 - **Değer/Fırsat:** Ay sonunda harcanmayan artık nakit tespit edilince "bu 3.400 TL'yi acil fona/borca aktaralım mı?" diye önerir; birikimi otomatikleştirir.
 - **Kaynak/İlham:** YNAB "roll with the punches" / otomatik sweep; Monarch goals.
 - **Nasıl (mimari):** rules_engine artık nakit hesaplar → coach propose_action (GoalAllocation/transfer) → kullanıcı onayı → execute. Mimariyi tam izler.
 - **Etki:** Yüksek · **Efor:** M
 
 ### [FEAT-037] Haftalık proaktif finansal digest
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: haftalik proaktif digest yok
 - **Değer/Fırsat:** Haftada bir kısa özet: bu hafta harcama, yaklaşan 3 olay, hedef ilerlemesi, tek eylem önerisi. Aylık rapordan farklı, sık ve kısa temas.
 - **Kaynak/İlham:** Copilot weekly recap; Monarch digest.
 - **Nasıl (mimari):** scheduler haftalık cron → rules_engine özet dict → coach açıklar (CoachInsight/mesaj). A3 aylık rapordan ayrı kadans.
 - **Etki:** Orta · **Efor:** S
 
 ### [FEAT-038] Aylık ödeme optimizasyonu (nötr optimizer)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: tek-ay odeme optimizasyonu yok
 - **Değer/Fırsat:** Bu ay eldeki sınırlı ekstra parayla hangi kart/kredinin önce ödenmesinin toplam faizi en aza indireceğini hesaplar (avalanche uygulaması, tek ay). Nötr matematik, tavsiye değil hesap.
 - **Kaynak/İlham:** Debt avalanche optimization; Undebt.it.
 - **Nasıl (mimari):** debt_strategy tek-ay optimizasyonu + cashflow'daki uygun nakit; propose_action ile ödeme önerilir, onaylanır.
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-039] Fon fiyat tazelik proaktif hatırlatma
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: bayat fon proaktif hatirlatma yok
 - **Değer/Fırsat:** Fon fiyatı 24 saatten eski kaldığında koç proaktif hatırlatır ("TLY fiyatı 2 gündür güncellenmedi, K/Z tahminin sapmış olabilir"). Manuel fiyat modelinin zayıf noktasını kapatır.
 - **Kaynak/İlham:** fund_tracker mevcut tazelik kuralı + proaktif nudge.
 - **Nasıl (mimari):** scheduler nightly fund_tracker tazelik kontrolü → bayat fon için CoachInsight/hatırlatma. Otomatik çekme başarısızsa manuel iste. Salt hatırlatma.
 - **Etki:** Düşük · **Efor:** S
 
 ### [FEAT-040] Hedef fonlama önceliklendirme (kıt nakit dağıtımı)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: goal priority waterfall yok
 - **Değer/Fırsat:** Birden fazla aktif hedef (acil fon, borç, tatil) varken ve nakit hepsine yetmezken, önceliğe göre bölüştürme önerir; hedef çakışmasını çözer.
 - **Kaynak/İlham:** Goal prioritization / waterfall funding (YNAB, Qapital priorities).
 - **Nasıl (mimari):** goal_engine'e priority alanı + rules_engine dağıtım hesabı → coach propose_action ile bölüştürme önerir → onay → execute. Deterministik hesap, LLM açıklar.

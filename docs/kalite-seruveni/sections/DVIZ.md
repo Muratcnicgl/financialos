@@ -11,7 +11,7 @@ Araştırma kaynakları:
 ---
 
 ### [DVIZ-001] Net Değer Trendi grafiği yatırım değerini aynı Y ekseninde ezik gösteriyor
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: üç Line tek YAxis, investment right-axis yok
 
 Sorun: `net_worth_seen`, `net_worth_full` ve `investment_value` tek çizgi grafiğinde ortak Y ekseninde çiziliyor. Net değer büyüklüğü (milyonlar mertebesi) ile yatırım değeri çok farklı ölçekte olduğunda yatırım çizgisi dibe yapışır, trendi okunmaz olur. Ayrıca NetWorthSnapshot günlük snapshot'ları alacaksız/alacaklı ayrımını doğru veriyor ama üç serinin görsel ağırlığı dengesiz.
 
@@ -24,7 +24,7 @@ Etki: orta · Efor: S (yarım saat, tek panel)
 ---
 
 ### [DVIZ-002] Grafik renk paleti renk körlüğü güvenli değil, kırmızı-yeşil bitişik
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: COLORS renk-körü güvenli değil
 
 Sorun: `COLORS` dizisi 10 renk içeriyor ve hem donut hem yatay barda sırayla kullanılıyor. 2. renk yeşil (#16a34a) ile 7. renk kırmızı (#e11d48) protanopi/deuteranopi altında ayırt edilemez; ayrıca 10 kategori tek pastada 5-6 renk sınırını aşar. Araştırma: kategorik kodlamada doğrulanmış paletten (Wong/Okabe-Ito) maks 6 renk önerilir.
 
@@ -37,7 +37,7 @@ Etki: yüksek · Efor: S
 ---
 
 ### [DVIZ-003] Donut 10 dilime kadar çıkıyor, karşılaştırma için zayıf form
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: donut 10 dilim, top-6/Diğer yok
 
 Sorun: Kategori sayısı çoksa donut okunması güç bir renk yığınına dönüşür; pasta/donut 5-6 dilimden fazlasında karşılaştırma için kötü form. Yanındaki yatay bar zaten aynı veriyi daha okunur veriyor, yani donut çoğu zaman gereksiz ikizleme.
 
@@ -50,7 +50,7 @@ Etki: orta · Efor: S
 ---
 
 ### [DVIZ-004] Aylık gelir/gider trendi yok (Wave-2 A3 aylık özet eksik)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: monthly-summary kartı geldi ama çok-aylık bar yok
 
 Sorun: `category-breakdown` yalnızca kayan pencere (30/90 gün) toplamı veriyor; ay-be-ay gelir vs gider trendi, önceki aya göre değişim yok. Wave-2 A3 hedefi "aylık özet rapor: gelir/gider/net değişim + kategori + önceki aya trend" karşılanmamış.
 
@@ -63,7 +63,7 @@ Etki: yüksek · Efor: M
 ---
 
 ### [DVIZ-005] Dönem karşılaştırma ve KPI delta yok
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: MonthlySummary delta var ama MetricCard delta yok
 
 Sorun: Cockpit metrik kartları yalnızca mutlak değer gösteriyor; önceki döneme göre yön/delta yok. Finans dashboard'larda KPI kutusunun önceki döneme göre artış/azalış (ok + yüzde) taşıması standart. Kullanıcı "kart borcu geçen aya göre düştü mü" sorusunu göremiyor.
 
@@ -76,7 +76,7 @@ Etki: yüksek · Efor: M
 ---
 
 ### [DVIZ-006] Grafiklerde dark mode grid/eksen rengi sabit açık tona kodlanmış
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: grid/ReferenceLine sabit renk
 
 Sorun: Net değer trend grafiğinde CartesianGrid ve referans çizgileri sabit hex ile veriliyor; dark mode'da grid neredeyse görünmez veya yanlış kontrast. Aynı repoda BalanceTrend `currentColor` + opacity ile doğru temaya duyarlı deseni kullanıyor — tutarsızlık var.
 
@@ -89,7 +89,7 @@ Etki: orta · Efor: S
 ---
 
 ### [DVIZ-007] Fon performans grafiği yok, PriceHistory tablosu kullanılmıyor
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: fund-history endpoint/grafiği yok
 
 Sorun: `PriceHistory` tablosu fon/hisse fiyat geçmişini "tek doğruluk kaynağı" olarak saklıyor ama hiçbir endpoint veya grafik bu geçmişi okumuyor. Cockpit yalnızca anlık K/Z snapshot'ı gösteriyor; fon fiyatının zaman içindeki seyri (maliyet çizgisiyle birlikte) görselleştirilmiyor.
 
@@ -102,7 +102,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-008] Kart doluluk (utilization) oranı ve trendi görselleştirilmiyor
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** ✅ KAPANDI — M85 R3 doğrulama: FEAT-016 doluluk bar+trend (Cockpit.jsx:354)
 
 Sorun: Kart borcu Cockpit'te mutlak TL olarak gösteriliyor ama `credit_limit`e göre doluluk yüzdesi (kritik metrik — PROJE.md'de "kart %99.8 dolu" temel problem) gauge/bar olarak yok. NetWorthSnapshot günlük `card_debt` sakladığı halde doluluk trendi de çizilmiyor.
 
@@ -115,7 +115,7 @@ Etki: yüksek · Efor: M
 ---
 
 ### [DVIZ-009] Borç eritme (payoff) projeksiyon grafiği yok
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: payoff projeksiyon grafiği yok
 
 Sorun: DebtStrategy paneli strateji karşılaştırması sunuyor ama hiçbir grafik içermiyor (recharts import yok). 5 krediyi zaman içinde eritme projeksiyonu (kalan bakiye düşüş çizgisi) görsel olarak yok — kullanıcı hangi stratejinin borcu ne zaman sıfırladığını göremiyor.
 
@@ -128,7 +128,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-010] Bakiye trend grafiği sıkışmayı yalnızca noktayla gösteriyor, alan/eşik bandı yok
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Area dolgu/ReferenceArea bandı yok
 
 Sorun: Nakit akışı bakiye trendinde negatif/eşik altı bölge yalnızca kırmızı ReferenceDot ile işaretleniyor; sıfır altına inen alan gölgelenmiyor, crunch eşiği bir bant olarak gösterilmiyor. Bakiyenin ne kadar süre eşik altında kaldığı görsel olarak zayıf okunuyor.
 
@@ -141,7 +141,7 @@ Etki: orta · Efor: S
 ---
 
 ### [DVIZ-011] CSV / PDF export yok
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: CSV export yok
 
 Sorun: Ne işlem listesi ne rapor dışa aktarılabiliyor; hiçbir endpoint CSV/PDF üretmiyor. Kullanıcı verisini yedeklemek, muhasebeciye vermek veya harici analiz için çıkaramıyor.
 
@@ -154,7 +154,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-012] Net değer trendi varlık/borç kompozisyonunu göstermiyor (veri var, kullanılmıyor)
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: net-worth-trend cash/card/loan serialize etmiyor
 
 Sorun: NetWorthSnapshot her gün `cash`, `card_debt`, `loan_debt`, `investment_value`, `receivables` ayrı ayrı saklıyor ama trend endpoint'i yalnızca 3 birleşik toplamı döndürüyor. Net değerin nasıl oluştuğu (varlık kırılımı vs borç kırılımı) stacked area olarak gösterilmiyor — zengin veri boşa gidiyor.
 
@@ -167,7 +167,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-013] Grafiklerde ARIA/metin alternatifi ve veri tablosu yedeği yok
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: grafik role=img/tablo yedeği yok
 
 Sorun: Hiçbir ResponsiveContainer/chart `role="img"`, `aria-label`, `<title>` veya erişilebilir veri tablosu yedeği taşımıyor. Ekran okuyucu kullanıcıları grafik içeriğine hiç erişemiyor. Araştırma: renk artıklı kodlamanın yanında metin alternatifi/veri tablosu zorunlu ilk savunma hattı.
 
@@ -180,7 +180,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-014] Sayı biçimlendirme grafikler arası tutarsız
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: üç ayrı formatter
 
 Sorun: Kısaltma mantığı her grafikte farklı: Reports bar'da `shortTL` (virgüllü, "12,3K"), Reports Y ekseninde `fmtYAxis` (virgülsüz, "12K"), Cashflow'da `formatTL(v, {compact:true})`. Aynı ekranda üç farklı bin/milyon kısaltması kullanıcıyı yanıltır ve markayı dağıtır.
 
@@ -193,7 +193,7 @@ Etki: düşük · Efor: S
 ---
 
 ### [DVIZ-015] Rapor bilgisi üç panele dağılmış, tek dashboard hiyerarşisi yok
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: raporlama dağınık, upcoming-cashflow çakışma
 
 Sorun: Görselleştirmeler üç ayrı panele bölünmüş: Reports (kategori + net değer trend + alacak takvimi), Cashflow (bakiye trend + takvim + Sankey), Cockpit (mini akış özeti + K/Z). Aynı alacak-borç verisi hem Reports.jsx hem Cashflow'da farklı formatta tekrar ediyor. Araştırma: iyi finans dashboard'u üç katmanlı tek hiyerarşi ister (üstte KPI → orta trend → alt detay); dağınık yapı kullanıcıyı gezinmeye zorluyor.
 

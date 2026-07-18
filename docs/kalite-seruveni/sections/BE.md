@@ -88,7 +88,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [BE-014] `create_all` / Alembic tutarsızlığı ve ölü `init_db`
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: create_all kaldırıldı ama app/PROJE.md hâlâ yanlış diyor
+- **Durum:** ✅ KAPANDI (M87) — app/PROJE.md 'startup create_all' çelişkisi düzeltildi (alembic/ADR-013 notu)
 - **Sorun:** Alembic'e geçilmiş ama `database.py:50 init_db()` hâlâ `create_all`; `app/PROJE.md` "startup create_all" diyor. create_all migrate etmez → şema drift; doküman-kod çelişki.
 - **Kanıt:** `app/database.py:50-57`, `app/main.py:109-118`, `app/PROJE.md`, `alembic/versions/*`
 - **Aksiyon:** `init_db`'yi setup/test-only yap; PROJE.md'leri "schema Alembic ile" güncelle.

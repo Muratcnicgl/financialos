@@ -8,7 +8,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DOCS-002] `dev-commands.md` "pytest kullanılmıyor" derken olgun pytest suite var
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: dev-commands.md hâlâ "pytest kullanılmıyor" diyor (yanlış)
+- **Durum:** ✅ KAPANDI (M87) — dev-commands.md 'pytest kullanılmıyor' notu düzeltildi (güncel pytest süiti belirtildi)
 - **Kanıt:** `docs/dev-commands.md` "Test Scriptleri" vs `tests/` (16 dosya, conftest, .pytest_cache)
 - **Aksiyon:** İki-katmanlı gerçeği yaz: `tests/` pytest + kök legacy smoke; hedef tam geçiş. (TEST-002)
 - **Etki:** Orta · **Efor:** S
@@ -53,7 +53,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [DOCS-009] Mimari diyagram güncelliği — README diyagramı "6 panel/35 endpoint" diyor, gerçek 10+ panel/17 router
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: README "35 endpoint/11 router/6 panel" (gerçek 23/96/13)
+- **Durum:** ✅ KAPANDI (M87) — README 35 endpoint/11 router/6 panel → 96 route/23 router/13 panel düzeltildi
 - **Kanıt:** `README.md:37,93-110` ("6 panel", "35 endpoint", "11 router") vs gerçek (17 router, 10+ panel, goal/premortem/simulation)
 - **Aksiyon:** README mimari bölümünü güncelle; panel/endpoint/router sayılarını otomatik türetmeyi düşün.
 - **Etki:** Düşük · **Efor:** S

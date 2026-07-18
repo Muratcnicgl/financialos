@@ -34,7 +34,7 @@ The cost: more code. The benefit: every coaching answer is traceable to a row in
 └──────────────────────────┬──────────────────────────────────┘
                            │ REST
 ┌──────────────────────────▼──────────────────────────────────┐
-│  FastAPI  (35 endpoints, 11 routers)                        │
+│  FastAPI  (96 routes, 23 routers)                        │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  Layer 1 — is_question() pre-classifier (Python)      │  │
 │  │  Layer 2 — Rules Engine (deterministic decisions)     │  │
@@ -93,7 +93,7 @@ The chain is configured via environment variables; ordering can be changed witho
 ```
 financialos/
 ├── app/                       # Backend
-│   ├── routers/               # 11 routers, 35 endpoints
+│   ├── routers/               # 23 routers, 96 routes
 │   ├── coach.py               # LLM orchestration, FallbackProvider
 │   ├── rules_engine.py        # Deterministic decisions
 │   ├── action_executor.py     # Write-side, idempotent
@@ -102,7 +102,7 @@ financialos/
 │   └── models.py              # SQLAlchemy models
 ├── frontend/                  # React app
 │   └── src/
-│       ├── panels/            # 6 panels
+│       ├── panels/            # 13 panels
 │       └── components/        # 8 components
 ├── docs/                      # Architecture, dev commands, roadmap
 ├── scripts/                   # Setup, seed data

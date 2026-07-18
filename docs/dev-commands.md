@@ -26,7 +26,9 @@ npm run build                          # üretim build'i frontend/dist
 
 ## Test Scriptleri
 
-pytest **kullanılmıyor**. Repo kökündeki `test_*.py` dosyaları bağımsız scriptlerdir — DB'yi sıfırlayıp gerçek senaryolarla çalışırlar:
+**GÜNCEL (M87, Wave-6):** Aşağıdaki eski not artık YANLIŞ. `tests/` olgun bir **pytest** süiti (1150+ test,
+in-memory SQLite + FakeProvider + hypothesis + Playwright e2e). Ana komut: `.\venv\Scripts\python.exe -m pytest tests/ -q`.
+Kök `test_*.py` scriptleri tarihsel/manuel araçlardır (pytest `testpaths=["tests"]` ile toplanmaz). Aşağısı o eski manuel scriptlerin tarihsel notudur:
 
 ```powershell
 python test_coach.py                   # gerçek LLM çağrısı, .env'deki API key gerekli

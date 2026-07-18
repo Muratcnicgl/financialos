@@ -26,3 +26,20 @@ Charter: her defect BUG #161+ numarası + MCP. Kapatma M68'de (kök neden + fix 
 - M66 sırasında DB'de 40 PendingAction görüldü: 1 pending (#40 Maas, gerçek recurring) + 37 rejected "Maas geldi"
   + 2 rejected diğer. Rejected pending'ler kullanıcı-görünür değil (cockpit yalnız pending gösterir) ama DB
   clutter. BUG #060 (duplicate Maas) alanı; rejected-retention tasarım gereği. M68'de değerlendirilir (öncelik düşük).
+
+---
+
+## M67 — 13 panel console-sweep sonucu (18 Tem 2026)
+
+- **13 panel yüklendi (JS-click ile mount, her biri API çağırdı):** Cockpit, Koç, Hesaplar, İşlemler,
+  Gelir&Borç, Kırmızı Çizgiler, Raporlar, Akış, Borç Stratejisi, Hedefler, Bütçe, Aile, Login.
+- **Console HATASI: 0** (read_console_messages onlyErrors, tüm paneller). B18-5 boşluğu (console hiç okunmamıştı) kapandı.
+- **BUG #059 DOĞRULANDI (hâlâ açık):** Recharts ResponsiveContainer `width(-1)/height(-1)` warning, 8×
+  (chart panelleri). Kozmetik, düşük öncelik (16 May 2026'dan beri açık). UI etkilenmiyor, chart sonra doğru render.
+- **UI CREATE browser-kanıtı:** Accounts ("M67 Test Kasa" oluştu, 7 hesap) · Transactions (M66, "200 fatura") ·
+  Coach (M66, tam döngü). Hepsi gerçek UI + gerçek veri.
+- **OTONOM KARAR M67 (kategori-b, ORTAM KISITI):** Chrome MCP extension bu ortamda kararsız (screenshot
+  timeout + mid-op disconnect + kaçan koordinat-tık, M66-M67 boyunca tekrarlı). Exhaustive 13-panel ×
+  (create+update+delete) screenshot-tabanlı sweep güvenilir değil + devasa context. **Systematic CRUD sweep
+  M69 Playwright harness'ına devredildi** — charter M69 zaten bunu istiyor ve Playwright MCP-extension'dan
+  KARARLI (doğru araç). Kalite düşürme değil, araç değişimi.

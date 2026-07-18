@@ -1,5 +1,10 @@
 # FinancialOS self-host — tek komut: `docker compose up -d`
 # .env dosyasında DOMAIN + LLM key'leri ver (docs/deployment/README.md).
+#
+# M49 (Wave-7) HİBRİT DB: default DATABASE_URL SQLite (dosya-volume). PostgreSQL'e geçmek için:
+#   docker compose --profile postgres up -d
+#   + .env'de DATABASE_URL=postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+# App dialect-aware (app/database.py) — DATABASE_URL neyse ona göre engine kurar.
 services:
   backend:
     build: .
@@ -10,7 +15,8 @@ services:
       # JWT'yi zorunlu kılar (public self-host auth gerektirir). Değiştirmek isteyen .env'de ezer.
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - AUTH_ENABLED=${AUTH_ENABLED:-true}
-      - DATABASE_URL=sqlite:////data/financialos.db
+      # M49: DATABASE_URL override edilebilir — default SQLite, postgres profili için .env'de değiştir.
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////data/financialos.db}
       - LLM_PROVIDER=${LLM_PROVIDER:-fallback}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
@@ -21,6 +27,26 @@ services:
       - fos-data:/data
     expose:
       - "8000"
+
+  # M49 (Wave-7): opt-in PostgreSQL — yalnız `--profile postgres` ile ayağa kalkar.
+  # Default (profilsiz) compose SQLite kalır (Wave-8 deploy kararına kadar).
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=financialos
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-me-in-env}
+      - POSTGRES_DB=financialos
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U financialos -d financialos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build:
@@ -42,3 +68,4 @@ volumes:
   fos-data:
   caddy-data:
   caddy-config:
+  pg-data:  # M49: PostgreSQL veri volume'ü (postgres profili)

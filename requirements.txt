@@ -29,3 +29,4 @@ bcrypt==5.0.0               # şifre hash (doğrudan kullanım; passlib bcrypt5 
 PyJWT==2.9.0                # JWT access/refresh token
 email-validator==2.2.0     # Pydantic EmailStr
 authlib==1.3.2             # OAuth (Google/GitHub) — API key gerekli
+psycopg2-binary==2.9.10  # M49 (Wave-7): PostgreSQL driver (hibrit dev-sqlite/prod-postgres)

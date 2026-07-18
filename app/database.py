@@ -1,48 +1,57 @@
 """
-SQLite veritabanı bağlantı katmanı.
-SQLAlchemy engine + session factory + Base metadata.
+Dialect-aware veritabanı bağlantı katmanı (M49, Wave-7).
+SQLAlchemy engine + session factory + Base metadata. **Hibrit:** dev SQLite / prod PostgreSQL.
+
+`DATABASE_URL` dialect'ini tespit eder ve dialect'e göre engine kurar:
+- **sqlite:** check_same_thread=False + BUG #060 PRAGMA listener (foreign_keys/WAL/busy_timeout/synchronous).
+- **postgresql:** havuz config (pool_size/max_overflow/pool_pre_ping — PERF-014) + psycopg2 driver.
 
 GUNCELLEMELER:
-  BUG #060 fix: Her SQLite bağlantısında PRAGMA'lar ayarlanır (connect listener).
-    - foreign_keys=ON  → SQLite'ta FK enforcement default KAPALIYDI; modellerdeki
-      ondelete=CASCADE/SET NULL tanımları hiç çalışmıyordu, yetim kayıt sessizce
-      yazılabiliyordu (Kalite serüveni DATA-003).
-    - journal_mode=WAL + busy_timeout → scheduler ve request eşzamanlı yazınca
-      "database is locked" hatasını önler (DATA-004, PERF-013).
-    - synchronous=NORMAL → WAL ile güvenli, daha hızlı.
+  BUG #060 fix: Her SQLite bağlantısında PRAGMA'lar (connect listener) — yalnız sqlite dialect'inde.
+    foreign_keys=ON (DATA-003), journal_mode=WAL + busy_timeout (DATA-004, PERF-013), synchronous=NORMAL.
+  M49 (Wave-7): dialect-aware — postgresql için pool_pre_ping (kopan bağlantı ölü-havuz önlenir) +
+    pool_size/max_overflow (PERF-014). SQLite davranışı DEĞİŞMEDİ (mevcut testler korunur).
 """
 
 import os
 from pathlib import Path
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, make_url
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from dotenv import load_dotenv
 
 # .env dosyasını yükle
 load_dotenv()
 
-# Veritabanı konumu — varsayılan: data/financialos.db
+# Veritabanı konumu — varsayılan: data/financialos.db (dev). Prod: postgresql://... (DATABASE_URL).
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/financialos.db")
 
-# data/ klasörünü garanti et (yoksa oluştur)
+# M49: dialect tespiti (sqlite | postgresql | ...) — SQLAlchemy URL parser'ı ile güvenli.
+_DIALECT = make_url(DATABASE_URL).get_backend_name()  # 'sqlite' | 'postgresql' | ...
+IS_SQLITE = _DIALECT == "sqlite"
+IS_POSTGRES = _DIALECT in ("postgresql", "postgres")
+
+# data/ klasörünü garanti et (yalnız dosya-tabanlı sqlite)
 if DATABASE_URL.startswith("sqlite:///"):
     db_path = DATABASE_URL.replace("sqlite:///", "")
-    db_dir = Path(db_path).parent
-    db_dir.mkdir(parents=True, exist_ok=True)
+    if db_path and db_path != ":memory:":
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-# Engine — SQLite için check_same_thread=False (FastAPI çoklu thread kullanır)
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
-    echo=False,  # SQL loglarını görmek istersen True yap
-)
+# M49: dialect-aware engine kwargs
+_engine_kwargs = {"echo": False}
+if IS_SQLITE:
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+elif IS_POSTGRES:
+    # PERF-014: kopan bağlantıları önceden tespit et (pool_pre_ping) + makul havuz.
+    _engine_kwargs.update(pool_pre_ping=True, pool_size=5, max_overflow=10)
+
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 
 
-# BUG #060 fix: Her yeni SQLite bağlantısında kritik PRAGMA'ları ayarla.
-# SQLite'ta foreign_keys default KAPALI — ondelete=CASCADE/SET NULL tanımları
-# aksi halde hiç çalışmaz (DATA-003). WAL + busy_timeout eşzamanlı yazımda
-# "database is locked" hatasını önler (DATA-004, PERF-013).
-if DATABASE_URL.startswith("sqlite"):
+# BUG #060 fix: Her yeni SQLite bağlantısında kritik PRAGMA'ları ayarla (YALNIZ sqlite dialect).
+# SQLite'ta foreign_keys default KAPALI — ondelete=CASCADE/SET NULL tanımları aksi halde hiç
+# çalışmaz (DATA-003). WAL + busy_timeout eşzamanlı yazımda "database is locked" önler (DATA-004,
+# PERF-013). Postgres bunların HİÇBİRİNE gerek duymaz (FK default açık, MVCC ile kilit yok).
+if IS_SQLITE:
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragmas(dbapi_conn, _connection_record):
         cur = dbapi_conn.cursor()

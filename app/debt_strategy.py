@@ -38,6 +38,9 @@ from app.rules_engine import _scope  # M72: aktif workspace kapsamı (köprü; c
 # ============================================================
 
 DEFAULT_CARD_INTEREST_MONTHLY = 4.25  # TCMB tavan TR (%/ay)
+# RULE-038 (M83): iki stratejinin "neredeyse aynı" sayıldığı faiz-tasarrufu eşiği (TL).
+# Magic number yerine adlandırıldı; altında davranışsal tercih matematik farktan önemli.
+STRATEGY_EQUIVALENCE_THRESHOLD_TL = 50
 MIN_CARD_PAYMENT_RATIO = 0.25         # Kart asgari odeme orani (TR)
 MAX_MONTHS = 600                      # Sonsuz dongu koruma
 
@@ -268,7 +271,9 @@ def _simulate(
 def calc_snowball(debts: List[DebtItem], extra_monthly: float = 0.0,
                   today: Optional[date] = None) -> StrategyResult:
     """Snowball: bakiye kucukten buyuge."""
-    order = sorted(debts, key=lambda d: d.balance)
+    # RULE-025 (M83): ikincil tie-break account_id → eşit bakiyede deterministik sıra
+    # (DB sorgu sırasına bağlı keyfi öncelik önlenir; aynı girdi hep aynı çıktı).
+    order = sorted(debts, key=lambda d: (d.balance, d.account_id))
     result = _simulate(debts, [d.account_id for d in order], extra_monthly, today=today)
     result.strategy = 'snowball'
     return result
@@ -277,7 +282,8 @@ def calc_snowball(debts: List[DebtItem], extra_monthly: float = 0.0,
 def calc_avalanche(debts: List[DebtItem], extra_monthly: float = 0.0,
                    today: Optional[date] = None) -> StrategyResult:
     """Avalanche: faiz orani yuksekten dusuge."""
-    order = sorted(debts, key=lambda d: -d.interest_rate_monthly)
+    # RULE-025 (M83): ikincil tie-break account_id → eşit faizde deterministik sıra
+    order = sorted(debts, key=lambda d: (-d.interest_rate_monthly, d.account_id))
     result = _simulate(debts, [d.account_id for d in order], extra_monthly, today=today)
     result.strategy = 'avalanche'
     return result
@@ -314,7 +320,7 @@ def compare_strategies(
     saved = snowball.total_interest_paid - avalanche.total_interest_paid
     months_diff = snowball.months_to_freedom - avalanche.months_to_freedom
 
-    if abs(saved) < 50:
+    if abs(saved) < STRATEGY_EQUIVALENCE_THRESHOLD_TL:  # RULE-038 (M83): adlandırılmış eşik
         note = 'Iki strateji neredeyse ayni sonuc verir. Davranissal tercih daha onemli.'
     elif saved > 0:
         note = (

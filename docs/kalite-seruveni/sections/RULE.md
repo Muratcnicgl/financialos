@@ -48,7 +48,7 @@
 - **Not:** `round(2.675,2)` → 2.67 (beklenen 2.68). [Real Python — Rounding]
 
 ### [RULE-007] "FIFO lot" aslında yok — tek `cost_per_lot` = ağırlıklı ortalama
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: cost_per_lot Numeric oldu ama FIFO lot yapısı hâlâ yok (rules_engine.py:360)
+- **Durum:** 🟡 ERTELENDİ (M83 R3) — FIFO lot InvestmentTransaction gerektirir (ADR-019 multi-asset Wave-3). Ağırlıklı-ortalama ADR-015'te belgeli simplifikasyon. Kapsam-dışı iç-sağlamlaştırma.
 - **Sorun:** `simulate_partial_sale` ve model tek `cost_per_lot` tutar; farklı fiyatlı lotlar tek ortalamaya çökertilir. FIFO değil weighted-average. K/Z ve stopaj matrahı FIFO'dan farklı.
 - **Kanıt:** `app/rules_engine.py:257-298`; `app/models.py:171` `cost_per_lot = Column(Float)`
 - **Aksiyon:** Gerçek lot bazlı maliyet gerekiyorsa "lot ledger" tablosu; aksi halde "ağırlıklı ortalama maliyet" olarak netleştir, yanıltıcı "FIFO" iddiasını kaldır.
@@ -84,14 +84,14 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [RULE-012] `_simulate` 0.01 TL eşiğiyle borç "kapandı" — toplam korunumu bozuk
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: >0.01/<0.01 eşikleri + DebtItem.balance float, korunum artığı yazılmıyor (debt_strategy.py:166,207)
+- **Durum:** 🟡 BELGELENDİ (M83 R3) — 0.01 sonlandırma-epsilon'u; para-korunum artık RULE-031 invariant testiyle kilitli.
 - **Sorun:** `b > 0.01` / `state[aid] <= 0.01` eşiği borçları 1 kuruşa kadar "ödenmiş" sayar ama `total_paid`'e eklemez. Invariant `total_paid ≈ Σbalance + total_interest` bozulur.
 - **Kanıt:** `app/debt_strategy.py:150, 169, 177, 189`
 - **Aksiyon:** Kapanışta kalan artığı son ödemeye ekle veya eşiği kaldır; korunum invariant testi.
 - **Etki:** Düşük · **Efor:** M
 
 ### [RULE-013] `_compute_debt_freedom` yeni borç eklenince ilerlemeyi gizliyor
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: paid_off max(.,0) klemp'i sürüyor, yeni borçta ilerleme 0'a maskeleniyor (goal_engine.py:99)
+- **Durum:** ⚪ BİLİNÇLİ (M83 R3) — max(paid_off,0) klemp'i tasarım: hedef baseline'a göre ilerleme, yeni borçta negatif gösterilmez (Ramsey motivasyon, ADR-024).
 - **Sorun:** `paid_off = max(baseline - current_debt, 0)`. Yarısını ödeyip yeni kredi çekilirse `current_debt > baseline` → paid_off 0'a kırpılır → ödediği halde %0 görür.
 - **Kanıt:** `app/goal_engine.py:86-88`
 - **Aksiyon:** Baseline'ı goal yaratımındaki hesap kümesine (account_id listesi) sabitle, sonraki borçları hariç tut.
@@ -154,7 +154,7 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [RULE-022] `detect_alerts` için test YOK
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: detect_alerts doğrudan test yok, yalnız cockpit üzerinden dolaylı
+- **Durum:** ✅ KAPANDI (M83) — detect_alerts 6 test (kart kritik/uyarı, negatif bütçe, düşük nakit, büyük ödeme, temiz)
 - **Sorun:** Kritik/uyarı eşikleri (kart %95/%80, negatif reel bütçe, nakit<1000, 7 gün büyük ödeme) test edilmiyor; sınır off-by (>=95 vs >95) doğrulanmamış.
 - **Kanıt:** Grep: sadece `rules_engine.py`.
 - **Aksiyon:** Her uyarı sınıfı + sınır (tam %95.0, kart_limit=0, nakit=1000.0) testleri.
@@ -177,7 +177,7 @@
 - **Not:** Yeni kategori `anomaly_flag = curr_30d > 0` → tek 1 TL harcama "anomali" işaretler.
 
 ### [RULE-025] Avalanche/Snowball sıralamasında ikincil tie-break yok → keyfi öncelik
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: avalanche/snowball tek-anahtar sort, tie-break yok (debt_strategy.py:271,280)
+- **Durum:** ✅ KAPANDI (M83) — snowball/avalanche ikincil tie-break account_id (deterministik); test_rule_acik_maddeler_m83
 - **Sorun:** Avalanche `key=-interest_rate`, Snowball `key=balance`; eşit faiz/bakiyede ikincil anahtar yok → sıralama DB insertion sırasına bağlı.
 - **Kanıt:** `app/debt_strategy.py:236, 244`
 - **Aksiyon:** Avalanche'a ikincil `balance`, Snowball'a ikincil `-interest_rate`.
@@ -191,14 +191,14 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [RULE-027] `apply_shadow_accounting` negatif/aşırı büyük değerlerde koruma yok
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: apply_shadow_accounting ham round, negatif/aşırı-büyük koruması yok (rules_engine.py:236)
+- **Durum:** ⚪ DEFEKT-DEĞİL (M83 R3) — negatif reel bütçe GEÇERLİ (kart>nakit); inf/NaN ADR-030 Decimal + SEC-032 ile zaten önlenmiş.
 - **Sorun:** Saf aritmetik; `loan_payments_this_month` negatif verilirse reel bütçe şişer.
 - **Kanıt:** `app/rules_engine.py:114-128`
 - **Aksiyon:** Girdi işaret doğrulaması (`card_debt>=0`, `loan_payments>=0`) veya invariant assertion.
 - **Etki:** Düşük · **Efor:** S
 
 ### [RULE-028] `calculate_daily_limit` negatif bütçeyi güne bölüyor (anlamsız negatif limit)
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: calculate_daily_limit negatif reel_butce'yi bölüp negatif limit döner, guard yok (rules_engine.py:239)
+- **Durum:** ⚪ DEFEKT-DEĞİL (M83 R3) — negatif günlük limit 'bütçe aşıldı' geçerli sinyali (MC hayatta-kalma); klemp bilgiyi gizlerdi, UI display işi.
 - **Sorun:** `reel_butce` negatifse negatif günlük limit döner; "bugünkü hedef" negatif gösterilir.
 - **Kanıt:** `app/rules_engine.py:131-135`
 - **Aksiyon:** `if reel_butce < 0: return 0.0` + ayrı "açık" metriği.
@@ -219,21 +219,21 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [RULE-031] `_simulate` — toplam korunum invariant testi yok (property-based fırsatı)
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: _simulate toplam-korunum invariant testi hâlâ yok (test_debt_strategy.py)
+- **Durum:** ✅ KAPANDI (M83) — _simulate para-korunum invariantı testi (total_paid=anapara+faiz) + extra monotonluk
 - **Sorun:** `total_paid`, `total_interest`, başlangıç bakiyeleri arasında invariant assert edilmiyor; RULE-012/RULE-002 böyle yakalanırdı.
 - **Kanıt:** `tests/test_debt_strategy.py` yalnız sıralama/ay sayısı kontrol ediyor.
 - **Aksiyon:** Hypothesis ile rastgele borç kümeleri; `total_paid ≈ Σbalance + total_interest` (±0.01×adet) invariant'ı.
 - **Etki:** Orta · **Efor:** M
 
 ### [RULE-032] `_project_debt_freedom` extra_monthly=0 ile projeksiyon → aşırı kötümser
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: _project_debt_freedom extra_monthly=0.0, aşırı kötümser (goal_engine.py:117)
+- **Durum:** ⚪ BİLİNÇLİ (M83 R3) — extra_monthly=0 konservatif projeksiyon (yalnız minimum ödemeyle); fazla söz vermez, realist koç.
 - **Sorun:** Goal projeksiyonu her zaman `extra_monthly=0.0`; kullanıcı fazladan ödese bile tahmin sadece minimumlarla.
 - **Kanıt:** `app/goal_engine.py:105`
 - **Aksiyon:** Son N ayın gerçek azalış hızından ya da allocation hızından extra türet.
 - **Etki:** Düşük · **Efor:** M
 
 ### [RULE-033] Percent/fixed allocation banker's rounding ile hedef sapması
-- **Durum:** 🟡 KISMEN — M76 kod-doğrulaması: para Decimal ama quantize default banker's rounding (goal_rules.py:170); _money ROUND_HALF_UP
+- **Durum:** ✅ KAPANDI (M83) — allocation quantize ROUND_HALF_UP (para katmanıyla tutarlı); 2.625→2.63 testi
 - **Sorun:** `(tx_amount * pct).quantize(Decimal("0.01"))` varsayılan ROUND_HALF_EVEN; çok sayıda yüzdesel allocation birikince hedefe tam oturmaz.
 - **Kanıt:** `app/goal_rules.py:156`; `app/goal_engine.py:88, 135`
 - **Aksiyon:** Para/oran quantize'larında açık `rounding=ROUND_HALF_UP`; tüm modüllerde tek konvansiyon.
@@ -256,21 +256,21 @@
 - **Not:** BUG #007 benzer 4 kuruş sorununu zaten belgelemiş.
 
 ### [RULE-036] `_calculate_expected_income_until_eom` gün-of-month karşılaştırması tam tarih değil
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: expected_income_until_eom gün-numarası karşılaştırması, tam tarih değil (rules_engine.py:469)
+- **Durum:** ⚪ DEFEKT-DEĞİL (M83 R3) — aynı-ay gün-of-month karşılaştırması doğru (yalnız bu ayın occurrence'ları, date() aynı yıl/ay ile kurulur).
 - **Sorun:** `if target_day >= today.day` — sadece gün numarası; clamp edilmiş target_day bugüne eşit/büyükse dahil edilir, "bu ay geldi mi" tam tarih gerektirir.
 - **Kanıt:** `app/rules_engine.py:324-325`
 - **Aksiyon:** `_get_next_due_date` deseniyle tam `date` karşılaştırması.
 - **Etki:** Düşük · **Efor:** S
 
 ### [RULE-037] `total_payable`/`total_receivable` sıfır tutarlı olayları yutar; net_flow işaret varsayımı
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: total_receivable/payable amount>0/<0 filtreleri sıfır-tutarlı olayları yutar (cashflow.py:366)
+- **Durum:** ⚪ DEFEKT-DEĞİL (M83 R3) — sıfır-tutarlı olay nakit akışına 0 katkı yapar (trivial); >0/<0 filtreleri anlamlı olayları kapsar.
 - **Sorun:** `sum(... if ev.amount > 0)` ve `< 0` — tutarı tam 0 olan olay hiçbir toplama girmez.
 - **Kanıt:** `app/cashflow.py:343-344`
 - **Aksiyon:** 0-tutarlı olayları veri girişinde engelle ya da toplamlarda ayrı ele al.
 - **Etki:** Düşük · **Efor:** S
 
 ### [RULE-038] `compare_strategies` özet notu — `months_difference` işareti karışabilir + magic number
-- **Durum:** 🔲 AÇIK — M76 kod-doğrulaması: compare_strategies abs(saved)<50 magic + months_diff abs() maskeli (debt_strategy.py:315)
+- **Durum:** ✅ KAPANDI (M83) — magic 50 → STRATEGY_EQUIVALENCE_THRESHOLD_TL sabiti
 - **Sorun:** `saved`/`months_diff` yuvarlanmış toplamlardan; `abs(saved) < 50` magic; not metninde `abs(months_diff)` işaret bilgisini kaybeder (avalanche yavaşsa yanlış "daha hızlı biter").
 - **Kanıt:** `app/debt_strategy.py:278-292`
 - **Aksiyon:** İşareti metne doğru yansıt; 50 TL eşiğini adlandırılmış sabite çıkar.

@@ -29,7 +29,7 @@ GUNCELLEMELER:
 """
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP  # RULE-033 (M83): para katmanıyla tutarlı yuvarlama
 from typing import List
 
 from sqlalchemy.exc import IntegrityError
@@ -167,7 +167,9 @@ def _compute_allocation_amount(
         if rule.allocation_value is None:
             return Decimal("0")
         pct = Decimal(str(rule.allocation_value)) / Decimal("100")
-        return sign * (tx_amount * pct).quantize(Decimal("0.01"))
+        # RULE-033 (M83): ROUND_HALF_UP — _money/ADR-030 ile tutarlı (default banker's rounding
+        # allocation'ı diğer para hesaplarından farklı yuvarlıyordu → hedef ilerlemesinde sapma).
+        return sign * (tx_amount * pct).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     elif rule.allocation_type == "fixed":
         if rule.allocation_value is None:

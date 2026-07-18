@@ -49,3 +49,30 @@ Charter: her defect BUG #161+ numarası + MCP. Kapatma M68'de (kök neden + fix 
   (create+update+delete) screenshot-tabanlı sweep güvenilir değil + devasa context. **Systematic CRUD sweep
   M69 Playwright harness'ına devredildi** — charter M69 zaten bunu istiyor ve Playwright MCP-extension'dan
   KARARLI (doğru araç). Kalite düşürme değil, araç değişimi.
+
+---
+
+## M70 — Scope AST tarayıcısı 3 GERÇEK leak buldu (RISK #2 / §B23b somut kanıtı)
+
+`tests/test_scope_enforcement.py` (regex/AST tarayıcı): her router + rules_engine'de `<ScopedModel>.user_id ==`
+kalıbını arar; `scope_filter`/`_scope`/`workspace_scope` ile sarılı DEĞİLSE ve `# scope-exempt` yoksa TEST KIRILIR.
+İlk koşu **12 ihlal** buldu → 3 gerçek leak + 9 kasıtlı (exempt işaretlendi).
+
+**3 GERÇEK LEAK (workspace izolasyonu delik — M43 ÖRNEKLEME idi, KAPSAMA değil):**
+- **`goals.py:211`** — hedef ilerlemesi `Transaction.user_id == current_user.id` ile hesaplanıyordu (ws_id
+  yok) → başka workspace'in işlemleri hedef progress'e sızardı. Fix: `scope_filter(Transaction, id, ws_id)`.
+- **`fund_price.py:85`** — POST /update hesap sahiplik kontrolü `Account.user_id ==` (ws_id yok) → viewer/editor
+  workspace'te yatırım fiyatı güncelleme scope-dışı. Fix: `active_workspace_id` param + `scope_filter(Account, ...)`.
+- **`subscriptions.py:69,73`** — abonelik→RecurringExpense dönüşümü hem hesap doğrulamada hem dup-kontrolde
+  `.user_id ==` (ws_id yok) + yeni RecurringExpense'e `workspace_id` yazılmıyordu. Fix: `workspace_scope` list'te,
+  `scope_filter` to-recurring'de, `workspace_id=ws_id` yeni kayıtta.
+
+**Anlamı:** §B23b RISK #2 ("M43 workspace scoping ÖRNEKLEME ile doğrulandı, KAPSAMA değil") **somut kanıtlandı** —
+M43'te 3 endpoint atlanmıştı, kimse fark etmemişti çünkü kapsayıcı test yoktu. Artık tarayıcı test var: yeni
+endpoint scope'u unutursa CI kırılır. Bu tam olarak charter Blok B M70'in amacı ("Yeni endpoint unutursa TEST KIRILSIN").
+
+**9 KASITLI (exempt):** cockpit snapshot legacy-fallback (ws_id None branch), user KVKK export (per-user tam veri),
+actions approve/reject ownership (id+user), expenses/incomes pending-dedup (user-level), premortem/simulation pending
+lookup. Her biri `# scope-exempt: <sebep>` ile işaretli — tarayıcı bunları atlar, sebep kod-içi görünür.
+
+**Kanıt:** `pytest tests/test_scope_enforcement.py` 2 passed; tam süit 975 passed, 1 skipped (M69'da 973 idi, +2 tarayıcı).

@@ -251,7 +251,7 @@ def approve_action(
         db.query(PendingAction)
         .filter(
             PendingAction.id == action_id,
-            PendingAction.user_id == current_user.id,
+            PendingAction.user_id == current_user.id,  # scope-exempt: pending ownership (id+user, personal-bound)
         )
         .first()
     )
@@ -360,7 +360,7 @@ def edit_action(
         db.query(PendingAction)
         .filter(
             PendingAction.id == action_id,
-            PendingAction.user_id == current_user.id,
+            PendingAction.user_id == current_user.id,  # scope-exempt: pending ownership (id+user, personal-bound)
             PendingAction.status == ActionStatus.pending,
         )
         .first()

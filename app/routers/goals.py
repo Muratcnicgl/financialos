@@ -208,7 +208,7 @@ def create_allocation(
 
     tx = db.query(models.Transaction).filter(
         models.Transaction.id == payload.transaction_id,
-        models.Transaction.user_id == current_user.id,
+        scope_filter(models.Transaction, current_user.id, ws_id),  # M70: workspace scoping (M43 kaçırmıştı)
     ).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")

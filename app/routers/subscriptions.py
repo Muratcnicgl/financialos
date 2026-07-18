@@ -12,8 +12,9 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.rules_engine import detect_subscriptions
+from app.rules_engine import detect_subscriptions, workspace_scope  # M70
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M70 workspace scoping
 from app.models import User, RecurringExpense, Account
 
 router = APIRouter(prefix="/api/subscriptions", tags=["subscriptions"])
@@ -42,9 +43,11 @@ def list_subscriptions(
     lookback_days: int = Query(180, ge=30, le=730, description="Kaç günlük geçmiş taransın"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M70
 ) -> SubscriptionsResponse:
     """İşlem geçmişinden tekrarlayan abonelikleri tespit eder (salt okuma)."""
-    return detect_subscriptions(user.id, date.today(), db, lookback_days=lookback_days)
+    with workspace_scope(ws_id):  # M70: abonelik tespiti aktif workspace işlemlerinden
+        return detect_subscriptions(user.id, date.today(), db, lookback_days=lookback_days)
 
 
 class ToRecurringRequest(BaseModel):
@@ -60,24 +63,26 @@ def to_recurring(
     payload: ToRecurringRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M70
 ):
     """
     Tespit edilen bir aboneliği DÜZENLİ GİDER'e (RecurringExpense) çevirir — böylece bütçe/
     hatırlatma/otomasyon kapsamına girer (detect→act döngüsü tamamlanır). Kullanıcı tetikler.
     Aynı isimde aktif düzenli gider varsa 409.
     """
-    acc = db.query(Account).filter(Account.id == payload.account_id, Account.user_id == user.id).first()
+    acc = db.query(Account).filter(
+        Account.id == payload.account_id, scope_filter(Account, user.id, ws_id)).first()  # M70
     if not acc:
         raise HTTPException(404, f"Hesap bulunamadi (id={payload.account_id})")
     dup = db.query(RecurringExpense).filter(
-        RecurringExpense.user_id == user.id, RecurringExpense.name == payload.isim,
+        scope_filter(RecurringExpense, user.id, ws_id), RecurringExpense.name == payload.isim,  # M70
         RecurringExpense.is_active == True,  # noqa: E712
     ).first()
     if dup:
         raise HTTPException(status.HTTP_409_CONFLICT,
                             detail=f"'{payload.isim}' için zaten aktif düzenli gider var (id={dup.id}).")
     exp = RecurringExpense(
-        user_id=user.id, name=payload.isim, amount=payload.aylik_tutar,
+        user_id=user.id, workspace_id=ws_id, name=payload.isim, amount=payload.aylik_tutar,  # M70
         account_id=payload.account_id, category=payload.category, day_of_month=payload.day_of_month,
         is_active=True, notes="Abonelik denetçisinden dönüştürüldü (FEAT-006)",
     )

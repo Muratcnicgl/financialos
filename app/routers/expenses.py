@@ -193,7 +193,7 @@ def trigger_due_expenses(
             continue
         # (2) Bu kayıt için zaten pending var mı
         existing_pending = db.query(PendingAction).filter(
-            PendingAction.user_id == user.id,
+            PendingAction.user_id == user.id,  # scope-exempt: pending dedup (user-level, trigger-due)
             PendingAction.source_recurring_id == exp.id,
             PendingAction.source_recurring_type == "expense",
             PendingAction.status == ActionStatus.pending,

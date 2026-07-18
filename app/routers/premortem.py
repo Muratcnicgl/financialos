@@ -53,7 +53,7 @@ def run_premortem(
     action = db.execute(
         select(PendingAction).where(
             PendingAction.id == action_id,
-            PendingAction.user_id == current_user.id,
+            PendingAction.user_id == current_user.id,  # scope-exempt: pending lookup (id+user ownership)
         )
     ).scalar_one_or_none()
 

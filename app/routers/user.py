@@ -123,7 +123,7 @@ def export_data(
         return [_row_to_dict(r) for r in db.query(model).filter(model.user_id == user.id).all()]
 
     # GoalAllocation/GoalRule'da user_id YOK (DATA-011) → kullanıcının hedefleri üzerinden join.
-    goal_ids = [g.id for g in db.query(Goal).filter(Goal.user_id == user.id).all()]
+    goal_ids = [g.id for g in db.query(Goal).filter(Goal.user_id == user.id).all()]  # scope-exempt: KVKK export = kullanicinin TUM verisi, per-user
 
     def dump_by_goal(model):
         if not goal_ids:

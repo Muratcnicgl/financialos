@@ -41,7 +41,7 @@ def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict,
     # M43: workspace varsa o workspace'in snapshot'ı, yoksa legacy user snapshot'ı
     q = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.snapshot_date == today)
     q = q.filter(NetWorthSnapshot.workspace_id == workspace_id) if workspace_id is not None \
-        else q.filter(NetWorthSnapshot.user_id == user_id)
+        else q.filter(NetWorthSnapshot.user_id == user_id)  # scope-exempt: snapshot legacy fallback (ws_id None branch)
     if q.first():
         return
     # BUG #117 fix (#116 takibi): net_deger_tam artık payable de düşüyor → (net_deger_tam −

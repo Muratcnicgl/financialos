@@ -21,7 +21,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from typing import Optional
 from app.dependencies import get_db, get_current_user
+from app.workspace_deps import active_workspace_id, scope_filter  # M70 workspace scoping
 from app.models import User, Account, AccountType
 from app.schema_types import FinansTutar  # SEC-032: sonlu/pozitif fiyat (inf → lot*inf=inf bakiye)
 from app.fund_tracker import (
@@ -68,6 +70,7 @@ def update_price(
     payload: FundPriceUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # M70
 ) -> FundPriceUpdateResponse:
     """
     Yatirim hesabinin fiyatini manuel guncelle.
@@ -82,7 +85,7 @@ def update_price(
     # Once kullanicinin sahip oldugu hesabi dogrula (security)
     acc = db.query(Account).filter(
         Account.id == payload.account_id,
-        Account.user_id == user.id,
+        scope_filter(Account, user.id, ws_id),  # M70 workspace scoping
     ).first()
     if not acc:
         raise HTTPException(404, f"Hesap bulunamadi (id={payload.account_id})")

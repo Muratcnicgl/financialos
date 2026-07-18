@@ -4,7 +4,13 @@ Charter: her defect BUG #161+ numarası + MCP. Kapatma M68'de (kök neden + fix 
 
 ---
 
-## BUG #161 [OPEN] — Koç "kredi kartı ödemesi"ni kart borcunu ARTIRACAK şekilde modelliyor
+## BUG #161 [✅ KAPANDI M68] — Koç "kredi kartı ödemesi"ni kart borcunu ARTIRACAK şekilde modelliyor
+> **FIX (M68, commit sonra):** `pay_credit_card` first-class aksiyon eklendi (action_executor
+> `_execute_pay_credit_card`: kart borcu −amount + kaynak nakit −amount, net-nötr). 3 senkron noktası
+> güncellendi (koç tool enum + `propose_action` valid_types + execute dispatcher). V3 prompt: seçim tablosu
+> + payload şablonu. 5 birim test. **App-akışı re-proof:** koç `pay_credit_card` önerdi → onayla → kart
+> 10.180,01→9.680,01 (AZALDI), nakit 9.747,95→9.247,95, ActionHistory net-nötr (nw değişmedi = doğru).
+> **Ders:** action_type 3 yerde ayrı listeleniyor (tek doğruluk kaynağı yok) → miss buradan; Wave-6 adayı.
 
 - **Bulunma:** M66 tam-döngü e2e (18 Tem 2026, Chrome). Login → koça "Ziraat kredi kartıma 500 TL ödeme
   yaptım" → koç PendingAction #41 önerdi → Onayla → execute → **finansal sonuç YANLIŞ.**

@@ -314,6 +314,7 @@ UZUN VADELİ HAFIZA bölümünde olmayan önemli bir gerçeği öğrenirsen save
 | "X lot fon SATTIM"                              | sell_investment      |
 | "Y TL maaş geldi" / "Z TL gider yaptım"        | add_transaction      |
 | "X bana ödedi" / "X'e olan borcumu ödedim"      | mark_debt_paid       |
+| "Kredi kartıma X TL ÖDEME yaptım"               | pay_credit_card      |
 | "Hesap bakiyesi şu kadar oldu"                  | update_account_balance |
 | "Fonun fiyatı şu oldu"                          | update_fund_price    |
 | "Yeni bir kural ekle"                           | add_master_checkpoint |
@@ -328,6 +329,9 @@ UZUN VADELİ HAFIZA bölümünde olmayan önemli bir gerçeği öğrenirsen save
 
 ## mark_debt_paid
 {"debt_id": <id>, "paid_date": "YYYY-MM-DD"}
+
+## pay_credit_card  (kredi kartı ödemesi — nakit çıkar + kart borcu azalır; add_transaction/expense DEĞİL)
+{"card_account_id": <kart_hesap_id>, "amount": <TL>, "source_account_id": <nakit_hesap_id, ops.>}
 
 ## update_account_balance
 {"account_id": <id>, "new_balance": <TL>}
@@ -444,6 +448,7 @@ PROPOSE_ACTION_SCHEMA = {
                     "update_account_balance",
                     "add_transaction",
                     "mark_debt_paid",
+                    "pay_credit_card",
                     "sell_investment",
                     "update_fund_price",
                     "add_master_checkpoint",

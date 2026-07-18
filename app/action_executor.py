@@ -182,6 +182,7 @@ def propose_action(
         "update_account_balance",
         "add_transaction",
         "mark_debt_paid",
+        "pay_credit_card",  # BUG #161 fix (M68) — koç enum'u + execute dispatcher ile senkron
         "sell_investment",
         "update_fund_price",
         "add_master_checkpoint",
@@ -259,6 +260,12 @@ def _build_action_message(action_type: str, result: Dict) -> str:
             return (
                 f"{_fmt(result.get('amount', 0))} TL {result.get('category', '?')} işlemi"
                 f"{account_part} kaydedildi."
+            )
+        if action_type == "pay_credit_card":
+            return (
+                f"{result.get('card_account', '?')} kartına {_fmt(result.get('amount', 0))} TL ödeme "
+                f"yapıldı ({result.get('source_account', '?')}'ten). Yeni kart borcu: "
+                f"{_fmt(result.get('card_new_balance', 0))} TL."
             )
         if action_type == "mark_debt_paid":
             counterparty = result.get("counterparty", "?")
@@ -356,6 +363,7 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
         "update_account_balance": _execute_update_account_balance,
         "add_transaction": _execute_add_transaction,
         "mark_debt_paid": _execute_mark_debt_paid,
+        "pay_credit_card": _execute_pay_credit_card,  # BUG #161 fix (M68)
         "sell_investment": _execute_sell_investment,
         "update_fund_price": _execute_update_fund_price,
         "add_master_checkpoint": _execute_add_master_checkpoint,
@@ -633,6 +641,65 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
         "paid_date": debt.paid_date.isoformat(),
         "cash_effect": cash_effect,               # +tahsilat / -ödeme; nakit hesap yoksa 0
         "cash_account": cash.name if cash else None,
+    }
+
+
+def _execute_pay_credit_card(db: Session, user_id: int, payload: Dict) -> Dict:
+    """
+    BUG #161 fix (M68): Kredi kartı ÖDEMESİ — iki-bacaklı (nakit çıkar + kart borcu azalır).
+
+    Eskiden koç kart ödemesini `add_transaction` expense/kart olarak modelliyordu →
+    `credit_card + expense → balance += amount` (borç ARTIYORDU) ve nakit ayağı hiç
+    işlenmiyordu. Kart ödemesi first-class aksiyon: hem kaynak (nakit) düşer hem kart borcu düşer.
+
+    Payload: {"card_account_id": int, "amount": <TL>, "source_account_id": int?}
+    source verilmezse ilk nakit hesaba düşer (mark_debt_paid deseni).
+    """
+    card_id = payload.get("card_account_id") or payload.get("account_id")
+    amount = payload.get("amount")
+    if card_id is None or amount is None:
+        return {"success": False, "message": "card_account_id ve amount gerekli."}
+    amount = float(D(amount))  # ADR-030
+    if amount <= 0:
+        return {"success": False, "message": "Ödeme tutarı pozitif olmalı."}
+
+    card = db.query(Account).filter(
+        Account.id == card_id, Account.user_id == user_id,
+        Account.account_type == AccountType.credit_card,
+    ).first()
+    if not card:
+        return {"success": False, "message": f"Kredi kartı hesabı bulunamadı: id={card_id}"}
+
+    src_id = payload.get("source_account_id")
+    if src_id is not None:
+        source = db.query(Account).filter(
+            Account.id == src_id, Account.user_id == user_id).first()
+    else:
+        source = (db.query(Account)
+                  .filter(Account.user_id == user_id, Account.account_type == AccountType.cash)
+                  .order_by(Account.id.asc()).first())
+    if not source:
+        return {"success": False, "message": "Ödemenin çekileceği nakit hesap bulunamadı."}
+
+    warn = None
+    if amount > float(card.balance):
+        warn = (f"Ödeme ({_fmt(amount)} TL) kart borcundan ({_fmt(card.balance)} TL) fazla — "
+                "fazlası kart alacak bakiyesi olur.")
+
+    card.balance -= D(amount)      # kart borcu AZALIR (doğru yön)
+    source.balance -= D(amount)    # nakit çıkar
+    card.updated_at = datetime.utcnow()
+    source.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "success": True,
+        "card_account": card.name,
+        "source_account": source.name,
+        "amount": amount,
+        "card_new_balance": float(card.balance),
+        "source_new_balance": float(source.balance),
+        "warning": warn,
     }
 
 

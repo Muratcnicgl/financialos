@@ -80,7 +80,9 @@ export default function MetricCard({
           <div className="h-8 w-32 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
         ) : (
           <>
-            <p className={`font-numeric text-xl sm:text-2xl font-bold ${v.valueText} truncate`}>
+            {/* MC2 (Wave-8): mobilde text-lg (2-kolon grid ~150px'e sığar) + truncate YOK →
+                kritik net-değer kesilmesin; realistik TL değeri tek satır sığar. */}
+            <p className={`font-numeric text-lg sm:text-2xl font-bold ${v.valueText} leading-tight`}>
               {prefix}{formatTL(value)}{suffix}
             </p>
             {trend === 'up' && (

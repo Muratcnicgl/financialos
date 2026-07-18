@@ -131,7 +131,7 @@ export default function Budget() {
                     <span className={`text-sm font-numeric ${st.asildi ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-600 dark:text-zinc-300'}`}>
                       {formatTL(st.harcanan)} / {formatTL(st.butce)} TL
                     </span>
-                    <button type="button" onClick={() => remove(env.id)} className="text-zinc-400 hover:text-negative-500" title="Sil">
+                    <button type="button" onClick={() => remove(env.id)} className="text-zinc-400 hover:text-negative-500 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2" title="Sil">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>

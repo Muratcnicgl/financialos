@@ -188,7 +188,7 @@ export function WorkspaceSwitcher() {
   return (
     <select value={active || ''} onChange={onChange}
       title="Aktif workspace"
-      className="chip bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg px-2 py-1 text-xs max-w-[140px]">
+      className="chip bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg px-2 py-1 text-xs max-w-[100px] sm:max-w-[140px]">
       {list.map((w) => (
         <option key={w.id} value={w.id}>
           {w.is_personal ? '👤 ' : '👥 '}{w.name}

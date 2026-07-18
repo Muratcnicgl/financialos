@@ -150,7 +150,7 @@ export default function Workspace() {
                 </span>
                 {isOwner && m.user_id !== detail.owner_user_id && (
                   <button type="button" onClick={() => removeMember(m.user_id)}
-                          className="text-zinc-500 hover:text-red-400" title="Üyeyi çıkar">
+                          className="text-zinc-500 hover:text-red-400 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2" title="Üyeyi çıkar">
                     <Trash2 size={15} />
                   </button>
                 )}

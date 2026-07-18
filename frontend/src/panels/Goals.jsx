@@ -255,7 +255,7 @@ function GoalDetailModal({ goal, onClose }) {
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Yenile
             </button>
-            <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
+            <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -325,7 +325,7 @@ function AllocationsTab({ allocations, onRefresh }) {
             </div>
             <button
               onClick={() => handleDelete(a.id)}
-              className="text-zinc-500 hover:text-rose-400 transition-colors"
+              className="text-zinc-500 hover:text-rose-400 transition-colors min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -371,7 +371,7 @@ function RulesTab({ rules, goalId, onRefresh }) {
             </div>
             <button
               onClick={() => handleDelete(r.id)}
-              className="text-zinc-500 hover:text-rose-400 transition-colors flex-shrink-0"
+              className="text-zinc-500 hover:text-rose-400 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] inline-flex items-center justify-center -my-2"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -428,7 +428,7 @@ function GoalCreateWizard({ onClose }) {
           <h3 className="text-lg font-semibold text-zinc-100">
             {step === 1 ? 'Hedef Türü Seç' : 'Hedef Detayları'}
           </h3>
-          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
             <X className="w-5 h-5" />
           </button>
         </div>

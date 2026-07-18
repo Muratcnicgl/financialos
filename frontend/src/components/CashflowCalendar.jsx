@@ -127,7 +127,7 @@ export default function CashflowCalendar({ days }) {
             <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
               {selected.date} olayları
             </p>
-            <button type="button" onClick={() => setSelected(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+            <button type="button" onClick={() => setSelected(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>

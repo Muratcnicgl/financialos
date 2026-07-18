@@ -52,9 +52,9 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
                 <span className={`w-6 h-6 rounded-full ${c.badge} flex items-center justify-center text-xs font-semibold flex-shrink-0`}>
                   {i + 1}
                 </span>
-                <span className="text-zinc-200">{debt?.name || `Hesap #${accountId}`}</span>
+                <span className="text-zinc-200 truncate min-w-0">{debt?.name || `Hesap #${accountId}`}</span>
                 {debt && (
-                  <span className="text-xs text-zinc-500 ml-auto whitespace-nowrap">
+                  <span className="text-xs text-zinc-500 ml-auto whitespace-nowrap flex-shrink-0">
                     {TL(debt.balance)} · %{debt.interest_rate_monthly.toFixed(2)}/ay
                   </span>
                 )}
@@ -64,7 +64,7 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
         </ol>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 pt-3 border-t border-zinc-700/50">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-700/50">
         <div>
           <div className="text-xs text-zinc-400">Toplam Faiz</div>
           <div className={`text-base font-semibold ${c.text}`}>{TL(strategy.total_interest_paid)}</div>

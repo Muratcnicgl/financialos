@@ -266,8 +266,8 @@ export default function IncomeDebt() {
         </div>
       </div>
 
-      {/* Sekmeler */}
-      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-700">
+      {/* Sekmeler — MC2 (Wave-8): overflow-x-auto, 390px'de 3. sekme kırpılmasın (main overflow-x-hidden). */}
+      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-700 overflow-x-auto">
         {[
           { id: 'income',  label: `Gelirler (${incomes.length})`,  icon: TrendingUp },
           { id: 'expense', label: `Giderler (${expenses.length})`, icon: Receipt },

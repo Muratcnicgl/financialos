@@ -21,13 +21,28 @@ düzeltilmiş? M77 bu belirsizliği işaretledi + örnekledi.
 hem derin denetim (`dosya-denetimi/`) katmanlarının **önemli oranda bayat** olduğu iki bağımsız örnekle
 doğrulandı.
 
-## DÜRÜST SINIR
-- 75 raporun tamamı madde-madde YENİDEN doğrulanMADI (yalnız 1 rapordan 2 bulgu örneklendi).
-- Banner "bulgu geçersiz" DEMİYOR — "doğrulanmadı, kullanmadan önce kontrol et" diyor. Bazı bulgular
-  (özellikle Wave-4 sonrası dosyalar: workspace, auth) hâlâ geçerli olabilir.
-- Tam boyut-bazlı yeniden doğrulama Wave-6 işi (her rapor bir subagent turu, ~75 tur).
+## M86 (Wave-6) — 74 RAPOR TAM GÜNCELLİK DEĞERLENDİRMESİ
+M77 yalnız banner + 2 bulgu örnekledi; **Wave-6 M86** 74 raporu 6 paralel subagent ile değerlendirdi
+(her rapor için 2-3 kritik bulgu güncel koda karşı R3). Her rapora `M86 güncellik:` verdict damgası eklendi.
 
-## Neden tam doğrulama yapılmadı (KURAL 12 dürüstlüğü)
-75 raporun her bulgusunu güncel koda karşı doğrulamak ~75 bağımsız denetim turu = devasa. M77'nin
-amacı **güncelliği İŞARETLEMEK + ölçmek** (belirsizliği gidermek), her bulguyu kapatmak değil. Silent-stale
-tuzağı artık kapalı: her rapor okuyucuyu "önce doğrula" diye uyarıyor + git/ledger'a yönlendiriyor.
+### Güncellik dağılımı (74 rapor)
+| Verdict | Adet | Oran | Anlam |
+|---|---|---|---|
+| 🔴 BAYAT | 14 | %19 | Kontrol edilen bulguların çoğu düzeltilmiş |
+| 🟡 KISMEN-BAYAT | 31 | %42 | Kritik bulgular kapatılmış, ikincil/UX açık |
+| 🟢 GÜNCEL | 29 | %39 | Bulgular hâlâ büyük oranda geçerli |
+
+**Örüntü:** 45/74 (%61) raporda en az bir bulgu düzeltilmiş — backlog stale-örüntüsüyle tutarlı. **Backend
+engine/router raporları** çoğunlukla BAYAT/KISMEN-BAYAT (kritik bulgular bir BUG # ile kapatılmış: #062-#155 serisi;
+W3-serisi parseTRNumber/todayLocalISO frontend doğruluk düzeltmeleri). **Frontend UX/a11y raporları** çoğunlukla
+GÜNCEL (aria-label, modal Escape/focus-trap, 44px, index-key hâlâ açık — M85 ölçümüyle örtüşüyor).
+
+### ⚠️ M86'da yakalanan CANLI bug (Wave-7 adayı)
+- **SBN-001** (`sc__backfill_net_worth.md`): `_balance_at` hesap-tipsiz undo yapıyor → kredi/kart hesapları için
+  geçmiş net-değer YANLIŞ hesaplanıyor. Script (runtime değil) ama net-worth trendi tarihsel veriyi bozar.
+  Backfill script'i M73'te bir kez koşuldu (snapshot backfill) → geçmiş snapshot'larda latent hata olabilir.
+
+## Tarihsel not (M77 dürüst sınırı — M86'da kapandı)
+M77 "75 rapor madde-madde doğrulanmadı" diyordu; **M86 bu sınırı kapattı** — her rapor kritik-bulgu düzeyinde
+R3 değerlendirildi + verdict damgalandı. Tam her-bulgu doğrulaması (yüzlerce bulgu) hâlâ yapılmadı ama rapor
+düzeyinde güncellik artık ölçülü + işaretli (silent-stale tuzağı kapandı).

@@ -39,3 +39,6 @@ TCMB EVDS **v3'e taşındı**; eski `evds2.tcmb.gov.tr/service/evds/` 405/SPA d�
   gram-gold ayrı seri gerektirir (Wave-4).
 - Kod: `app/price_providers/evds_client.py` (fetch_series/fetch_currency_rate/fetch_gold_price +
   get_evds_price compat). Kaynak: EVDS Web Servis + Python Kılavuzu PDF (Murat 14 Tem).
+
+## Revize (18 Tem 2026, M-hisse / Wave-7) — BIST hisse otomasyonu CANLI
+`try_auto_fetch_stock_price` STUB'dı ('V2'de aktive edilecek', None dönüyordu) → **İş Yatırım HisseTekil JSON** endpoint'iyle gerçek implementasyona alındı. Zincir: yfinance (bu ortamda Yahoo-blok → None) → **İş Yatırım fallback** (`HGDG_KAPANIS` son kapanış). CANLI doğrulandı: THYAO=329.50, ASELS=351.50, GARAN=126.80. Uçtan uca KULLANIM-GATE: gerçek THYAO hesabı → `fetch_for_account` → PriceHistory `isyatirim` satırı → cockpit `yatirim_deger`. Okuma önceliği güncel: manual > tefas > yfinance > **isyatirim** (BIST fiili birincil, yfinance blok nedeniyle). Test: `tests/test_stock_price_isyatirim_m_hisse.py` (mock, ağ-bağımsız).

@@ -277,13 +277,42 @@ def try_auto_fetch_fund_price(fund_code: str) -> Optional[Decimal]:
 
 def try_auto_fetch_stock_price(ticker: str) -> Optional[Dict]:
     """
-    BIST hissesi otomatik fiyat çekme denemesi.
+    BIST hissesi otomatik fiyat çekimi — İş Yatırım HisseTekil JSON endpoint'i.
 
-    İş Yatırım hisse endpoint'i çalışıyordu (D1 testi geçti):
-    https://www.isyatirim.com.tr/_layouts/15/Isyatirim.Website/Common/Data.aspx/HisseTekil
-    Tarih formatı: yyyy-MM-dd
-
-    V2'de aktive edilecek. Şu an None döner.
+    M-hisse (Wave-7): stub'dan GERÇEK implementasyona alındı (canlı doğrulandı, THYAO=329.50).
+    Endpoint: .../Common/Data.aspx/HisseTekil?hisse=<KOD>&startdate=dd-MM-yyyy&enddate=dd-MM-yyyy
+    Yanıt: {"value":[{"HGDG_HS_KODU","HGDG_TARIH","HGDG_KAPANIS":329.5, ...}]} — en son HGDG_KAPANIS alınır.
+    Dönüş: {"price": float, "date": "dd-MM-yyyy", "source": "isyatirim"} veya None (erişilemez/veri yok).
     """
-    logger.info(f"try_auto_fetch_stock_price({ticker}): henuz aktif degil (V2)")
-    return None
+    import urllib.request
+    import json as _json
+    from datetime import date, timedelta
+
+    kod = ticker.upper().removesuffix(".IS")
+    end = date.today()
+    start = end - timedelta(days=10)  # hafta sonu/tatil için pencere
+    url = (
+        "https://www.isyatirim.com.tr/_layouts/15/Isyatirim.Website/Common/Data.aspx/HisseTekil"
+        f"?hisse={kod}&startdate={start.strftime('%d-%m-%Y')}&enddate={end.strftime('%d-%m-%Y')}"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            payload = _json.loads(resp.read().decode("utf-8", "replace"))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[isyatirim] %s fiyat çekilemedi: %s", kod, e)
+        return None
+
+    rows = payload.get("value") or []
+    # En son (tarih olarak) kapanış fiyatı olan satırı al
+    valid = [r for r in rows if r.get("HGDG_KAPANIS") is not None]
+    if not valid:
+        logger.warning("[isyatirim] %s: kapanış fiyatı yok (yeni/işlemsiz hisse?)", kod)
+        return None
+    last = valid[-1]
+    return {
+        "price": float(last["HGDG_KAPANIS"]),
+        "date": last.get("HGDG_TARIH"),
+        "source": "isyatirim",
+        "code": kod,
+    }

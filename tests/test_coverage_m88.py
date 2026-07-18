@@ -597,7 +597,12 @@ def test_try_auto_fetch_outer_exception_returns_none(monkeypatch):
     assert try_auto_fetch_fund_price("ABC") is None
 
 
-def test_try_auto_fetch_stock_returns_none():
+def test_try_auto_fetch_stock_erisilemezse_none(monkeypatch):
+    """M-hisse (Wave-7): artık STUB değil — İş Yatırım fetch'i. Endpoint erişilemezse None döner.
+    (Gerçek parse/çekim testleri: tests/test_stock_price_isyatirim_m_hisse.py — canlı+mock.)"""
+    def _boom(*a, **k):
+        raise OSError("network yok")
+    monkeypatch.setattr("urllib.request.urlopen", _boom)
     from app.fund_tracker import try_auto_fetch_stock_price
     assert try_auto_fetch_stock_price("THYAO") is None
 

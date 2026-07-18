@@ -35,6 +35,10 @@ def secret_key_problems() -> list[str]:
         problems.append("SECRET_KEY tanımsız/boş")
     elif secret.startswith("dev-default"):
         problems.append("SECRET_KEY 'dev-default' ile başlıyor (production'da yasak)")
+    # MA3 (Wave-8): .env.prod.example placeholder'ı git'te herkese açık — operatör değiştirmezse
+    # bilinen-secret'la deploy olur. "REPLACE" içeren placeholder'ı reddet (fail-fast).
+    elif "REPLACE" in secret:
+        problems.append("SECRET_KEY hâlâ .env.prod.example placeholder'ı (REPLACE_...) — gerçek değerle değiştir")
     elif len(secret) < MIN_SECRET_ENTROPY:
         problems.append(f"SECRET_KEY yetersiz entropy (<{MIN_SECRET_ENTROPY} karakter)")
     return problems

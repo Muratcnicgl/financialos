@@ -575,20 +575,30 @@ export function getResetTokenFromUrl() {
   return new URLSearchParams(window.location.search || '').get('token');
 }
 
-// M17: OAuth callback redirect'ini yakala (router'sız tab-app). Backend
-// FRONTEND_URL/auth/oauth-success?access_token=..&refresh_token=.. adresine döner.
-// Token'ları kaydeder, URL'i temizler, durum döner. App.jsx AuthGate mount'ta çağırır.
-export function consumeOAuthRedirect() {
+// M17: OAuth callback redirect'ini yakala (router'sız tab-app).
+// BUG #179 (P2): backend ARTIK token'ları URL'de göndermiyor (tarayıcı geçmişi/access log/
+// Referer sızıntısı). URL yalnız tek-kullanımlık 60 sn'lik `code` taşır; token'lar
+// POST /api/auth/oauth/exchange yanıt gövdesinde alınır. Async oldu — çağıran await etmeli.
+export async function consumeOAuthRedirect() {
   if (typeof window === 'undefined') return { status: 'none' };
   const path = window.location.pathname || '';
   const params = new URLSearchParams(window.location.search || '');
-  if (path.includes('/auth/oauth-success') && params.get('access_token')) {
-    setTokens({
-      access_token: params.get('access_token'),
-      refresh_token: params.get('refresh_token'),
-    });
-    try { window.history.replaceState({}, '', '/'); } catch { /* */ }
-    return { status: 'success' };
+  if (path.includes('/auth/oauth-success') && params.get('code')) {
+    const code = params.get('code');
+    try { window.history.replaceState({}, '', '/'); } catch { /* */ }  // kodu URL'den hemen sil
+    try {
+      const res = await fetch('/api/auth/oauth/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (!res.ok) return { status: 'error', error: 'Oturum kodu geçersiz veya süresi geçti.' };
+      const data = await res.json();
+      setTokens({ access_token: data.access_token, refresh_token: data.refresh_token });
+      return { status: 'success' };
+    } catch {
+      return { status: 'error', error: 'Oturum açılamadı (ağ hatası).' };
+    }
   }
   if (path.includes('/auth/oauth-error')) {
     try { window.history.replaceState({}, '', '/'); } catch { /* */ }

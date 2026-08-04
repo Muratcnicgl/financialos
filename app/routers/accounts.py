@@ -38,7 +38,7 @@ class AccountBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     account_type: AccountType
     balance: FinansBakiye = 0.0  # SEC-032: sonlu (negatif olabilir)
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
     # Kredi karti
     credit_limit: FinansOptOran = None  # SEC-032
     statement_day: Optional[int] = Field(None, ge=1, le=31)
@@ -64,7 +64,7 @@ class AccountUpdate(BaseModel):
     """Sadece gonderilen alanlar guncellenir. None'lar atlanir."""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     balance: FinansOptBakiye = None  # SEC-032
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
     credit_limit: FinansOptOran = None  # SEC-032
     statement_day: Optional[int] = Field(None, ge=1, le=31)
     payment_day: Optional[int] = Field(None, ge=1, le=31)

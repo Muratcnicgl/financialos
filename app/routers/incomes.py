@@ -37,7 +37,7 @@ class IncomeBase(BaseModel):
     amount: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır
     day_of_month: int = Field(..., ge=1, le=31, description="Ayın kacinda gelir (1-31)")
     is_active: bool = True
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
 
 
 class IncomeCreate(IncomeBase):
@@ -49,7 +49,7 @@ class IncomeUpdate(BaseModel):
     amount: FinansOptTutar = None  # SEC-032
     day_of_month: Optional[int] = Field(None, ge=1, le=31)
     is_active: Optional[bool] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
 
 
 class IncomeOut(IncomeBase):

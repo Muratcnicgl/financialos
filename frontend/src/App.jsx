@@ -117,8 +117,9 @@ function AuthGate() {
     // M18: şifre-sıfırlama linki (/auth/reset?token=..) → Login reset modunda açılır
     const rt = getResetTokenFromUrl();
     if (rt) { setResetToken(rt); setPhase('login'); return; }
-    // M17: OAuth callback redirect'ini yakala (token URL'de → kaydet, temizle)
-    const oauth = consumeOAuthRedirect();
+    // M17: OAuth callback redirect'ini yakala.
+    // BUG #179 (P2): URL artık token değil tek-kullanımlık kod taşır → takas async.
+    const oauth = await consumeOAuthRedirect();
     if (oauth.status === 'success') { setPhase('app'); return; }
     if (oauth.status === 'error') { setOauthError(oauth.error); setPhase('login'); return; }
     try {

@@ -90,8 +90,11 @@ def test_callback_yeni_kullanici_olusturur(client, db_session, monkeypatch):
     st = _valid_state()
     r = client.get(f"/api/auth/callback/google?code=abc&state={st}", follow_redirects=False)
     assert r.status_code == 307
-    assert r.headers["location"].startswith("http://localhost:5173/auth/oauth-success?access_token=")
-    assert "refresh_token=" in r.headers["location"]
+    # BUG #179 (P2): token'lar ARTIK URL'de taşınmaz — tek-kullanımlık değişim kodu döner
+    # (tarayıcı geçmişi/access log/Referer sızıntısı kapandı).
+    loc = r.headers["location"]
+    assert loc.startswith("http://localhost:5173/auth/oauth-success?code=")
+    assert "access_token=" not in loc and "refresh_token=" not in loc
     u = db_session.query(User).filter(User.email == "yeni@x.com").first()
     assert u is not None and u.oauth_provider == "google" and u.oauth_sub == "G1"
     assert u.password_hash is None and u.kvkk_consent_at is not None

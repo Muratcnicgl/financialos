@@ -32,7 +32,7 @@ class DebtBase(BaseModel):
     counterparty: str = Field(..., min_length=1, max_length=100)
     direction: DebtDirection
     amount: FinansTutar  # SEC-032: gt=0 + sonlu + üst sınır (inf/NaN/taşma reddedilir)
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, max_length=2000)  # BUG #181
     due_date: Optional[date] = None
 
 
@@ -43,7 +43,7 @@ class DebtCreate(DebtBase):
 class DebtUpdate(BaseModel):
     counterparty: Optional[str] = Field(None, min_length=1, max_length=100)
     amount: FinansOptTutar = None  # SEC-032
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, max_length=2000)  # BUG #181
     due_date: Optional[date] = None
     paid_date: Optional[date] = None      # Set edilirse is_paid=True olur
     is_paid: Optional[bool] = None        # Manuel ovverride

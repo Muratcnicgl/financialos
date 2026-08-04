@@ -2632,7 +2632,7 @@ class CoachEngine:
             if (not proposed_actions and not account_unclear and not date_unclear
                     and offer_propose
                     and (_orig_empty_or_fake or has_realized_action(user_message))):
-                logger.warning(f"BUG #045/#043 retry tetiklendi: {user_message!r}")
+                logger.warning("BUG #045/#043 retry tetiklendi (mesaj uzunlugu=%d)", len(user_message))  # BUG #180: ham finansal metin loglanmaz (KVKK)
                 try:
                     retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
                     with recorder.step(OperationName.LLM_CALL, intent="Retry: propose_action zorla",
@@ -2699,7 +2699,7 @@ class CoachEngine:
 
             # BUG #049 fix: is_q=True ve boş cevap → soru retry (tools=[], sadece text iste)
             elif (is_q and not (llm_response.text or "").strip()):
-                logger.warning(f"BUG #049 soru retry tetiklendi: {user_message!r}")
+                logger.warning("BUG #049 soru retry tetiklendi (mesaj uzunlugu=%d)", len(user_message))  # BUG #180: ham finansal metin loglanmaz (KVKK)
                 try:
                     nudge = {"role": "user", "content": "[RETRY: Kullanıcı bir soru sordu. Lütfen Türkçe kısa bir analiz yaz, tool çağırma.]"}
                     with recorder.step(OperationName.LLM_CALL, intent="Retry: soru yaniti",

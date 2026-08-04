@@ -29,14 +29,14 @@ REVIEW_AFTER_HOURS = 24  # 24-saat kuralı — bu süre sonra koç "hâlâ istiy
 class WishlistCreate(BaseModel):
     item: str = Field(..., min_length=1, max_length=200)
     amount: Decimal = Field(..., gt=0)
-    note: Optional[str] = None
+    note: Optional[str] = Field(None, max_length=2000)  # BUG #181
 
 
 class WishlistOut(BaseModel):
     id: int
     item: str
     amount: Decimal
-    note: Optional[str] = None
+    note: Optional[str] = Field(None, max_length=2000)  # BUG #181
     status: str
     created_at: UtcDateTime
     hazir: bool          # 24h+ geçti mi (review zamanı)

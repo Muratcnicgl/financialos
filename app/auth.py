@@ -98,6 +98,18 @@ def decode_token(token: str, expected_type: Optional[str] = None) -> dict:
 
 # --- Şifre sıfırlama token'ı (SMTP akışı, API_KEY_TALEP: Brevo/Sendgrid) ---
 
+def create_oauth_exchange_code(user_id: int, ttl_seconds: int = 60) -> str:
+    """BUG #179 (P2): OAuth sonrası TEK-KULLANIMLIK, kısa ömürlü değişim kodu.
+
+    Eskiden access + 30 GÜNLÜK refresh token yönlendirme URL'inde taşınıyordu (tarayıcı
+    geçmişi, access log, Referer). Artık URL yalnız bu kodu taşır; token'lar
+    `POST /api/auth/oauth/exchange` yanıt GÖVDESİNDE döner. Kod stateless JWT'dir →
+    çok-worker kurulumda da çalışır; kullanıldığında jti kara listeye yazılır.
+    """
+    token, _, _ = _create_token(user_id, "oauth_exchange", timedelta(seconds=ttl_seconds))
+    return token
+
+
 def create_password_reset_token(user_id: int, ttl_minutes: int = 30) -> str:
     token, _, _ = _create_token(user_id, "pwreset", timedelta(minutes=ttl_minutes))
     return token

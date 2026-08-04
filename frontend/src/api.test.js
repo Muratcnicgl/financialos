@@ -43,25 +43,42 @@ describe('consumeOAuthRedirect (M17)', () => {
     vi.stubGlobal('window', { location: { pathname, search }, history: { replaceState: () => {} } });
   }
 
-  it('oauth-success token kaydeder + success döner', () => {
-    stubWindow('/auth/oauth-success', '?access_token=AAA&refresh_token=RRR');
-    const r = consumeOAuthRedirect();
+  // BUG #179 (P2): token'lar artık URL'de gelmiyor; URL tek-kullanımlık `code` taşır ve
+  // token'lar POST /api/auth/oauth/exchange yanıtından alınır.
+  it('code ile takas yapar + token kaydeder', async () => {
+    stubWindow('/auth/oauth-success', '?code=TEKKULLANIMLIK');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: async () => ({ access_token: 'AAA', refresh_token: 'RRR' }),
+    }));
+    const r = await consumeOAuthRedirect();
     expect(r.status).toBe('success');
     expect(getAccessToken()).toBe('AAA');
   });
-  it('oauth-error status=error', () => {
+  it('URL access_token taşısa bile KABUL ETMEZ (eski akış kapalı)', async () => {
+    stubWindow('/auth/oauth-success', '?access_token=AAA&refresh_token=RRR');
+    const r = await consumeOAuthRedirect();
+    expect(r.status).toBe('none');
+    expect(getAccessToken()).toBe(null);
+  });
+  it('takas başarısızsa error döner', async () => {
+    stubWindow('/auth/oauth-success', '?code=GECERSIZ');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
+    const r = await consumeOAuthRedirect();
+    expect(r.status).toBe('error');
+  });
+  it('oauth-error status=error', async () => {
     stubWindow('/auth/oauth-error', '?error=denied');
-    const r = consumeOAuthRedirect();
+    const r = await consumeOAuthRedirect();
     expect(r.status).toBe('error');
     expect(r.error).toBe('denied');
   });
-  it('token yoksa success DÖNMEZ', () => {
+  it('kod yoksa success DÖNMEZ', async () => {
     stubWindow('/auth/oauth-success', '');
-    expect(consumeOAuthRedirect().status).toBe('none');
+    expect((await consumeOAuthRedirect()).status).toBe('none');
   });
-  it('normal path none', () => {
+  it('normal path none', async () => {
     stubWindow('/', '');
-    expect(consumeOAuthRedirect().status).toBe('none');
+    expect((await consumeOAuthRedirect()).status).toBe('none');
   });
 });
 

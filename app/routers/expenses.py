@@ -36,7 +36,7 @@ class ExpenseBase(BaseModel):
     category: Optional[str] = Field(None, max_length=50)
     day_of_month: int = Field(..., ge=1, le=31)
     is_active: bool = True
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
 
 
 class ExpenseCreate(ExpenseBase):
@@ -50,7 +50,7 @@ class ExpenseUpdate(BaseModel):
     category: Optional[str] = Field(None, max_length=50)
     day_of_month: Optional[int] = Field(None, ge=1, le=31)
     is_active: Optional[bool] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
 
 
 class ExpenseOut(ExpenseBase):

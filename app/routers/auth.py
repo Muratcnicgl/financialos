@@ -309,12 +309,36 @@ def oauth_callback(
     from app.services.workspace_setup import ensure_personal_workspace
     ensure_personal_workspace(db, user, commit=True)
 
-    logger.info("[oauth] login success provider=%s user_id=%s email=%s", provider, user.id, email)
-    tokens = _issue_tokens(user)
+    # BUG #180 (P2): tam e-posta INFO log'una yazılıyordu (KVKK: log dosyası kullanıcı listesi
+    # haline geliyordu). user_id yeterli — kimlik zaten DB'de eşlenebilir.
+    logger.info("[oauth] login success provider=%s user_id=%s", provider, user.id)
+    # BUG #179 (P2): token'lar ARTIK URL'de taşınmaz — tek-kullanımlık 60 sn'lik değişim kodu.
+    exchange_code = _auth.create_oauth_exchange_code(user.id)
     frontend = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
-    dest = (f"{frontend}/auth/oauth-success"
-            f"?access_token={tokens.access_token}&refresh_token={tokens.refresh_token}")
+    dest = f"{frontend}/auth/oauth-success?code={exchange_code}"
     return RedirectResponse(dest, status_code=307)
+
+
+class OAuthExchangeIn(BaseModel):
+    code: str = Field(min_length=10, max_length=4096)
+
+
+@router.post("/oauth/exchange", response_model=TokenOut)
+def oauth_exchange(body: OAuthExchangeIn, request: Request,
+                   db: Session = Depends(get_db)) -> TokenOut:
+    """BUG #179: değişim kodunu token'la takas eder (tek kullanımlık, 60 sn)."""
+    _rate_limit(request, "login")
+    try:
+        payload = _auth.decode_token(body.code, expected_type="oauth_exchange")
+    except _jwt.PyJWTError:
+        raise HTTPException(401, "Geçersiz veya süresi geçmiş oturum kodu.")
+    if _auth.token_revoked(db, payload.get("jti")):
+        raise HTTPException(401, "Bu oturum kodu daha önce kullanıldı.")
+    user = db.get(User, int(payload["sub"]))
+    if not user or not user.is_active:
+        raise HTTPException(401, "Kullanıcı bulunamadı veya pasif.")
+    _auth.revoke_jti(db, payload.get("jti"), payload.get("exp"), commit=True)
+    return _issue_tokens(user)
 
 
 # --- KVKK (silme + export) ---

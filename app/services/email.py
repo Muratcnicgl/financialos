@@ -32,6 +32,17 @@ def _smtp_config() -> dict:
     }
 
 
+def _mask(email: str) -> str:
+    """BUG #180 (P2): log'a tam e-posta yazma (KVKK — log dosyası kullanıcı listesine dönüşür).
+
+    'ornek.kullanici@site.com' → 'or***@site.com'
+    """
+    if not email or "@" not in email:
+        return "***"
+    local, _, domain = email.partition("@")
+    return f"{local[:2]}***@{domain}"
+
+
 def smtp_configured() -> bool:
     """SMTP gönderime hazır mı (host+user+pass+from dolu)."""
     c = _smtp_config()
@@ -42,7 +53,7 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str) -> b
     """STARTTLS ile e-posta gönder. Başarıda True; hata/konfig-eksik → False (log)."""
     c = _smtp_config()
     if not smtp_configured():
-        logger.warning("[email] SMTP yapılandırılmamış — %s gönderilemedi (SMTP_HOST/USER/PASS/FROM gerekli)", to_email)
+        logger.warning("[email] SMTP yapılandırılmamış — %s gönderilemedi (SMTP_HOST/USER/PASS/FROM gerekli)", _mask(to_email))
         return False
 
     msg = MIMEMultipart("alternative")
@@ -61,10 +72,10 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str) -> b
             server.ehlo()
             server.login(c["user"], c["password"])
             server.sendmail(c["from_addr"], [to_email], msg.as_string())
-        logger.info("[email] SMTP email sent to %s (subject=%r) via %s:%s", to_email, subject, c["host"], c["port"])
+        logger.info("[email] SMTP email sent to %s (subject=%r) via %s:%s", _mask(to_email), subject, c["host"], c["port"])
         return True
     except Exception as e:  # noqa: BLE001 — gönderim başarısızlığı akışı bozmamalı (BackgroundTask)
-        logger.error("[email] SMTP gönderim hatası (%s): %s: %s", to_email, type(e).__name__, e)
+        logger.error("[email] SMTP gönderim hatası (%s): %s: %s", _mask(to_email), type(e).__name__, e)
         return False
 
 

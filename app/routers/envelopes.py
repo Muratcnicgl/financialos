@@ -28,13 +28,13 @@ router = APIRouter(prefix="/api/envelopes", tags=["envelopes"], dependencies=[De
 class EnvelopeCreate(BaseModel):
     category: str = Field(..., min_length=1, max_length=50)
     monthly_amount: Decimal = Field(..., gt=0)
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
 
 
 class EnvelopeUpdate(BaseModel):
     monthly_amount: Optional[Decimal] = Field(None, gt=0)
     is_active: Optional[bool] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
 
 
 class EnvelopeOut(BaseModel):
@@ -42,7 +42,7 @@ class EnvelopeOut(BaseModel):
     category: str
     monthly_amount: Decimal
     is_active: bool
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)  # BUG #181
     created_at: UtcDateTime
 
     model_config = {"from_attributes": True}

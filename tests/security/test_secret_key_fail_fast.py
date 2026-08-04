@@ -37,6 +37,9 @@ def test_production_kisa_secret_raise(monkeypatch):
 def test_production_guclu_secret_gecer(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("SECRET_KEY", _GOOD)
+    # BUG #171 (P2): production artık AUTH_ENABLED de şart koşuyor — bu test SECRET_KEY
+    # kapısını ölçüyor, o yüzden diğer prod-şartı açıkça sağlanır.
+    monkeypatch.setenv("AUTH_ENABLED", "true")
     validate_security_config()  # raise ETMEZ
 
 

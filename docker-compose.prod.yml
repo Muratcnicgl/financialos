@@ -34,6 +34,9 @@ services:
     environment:
       SERVICE_MODE: web
       ENVIRONMENT: production
+      # BUG #169: konteyner varsayılanı UTC → date.today() TR'de 00:00-03:00 arası bir ÖNCEKİ
+      # günü verir (günlük limit, işlem tarihi, ay sınırı tetikleme yanlış olur).
+      TZ: ${TZ:-Europe/Istanbul}
       AUTH_ENABLED: "true"
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY .env.prod'da zorunlu (fail-fast)}
       # RLS'in etkili olması için app NON-superuser rol (financialos) ile bağlanır (ADR-038, M51)
@@ -58,6 +61,9 @@ services:
     environment:
       SERVICE_MODE: scheduler
       ENVIRONMENT: production
+      # BUG #169: cron saatleri (02:45 fiyat, 03:00 gece batch) YEREL saate göre planlanmış —
+      # TZ olmadan UTC'de koşar, TR'de 05:45/06:00'a kayar.
+      TZ: ${TZ:-Europe/Istanbul}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY zorunlu}
       DATABASE_URL: postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
       LLM_PROVIDER: ${LLM_PROVIDER:-fallback}

@@ -139,6 +139,11 @@ class User(Base):
     kvkk_consent_at = Column(DateTime, nullable=True)       # KVKK açık rıza zamanı
     kvkk_consent_version = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    # BUG #172 (P2): oturum geçersizleme SAYACI. Token'lar `tv` (token version) taşır; sayaç
+    # artınca eski tüm access/refresh token'lar geçersizleşir (şifre sıfırlama/değişimi).
+    # Zaman-çıpası yerine sayaç: JWT `iat` saniye hassasiyetindedir, aynı saniyede üretilen
+    # yeni token'ı da düşürürdü. Sayaç karşılaştırması kesindir.
+    token_version = Column(Integer, default=0, nullable=False, server_default="0")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")

@@ -59,7 +59,8 @@ def verify_password(password: str, password_hash: Optional[str]) -> bool:
 
 # --- JWT ---
 
-def _create_token(sub: int, token_type: str, ttl: timedelta) -> Tuple[str, str, datetime]:
+def _create_token(sub: int, token_type: str, ttl: timedelta,
+                  token_version: int = 0) -> Tuple[str, str, datetime]:
     now = datetime.now(timezone.utc)
     exp = now + ttl
     jti = uuid.uuid4().hex
@@ -67,20 +68,22 @@ def _create_token(sub: int, token_type: str, ttl: timedelta) -> Tuple[str, str, 
         "sub": str(sub),
         "type": token_type,
         "jti": jti,
+        "tv": int(token_version or 0),  # BUG #172: oturum geçersizleme sayacı
         "iat": int(now.timestamp()),
         "exp": int(exp.timestamp()),
     }
     return jwt.encode(payload, _secret(), algorithm=_ALGO), jti, exp
 
 
-def create_access_token(user_id: int) -> str:
-    token, _, _ = _create_token(user_id, "access", timedelta(minutes=ACCESS_TTL_MIN))
+def create_access_token(user_id: int, token_version: int = 0) -> str:
+    token, _, _ = _create_token(user_id, "access", timedelta(minutes=ACCESS_TTL_MIN),
+                                token_version)
     return token
 
 
-def create_refresh_token(user_id: int) -> Tuple[str, str, datetime]:
+def create_refresh_token(user_id: int, token_version: int = 0) -> Tuple[str, str, datetime]:
     """(token, jti, expires_at) — jti/expires RevokedToken temizliği + blacklist için."""
-    return _create_token(user_id, "refresh", timedelta(days=REFRESH_TTL_DAYS))
+    return _create_token(user_id, "refresh", timedelta(days=REFRESH_TTL_DAYS), token_version)
 
 
 def decode_token(token: str, expected_type: Optional[str] = None) -> dict:
@@ -98,3 +101,40 @@ def decode_token(token: str, expected_type: Optional[str] = None) -> dict:
 def create_password_reset_token(user_id: int, ttl_minutes: int = 30) -> str:
     token, _, _ = _create_token(user_id, "pwreset", timedelta(minutes=ttl_minutes))
     return token
+
+
+# --- BUG #172 (P2): oturum geçersizleme + jti kara listesi ---
+
+def token_revoked(db, jti: Optional[str]) -> bool:
+    """jti kara listede mi? (logout / tek-kullanımlık sıfırlama token'ı)"""
+    if not jti:
+        return False
+    from app.models import RevokedToken
+    return db.query(RevokedToken).filter(RevokedToken.jti == jti).first() is not None
+
+
+def revoke_jti(db, jti: Optional[str], exp: Optional[int] = None, commit: bool = True) -> None:
+    """jti'yi kara listeye ekler (idempotent)."""
+    if not jti:
+        return
+    from app.models import RevokedToken
+    if db.query(RevokedToken).filter(RevokedToken.jti == jti).first():
+        return
+    db.add(RevokedToken(
+        jti=jti,
+        revoked_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        expires_at=(datetime.fromtimestamp(exp, timezone.utc).replace(tzinfo=None)
+                    if exp else None),
+    ))
+    if commit:
+        db.commit()
+
+
+def token_version_ok(payload: dict, user) -> bool:
+    """Token'ın `tv` claim'i kullanıcının güncel `token_version`'ı ile eşleşiyor mu?
+
+    Şifre sıfırlama/değişimi sayacı artırır → o andan önceki TÜM token'lar (çalınmış
+    refresh dahil) geçersizleşir. `tv` taşımayan eski token'lar 0 sayılır; sayaç hiç
+    artmamış kullanıcılarda (0) geriye-uyum korunur.
+    """
+    return int(payload.get("tv", 0) or 0) == int(getattr(user, "token_version", 0) or 0)

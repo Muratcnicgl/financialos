@@ -57,9 +57,23 @@ def secret_key_problems() -> list[str]:
     return problems
 
 
+def auth_problems() -> list[str]:
+    """BUG #171 (P2): production'da kimlik doğrulama KAPALI olamaz.
+
+    `AUTH_ENABLED` varsayılanı KAPALI (geriye-uyum, tek-kullanıcı yerel kurulum). Bu değişken
+    unutulursa `ENVIRONMENT=production` instance'ı TÜM API'yi kimliksiz "ilk kullanıcı"ya
+    açar (cockpit, hesaplar, KVKK export'u, hesap silme). Compose dosyası set ediyor ama
+    systemd/manuel `docker run`/PaaS yollarında hiçbir koruma yoktu → startup'ta fail-fast.
+    """
+    from app import auth as _auth
+    if is_production() and not _auth.auth_enabled():
+        return ["AUTH_ENABLED production'da açık olmalı (aksi halde API kimliksiz erişime açılır)"]
+    return []
+
+
 def validate_security_config() -> None:
     """Startup fail-fast. Production'da güvenlik config sorunu → RuntimeError; dev'de warning."""
-    problems = secret_key_problems()
+    problems = secret_key_problems() + auth_problems()
     if not problems:
         logger.info("[security] config doğrulaması geçti (environment=%s)", environment())
         return
@@ -67,7 +81,8 @@ def validate_security_config() -> None:
     msg = "Güvenlik config sorunları: " + "; ".join(problems)
     if is_production():
         raise RuntimeError(
-            f"[FAIL-FAST] {msg}. Production'da uygulama başlatılamaz — .env'de güçlü SECRET_KEY "
-            'ayarla: python -c "import secrets; print(secrets.token_urlsafe(48))"'
+            f"[FAIL-FAST] {msg}. Production'da uygulama başlatılamaz. "
+            'SECRET_KEY üret: python -c "import secrets; print(secrets.token_urlsafe(48))" · '
+            "AUTH_ENABLED=true olmalı (kimliksiz erişim yasak)."
         )
     logger.warning("[security] %s (environment=development — uyarı, çalışmaya devam)", msg)

@@ -17,7 +17,9 @@ RUN pip wheel --wheel-dir=/wheels -r requirements.txt
 FROM python:3.11-slim AS runtime
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
 # curl healthcheck için; libpq5 psycopg2 runtime için (postgres bağlantısı)
-RUN apt-get update && apt-get install -y --no-install-recommends curl libpq5 \
+# BUG #169: tzdata ZORUNLU — slim imajda zoneinfo verisi yok; TZ=Europe/Istanbul
+# ayarlansa bile veri olmadan konteyner UTC'de kalır ve date.today() yanlış gün verir.
+RUN apt-get update && apt-get install -y --no-install-recommends curl libpq5 tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 appuser
 WORKDIR /app

@@ -76,6 +76,12 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
             user = db.get(User, int(payload["sub"]))
             if not user or not user.is_active:
                 raise _jwt.InvalidTokenError("user not found or inactive")
+            # BUG #172 (P2): logout'ta iptal edilmiş access token'lar ve şifre sıfırlama
+            # öncesinde üretilmiş token'lar reddedilir (eskiden ikisi de geçerli kalıyordu).
+            if _auth.token_revoked(db, payload.get("jti")):
+                raise _jwt.InvalidTokenError("token revoked (logout)")
+            if not _auth.token_version_ok(payload, user):
+                raise _jwt.InvalidTokenError("token version stale (password changed)")
             return user
         except _jwt.PyJWTError:
             # M61 (BUG #158): auth kapalıyken bozuk token uygulamayı kilitlemesin

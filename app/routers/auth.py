@@ -116,7 +116,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
     ensure_personal_workspace(db, user, commit=False)
     db.commit()
     db.refresh(user)
-    return _issue_tokens(user.id)
+    return _issue_tokens(user)
 
 
 @router.post("/login", response_model=TokenOut)
@@ -128,7 +128,7 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)) -> Tok
     ok = _auth.verify_password(body.password, user.password_hash if user else None)
     if not user or not ok or not user.is_active:
         raise HTTPException(401, "E-posta veya şifre hatalı.")
-    return _issue_tokens(user.id)
+    return _issue_tokens(user)
 
 
 @router.post("/refresh", response_model=AccessOut)
@@ -142,23 +142,33 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)) -> AccessOut:
     user = db.get(User, int(payload["sub"]))
     if not user or not user.is_active:
         raise HTTPException(401, "Kullanıcı bulunamadı veya pasif.")
-    return AccessOut(access_token=_auth.create_access_token(user.id))
+    # BUG #172 (P2): şifre sıfırlandıysa, ondan ÖNCE üretilmiş refresh token ölür.
+    if not _auth.token_version_ok(payload, user):
+        raise HTTPException(401, "Refresh token geçersiz (şifre değişti — yeniden giriş yapın).")
+    return AccessOut(access_token=_auth.create_access_token(
+        user.id, int(getattr(user, "token_version", 0) or 0)))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(body: RefreshIn, db: Session = Depends(get_db)):
+def logout(body: RefreshIn, request: Request, db: Session = Depends(get_db)):
+    # BUG #172 (P2/c): logout YALNIZ refresh'i iptal ediyordu; eldeki access token 30 dakika
+    # daha çalışıyordu (ortak bilgisayarda "çıkış yaptım" yanılsaması). Authorization
+    # başlığındaki access token da kara listeye alınır.
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        try:
+            acc = _auth.decode_token(header[7:].strip(), expected_type="access")
+            _auth.revoke_jti(db, acc.get("jti"), acc.get("exp"), commit=False)
+        except _jwt.PyJWTError:
+            pass  # bozuk/expired access → zaten geçersiz
+
     try:
         payload = _auth.decode_token(body.refresh_token, expected_type="refresh")
     except _jwt.PyJWTError:
-        return None  # zaten geçersiz — idempotent
-    if not db.query(RevokedToken).filter(RevokedToken.jti == payload["jti"]).first():
-        exp = payload.get("exp")
-        db.add(RevokedToken(
-            jti=payload["jti"],
-            revoked_at=datetime.now(timezone.utc).replace(tzinfo=None),
-            expires_at=datetime.fromtimestamp(exp, timezone.utc).replace(tzinfo=None) if exp else None,
-        ))
-        db.commit()
+        db.commit()  # access iptali yazıldıysa kaydet
+        return None  # refresh zaten geçersiz — idempotent
+    _auth.revoke_jti(db, payload.get("jti"), payload.get("exp"), commit=False)
+    db.commit()
     return None
 
 
@@ -190,6 +200,17 @@ def password_reset_request(
     if smtp_configured():
         background_tasks.add_task(send_password_reset_email, email, reset_link)
         return generic
+    # BUG #170 fix (P2): koşul YALNIZ smtp_configured() idi — production'da SMTP eksik/bozuksa
+    # geçerli sıfırlama token'ı HTTP yanıtında düz metin dönüyordu. Herhangi biri, herhangi bir
+    # e-posta için token alıp şifreyi değiştirebilirdi (tam hesap ele geçirme) + token'ın dönüp
+    # dönmemesi kullanıcı-enumerasyonu sızdırıyordu. Production'da ASLA token dönmez.
+    from app.settings import is_production
+    if is_production():
+        logger.error(
+            "[auth] SMTP yapılandırılmamış — şifre sıfırlama e-postası GÖNDERİLEMEDİ. "
+            "Kullanıcı sıfırlama yapamaz; SMTP_* değişkenlerini ayarla."
+        )
+        return generic
     # SMTP yoksa dev modda token döner (yalnız non-prod kolaylığı).
     return {**generic, "_dev_token": token, "_note": "SMTP tanımsız — dev token (prod'da gösterilmez)."}
 
@@ -200,12 +221,21 @@ def password_reset_confirm(body: PasswordResetConfirmIn, db: Session = Depends(g
         payload = _auth.decode_token(body.token, expected_type="pwreset")
     except _jwt.PyJWTError:
         raise HTTPException(400, "Geçersiz veya süresi geçmiş sıfırlama token'ı.")
+    # BUG #172 (P2/b): sıfırlama token'ı TEK KULLANIMLIK değildi — posta kutusuna/geçmişe
+    # erişen biri aynı token'la kurban şifresini tekrar değiştirip hesabı geri alabiliyordu.
+    if _auth.token_revoked(db, payload.get("jti")):
+        raise HTTPException(400, "Bu sıfırlama bağlantısı daha önce kullanıldı.")
     user = db.get(User, int(payload["sub"]))
     if not user:
         raise HTTPException(404, "Kullanıcı bulunamadı.")
+    if not user.is_active:
+        raise HTTPException(403, "Hesap pasif.")
     user.password_hash = _auth.hash_password(body.new_password)
+    # BUG #172 (P2/a): mevcut TÜM oturumları düşür — çalınmış refresh/access token'lar ölür.
+    user.token_version = int(getattr(user, "token_version", 0) or 0) + 1
+    _auth.revoke_jti(db, payload.get("jti"), payload.get("exp"), commit=False)
     db.commit()
-    return {"message": "Şifre güncellendi."}
+    return {"message": "Şifre güncellendi. Güvenlik için tüm oturumlar kapatıldı."}
 
 
 # --- OAuth (Google + GitHub — gerçek akış, ADR-033) ---
@@ -280,7 +310,7 @@ def oauth_callback(
     ensure_personal_workspace(db, user, commit=True)
 
     logger.info("[oauth] login success provider=%s user_id=%s email=%s", provider, user.id, email)
-    tokens = _issue_tokens(user.id)
+    tokens = _issue_tokens(user)
     frontend = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
     dest = (f"{frontend}/auth/oauth-success"
             f"?access_token={tokens.access_token}&refresh_token={tokens.refresh_token}")
@@ -306,9 +336,11 @@ def export_me(user: User = Depends(get_current_user), db: Session = Depends(get_
 
 # --- Yardımcılar ---
 
-def _issue_tokens(user_id: int) -> TokenOut:
-    access = _auth.create_access_token(user_id)
-    refresh_token, _, _ = _auth.create_refresh_token(user_id)
+def _issue_tokens(user: User) -> TokenOut:
+    """BUG #172: token'lar kullanıcının güncel `token_version`'ını (tv) taşır."""
+    tv = int(getattr(user, "token_version", 0) or 0)
+    access = _auth.create_access_token(user.id, tv)
+    refresh_token, _, _ = _auth.create_refresh_token(user.id, tv)
     return TokenOut(access_token=access, refresh_token=refresh_token)
 
 

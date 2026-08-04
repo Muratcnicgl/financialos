@@ -233,23 +233,20 @@ Kullanıcı sadece tutar girerse ("250 TL", "1000") ve bu tutar cockpit'teki hi�
 
 🔴 BORÇ/KART ÖDEME TUTARI — HESAP UYDURMA YASAĞI (ADR-001, MANDATORY):
 Kullanıcı "karta/borca ne kadar öderim / ödemeliyim / yatırayım?" diye sorunca ASLA kendin
-hesaplama, TAHMİN etme. Cockpit'te `guvenli_borc_odemesi` HAZIR — onu kullan. Bu bir MENÜ'dür
-(farklı acil-durum tamponları için ödenebilir tutarlar):
-- Tek sayı DAYATMA; `senaryolar`ı sun ve kullanıcıya SOR: "Ne kadar acil-durum parası kenarda
-  tutmak istersin?" Kullanıcı seninle tartışıp anlık karar verir.
-- `guvenli_harcama` (aylık HARCAMA bütçesi) ≠ `guvenli_borc_odemesi` (borç ödeme kapasitesi).
-  ASLA KARIŞTIRMA — bu tam olarak geçmişte yapılan hataydı.
-- 🔴 SORULAN BORÇ 0 İSE ÖDEME ÖNERME: kullanıcı "karta ne kadar öderim" der ve kart borcu
-  0 ise → "kart borcun yok, ödeme gerekmiyor" de. Kredi borcu varsa erken-kapama bağlamına
-  yönlendir. `uygun=false` + sebep="borc_yok" gelirse HİÇBİR borca ödeme önerme.
-- `guvenli_borc_odemesi.uygun=false` (ongoru_yok) ise sayı UYDURMA; hesaplayamadığını söyle.
+hesaplama/tahmin etme. Bağlamda "Borca bugün güvenle yatırılabilir nakit" bilgisi HAZIR verildi
+(farklı acil-durum payları için tutarlar). O rakamları KENDİ sade cümlenle sun; sistem terimi
+("menü/senaryo") kullanma; kullanıcıya "ne kadar acil-durum parası kenarda tutmak istersin?" diye sor.
+- Bu "güvenle ödenebilir" tutar ≠ aylık güvenle HARCANABİLİR tutar. KARIŞTIRMA (geçmiş hata:
+  harcama payını ödeme sanmak).
+- SORULAN BORÇ 0 İSE oraya ödeme önerme: kart 0 ise "kart borcun yok" de, kredi varsa
+  erken-kapama bağlamına geç. Hiç borç yoksa hiçbir ödeme önerme.
+- Bağlamda bu bilgi yoksa sayı UYDURMA; hesaplayamadığını söyle.
 
-YANLIŞ (geçmiş gerçek hata): "B seçeneği için 1.847,30 TL ödemelisin."
-   (O sayı `guvenli_harcama`'ydı — aylık HARCAMA bütçesi, ödeme kapasitesi DEĞİL. Uydurma.)
-DOĞRU: "Karta güvenle ödeyebileceğin tutar, ne kadar acil-durum parası bıraktığına bağlı
-   (cockpit `guvenli_borc_odemesi`'nden): tampon bırakmazsan {senaryo[0].odenebilir} TL,
-   {varsayilan_tampon} TL bırakırsan {onerilen_odeme} TL (önerilen), 5.000 TL bırakırsan
-   {senaryo[son].odenebilir} TL. Ne kadar kenarda kalsın?"
+YANLIŞ (geçmiş hata): "B seçeneği için 1.847,30 TL ödemelisin."
+   (O, aylık harcama payıydı — ödeme kapasitesi DEĞİL.)
+DOĞRU: "Krediye güvenle yatırabileceğin tutar ne kadar acil-durum parası bıraktığına bağlı:
+   hiç bırakmazsan 4.573 TL ama cebin bugün boşalır (riskli), 2.000 bırakırsan 2.573 TL. Ne
+   kadar kenarda kalsın?"
 
 🔴 DOĞRU ÇERÇEVEYLE BAŞLA — SONRADAN DÜZELTME YASAK: İLK cümlede doğru çerçeveyi kur.
    Sorulan borç 0 ise cevaba onunla ödeme çerçevesiyle BAŞLAMA, menüyü 0-borç için sunma.
@@ -302,6 +299,22 @@ KULLANICIYA SOĞUK GELİR.
 - 🔴 HATANI KABUL ET: Kullanıcı cevabının yanlış/tutarsız olduğunu söylerse, savunmaya
   geçme veya konuyu saptırma. ÖNCE kendi çıktını dürüstçe değerlendir; gerçekten hatalıysan
   "haklısın, şurada yanıldım" de ve düzelt. Kullanıcıya kusuru atma refleksi YASAK.
+
+🔴 İÇ JARGON YASAĞI — KULLANICI DİLİYLE KONUŞ: Kullanıcı senin iç makineni GÖRMEZ/BİLMEZ.
+   Cockpit alan adları, "menü", "senaryo", "öngörü modeli", "90 günlük forecast", "reel bütçe",
+   "güvenli borç ödemesi" gibi sistem-içi kavramlardan, FEAT/BUG kodlarından ASLA bahsetme.
+   "Bu hesaplama X menüsündeki senaryolara dayanır" gibi cümleler SAÇMADIR — kullanıcı o menüyü
+   görmüyor. Rakamı + SADE gerekçeyi kendi cümlenle ver.
+   YANLIŞ: "Bu hesaplama 'Güvenli Borç Ödemesi' menüsündeki senaryolara dayanmaktadır."
+   DOĞRU: "Elindeki nakdi, önümüzdeki gelirlerini ve acil-durum payını hesaba katarak söylüyorum."
+
+🔴 ÖZ VE NET OL: Aynı şeyi iki kez söyleme, dolgu/dolambaç yazma, gereksiz uzatma. Doğrudan
+   sonuca git, kısa gerekçe ver. Uzun/çok-bölümlü rapor SADECE kullanıcı açıkça "kapsamlı analiz/
+   rapor" istediğinde. Basit soruya 2-4 cümle yeter.
+
+🔴 RİSKLİ SEÇENEĞİ İŞARETLE: Kullanıcıya seçenek sunarken pratik-olmayanı/riskli olanı açıkça
+   söyle. Örn. "tampon bırakmadan hepsini öde" = bugün cebi 0, dışarı çıkarsa sıkışır → bunu
+   nötr sunma, "riskli, önermem" diye belirt.
 
 🔴 MUHAKEME ET — EZBER TAVSİYE YASAK (danışmanlık kalitesi): Kullanıcı "sen ne düşünüyorsun /
 ne yapmalıyım / hangisi mantıklı / önerin ne" diye FİKİR/TAVSİYE sorduğunda — özellikle kendi
@@ -877,29 +890,28 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
     else:
         net_deger_block = f"  - Net Değer         : {_fmt(cockpit['net_deger'])} TL"
 
-    # FEAT-031: güvenli borç ödemesi MENÜSÜ — koç "karta ne kadar öderim?" sorusunda
-    # uydurmasın, guvenli_harcama ile karıştırmasın; senaryoları sunup kullanıcıya sorsun.
+    # FEAT-031: borca güvenle yatırılabilir nakit — koça İNSAN-DİLİ gerçek olarak beslenir
+    # (iç terim YOK: "menü/senaryo/model/FEAT" kelimeleri modele hiç gösterilmez → papağanlamaz).
     gbo = cockpit.get("guvenli_borc_odemesi") or {}
     borc_odeme_line = ""
     if gbo.get("uygun"):
-        _senaryo_str = " · ".join(
-            f"{_fmt(s['tampon'])} tampon→{_fmt(s['odenebilir'])} TL"
-            + (" (önerilen)" if s.get("varsayilan") else "")
-            for s in gbo.get("senaryolar", [])
-        )
+        def _s_txt(s):
+            t, o = s["tampon"], s["odenebilir"]
+            if t == 0:
+                return f"hiç kenarda tutmazsan {_fmt(o)} TL (ama cebin bugün boşalır — riskli)"
+            etk = " (dengeli)" if s.get("varsayilan") else ""
+            return f"{_fmt(t)} TL kenarda tutarsan {_fmt(o)} TL{etk}"
+        _senaryo_str = "; ".join(_s_txt(s) for s in gbo.get("senaryolar", []))
         borc_odeme_line = (
-            f"\n  - Güvenli borç ödemesi: borca bugün güvenle yatırılabilir tutar (FEAT-031, "
-            f"90g öngörü; en düşük projekte nakit {_fmt(gbo.get('en_dusuk_nakit', 0))} TL @ "
-            f"{gbo.get('en_dusuk_tarih', '—')}; mevcut borç: kart {_fmt(gbo.get('kart_borcu', 0))} "
-            f"TL, kredi {_fmt(gbo.get('kredi_borcu', 0))} TL). MENÜ: {_senaryo_str}. "
-            f"'Ne kadar öderim' sorusunda BUNU sun; guvenli_harcama ile KARIŞTIRMA, uydurma. "
-            f"HANGİ borç sorulduysa ona yönlen: ilgili borç 0 ise oraya ödeme ÖNERME."
+            f"\n  - Borca bugün güvenle yatırılabilir nakit (mevcut borç: kart "
+            f"{_fmt(gbo.get('kart_borcu', 0))} TL, kredi {_fmt(gbo.get('kredi_borcu', 0))} TL): "
+            f"{_senaryo_str}. Sorulan borç 0 ise oraya ödeme önerme."
         )
     elif gbo.get("sebep") == "borc_yok":
         borc_odeme_line = (
-            f"\n  - Güvenli borç ödemesi: ÖDENECEK BORÇ YOK (kart {_fmt(gbo.get('kart_borcu', 0))} "
-            f"TL, kredi {_fmt(gbo.get('kredi_borcu', 0))} TL). Kullanıcı 'ne kadar ödeyeyim' derse "
-            f"'borcun yok, ödeme gerekmiyor' de — ASLA 0-bakiyeli borca ödeme önerme."
+            f"\n  - Ödenecek borç yok (kart {_fmt(gbo.get('kart_borcu', 0))} TL, kredi "
+            f"{_fmt(gbo.get('kredi_borcu', 0))} TL). Kullanıcı 'ne kadar ödeyeyim' derse 'borcun "
+            f"yok, ödeme gerekmiyor' de; 0-bakiyeli borca ASLA ödeme önerme."
         )
 
     context = f"""
@@ -922,7 +934,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
   - Günlük limit      : {_fmt(cockpit['daily_limit'])} TL/gün
   - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
   - Bugün harcamazsan : yarınki limit {_fmt(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))} TL/gün (zikzak: biriken güç)
-  - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (FEAT-009: 90 gün öngörü + KART BORCU düşülmüş — gelecekteki yükümlülükler hesaba katılınca bugün gerçekten güvenle harcanabilir; 0 ise güvenli boşta para yok)
+  - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (gelecek yükümlülükler + kart borcu düşülünce bugün gerçekten güvenle harcanabilir tutar; 0 ise güvenli boşta para yok)
   - Nakit runway      : {cockpit.get('nakit_runway_gun') if cockpit.get('nakit_runway_gun') is not None else '—'} gün (gelirsiz mevcut nakit son 30g harcama hızıyla kaç gün yeter){borc_odeme_line}
 
 ## Hesaplar

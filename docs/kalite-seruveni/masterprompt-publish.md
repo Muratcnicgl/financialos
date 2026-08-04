@@ -71,7 +71,7 @@ yazılır, sonra ilgili faza görev olarak bağlanır. Buraya yazılmayan şey u
 | H11 | Şifre sıfırlama/oturum akışı gerçek e-posta ile uçtan uca denenmeli (SMTP canlı) | Claude | P6.3 | ⬜ |
 | H12 | Kayıt sırasında KVKK rızası sürüm/tarih ile saklanmalı (mevcut) + metin **yayında erişilebilir** olmalı | Claude | P4.3 | ✅ BUG #191 (v2) |
 | H13 | "Yatırım tavsiyesi değildir" uyarısı koç arayüzünde de görünmeli (yalnız sözleşmede değil) | Claude | P4.2 | ✅ koç paneli + kayıt ekranı |
-| H14 | Yedekten **geri yükleme provası** yapılmadan yedek sayılmaz | Claude | P5.1 | ⬜ |
+| H14 | Yedekten **geri yükleme provası** yapılmadan yedek sayılmaz | Claude | P5.1 | ✅ SQLite + **PostgreSQL (prod yolu)** provası otomatik koşuyor |
 | H15 | Beta kullanıcısının bildirdiği hata, geliştiriciye **kullanıcı verisi sızmadan** ulaşmalı (FEAT-033 içeriği) | Claude | P7 | ⬜ |
 | H16 | Fiyat sağlayıcıları (TEFAS/BIST/döviz) çöktüğünde uygulama çalışmaya devam etmeli, sayı **bayat** işaretlenmeli | Claude | P5.2 | 🟡 |
 | H17 | Çok kullanıcı aynı anda koç kullanınca sağlayıcı kotası/kilit sorunu olmamalı | Claude | P3.1 / P8 | ⬜ |
@@ -396,7 +396,7 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 | P3 | Operasyonel gerçeklik | 🟡 | **Kota TAMAM (ADR-041, BUG #188):** kullanıcı-başına LLM tavanı — paylaşılan sağlayıcı kotasını tek kişi tüketip diğerlerini kilitleyemez; tavan dolunca uygulama kapanmaz (Rules Engine deterministik). **#189** OAuth env adı kod↔doküman uyumsuzluğu, **#190** giriş yapmış kullanıcı şifre değiştiremiyordu. Sıfırdan-kullanıcı e2e ✅ (P3.5). **Kalan:** onboarding rehberi + opsiyonel demo veri |
 | P3.5 | **Ürünleşme (tek-kullanıcı DNA söküm)** | 🟡 | ⚠️ YAYIN-ENGELİ. **1. tur bitti:** BUG #166 (metinlerde kişi adı → jenerik + statik kapı), #167 (TR normalize Kiril 'о' + sıra hatası → sessiz veri bozulması), #168 (banka markası koda gömülü → kullanıcının kendi hesap adları). **Kalan:** kullanıcı-tanımlı kural motoru (MC sabitleri), kişiselleştirme alanları, boş-durum + demo veri, sıfırdan-kullanıcı uçtan uca testi, yorum/docstring temizliği |
 | P4 | Hukuki/uyum | ✅ | **BUG #191:** rıza metni canlıda ERİŞİLEMEZDİ (imajda docs/ yok → 404). `/api/legal/<slug>` ucu + Dockerfile/dockerignore. Rıza **v2** (v1 "self-host" varsayıyordu — barındırılan betada yanlış beyan), kullanım şartları (SPK/tavsiye-değildir), veri-işleyen envanteri (kodla test-bağlı). Koç panelinde görünür uyarı (H13) |
-| P5 | Dayanıklılık/gözlem | ⬜ | |
+| P5 | Dayanıklılık/gözlem | 🟡 | **Geri yükleme provası TAMAM (H14):** `scripts/restore.py` (onaysız yazmaz, bozuk yedeği reddeder, emniyet kopyası alır) + SQLite drill (7 test) + **PostgreSQL dump→drop→restore→doğrula** provası + runbook geri-yükleme bölümü. **Kalan:** hata izleme, log/PII denetimi (kısmen #180), migration provası (temiz-DB ✅ / canlı-veri ⬜), kapasite sınırları |
 | P6 | Canlı ortam | ⬜ | §9.1 insan-kapısı bekliyor |
 | P7 | Kapalı beta | ⬜ | |
 | P8 | Açık beta | ⬜ | |

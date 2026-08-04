@@ -376,6 +376,12 @@ class MasterCheckpoint(Base):
     # düzenlemeye karşı korunur. MC2-MC8 gibi çekirdek kurallar kod seviyesinde bloklanır
     # (Master Checkpoint enforcement — ADR-001 ruhuna paralel, prompt'a güvenilmez).
     is_system = Column(Boolean, default=False, nullable=False)
+    # BUG #192 (P3.5/H3): KULLANICI-TANIMLI kural motoru. Serbest metin kirmizi cizgiler
+    # yalnizca koca TAVSIYE olarak gidiyordu (LLM'in iyi niyetine kalmisti); kodda ise
+    # SABIT kurallar (MC1/emanet) vardi. Bu iki alan doldurulunca kural KOD SEVIYESINDE
+    # dayatilir (app/user_rules.py) — kullanicinin kendi kurali, urunun kurali kadar sert.
+    rule_type = Column(String(40), nullable=True)     # min_cash_floor | account_untouchable | max_single_expense
+    rule_params = Column(Text, nullable=True)         # JSON: {"amount": 5000} / {"account_id": 3}
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="checkpoints")

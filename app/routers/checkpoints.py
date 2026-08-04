@@ -16,14 +16,16 @@ birakmayi onler.
 """
 
 from datetime import datetime
+import json
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
+from app.user_rules import RULE_TYPES  # BUG #192: tek kaynak
 from app.models import User, MasterCheckpoint, CheckpointType
 
 router = APIRouter(prefix="/api/checkpoints", tags=["checkpoints"], dependencies=[Depends(require_write())])
@@ -41,6 +43,31 @@ class CheckpointBase(BaseModel):
     checkpoint_type: CheckpointType
     priority: int = Field(2, ge=1, le=3, description="1=en yuksek, 3=en dusuk")
     is_active: bool = True
+    # BUG #192 (P3.5/H3): opsiyonel YAPILANDIRILMIS kural. Doldurulursa aksiyon
+    # uygulanmadan once kod seviyesinde dayatilir (app/user_rules.py).
+    rule_type: Optional[str] = Field(None, description="min_cash_floor | account_untouchable | max_single_expense")
+    rule_params: Optional[dict] = Field(None, description='ornek: {"amount": 5000}')
+
+
+    @model_validator(mode="after")
+    def _kural_tutarli(self):
+        """BUG #192: kural tipi bilinen olmali ve gerekli parametreyi tasimali.
+
+        Sessiz kabul edilen bozuk kural = kullanicinin korundugunu SANMASI (en kotu hata).
+        """
+        if self.rule_type is None:
+            return self
+        if self.rule_type not in RULE_TYPES:
+            raise ValueError(f"Bilinmeyen kural tipi. Gecerli: {', '.join(RULE_TYPES)}")
+        params = self.rule_params or {}
+        gerekli = {"min_cash_floor": "amount", "max_single_expense": "amount",
+                   "account_untouchable": "account_id"}[self.rule_type]
+        if gerekli not in params:
+            raise ValueError(f"'{self.rule_type}' kurali icin '{gerekli}' parametresi zorunlu")
+        deger = params[gerekli]
+        if not isinstance(deger, (int, float)) or isinstance(deger, bool) or deger <= 0:
+            raise ValueError(f"'{gerekli}' pozitif bir sayi olmali")
+        return self
 
 
 class CheckpointCreate(CheckpointBase):
@@ -53,11 +80,24 @@ class CheckpointUpdate(BaseModel):
     checkpoint_type: Optional[CheckpointType] = None
     priority: Optional[int] = Field(None, ge=1, le=3)
     is_active: Optional[bool] = None
+    rule_type: Optional[str] = None       # BUG #192
+    rule_params: Optional[dict] = None    # BUG #192
 
 
 class CheckpointOut(CheckpointBase):
     id: int
     created_at: UtcDateTime
+
+    @field_validator("rule_params", mode="before")
+    @classmethod
+    def _params_coz(cls, v):
+        """DB'de JSON metni tutulur; API sozlesmesi dict'tir."""
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return None
+        return v
 
     model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
 
@@ -93,7 +133,10 @@ def create_checkpoint(
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> CheckpointOut:
     """Yeni Master Checkpoint olustur."""
-    cp = MasterCheckpoint(user_id=user.id, workspace_id=ws_id, **payload.model_dump())
+    veri = payload.model_dump()
+    if veri.get("rule_params") is not None:
+        veri["rule_params"] = json.dumps(veri["rule_params"])  # BUG #192: DB'de Text
+    cp = MasterCheckpoint(user_id=user.id, workspace_id=ws_id, **veri)
     db.add(cp)
     db.commit()
     db.refresh(cp)
@@ -116,6 +159,8 @@ def update_checkpoint(
         raise HTTPException(404, f"Checkpoint bulunamadi (id={cp_id})")
 
     update_data = payload.model_dump(exclude_unset=True)
+    if isinstance(update_data.get("rule_params"), dict):
+        update_data["rule_params"] = json.dumps(update_data["rule_params"])  # BUG #192
     # BUG #067 fix (RCH-003): korunan checkpoint'in (priority=1 + red_line) priority/
     # checkpoint_type alanlari degistirilip sonra ?hard=true ile silinerek Master Checkpoint
     # enforcement'i (emanet dokunulmazligi vb.) iki adimda delinmesin. delete_checkpoint ile

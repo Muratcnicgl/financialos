@@ -438,6 +438,18 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
         _mark_failed(db, pending, f"Bilinmeyen aksiyon: {pending.action_type}")
         return {"success": False, "error": f"Handler yok: {pending.action_type}"}
 
+    # BUG #192 (P3.5/H3): KULLANICI-TANIMLI kural kapisi. Urunun sabit kurallari (MC1/emanet)
+    # kod seviyesinde dayatiliyordu ama kullanicinin KENDI kirmizi cizgisi yalnizca koca
+    # tavsiye olarak gidiyordu. Artik ikisi de ayni sertlikte: ihlalde islem YAZILMAZ.
+    from app.user_rules import enforce_user_rules, RuleViolation
+    try:
+        enforce_user_rules(db, user_id, pending.action_type, payload,
+                           getattr(pending, "workspace_id", None))
+    except RuleViolation as ihlal:
+        _mark_failed(db, pending, str(ihlal))
+        return {"success": False, "error": str(ihlal), "rule_blocked": True,
+                "checkpoint_title": ihlal.checkpoint_title}
+
     try:
         result = handler(db, user_id, payload)
 

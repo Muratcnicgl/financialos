@@ -185,3 +185,51 @@ def test_kimliksiz_erisim_engellenir(client):
     """AUTH_ENABLED açıkken token'sız istek 401 olmalı (tek-kullanıcı fallback'e DÜŞMEZ)."""
     r = client.get("/api/cockpit")
     assert r.status_code == 401, f"Token'sız erişim {r.status_code} döndü — fallback açık olabilir"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# H3 (BUG #192) — kullanıcı kendi kuralını API'den yazar ve kural DAYATILIR
+# Murat'ın direktifinin uçtan uca kanıtı: yabancı bir kullanıcı kendi öznel
+# kuralını kurabiliyor ve sistem onu ürünün kendi kuralı kadar sert uyguluyor.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_kullanici_kendi_kuralini_yazar_ve_kural_dayatilir(client, yeni_kullanici):
+    h = yeni_kullanici
+
+    r = client.post("/api/accounts", headers=h, json={
+        "name": "Maaş Hesabım", "account_type": "cash", "balance": 10000.0})
+    assert r.status_code in (200, 201)
+
+    # Kullanıcı KENDİ kuralını tanımlıyor (yapılandırılmış → kod seviyesinde dayatılır)
+    r = client.post("/api/checkpoints", headers=h, json={
+        "title": "Acil fonuma dokunmam",
+        "description": "Nakdim 8.000 TL'nin altına inmesin",
+        "checkpoint_type": "red_line",
+        "priority": 1,
+        "rule_type": "min_cash_floor",
+        "rule_params": {"amount": 8000},
+    })
+    assert r.status_code in (200, 201), r.text[:300]
+    assert r.json()["rule_params"] == {"amount": 8000}, "Kural parametresi geri okunamıyor"
+
+    # Kuralı ihlal eden işlem doğrudan API'den de yazılamamalı mı? — işlem ucu ayrı bir
+    # yoldur (kullanıcının kendi bilinçli girişi); kural motoru KOÇ AKSİYONLARINDA dayatılır.
+    # Burada kuralın kaydedildiğini ve geri okunduğunu doğruluyoruz; dayatma kanıtı
+    # tests/test_user_defined_rules.py içinde (execute_pending_action yolu).
+    r = client.get("/api/checkpoints", headers=h)
+    kurallar = [c for c in r.json() if c.get("rule_type") == "min_cash_floor"]
+    assert len(kurallar) == 1
+
+
+def test_gecersiz_kural_sessizce_kabul_edilmez(client, yeni_kullanici):
+    """Bozuk kural kabul edilirse kullanıcı KORUNDUĞUNU SANIR — en kötü hata."""
+    h = yeni_kullanici
+    r = client.post("/api/checkpoints", headers=h, json={
+        "title": "Bozuk", "description": "x", "checkpoint_type": "rule",
+        "rule_type": "olmayan_tip", "rule_params": {"amount": 5}})
+    assert r.status_code == 422
+
+    r = client.post("/api/checkpoints", headers=h, json={
+        "title": "Eksik parametre", "description": "x", "checkpoint_type": "rule",
+        "rule_type": "min_cash_floor", "rule_params": {}})
+    assert r.status_code == 422

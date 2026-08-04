@@ -195,6 +195,13 @@ export const cockpitApi = {
   get: () => request('/api/cockpit'),
 };
 
+// FEAT-033: uygulama-içi geri bildirim (Şikayet/İstek/Öneri)
+export const feedbackApi = {
+  create: (kind, message, page) =>
+    request('/api/feedback', { method: 'POST', body: { kind, message, page } }),
+  list: () => request('/api/feedback'),
+};
+
 // =============================================================
 // ACCOUNTS (5)
 // =============================================================

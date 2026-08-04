@@ -23,6 +23,7 @@ import Cashflow from './panels/Cashflow.jsx';
 import DebtStrategy from './panels/DebtStrategy.jsx';
 import Goals from './panels/Goals.jsx';
 import Budget from './panels/Budget.jsx';
+import FeedbackWidget from './components/FeedbackWidget.jsx';  // FEAT-033
 
 const TABS = [
   { id: 'cockpit',     label: 'Cockpit',         icon: Activity      },
@@ -345,6 +346,9 @@ function AppContent({ onLogout }) {
       {showHelp && (
         <HelpModal onClose={() => setShowHelp(false)} />
       )}
+
+      {/* FEAT-033: her ekranda geri bildirim (aktif sekme bağlam olarak geçer) */}
+      <FeedbackWidget page={activeTab} />
     </div>
   );
 }

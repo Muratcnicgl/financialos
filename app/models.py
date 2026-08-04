@@ -1002,3 +1002,22 @@ class WorkspaceMembership(Base):
         UniqueConstraint("workspace_id", "user_id", name="uq_membership_workspace_user"),
         Index("ix_membership_user", "user_id"),
     )
+
+
+class Feedback(Base):
+    """FEAT-033: Uygulama-içi Şikayet / İstek / Öneri.
+
+    Kapalı-beta test-fix döngüsü için: kullanıcı basit bir arayüzden geri bildirim gönderir,
+    tabloya düşer (admin=Murat sonra inceler). kind app-katmanında (Pydantic) doğrulanır —
+    dual-dialect basitlik için String (enum CREATE TYPE derdi yok, M50 dersi).
+    """
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True)  # PK zaten indeksli; ayrı ix_feedback_id gereksiz (dual-index kaçın)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # kim gönderdi
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
+    kind = Column(String(20), nullable=False)      # sikayet | istek | oneri (Pydantic doğrular)
+    message = Column(Text, nullable=False)
+    page = Column(String(80), nullable=True)       # hangi ekrandan gönderildi (opsiyonel bağlam)
+    status = Column(String(20), nullable=False, default="new")  # new | reviewed
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

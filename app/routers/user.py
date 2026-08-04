@@ -25,6 +25,7 @@ from app.models import (
     PendingAction, ActionHistory, DecisionJournal, ReasoningTrace, ApiCallLog,
     GoalAllocation, GoalRule, WishlistItem,
     Workspace, WorkspaceMembership,  # M40 (ADR-036) — KVKK tamlığı
+    Feedback,  # FEAT-033 — KVKK tamlığı
 )
 
 router = APIRouter(prefix="/api/user", tags=["user"])
@@ -144,6 +145,7 @@ def export_data(
         "goal_rules": dump_by_goal(GoalRule),
         "envelopes": dump(Envelope),
         "wishlist_items": dump(WishlistItem),  # FEAT-032: istek listesi
+        "feedback": dump(Feedback),  # FEAT-033: kullanıcının gönderdiği geri bildirimler
 
         "master_checkpoints": dump(MasterCheckpoint),
         "net_worth_snapshots": dump(NetWorthSnapshot),

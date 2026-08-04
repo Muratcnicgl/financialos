@@ -57,6 +57,7 @@ from app.routers import subscriptions as subscriptions_router  # FEAT-006
 from app.routers import envelopes as envelopes_router  # FEAT-001
 from app.routers import wishlist as wishlist_router  # FEAT-032
 from app.routers import workspaces as workspaces_router  # M41 (ADR-036)
+from app.routers import feedback as feedback_router  # FEAT-033
 
 
 # ============================================================
@@ -211,6 +212,7 @@ app.include_router(auth_router.router)         # /api/auth
 app.include_router(auth_router.users_router)   # /api/users (KVKK sil/export)
 app.include_router(prices_router.router)       # /api/prices (EVDS döviz/altın)
 app.include_router(workspaces_router.router)   # M41: /api/workspaces (ADR-036)
+app.include_router(feedback_router.router)     # FEAT-033: /api/feedback
 
 
 # ============================================================

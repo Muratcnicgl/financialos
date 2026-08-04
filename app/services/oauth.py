@@ -25,6 +25,7 @@ _PROVIDERS = {
         "scope": "openid email profile",
         "cid_env": "OAUTH_GOOGLE_CLIENT_ID",
         "secret_env": "OAUTH_GOOGLE_CLIENT_SECRET",
+        "pkce": True,   # BUG #185: Google PKCE destekler
     },
     "github": {
         "authorize_url": "https://github.com/login/oauth/authorize",
@@ -34,6 +35,7 @@ _PROVIDERS = {
         "scope": "read:user user:email",
         "cid_env": "OAUTH_GITHUB_CLIENT_ID",
         "secret_env": "OAUTH_GITHUB_CLIENT_SECRET",
+        "pkce": False,  # GitHub OAuth App'leri PKCE'yi resmî desteklemiyor
     },
 }
 
@@ -41,7 +43,8 @@ SUPPORTED = tuple(_PROVIDERS.keys())
 
 # state → oluşturma zamanı (10 dk expiry). CSRF + callback eşleştirme.
 _STATE_TTL = 600
-_states: dict[str, float] = {}
+_states: dict[str, float] = {}          # (tarihsel; BUG #185 sonrası kullanılmıyor)
+_consumed_states: set[str] = set()      # BUG #185: DB'siz yolda tek-kullanım kaydı
 
 
 def _creds(provider: str):
@@ -63,17 +66,56 @@ def redirect_uri(provider: str) -> str:
 
 
 def new_state() -> str:
-    _prune_states()
-    state = secrets.token_urlsafe(24)
-    _states[state] = time.time()
-    return state
+    """BUG #185 (P2): STATELESS state — imzalı, 10 dk ömürlü, tek kullanımlık token.
+
+    Eskiden process-yerel bir sözlükteydi: gunicorn çok-worker kurulumunda /login
+    worker-A'da, callback worker-B'de işlenince "Geçersiz state" hatası veriyordu
+    (girişlerin kabaca yarısı) ve her restart akışları düşürüyordu.
+    """
+    from app import auth as _auth
+    from datetime import timedelta
+    token, _, _ = _auth._create_token(0, "oauth_state", timedelta(seconds=_STATE_TTL))
+    return token
 
 
-def consume_state(state: str) -> bool:
-    """State geçerli + süresi dolmamışsa True döner ve tek-kullanımlık tüketir."""
-    _prune_states()
-    ts = _states.pop(state, None)
-    return ts is not None and (time.time() - ts) <= _STATE_TTL
+def consume_state(state: str, db=None) -> bool:
+    """State geçerli + süresi dolmamışsa True döner ve TEK KULLANIMLIK tüketir.
+
+    db verilirse tüketim RevokedToken üzerinden kalıcıdır (tüm worker'lar görür).
+    Verilmezse (dev/test) yalnız imza+süre doğrulanır.
+    """
+    from app import auth as _auth
+    import jwt as _jwt
+    try:
+        payload = _auth.decode_token(state, expected_type="oauth_state")
+    except _jwt.PyJWTError:
+        return False
+    jti = payload.get("jti")
+    if db is None:
+        # DB yoksa (dev/test) tek-kullanım garantisi process-içi tutulur — güvenlik
+        # sözleşmesi hiçbir çağrı yolunda gevşemez, yalnız kalıcılığı azalır.
+        if jti in _consumed_states:
+            return False
+        _consumed_states.add(jti)
+        return True
+    if _auth.token_revoked(db, jti):
+        return False  # tekrar kullanım (replay)
+    _auth.revoke_jti(db, jti, payload.get("exp"), commit=True)
+    return True
+
+
+# --- PKCE (BUG #185 b) ---
+
+def new_code_verifier() -> str:
+    """RFC 7636 code_verifier (43-128 karakter, URL-safe)."""
+    return secrets.token_urlsafe(64)
+
+
+def _code_challenge(verifier: str) -> str:
+    import base64
+    import hashlib
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 def _prune_states() -> None:
@@ -82,19 +124,27 @@ def _prune_states() -> None:
         _states.pop(s, None)
 
 
-def get_auth_url(provider: str, state: str) -> str:
-    """Kullanıcının yönlendirileceği sağlayıcı yetkilendirme URL'i."""
+def get_auth_url(provider: str, state: str, code_verifier: Optional[str] = None) -> str:
+    """Kullanıcının yönlendirileceği sağlayıcı yetkilendirme URL'i.
+
+    BUG #185 (b): PKCE (RFC 7636/9700) — verifier ÇAĞIRANDA (httpOnly çerez) kalır, URL'e
+    yalnız S256 challenge girer. GitHub OAuth App'leri PKCE'yi resmî desteklemediği için
+    yalnız  işaretli sağlayıcılarda gönderilir.
+    """
     p = _PROVIDERS[provider]
     cid, secret = _creds(provider)
     sess = OAuth2Session(cid, secret, scope=p["scope"], redirect_uri=redirect_uri(provider))
     kwargs = {}
     if provider == "google":
         kwargs = {"access_type": "offline", "prompt": "consent"}
+    if code_verifier and p.get("pkce"):
+        kwargs["code_challenge"] = _code_challenge(code_verifier)
+        kwargs["code_challenge_method"] = "S256"
     uri, _ = sess.create_authorization_url(p["authorize_url"], state=state, **kwargs)
     return uri
 
 
-def exchange_code(provider: str, code: str) -> dict:
+def exchange_code(provider: str, code: str, code_verifier: Optional[str] = None) -> dict:
     """code → token → userinfo. Normalize dict döner: {provider, sub, email, name}.
 
     Hata → ValueError (router 400'e çevirir). E-posta bulunamazsa ValueError.
@@ -103,10 +153,14 @@ def exchange_code(provider: str, code: str) -> dict:
     cid, secret = _creds(provider)
     sess = OAuth2Session(cid, secret, redirect_uri=redirect_uri(provider))
     # GitHub token endpoint varsayılan form-encoded döner → JSON iste
+    fetch_extra = {}
+    if code_verifier and p.get("pkce"):
+        fetch_extra["code_verifier"] = code_verifier  # BUG #185: PKCE dogrulamasi
     token = sess.fetch_token(
         p["token_url"],
         code=code,
         grant_type="authorization_code",
+        **fetch_extra,
         headers={"Accept": "application/json"},
     )
     if not token or not token.get("access_token"):

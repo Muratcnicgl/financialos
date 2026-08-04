@@ -29,6 +29,7 @@ from app.dependencies import get_db, get_current_user
 from app.models import User, RevokedToken
 from app.services.email import send_password_reset_email, smtp_configured
 from app.services import oauth as _oauth
+from app.settings import is_production  # BUG #185: prod'da PKCE çerezi yalnız HTTPS
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,13 @@ class PasswordResetConfirmIn(BaseModel):
     new_password: str = Field(min_length=8, max_length=72)
 
 
+def _sifre_dogrula(password: str) -> None:
+    """BUG #187: politika ihlalinde 422 (kayit + sifirlama ayni kurala tabi)."""
+    sorunlar = _auth.password_problems(password)
+    if sorunlar:
+        raise HTTPException(422, "Sifre kabul edilmedi: " + "; ".join(sorunlar))
+
+
 # --- Endpoint'ler ---
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
@@ -98,6 +106,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
     _rate_limit(request, "register", db=db)  # BUG #182: paylasilan sayac
     if not body.kvkk_consent:
         raise HTTPException(422, "KVKK açık rıza zorunlu (kvkk_consent=true).")
+    _sifre_dogrula(body.password)  # BUG #187: yaygin/zayif sifre reddi
     email = body.email.lower().strip()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "Bu e-posta zaten kayıtlı.")
@@ -131,22 +140,36 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)) -> Tok
     return _issue_tokens(user)
 
 
-@router.post("/refresh", response_model=AccessOut)
-def refresh(body: RefreshIn, db: Session = Depends(get_db)) -> AccessOut:
+@router.post("/refresh", response_model=TokenOut)
+def refresh(body: RefreshIn, db: Session = Depends(get_db)) -> TokenOut:
+    """Access token yeniler ve refresh token'i ROTE EDER (BUG #186).
+
+    Eskiden eski refresh iptal edilmiyor, yenisi uretilmiyordu: calinmis bir token 30 gun
+    boyunca sinirsiz kullanilabiliyor ve sizinti asla tespit edilemiyordu. Artik her
+    kullanimda eski jti kara listeye yazilir, yeni refresh donulur. Kara listedeki bir
+    refresh yeniden kullanilirsa bu bir SIZINTI sinyalidir -> kullanicinin TUM oturumlari
+    dusurulur (OAuth 2.1 / RFC 9700 refresh-token reuse detection).
+    """
     try:
         payload = _auth.decode_token(body.refresh_token, expected_type="refresh")
     except _jwt.PyJWTError:
         raise HTTPException(401, "Geçersiz veya süresi geçmiş refresh token.")
-    if db.query(RevokedToken).filter(RevokedToken.jti == payload["jti"]).first():
-        raise HTTPException(401, "Refresh token geçersiz kılınmış (logout).")
     user = db.get(User, int(payload["sub"]))
+    if db.query(RevokedToken).filter(RevokedToken.jti == payload["jti"]).first():
+        # BUG #186: iptal edilmis refresh YENIDEN kullanildi -> sizinti varsay, hepsini dusur
+        if user is not None:
+            user.token_version = int(getattr(user, "token_version", 0) or 0) + 1
+            db.commit()
+            logger.warning("[auth] refresh token tekrar-kullanimi tespit edildi user_id=%s "
+                           "— tum oturumlar dusuruldu", user.id)
+        raise HTTPException(401, "Refresh token geçersiz kılınmış. Yeniden giriş yapın.")
     if not user or not user.is_active:
         raise HTTPException(401, "Kullanıcı bulunamadı veya pasif.")
     # BUG #172 (P2): şifre sıfırlandıysa, ondan ÖNCE üretilmiş refresh token ölür.
     if not _auth.token_version_ok(payload, user):
         raise HTTPException(401, "Refresh token geçersiz (şifre değişti — yeniden giriş yapın).")
-    return AccessOut(access_token=_auth.create_access_token(
-        user.id, int(getattr(user, "token_version", 0) or 0)))
+    _auth.revoke_jti(db, payload.get("jti"), payload.get("exp"), commit=True)  # rotasyon
+    return _issue_tokens(user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -230,6 +253,7 @@ def password_reset_confirm(body: PasswordResetConfirmIn, db: Session = Depends(g
         raise HTTPException(404, "Kullanıcı bulunamadı.")
     if not user.is_active:
         raise HTTPException(403, "Hesap pasif.")
+    _sifre_dogrula(body.new_password)  # BUG #187: sifirlamada da ayni politika
     user.password_hash = _auth.hash_password(body.new_password)
     # BUG #172 (P2/a): mevcut TÜM oturumları düşür — çalınmış refresh/access token'lar ölür.
     user.token_version = int(getattr(user, "token_version", 0) or 0) + 1
@@ -254,12 +278,25 @@ def oauth_login(provider: str, request: Request, db: Session = Depends(get_db)):
             f"docs/api-key-talep-wave3.md'ye bakın.",
         )
     state = _oauth.new_state()
-    return RedirectResponse(_oauth.get_auth_url(provider, state), status_code=307)
+    # BUG #185 (b): PKCE verifier httpOnly çerezde taşınır — state içinde DEĞİL, çünkü
+    # state tarayıcı ve sağlayıcı üzerinden geçer; verifier orada açık olsaydı PKCE'nin
+    # koruması ortadan kalkardı. Çerez multi-worker'da da çalışır (istemci taşır).
+    verifier = _oauth.new_code_verifier()
+    resp = RedirectResponse(_oauth.get_auth_url(provider, state, code_verifier=verifier),
+                            status_code=307)
+    resp.set_cookie(
+        "fos_pkce", verifier,
+        max_age=600, httponly=True, samesite="lax",
+        secure=is_production(),  # dev'de http, prod'da yalnız HTTPS
+        path="/api/auth",
+    )
+    return resp
 
 
 @router.get("/callback/{provider}")
 def oauth_callback(
     provider: str,
+    request: Request,
     code: str = "",
     state: str = "",
     db: Session = Depends(get_db),
@@ -270,10 +307,13 @@ def oauth_callback(
         raise HTTPException(404, "Bilinmeyen sağlayıcı.")
     if not code or not state:
         raise HTTPException(400, "code veya state eksik.")
-    if not _oauth.consume_state(state):
+    # BUG #185 (a): state artik STATELESS imzali token; tuketim DB uzerinden kalici
+    # (cok-worker'da /login ve /callback farkli worker'lara dusebilir).
+    if not _oauth.consume_state(state, db):
         raise HTTPException(400, "Geçersiz veya süresi geçmiş state (CSRF koruması).")
+    verifier = request.cookies.get("fos_pkce")  # BUG #185 (b): PKCE
     try:
-        info = _oauth.exchange_code(provider, code)
+        info = _oauth.exchange_code(provider, code, code_verifier=verifier)
     except Exception as e:  # noqa: BLE001 — dış OAuth hatası → 400
         logger.warning("[oauth] %s code exchange başarısız: %s", provider, e)
         raise HTTPException(400, f"OAuth doğrulama başarısız: {e}")
@@ -316,7 +356,9 @@ def oauth_callback(
     exchange_code = _auth.create_oauth_exchange_code(user.id)
     frontend = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
     dest = f"{frontend}/auth/oauth-success?code={exchange_code}"
-    return RedirectResponse(dest, status_code=307)
+    resp = RedirectResponse(dest, status_code=307)
+    resp.delete_cookie("fos_pkce", path="/api/auth")  # BUG #185: verifier tek kullanimlik
+    return resp
 
 
 class OAuthExchangeIn(BaseModel):

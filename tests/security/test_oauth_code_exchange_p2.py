@@ -103,11 +103,12 @@ def test_callback_urlde_token_tasimaz(client, db, monkeypatch):
     import app.routers.auth as auth_mod
 
     user = db.query(User).first()
-    monkeypatch.setattr(auth_mod._oauth, "consume_state", lambda s: True)
+    # BUG #185: consume_state db alır, exchange_code code_verifier alır
+    monkeypatch.setattr(auth_mod._oauth, "consume_state", lambda s, db=None: True)
     monkeypatch.setattr(auth_mod._oauth, "exchange_code",
-                        lambda provider, code: {"email": user.email, "sub": "123",
-                                                "provider": "google",
-                                                "name": "oauth kullanıcı"})
+                        lambda provider, code, code_verifier=None: {
+                            "email": user.email, "sub": "123", "provider": "google",
+                            "name": "oauth kullanıcı"})
 
     r = client.get("/api/auth/callback/google?code=abc&state=xyz", follow_redirects=False)
     assert r.status_code in (302, 307), r.text[:200]

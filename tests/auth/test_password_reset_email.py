@@ -120,7 +120,7 @@ def test_send_email_hata_false(monkeypatch):
 
 def _register(client, email="murat@x.com"):
     return client.post("/api/auth/register", json={
-        "email": email, "password": "parola123", "name": "M", "kvkk_consent": True})
+        "email": email, "password": "Kirmizi-Fener-2026", "name": "M", "kvkk_consent": True})
 
 
 def test_reset_request_smtp_ile_gonderir_dev_token_yok(client, db_session, monkeypatch):

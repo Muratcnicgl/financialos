@@ -86,7 +86,7 @@ def _valid_state():
 
 def test_callback_yeni_kullanici_olusturur(client, db_session, monkeypatch):
     monkeypatch.setattr(auth_mod._oauth, "exchange_code",
-                        lambda p, c: {"provider": "google", "sub": "G1", "email": "yeni@x.com", "name": "Yeni"})
+                        lambda p, c, code_verifier=None: {"provider": "google", "sub": "G1", "email": "yeni@x.com", "name": "Yeni"})
     st = _valid_state()
     r = client.get(f"/api/auth/callback/google?code=abc&state={st}", follow_redirects=False)
     assert r.status_code == 307
@@ -105,7 +105,7 @@ def test_callback_mevcut_kullaniciya_baglar(client, db_session, monkeypatch):
     db_session.add(User(email="var@x.com", name="Var", password_hash="x", is_active=True))
     db_session.commit()
     monkeypatch.setattr(auth_mod._oauth, "exchange_code",
-                        lambda p, c: {"provider": "github", "sub": "H9", "email": "var@x.com", "name": "Var"})
+                        lambda p, c, code_verifier=None: {"provider": "github", "sub": "H9", "email": "var@x.com", "name": "Var"})
     st = _valid_state()
     r = client.get(f"/api/auth/callback/github?code=abc&state={st}", follow_redirects=False)
     assert r.status_code == 307
@@ -115,7 +115,7 @@ def test_callback_mevcut_kullaniciya_baglar(client, db_session, monkeypatch):
 
 
 def test_callback_gecersiz_state_400(client, monkeypatch):
-    monkeypatch.setattr(auth_mod._oauth, "exchange_code", lambda p, c: {})
+    monkeypatch.setattr(auth_mod._oauth, "exchange_code", lambda p, c, code_verifier=None: {})
     r = client.get("/api/auth/callback/google?code=abc&state=SAHTE", follow_redirects=False)
     assert r.status_code == 400
 

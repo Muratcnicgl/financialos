@@ -51,7 +51,7 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
-def _register(client, email="a@x.com", password="parola123", consent=True):
+def _register(client, email="a@x.com", password="Kirmizi-Fener-2026", consent=True):
     return client.post("/api/auth/register", json={
         "email": email, "password": password, "name": "A", "kvkk_consent": consent,
     })
@@ -88,7 +88,7 @@ def test_register_kisa_sifre_422(client):
 
 def test_login_basarili(client):
     _register(client)
-    r = client.post("/api/auth/login", json={"email": "a@x.com", "password": "parola123"})
+    r = client.post("/api/auth/login", json={"email": "a@x.com", "password": "Kirmizi-Fener-2026"})
     assert r.status_code == 200
     assert r.json()["access_token"]
 
@@ -100,7 +100,7 @@ def test_login_yanlis_sifre_401(client):
 
 
 def test_login_olmayan_kullanici_401(client):
-    r = client.post("/api/auth/login", json={"email": "yok@x.com", "password": "parola123"})
+    r = client.post("/api/auth/login", json={"email": "yok@x.com", "password": "Kirmizi-Fener-2026"})
     assert r.status_code == 401
 
 
@@ -189,5 +189,5 @@ def test_rate_limit_login(client):
     # AUTH_RATE_MAX=5 → 5 login sonrası 6. istek 429
     for _ in range(5):
         client.post("/api/auth/login", json={"email": "a@x.com", "password": "yanlis"})
-    r = client.post("/api/auth/login", json={"email": "a@x.com", "password": "parola123"})
+    r = client.post("/api/auth/login", json={"email": "a@x.com", "password": "Kirmizi-Fener-2026"})
     assert r.status_code == 429

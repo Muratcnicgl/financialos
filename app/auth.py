@@ -57,6 +57,40 @@ def verify_password(password: str, password_hash: Optional[str]) -> bool:
         return False
 
 
+# --- Sifre politikasi (BUG #187, P2) ---
+
+# En yaygin sizdirilmis sifrelerin cekirdegi + TR'ye ozgu yaygin secimler. Tam bir
+# breach-listesi (HIBP) cevrimici sorgu gerektirir; kapali beta icin yerel liste +
+# desen kontrolu (tekrarli/ardisik karakter) yeterli, dis servise veri gitmez.
+_YAYGIN_SIFRELER = {
+    "12345678", "123456789", "1234567890", "password", "password1", "password123",
+    "qwerty123", "qwertyui", "11111111", "00000000", "abc12345", "iloveyou",
+    "admin123", "welcome1", "letmein1", "sunshine", "princess", "football",
+    "parola123", "sifre123", "parola12", "turkiye1", "galatasaray", "fenerbahce",
+    "besiktas", "trabzonspor", "ankara123", "istanbul", "deneme123", "asdasd123",
+}
+
+
+def password_problems(password: str) -> list[str]:
+    """BUG #187 (P2): sifre politikasi YALNIZ uzunluktu (>=8).
+
+    '12345678' / 'parola123' gibi ilk-1000 listesindeki sifreler kabul ediliyordu; rate
+    limit ve cok-worker sorunlariyla birlesince cevrimici brute-force gercekci hale
+    geliyordu. Uzunluk + yaygin-liste + basit desen kontrolu.
+    """
+    p = (password or "").strip()
+    sorunlar: list[str] = []
+    if len(p) < 8:
+        sorunlar.append("en az 8 karakter olmali")
+    if p.lower() in _YAYGIN_SIFRELER:
+        sorunlar.append("cok yaygin kullanilan bir sifre (tahmin edilmesi kolay)")
+    if p and len(set(p)) <= 2:
+        sorunlar.append("ayni karakterin tekrari (ornek: 11111111)")
+    if p.isdigit():
+        sorunlar.append("yalnizca rakamlardan olusamaz")
+    return sorunlar
+
+
 # --- JWT ---
 
 def _create_token(sub: int, token_type: str, ttl: timedelta,

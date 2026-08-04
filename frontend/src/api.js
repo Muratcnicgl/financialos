@@ -67,7 +67,14 @@ async function _tryRefresh() {
         });
         if (!r.ok) return false;
         const d = await r.json().catch(() => null);
-        if (d && d.access_token) { setTokens({ access_token: d.access_token }); return true; }
+        if (d && d.access_token) {
+          // BUG #186 (P2): backend artık refresh token'ı ROTE EDİYOR (eski jti kara listeye
+          // yazılır). Yeni refresh saklanmazsa bir sonraki yenileme 401 alır ve kullanıcı
+          // durduk yere düşer — üstelik eski token'ı tekrar denemek "sızıntı" sayılıp
+          // tüm oturumları kapatır.
+          setTokens({ access_token: d.access_token, refresh_token: d.refresh_token });
+          return true;
+        }
         return false;
       } catch { return false; }
     })();

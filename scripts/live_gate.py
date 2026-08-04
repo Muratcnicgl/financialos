@@ -67,7 +67,8 @@ def _iste(url: str, *, metod: str = "GET", veri: Optional[dict] = None,
         return 0, {}, {"_error": f"{type(e).__name__}: {e}"}
 
 
-def kosla(base: str, email: Optional[str], password: Optional[str]) -> Sonuc:
+def kosla(base: str, email: Optional[str], password: Optional[str],
+          tls_katmani: bool = True) -> Sonuc:
     base = base.rstrip("/")
     s = Sonuc()
 
@@ -75,16 +76,23 @@ def kosla(base: str, email: Optional[str], password: Optional[str]) -> Sonuc:
     kod, basliklar, govde = _iste(f"{base}/api/health")
     s.ekle("sağlık ucu 200", kod == 200, f"kod={kod} {govde.get('_error','')}")
 
-    print("\n== 2. TAŞIMA GÜVENLİĞİ ==")
-    s.ekle("HTTPS kullanılıyor", base.startswith("https://"),
-           "IP/HTTP ile beta açılmaz (token'lar açık ağda gider)")
-    hsts = basliklar.get("Strict-Transport-Security", "")
-    s.ekle("HSTS başlığı", bool(hsts), hsts[:40])
-    csp = basliklar.get("Content-Security-Policy", "")
-    s.ekle("CSP başlığı", bool(csp), csp[:50])
-    s.ekle("X-Frame-Options DENY", basliklar.get("X-Frame-Options", "").upper() == "DENY")
-    s.ekle("sunucu sürümü gizli", "Server" not in basliklar or
-           basliklar.get("Server", "").lower() in ("nginx", "caddy"), zorunlu=False)
+    # TLS katmanını nginx/Caddy sağlar. Docker'sız YEREL PROVADA (scripts/prod_rehearsal.py)
+    # o katman yoktur → kapılar anlamsızca düşer ve prova hiçbir zaman "geçti" diyemez.
+    # `--skip-tls` YALNIZ o prova içindir; GERÇEK SUNUCUDA kullanılmaz (en kritik kapı
+    # kör kalır: token'lar açık ağda gider).
+    if not tls_katmani:
+        print("\n== 2. TAŞIMA GÜVENLİĞİ == (ATLANDI — --skip-tls, yalnız yerel prova)")
+    else:
+        print("\n== 2. TAŞIMA GÜVENLİĞİ ==")
+        s.ekle("HTTPS kullanılıyor", base.startswith("https://"),
+               "IP/HTTP ile beta açılmaz (token'lar açık ağda gider)")
+        hsts = basliklar.get("Strict-Transport-Security", "")
+        s.ekle("HSTS başlığı", bool(hsts), hsts[:40])
+        csp = basliklar.get("Content-Security-Policy", "")
+        s.ekle("CSP başlığı", bool(csp), csp[:50])
+        s.ekle("X-Frame-Options DENY", basliklar.get("X-Frame-Options", "").upper() == "DENY")
+        s.ekle("sunucu sürümü gizli", "Server" not in basliklar or
+               basliklar.get("Server", "").lower() in ("nginx", "caddy"), zorunlu=False)
 
     print("\n== 3. KİMLİK ZORUNLULUĞU ==")
     kod, _b, _g = _iste(f"{base}/api/cockpit")
@@ -111,15 +119,8 @@ def kosla(base: str, email: Optional[str], password: Optional[str]) -> Sonuc:
     kod, _b, _g = _iste(f"{base}/sw.js")
     s.ekle("service worker yayında", kod == 200, f"kod={kod}", zorunlu=False)
 
-    print("\n== 7. ORAN SINIRLAMA ==")
-    kodlar = [_iste(f"{base}/api/auth/login", metod="POST",
-                    veri={"email": "yok@example.com", "password": "YanlisParola-2026!"})[0]
-              for _ in range(8)]
-    s.ekle("brute-force sınırı devrede", 429 in kodlar,
-           f"kodlar={kodlar} — 429 yoksa limiter çalışmıyor")
-
     if email and password:
-        print("\n== 8. OTURUM + VERİ (kimlikli) ==")
+        print("\n== 7. OTURUM + VERİ (kimlikli) ==")
         kod, _b, govde = _iste(f"{base}/api/auth/login", metod="POST",
                                veri={"email": email, "password": password})
         token = govde.get("access_token") if kod == 200 else None
@@ -139,7 +140,18 @@ def kosla(base: str, email: Optional[str], password: Optional[str]) -> Sonuc:
                 s.ekle("cron fiyatları güncel tutuyor (24s sonra kontrol et)",
                        bayat == 0, f"bayat={bayat}", zorunlu=False)
     else:
-        print("\n== 8. OTURUM + VERİ == (atlandı — --email/--password verilmedi)")
+        print("\n== 7. OTURUM + VERİ == (atlandı — --email/--password verilmedi)")
+
+    # SIRA ÖNEMLİ (production provasında yakalandı, BUG #198): brute-force denemesi login
+    # kovasını TÜKETİR. Bu blok kimlikli kontrollerden ÖNCE koşarsa gerçek giriş 429 alır ve
+    # kapı "giriş çalışmıyor" diye YANLIŞ ALARM verir — operatör var olmayan bir hatayı
+    # kovalar. Bu yüzden EN SONDA.
+    print("\n== 8. ORAN SINIRLAMA (en sonda — login kovasını tüketir) ==")
+    kodlar = [_iste(f"{base}/api/auth/login", metod="POST",
+                    veri={"email": "yok@example.com", "password": "YanlisParola-2026!"})[0]
+              for _ in range(8)]
+    s.ekle("brute-force sınırı devrede", 429 in kodlar,
+           f"kodlar={kodlar} — 429 yoksa limiter çalışmıyor")
 
     return s
 
@@ -149,10 +161,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("base_url", help="https://alan-adi")
     ap.add_argument("--email", default=None)
     ap.add_argument("--password", default=None, help="Sır: yalnız parametre; hiçbir yere yazılmaz")
+    ap.add_argument("--skip-tls", action="store_true",
+                    help="TLS katmanı kapılarını atla — YALNIZ Docker'sız yerel prova için")
     args = ap.parse_args(argv)
 
     print(f"CANLI KAPI: {args.base_url}")
-    s = kosla(args.base_url, args.email, args.password)
+    if args.skip_tls:
+        print("UYARI: --skip-tls verildi — TLS kapilari ATLANDI. Gercek sunucuda KULLANMA.")
+    s = kosla(args.base_url, args.email, args.password, tls_katmani=not args.skip_tls)
 
     zorunlu_dusen = [a for a, g, z, _n in s.satirlar if z and not g]
     print("\n" + "=" * 60)

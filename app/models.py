@@ -147,6 +147,10 @@ class User(Base):
     # H4 (BUG #197): KISISELLESTIRME. Uygulama "bugun"u SUNUCU yerel saatinden hesapliyordu;
     # farkli saat diliminde yasayan bir kullanici icin gunluk limit / islem tarihi / ay siniri
     # YANLIS gune dusuyordu (BUG #169'un kullanici-basi karsiligi). None = sunucu varsayilani.
+    # P8 (BUG #202): e-posta dogrulama. Acik kayitta 409 "bu e-posta zaten kayitli"
+    # yaniti KULLANICI LISTESI SIZDIRIR (enumerasyon). Gercek cozum: kayit her durumda
+    # AYNI yaniti dondurur ve hesap ancak e-postadaki bagalantiyla etkinlesir.
+    email_verified_at = Column(DateTime, nullable=True)
     timezone = Column(String(40), nullable=True)     # ornek: "Europe/Istanbul", "Europe/Berlin"
     currency = Column(String(3), nullable=True)      # ISO-4217; None = TRY (asamali plan, ADR-042)
     locale = Column(String(10), nullable=True)       # ornek: "tr-TR

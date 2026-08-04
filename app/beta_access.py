@@ -80,3 +80,26 @@ def davet_kullan(db: Session, davet, user_id: int) -> None:
     """Daveti tüket (tek kullanımlık). Commit ÇAĞIRANA bırakılır (aynı transaction)."""
     davet.used_at = datetime.now(timezone.utc).replace(tzinfo=None)
     davet.used_by_user_id = user_id
+
+
+def email_verification_required() -> bool:
+    """P8 (BUG #202): e-posta dogrulama zorunlu mu?
+
+    Varsayilan: **PRODUCTION + ACIK KAYIT** ise ZORUNLU; aksi halde degil.
+
+    Gerekce:
+      - Davetli-only'de kayit zaten operator kontrolunde (enumerasyon icin gecerli davet
+        kodu gerekir) -> akisi agirlastirmaya gerek yok.
+      - Acik kayitta "bu e-posta zaten kayitli" yaniti KULLANICI LISTESI SIZDIRIR ve
+        sahte hesap spam'i onunde engel kalmaz -> dogrulama sart.
+      - **Development'ta ASLA zorunlu degil**: SMTP yok, kayit akisi kilitlenir ve
+        yerel gelistirme/test bozulur (bu, ilk denemede 25 testi kirdi).
+    Env ile ezilebilir: REQUIRE_EMAIL_VERIFICATION=1|0
+    """
+    ham = os.getenv("REQUIRE_EMAIL_VERIFICATION", "").strip().lower()
+    if ham in ("1", "true", "yes"):
+        return True
+    if ham in ("0", "false", "no"):
+        return False
+    from app.settings import is_production
+    return is_production() and registration_mode() == "open"

@@ -111,8 +111,12 @@ def _sifre_dogrula(password: str) -> None:
 
 # --- Endpoint'ler ---
 
-@router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) -> TokenOut:
+# BUG #202: kayit yaniti — var olan/olmayan e-posta AYIRT EDILEMEZ olmali.
+_KAYIT_JENERIK_YANIT = {"message": "Kayıt alındı. E-postandaki bağlantıyla hesabını etkinleştir."}
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
     _rate_limit(request, "register", db=db)  # BUG #182: paylasilan sayac
     if not body.kvkk_consent:
         raise HTTPException(422, "KVKK açık rıza zorunlu (kvkk_consent=true).")
@@ -129,8 +133,19 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
         if davet is None:
             # Sebep AYRISTIRILMAZ (kod deneme saldirisina bilgi verilmez).
             raise HTTPException(403, "Kayıt şu anda davetlilere açık. Geçerli bir davet kodu gerekli.")
-    if db.query(User).filter(User.email == email).first():
-        raise HTTPException(409, "Bu e-posta zaten kayıtlı.")
+    # BUG #202 (P8): 409 "bu e-posta zaten kayitli" yaniti KULLANICI LISTESI SIZDIRIR
+    # (enumerasyon). Dogrulama modunda kayit HER DURUMDA ayni yaniti dondurur; hesap
+    # ancak e-postadaki baglanti ile etkinlesir. Davetli-only modda bu gerekmez
+    # (kayit zaten operator kontrolunde) -> eski davranis korunur.
+    from app.beta_access import email_verification_required
+    dogrulama_gerekli = email_verification_required()
+    mevcut = db.query(User).filter(User.email == email).first()
+    if mevcut is not None:
+        if not dogrulama_gerekli:
+            raise HTTPException(409, "Bu e-posta zaten kayıtlı.")
+        # Sessiz cikis: saldirgan "kayitli mi degil mi" AYIRT EDEMEZ.
+        logger.info("[auth] var olan e-postaya kayit denemesi (yanit jenerik)")
+        return _KAYIT_JENERIK_YANIT
     user = User(
         email=email,
         password_hash=_auth.hash_password(body.password),
@@ -143,12 +158,51 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
     db.flush()  # user.id gerekli
     # M62 (ADR-037): personal workspace + owner membership AYNI transaction'da
     from app.services.workspace_setup import ensure_personal_workspace
+    if dogrulama_gerekli:
+        user.is_active = False          # BUG #202: dogrulanana kadar giris YOK
     ensure_personal_workspace(db, user, commit=False)
     if davet is not None:
         davet_kullan(db, davet, user.id)   # BUG #199: davet TEK KULLANIMLIK, ayni transaction
     db.commit()
     db.refresh(user)
+
+    if dogrulama_gerekli:
+        # Token VERILMEZ: hesap dogrulanana kadar acilmaz. E-posta gonderilemezse bile
+        # yanit AYNI kalir (enumerasyon kapali); operator log'dan gorur.
+        dogrulama = _auth.create_email_verification_token(user.id)
+        link = f"{os.getenv('FRONTEND_URL', 'http://localhost:5173').rstrip('/')}/auth/verify?token={dogrulama}"
+        try:
+            from app.services.email import send_email, smtp_configured
+            if smtp_configured():
+                send_email(email, "FinancialOS — e-posta doğrulama",
+                           f"Hesabını etkinleştirmek için: {link}",
+                           f'<p>Hesabını etkinleştirmek için <a href="{link}">buraya tıkla</a>.</p>')
+            else:
+                logger.warning("[auth] SMTP yok — doğrulama bağlantısı gönderilemedi (user=%s)", user.id)
+        except Exception:
+            logger.exception("[auth] doğrulama e-postası gönderilemedi (user=%s)", user.id)
+        return _KAYIT_JENERIK_YANIT
+
     return _issue_tokens(user)
+
+
+@router.get("/verify-email")
+def verify_email(token: str, db: Session = Depends(get_db)) -> dict:
+    """BUG #202: e-posta doğrulama bağlantısı — hesabı etkinleştirir (tek kullanımlık)."""
+    try:
+        payload = _auth.decode_token(token, expected_type="email_verify")
+    except _jwt.PyJWTError:
+        raise HTTPException(400, "Geçersiz veya süresi geçmiş doğrulama bağlantısı.")
+    if _auth.token_revoked(db, payload.get("jti")):
+        raise HTTPException(400, "Bu bağlantı daha önce kullanıldı.")
+    user = db.get(User, int(payload["sub"]))
+    if not user:
+        raise HTTPException(404, "Kullanıcı bulunamadı.")
+    user.email_verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    user.is_active = True
+    _auth.revoke_jti(db, payload.get("jti"), payload.get("exp"), commit=False)
+    db.commit()
+    return {"message": "E-posta doğrulandı. Artık giriş yapabilirsin."}
 
 
 @router.post("/login", response_model=TokenOut)

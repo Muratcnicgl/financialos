@@ -144,6 +144,12 @@ def create_oauth_exchange_code(user_id: int, ttl_seconds: int = 60) -> str:
     return token
 
 
+def create_email_verification_token(user_id: int, ttl_hours: int = 48) -> str:
+    """P8 (BUG #202): e-posta dogrulama baglantisi icin token (48 saat)."""
+    token, _, _ = _create_token(user_id, "email_verify", timedelta(hours=ttl_hours))
+    return token
+
+
 def create_password_reset_token(user_id: int, ttl_minutes: int = 30) -> str:
     token, _, _ = _create_token(user_id, "pwreset", timedelta(minutes=ttl_minutes))
     return token

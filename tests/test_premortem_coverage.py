@@ -184,7 +184,8 @@ def test_user_prompt_with_rationale():
         "rationale": "Aylik gida ihtiyaci",
     }
     out = _user_prompt(ctx, None)
-    assert "Murat'in gerekcesi: Aylik gida ihtiyaci" in out
+    # BUG #166 (P3.5 ürünleşme): metin kişi adı taşımaz — her kullanıcı için jenerik
+    assert "Kullanicinin gerekcesi: Aylik gida ihtiyaci" in out
 
 
 def test_user_prompt_with_cockpit_snapshot():

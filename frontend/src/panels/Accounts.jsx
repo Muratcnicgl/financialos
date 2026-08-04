@@ -436,7 +436,7 @@ function AccountFormModal({ account, onClose, onSave }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="input"
-            placeholder="Enpara, Ziraat Kart vb."
+            placeholder="Örn. Maaş Hesabım, Kredi Kartım"
             autoFocus
           />
         </div>

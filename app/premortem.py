@@ -2,11 +2,11 @@
 Premortem Engine — Wave-2 H2G3
 Klein 1989 prospective hindsight + LLM-tabanli senaryo uretimi.
 
-Murat'in onaylamak uzere oldugu bir aksiyon icin 5 basarisizlik senaryosu uretir.
+Kullanicinin onaylamak uzere oldugu bir aksiyon icin 5 basarisizlik senaryosu uretir.
 Her senaryo: gerekce + olasilik etiketi + TL etki + mitigation aksiyonu.
 
 ADR-001 ilkesi: Premortem KARAR VERMEZ, sadece korluk noktalarini acar.
-Son karar her zaman Murat'in.
+Son karar her zaman kullanicinin.
 
 Mimari:
 - LLM provider: build_provider() (Groq -> Cerebras -> Gemini -> OpenRouter fallback)
@@ -141,7 +141,7 @@ def _user_prompt(action_context: dict, cockpit_snapshot: Optional[dict] = None) 
         f"  Hedef: {action_context.get('target', '-')}",
     ]
     if action_context.get("rationale"):
-        lines.append(f"  Murat'in gerekcesi: {action_context['rationale']}")
+        lines.append(f"  Kullanicinin gerekcesi: {action_context['rationale']}")  # BUG #166: kişi adı yok
 
     if cockpit_snapshot:
         lines += [

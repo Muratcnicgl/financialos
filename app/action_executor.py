@@ -90,14 +90,46 @@ ACTION_TYPES: frozenset = frozenset({
 
 # BUG #025/#026 fix: Kart kategorileri (QUICK_KEYWORDS'deki is_card=True olanlar)
 _CARD_CATEGORIES = {"yemek", "eglence", "sigara", "alisveris", "market"}
-_TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiоsuCGIOSU")  # BUG #026: Türkçe karakter normalize
+# BUG #026: Türkçe karakter normalize.
+# BUG #167 fix (P3.5): hedef dizideki 'o' KİRİL 'о' (U+043E) idi → 'ö' harfi ASCII 'o' yerine
+# Kiril harfe çevriliyordu. Normalize edilen kategori DB'ye böyle yazıldığından ("оgle yemegi"),
+# sonraki kategori eşleşmeleri/gruplamaları sessizce kırılıyordu. Artık saf ASCII.
+_TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
 
 # BUG #042 fix: Hesap anahtar kelimesi — word boundary + çekim eki, false-positive'siz
 import re as _re
+# BUG #168 fix (P3.5, ürünleşme): banka MARKALARI (`enpara`, `ziraat`) koda gömülüydü —
+# başka banka kullanan kullanıcının "Papara'dan 200 TL market" cümlesi "hesap belirsiz"
+# sayılıyordu. Jenerik kelimeler burada kalır; markaya özgü eşleşme artık kullanıcının
+# KENDİ hesap adlarından türetilir (bkz. _mentions_account).
 _ACCOUNT_KEYWORD_RE = _re.compile(
-    r'\b(kart(?!on\b)\w*|hesap\w*|hesab\w*|nakit\w*|enpara\w*|ziraat\w*|banka\w*)\b',
+    r'\b(kart(?!on\b)\w*|hesap\w*|hesab\w*|nakit\w*|banka\w*)\b',
     _re.IGNORECASE,
 )
+
+# Hesap adından anlam taşımayan jenerik ekler (tek başına eşleşme sayılmaz)
+_ACCOUNT_NAME_STOPWORDS = {"kart", "karti", "kartı", "hesap", "hesabi", "hesabı",
+                           "banka", "bankasi", "bankası", "nakit", "kasa", "vadesiz",
+                           "vadeli", "kredi", "yatirim", "yatırım", "tl", "try"}
+
+
+def _mentions_account(user_message: str, db: Session, user_id: int) -> bool:
+    """Kullanıcı mesajı bir hesabı işaret ediyor mu? (BUG #042 korumasının ürünleşmiş hali)
+
+    İki yol: (1) jenerik kelimeler (kart/nakit/hesap/banka), (2) kullanıcının KENDİ hesap
+    adlarındaki ayırt edici sözcükler. Böylece kural her kullanıcının kendi bankasıyla
+    çalışır; kod hiçbir markayı bilmez.
+    """
+    if _ACCOUNT_KEYWORD_RE.search(user_message):
+        return True
+    norm_msg = user_message.lower().translate(_TR_NORM)
+    from app.rules_engine import _scope  # geç import: döngüsel bağımlılık yok (workspace köprüsü)
+    names = [row[0] for row in db.query(Account.name).filter(_scope(Account, user_id)).all()]
+    for name in names:
+        for token in _re.split(r"[^\w]+", (name or "").lower().translate(_TR_NORM)):
+            if len(token) >= 3 and token not in _ACCOUNT_NAME_STOPWORDS and token in norm_msg:
+                return True
+    return False
 # BUG #044 fix: Summary'de tarih ifadesi var ama payload'da transaction_date yok → tutarsızlık
 _DATE_KEYWORD_RE = _re.compile(
     r'\b('
@@ -117,8 +149,14 @@ _DATE_KEYWORD_RE = _re.compile(
 
 
 def _cat_normalize(cat: str) -> str:
-    """BUG #026: 'Eğlence' → 'eglence' — büyük harf + Türkçe aksan normalize."""
-    return cat.lower().translate(_TR_NORM)
+    """BUG #026: 'Eğlence' → 'eglence' — büyük harf + Türkçe aksan normalize.
+
+    BUG #167 fix (P3.5): sıra TERSTİ. `lower()` önce koşunca `'İ'.lower()` == `'i' + U+0307`
+    (birleşik nokta) üretiyor ve çeviri tablosu bunu yakalayamıyordu → "yemeği" gibi
+    kategoriler ASCII-dışı karakterle DB'ye yazılıyordu. Artık önce çevir, sonra küçült;
+    artakalan birleşik işaretler de temizlenir.
+    """
+    return cat.translate(_TR_NORM).lower().replace("̇", "")
 
 
 def _fmt(x: float) -> str:
@@ -212,7 +250,7 @@ def propose_action(
         # BUG #042 fix: Gider işlemlerinde hesap anahtar kelimesi zorunlu
         if (payload.get("transaction_type") == "expense"
                 and user_message
-                and not _ACCOUNT_KEYWORD_RE.search(user_message)):
+                and not _mentions_account(user_message, db, user_id)):  # BUG #168: kullanıcının kendi hesap adları da sayılır
             raise ValueError("HESAP_BELIRSIZ")
         # BUG #044 fix: Summary'de tarih var ama payload'da yok → tutarsızlık
         if (summary

@@ -42,7 +42,7 @@ GUNCELLEMELER:
   Kok vizyon "varsayim yasak / kusursuzluk" mandatinin kod-seviyesi enforcement'i.
 - 2 May 2026 BUG #023 fix: Soru/bildirim ayrimi LLM'den koda tasindi.
   Llama 3.3 KURAL SIFIR'i takip etmiyor, soru olan mesajlara da
-  propose_action cagiriyordu ("yarin Efe'den para gelecek mi" -> yanlis
+  propose_action cagiriyordu ("yarin alacagim gelecek mi" -> yanlis
   add_transaction). Cozum: is_question() helper'i + CoachEngine.chat()
   icinde tools listesini kosullu olarak bos tutma. Soru ise hicbir
   provider tool cagiramaz, sadece metin uretir. PROJE.md'nin "Rules
@@ -215,7 +215,7 @@ sana BİLDİRDİĞİNDE çağrılır. Aşağıdaki tetikleyiciler dışında ASL
 | "TLY'yi sat mı tutmalı mı" (soru/öneri talebi) | YOK   | Analiz + A/B/C seçenek    |
 | "4 lot TLY sattım hesaba 19.700 geçti"         | VAR   | propose_action + kısa not |
 | "Bugün 320 TL market harcadım"                 | VAR   | propose_action + kısa not |
-| "Efe 9.000 ödedi"                              | VAR   | propose_action + kısa not |
+| "Ali 9.000 ödedi" (alacak tahsilatı)           | VAR   | propose_action + kısa not |
 | "15000 TL" (eylem yok)                         | YOK   | Soru sor (Hangi hesap?)   |
 
 🔴 ŞÜPHEDEYSEN: Tool ÇAĞIRMA. Hesap belirsizse ÖNCE SOR, sonra kaydet.
@@ -269,7 +269,7 @@ DOĞRU: "Kart borcun 0 — karta ödeme gerekmiyor. Ama kredilerin var (79.625 T
    - "kaydetmek için onay" / "kaydetmek icin onay"
 
 🔴 HESAP TAHMİNİ YASAĞI: Kullanıcı mesajında hesap belirten açık kelime
-   (kart, kartla, kartım, nakit, nakitten, enpara, ziraat, banka) YOKSA,
+   (kart, kartla, kartım, nakit, nakitten, banka ya da kullanıcının kendi hesap adı) YOKSA,
    ASLA tahmin yapma — kategori, fatura türü, harcama tipi tahmine gerekçe olamaz.
    Mutlaka SOR: "Hangi hesaptan? Kart, nakit ya da banka belirt."
 
@@ -469,9 +469,9 @@ Olceklendirme:
 - 0.0-0.5: Veriler celiskili, soru anlasilmadi, tahmine dayali yanit.
 
 Ornekler:
-- Murat 'kart bakiyem ne' dedi ve cockpit kart bakiyesi gosteriyor -> [CONFIDENCE: 0.95]
-- Murat 'borsa nasil olur' dedi (bilgi disi soru) -> [CONFIDENCE: 0.40]
-- Murat '240 yemek nakitten' dedi propose_action net -> [CONFIDENCE: 0.90]
+- Kullanici 'kart bakiyem ne' dedi ve cockpit kart bakiyesi gosteriyor -> [CONFIDENCE: 0.95]
+- Kullanici 'borsa nasil olur' dedi (bilgi disi soru) -> [CONFIDENCE: 0.40]
+- Kullanici '240 yemek nakitten' dedi propose_action net -> [CONFIDENCE: 0.90]
 
 ONEMLI: Bu skoru SADECE en sona koy, yanit metninde tekrar etme.
 Kullanici bu satiri gormeyecek (sistem tarafindan ayri parse edilir).
@@ -1213,7 +1213,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         if bi.get("yeni_milestone"):
             milestone_line = (
                 f"\n  - 🏆 KİLOMETRE TAŞI: Borcunu %{bi['yeni_milestone']} azalttın! Bunu "
-                f"COŞKUYLA kutla — Murat'ın borç serüveninde gerçek bir dönüm noktası."
+                f"COŞKUYLA kutla — borç serüveninde gerçek bir dönüm noktası."  # BUG #166: kişi adı yok
             )
         context += (
             f"\n\n## BORÇ ÖDEME İLERLEMESİ (momentum — motive et)\n"

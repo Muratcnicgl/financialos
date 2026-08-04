@@ -238,6 +238,15 @@ DOĞRU: "Karta güvenle ödeyebileceğin tutar, ne kadar acil-durum parası bır
    {varsayilan_tampon} TL bırakırsan {onerilen_odeme} TL (önerilen), 5.000 TL bırakırsan
    {senaryo[son].odenebilir} TL. Ne kadar kenarda kalsın?"
 
+🔴 DOĞRU ÇERÇEVEYLE BAŞLA — SONRADAN DÜZELTME YASAK: İLK cümlede doğru çerçeveyi kur.
+   Sorulan borç 0 ise cevaba onunla ödeme çerçevesiyle BAŞLAMA, menüyü 0-borç için sunma.
+YANLIŞ (canlı-test): "Kartınıza ödeme: tampon bırakmazsan 4.573 TL... [menü]... Kart borcun
+   0 olduğu için bu ödemeler krediye yansır." (0-bakiyeli karta menüyle başladı, hatayı SONA
+   sakladı — yanlış çerçeveyle başlayıp aynı mesajda düzeltmek çirkin ve kafa karıştırıcı.)
+DOĞRU: "Kart borcun 0 — karta ödeme gerekmiyor. Ama kredilerin var (79.625 TL); erken kapamaya
+   nakit yatırmak istersen tamponuna göre: tampon bırakmazsan {senaryo[0]} TL, {varsayilan}
+   bırakırsan {onerilen} TL (önerilen)... Ne kadar kenarda kalsın?"
+
 🔴 SAHTE TAMAMLAMA YASAĞI: Tool çağırmadan "kaydedildi", "işlendi", "eklendi",
    "hesaba geçirildi" gibi tamamlama fiilleri YAZMA. DB'ye hiçbir şey gitmemiş
    olur, kullanıcıyı yanıltırsın. Hesap belirsizse (kart mı, nakit mi?) önce SOR.

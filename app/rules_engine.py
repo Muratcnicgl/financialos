@@ -909,31 +909,51 @@ def _calculate_safe_debt_payment(summary: Optional[Dict], buffer=ZERO) -> float:
     return round(max(ZERO, D(lowest) - D(buffer)), 2)  # ADR-030: Decimal
 
 
-def build_safe_debt_payment_scenarios(summary: Optional[Dict], default_buffer: float) -> Dict:
+def build_safe_debt_payment_scenarios(
+    summary: Optional[Dict], default_buffer: float, kart_borcu=ZERO, kredi_borcu=ZERO,
+) -> Dict:
     """
     FEAT-031: Koça tek uydurma sayı yerine ŞEFFAF bir MENÜ ver. Farklı acil-durum tamponları
     için ödenebilir tutarları döndürür → kullanıcı koçla tartışıp anlık karar verir
     ("0 tampon → X, 2.000 → Y, 5.000 → Z; hangisi?"). Tamponlar: {0, varsayılan, 5000}
-    (varsayılan `SAFE_DEBT_BUFFER` ile ayarlanabilir). Öngörü yoksa boş/None döner.
+    (varsayılan `SAFE_DEBT_BUFFER` ile ayarlanabilir).
+
+    BORÇ-FARKINDALIĞI (canlı-test dersi): ödenecek borç YOKSA (kart+kredi=0) `uygun=False`,
+    sebep="borc_yok" döner — koç 0-bakiyeli karta ödeme ÖNERMESİN. Ödeme kapasitesi mevcut
+    TOPLAM borçla da sınırlıdır (borçtan fazlası ödenemez). kart/kredi ayrımı koça açılır ki
+    "hangi borç" doğru yönlensin (kart 0 ama kredi varsa → erken-kapama bağlamı).
     """
-    if not summary:
-        return {"uygun": False}
+    toplam_borc = D(kart_borcu) + D(kredi_borcu)
+    if not summary or toplam_borc <= 0:
+        return {
+            "uygun": False,
+            "sebep": "borc_yok" if toplam_borc <= 0 else "ongoru_yok",
+            "kart_borcu": round(D(kart_borcu), 2),
+            "kredi_borcu": round(D(kredi_borcu), 2),
+        }
     lowest = summary.get("lowest_balance", 0.0)
     tiers = sorted({0.0, float(default_buffer), 5000.0})  # birden fazla senaryo (ayarlanabilir orta)
+
+    def _cap(x):  # ödeme kapasitesi mevcut borçtan fazla olamaz
+        return round(min(D(x), toplam_borc), 2)
+
     senaryolar = [
         {
             "tampon": round(t, 2),
-            "odenebilir": _calculate_safe_debt_payment(summary, buffer=t),
+            "odenebilir": _cap(_calculate_safe_debt_payment(summary, buffer=t)),
             "varsayilan": t == float(default_buffer),
         }
         for t in tiers
     ]
     return {
         "uygun": True,
+        "kart_borcu": round(D(kart_borcu), 2),          # koç "hangi borç" doğru yönlensin
+        "kredi_borcu": round(D(kredi_borcu), 2),
+        "toplam_borc": round(toplam_borc, 2),
         "en_dusuk_nakit": round(D(lowest), 2),          # openBalance'tan projekte en düşük nokta
         "en_dusuk_tarih": summary.get("lowest_date"),
         "varsayilan_tampon": round(float(default_buffer), 2),
-        "onerilen_odeme": _calculate_safe_debt_payment(summary, buffer=default_buffer),
+        "onerilen_odeme": _cap(_calculate_safe_debt_payment(summary, buffer=default_buffer)),
         "senaryolar": senaryolar,
     }
 
@@ -2129,7 +2149,8 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary, kart_borcu=kart_borcu)  # FEAT-009 + #123 kart-farkındalığı
     # FEAT-031: "karta/borca ne kadar öderim?" — koça uydurma yerine şeffaf senaryo menüsü.
     from app.settings import safe_debt_buffer as _safe_debt_buffer
-    guvenli_borc_odemesi = build_safe_debt_payment_scenarios(cashflow_summary, _safe_debt_buffer())
+    guvenli_borc_odemesi = build_safe_debt_payment_scenarios(
+        cashflow_summary, _safe_debt_buffer(), kart_borcu=kart_borcu, kredi_borcu=kredi_borcu)
     nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
     zarflar_durumu = calculate_envelopes(user_id, today, db)  # FEAT-001
     # FEAT-002 (YNAB "Ready to Assign" / her liraya görev): zarflara henüz taahhüt edilmemiş nakit.

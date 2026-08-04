@@ -83,16 +83,30 @@ def test_pure_kart_borcu_DUSULMEZ():
 # ---- senaryo menüsü --------------------------------------------------------
 
 def test_senaryolar_summary_yoksa_uygun_degil():
-    assert build_safe_debt_payment_scenarios(None, 2000.0) == {"uygun": False}
+    res = build_safe_debt_payment_scenarios(None, 2000.0, kredi_borcu=50000.0)
+    assert res["uygun"] is False
+    assert res["sebep"] == "ongoru_yok"
+
+
+def test_senaryolar_borc_yoksa_uygun_degil():
+    """Canlı-test dersi: kart+kredi=0 → ödenecek borç yok, koç öneri sunmasın."""
+    res = build_safe_debt_payment_scenarios({"lowest_balance": 8500.0}, 2000.0, kart_borcu=0.0, kredi_borcu=0.0)
+    assert res["uygun"] is False
+    assert res["sebep"] == "borc_yok"
+    assert res["kart_borcu"] == 0.0
 
 
 def test_senaryolar_yapisi_ve_varsayilan_isareti():
-    res = build_safe_debt_payment_scenarios({"lowest_balance": 8500.0, "lowest_date": "2026-05-20"}, 2000.0)
+    # kredi 50k → kapasite (8500) borçtan küçük, kapama YOK
+    res = build_safe_debt_payment_scenarios(
+        {"lowest_balance": 8500.0, "lowest_date": "2026-05-20"}, 2000.0, kredi_borcu=50000.0)
     assert res["uygun"] is True
     assert res["en_dusuk_nakit"] == 8500.0
     assert res["en_dusuk_tarih"] == "2026-05-20"
     assert res["varsayilan_tampon"] == 2000.0
     assert res["onerilen_odeme"] == 6500.0
+    assert res["kredi_borcu"] == 50000.0
+    assert res["toplam_borc"] == 50000.0
     # tamponlar {0, 2000, 5000}, artan sırada
     tamponlar = [s["tampon"] for s in res["senaryolar"]]
     assert tamponlar == [0.0, 2000.0, 5000.0]
@@ -103,9 +117,18 @@ def test_senaryolar_yapisi_ve_varsayilan_isareti():
     assert isaretli == [2000.0]
 
 
+def test_odenebilir_mevcut_borcla_sinirli():
+    """Kapasite 8500 ama toplam borç 500 → en fazla 500 ödenebilir (borçtan fazlası ödenemez)."""
+    res = build_safe_debt_payment_scenarios({"lowest_balance": 8500.0}, 2000.0, kart_borcu=500.0)
+    odemeler = {s["tampon"]: s["odenebilir"] for s in res["senaryolar"]}
+    assert odemeler == {0.0: 500.0, 2000.0: 500.0, 5000.0: 500.0}
+    assert res["onerilen_odeme"] == 500.0
+
+
 def test_senaryolar_ozel_varsayilan_tampon_setine_dahil():
     """SAFE_DEBT_BUFFER=3000 gibi özel değer senaryolara girsin (birden fazla seçenek)."""
-    res = build_safe_debt_payment_scenarios({"lowest_balance": 10000.0, "lowest_date": "2026-05-10"}, 3000.0)
+    res = build_safe_debt_payment_scenarios(
+        {"lowest_balance": 10000.0, "lowest_date": "2026-05-10"}, 3000.0, kredi_borcu=50000.0)
     tamponlar = [s["tampon"] for s in res["senaryolar"]]
     assert tamponlar == [0.0, 3000.0, 5000.0]
     assert res["onerilen_odeme"] == 7000.0
@@ -135,8 +158,15 @@ def test_settings_negatif_varsayilana_doner(monkeypatch):
 
 # ---- generate_cockpit entegrasyonu ----------------------------------------
 
+def _loan(db, balance):
+    a = Account(user_id=1, name="Kredi", account_type=AccountType.loan, balance=balance)
+    db.add(a); db.commit(); db.refresh(a)
+    return a
+
+
 def test_cockpit_guvenli_borc_odemesi_alani_var(db):
     _cash(db, 5000.0)
+    _loan(db, 30000.0)  # ödenecek borç olmalı ki senaryolar üretilsin
     cockpit = generate_cockpit(1, TODAY, db)
     assert "guvenli_borc_odemesi" in cockpit
     gbo = cockpit["guvenli_borc_odemesi"]
@@ -144,10 +174,20 @@ def test_cockpit_guvenli_borc_odemesi_alani_var(db):
     assert len(gbo["senaryolar"]) == 3
 
 
-def test_cockpit_lumpy_borc_odeme_tavani_kisitlar(db):
-    """Nakit 5000, 20 gün sonra 4000 borç → en düşük projekte 1000 → 0 tamponda 1000 ödenebilir
-    (guvenli_harcama'dan farklı hikaye değil ama kart düşülmediği için ayrışır)."""
+def test_cockpit_borc_yoksa_uygun_degil(db):
+    """Kart+kredi=0 (canlı-test senaryosu) → uygun=False, koç 0-borca ödeme önermez."""
     _cash(db, 5000.0)
+    cockpit = generate_cockpit(1, TODAY, db)
+    gbo = cockpit["guvenli_borc_odemesi"]
+    assert gbo["uygun"] is False
+    assert gbo["sebep"] == "borc_yok"
+
+
+def test_cockpit_lumpy_borc_odeme_tavani_kisitlar(db):
+    """Nakit 5000, 20 gün sonra 4000 payable → en düşük projekte 1000 → 0 tamponda 1000
+    ödenebilir. Kredi borcu 30k var (kapama tavanı 1000'in üstünde, kısıtlamaz)."""
+    _cash(db, 5000.0)
+    _loan(db, 30000.0)
     _payable(db, 4000.0, 20)
     cockpit = generate_cockpit(1, TODAY, db)
     gbo = cockpit["guvenli_borc_odemesi"]

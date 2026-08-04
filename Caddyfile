@@ -1,6 +1,19 @@
 # DOMAIN=localhost → HTTP; gerçek domain verilirse Caddy otomatik Let's Encrypt HTTPS.
-{$DOMAIN:localhost} {
+#
+# Site adresleri: `{$DOMAIN}` (gerçek domain → otomatik TLS) + `:80` (host adı ne olursa
+# olsun HTTP'yi karşılar → mobil/LAN'dan http://<makine-ip> ile erişim). `0.0.0.0` ve
+# çıplak `:443` adres listesinden ÇIKARILDI: IP için sertifika alınamaz, o adresler
+# Caddy'de TLS hatasına yol açar (BUG #184 — yarım kalmış LAN denemesi).
+{$DOMAIN:localhost}, :80 {
     encode gzip
+
+    # BUG #184 (P2): istek gövdesi sınırı YOKTU — kimliği doğrulanmış tek kullanıcı
+    # gigabaytlık gövde göndererek diski/DB'yi doldurabilirdi (nginx tarafında 1m vardı,
+    # Caddy yolunda yoktu). nginx ile aynı sınır.
+    request_body {
+        max_size 1MB
+    }
+
     # API → backend (aynı origin, CORS gereksiz)
     handle /api/* {
         reverse_proxy backend:8000
@@ -17,6 +30,9 @@
         X-Frame-Options "DENY"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
+        # BUG #184 (P2): CSP YOKTU — nginx yolunda vardı, Caddy yolunda XSS savunma
+        # katmanlarından biri eksikti. nginx.conf.template ile AYNI politika.
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"
         -Server
     }
 }

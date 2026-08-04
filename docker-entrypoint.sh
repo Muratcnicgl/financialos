@@ -25,4 +25,5 @@ exec gunicorn app.main:app \
     --workers "${WEB_CONCURRENCY:-2}" \
     --bind 0.0.0.0:8000 \
     --timeout 60 \
+    --forwarded-allow-ips "${FORWARDED_ALLOW_IPS:-*}" \
     --access-logfile - --error-logfile -

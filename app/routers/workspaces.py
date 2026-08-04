@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -211,6 +211,7 @@ def remove_member(
 def invite_member(
     workspace_id: int,
     body: InviteCreate,
+    request: Request,
     db: Session = Depends(get_db),
     membership: WorkspaceMembership = Depends(require_workspace(WorkspaceRole.owner)),
 ) -> InviteOut:
@@ -219,6 +220,11 @@ def invite_member(
     Personal workspace'e davet edilemez. Owner rolüyle davet edilemez (owner tek).
     """
     from app.services.workspace_invite import create_invite_token, build_invite_link, send_invite_email
+
+    # BUG #183 (P2): davet ucunda rate limit YOKTU — kayit olan herkes bir workspace yaratip
+    # sinirsiz adrese SMTP'mizden e-posta gonderebiliyordu (spam relay + SPF/DKIM itibari).
+    from app.rate_limit import rate_limit as _rl
+    _rl(request, "invite", db=db)
 
     if membership.workspace_id != workspace_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,

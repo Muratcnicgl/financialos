@@ -946,6 +946,24 @@ class GoalAllocation(Base):
         Index("ix_goal_allocations_transaction_id", "transaction_id"),
     )
 
+class RateLimitHit(Base):
+    """BUG #182 (P2): rate-limit sayaci — PROCESS-YEREL degil, paylasilan.
+
+    Eskiden sayaclar bellekteki bir sozlukteydi: gunicorn cok-worker kurulumunda her
+    worker kendi sayacini tutuyor, ilan edilen limit worker sayisi kadar katlaniyordu;
+    her restart da sayaci sifirliyordu. Satirlar pencere disina cikinca silinir.
+    """
+    __tablename__ = "rate_limit_hits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bucket_key = Column(String(160), nullable=False, index=True)  # "<bucket>:<istemci_ip>"
+    hit_at = Column(DateTime, nullable=False, index=True)
+
+    __table_args__ = (
+        Index("ix_rate_limit_key_time", "bucket_key", "hit_at"),
+    )
+
+
 class RevokedToken(Base):
     """M11 (ADR-033): logout/blacklist — geçersiz kılınan JWT'lerin jti'si.
 

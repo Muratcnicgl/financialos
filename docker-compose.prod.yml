@@ -37,6 +37,9 @@ services:
       # BUG #169: konteyner varsayılanı UTC → date.today() TR'de 00:00-03:00 arası bir ÖNCEKİ
       # günü verir (günlük limit, işlem tarihi, ay sınırı tetikleme yanlış olur).
       TZ: ${TZ:-Europe/Istanbul}
+      # BUG #182: nginx onde -> X-Forwarded-For'un EN SAGDAKI degeri gercek istemcidir.
+      # Bu olmadan tum kullanicilar TEK rate-limit kovasina dusuyordu (login DoS).
+      TRUST_PROXY_HEADERS: "1"
       AUTH_ENABLED: "true"
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY .env.prod'da zorunlu (fail-fast)}
       # RLS'in etkili olması için app NON-superuser rol (financialos) ile bağlanır (ADR-038, M51)

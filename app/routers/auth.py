@@ -95,7 +95,7 @@ class PasswordResetConfirmIn(BaseModel):
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
 def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) -> TokenOut:
-    _rate_limit(request, "register")
+    _rate_limit(request, "register", db=db)  # BUG #182: paylasilan sayac
     if not body.kvkk_consent:
         raise HTTPException(422, "KVKK açık rıza zorunlu (kvkk_consent=true).")
     email = body.email.lower().strip()
@@ -121,7 +121,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
 
 @router.post("/login", response_model=TokenOut)
 def login(body: LoginIn, request: Request, db: Session = Depends(get_db)) -> TokenOut:
-    _rate_limit(request, "login")
+    _rate_limit(request, "login", db=db)  # BUG #182: paylasilan sayac
     email = body.email.lower().strip()
     user = db.query(User).filter(User.email == email).first()
     # Zamanlama-güvenli: kullanıcı yoksa da verify çağır (user enumeration önle)
@@ -186,7 +186,7 @@ def password_reset_request(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> dict:
-    _rate_limit(request, "pwreset")
+    _rate_limit(request, "pwreset", db=db)  # BUG #182: paylasilan sayac
     email = body.email.lower().strip()
     user = db.query(User).filter(User.email == email).first()
     # Kullanıcı enumeration önle: her durumda aynı cevap
@@ -241,9 +241,9 @@ def password_reset_confirm(body: PasswordResetConfirmIn, db: Session = Depends(g
 # --- OAuth (Google + GitHub — gerçek akış, ADR-033) ---
 
 @router.get("/oauth/{provider}/login")
-def oauth_login(provider: str, request: Request):
+def oauth_login(provider: str, request: Request, db: Session = Depends(get_db)):
     """Kullanıcıyı sağlayıcı (Google/GitHub) onay ekranına yönlendirir (307)."""
-    _rate_limit(request, "oauth")  # M21: 10/dk
+    _rate_limit(request, "oauth", db=db)  # BUG #182: paylasilan sayac  # M21: 10/dk
     provider = provider.lower()
     if provider not in _oauth.SUPPORTED:
         raise HTTPException(404, f"Desteklenen sağlayıcılar: {_oauth.SUPPORTED}")
@@ -327,7 +327,7 @@ class OAuthExchangeIn(BaseModel):
 def oauth_exchange(body: OAuthExchangeIn, request: Request,
                    db: Session = Depends(get_db)) -> TokenOut:
     """BUG #179: değişim kodunu token'la takas eder (tek kullanımlık, 60 sn)."""
-    _rate_limit(request, "login")
+    _rate_limit(request, "login", db=db)  # BUG #182: paylasilan sayac
     try:
         payload = _auth.decode_token(body.code, expected_type="oauth_exchange")
     except _jwt.PyJWTError:

@@ -77,3 +77,48 @@ def test_env_ornek_dosyasi_tz_belgeler():
     p = _ROOT / ".env.prod.example"
     assert p.exists()
     assert "TZ" in p.read_text(encoding="utf-8"), ".env.prod.example TZ'yi belgelemiyor"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BUG #182/#184 — proxy/limit/başlık yapılandırmasının statik kapısı
+# (Sunucu olmadan doğrulanabilen her şey doğrulanır — Wave-8 Blok A deseni.)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_backend_proxy_basliklarina_guvenir():
+    """BUG #182: nginx önde olduğu için TRUST_PROXY_HEADERS açık olmalı.
+
+    Kapalıysa limiter `request.client.host`u (= nginx IP'si) kullanır ve TÜM kullanıcılar
+    tek rate-limit kovasına düşer: bir saldırgan herkesin girişini kilitler.
+    """
+    bloklar = _servis_bloklari(_compose_metni())
+    assert re.search(r"^\s*TRUST_PROXY_HEADERS:", bloklar["backend"], re.MULTILINE), (
+        "backend servisinde TRUST_PROXY_HEADERS yok → proxy arkasında rate limit tek kovaya düşer"
+    )
+
+
+def test_gunicorn_forwarded_ips_ayarli():
+    """gunicorn varsayılanı 127.0.0.1'dir; nginx ayrı konteynerden gelir → başlık düşerdi."""
+    entry = (_ROOT / "docker-entrypoint.sh").read_text(encoding="utf-8")
+    assert "--forwarded-allow-ips" in entry, (
+        "gunicorn --forwarded-allow-ips verilmiyor → X-Forwarded-For güvenilmez sayılır"
+    )
+
+
+def test_nginx_auth_uclarinda_limit_req():
+    """İkinci savunma katmanı: uygulamaya hiç ulaşmadan sel saldırısını kes."""
+    conf = (_ROOT / "deploy" / "nginx.conf.template").read_text(encoding="utf-8")
+    assert "limit_req_zone" in conf and "limit_req zone=" in conf, (
+        "nginx katmanında rate limit yok (yalnız uygulama katmanı)"
+    )
+
+
+def test_caddy_csp_ve_govde_siniri():
+    """BUG #184: Caddy yolunda CSP ve gövde sınırı yoktu (nginx yolunda vardı)."""
+    caddy = (_ROOT / "Caddyfile").read_text(encoding="utf-8")
+    assert "Content-Security-Policy" in caddy, "Caddyfile'da CSP yok"
+    assert "max_size" in caddy, "Caddyfile'da istek gövdesi sınırı yok"
+    # Yalnız YAPILANDIRMA satırları (yorumlar hariç) denetlenir
+    kod = [l for l in caddy.splitlines() if not l.strip().startswith("#")]
+    assert not any("0.0.0.0" in l for l in kod), (
+        "Geçersiz site adresi (0.0.0.0) — Caddy IP için sertifika alamaz, TLS hatası verir"
+    )

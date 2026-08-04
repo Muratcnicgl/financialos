@@ -27,6 +27,19 @@ def is_production() -> bool:
     return environment() == "production"
 
 
+# FEAT-031: "güvenli borç ödemesi" için varsayılan acil-durum tamponu (TL). Ayarlanabilir —
+# projekte nakitin en düşük noktasında dokunulmadan kalması istenen taban. Cockpit senaryoları
+# {0, bu değer, 5000} tamponları için ödenebilir tutarı sunar; bu yalnız VARSAYILAN/önerilendir.
+def safe_debt_buffer() -> float:
+    raw = os.getenv("SAFE_DEBT_BUFFER", "2000").strip()
+    try:
+        val = float(raw)
+        return val if val >= 0 else 2000.0  # negatif anlamsız → varsayılana dön
+    except ValueError:
+        logger.warning("[settings] geçersiz SAFE_DEBT_BUFFER=%r → varsayılan 2000", raw)
+        return 2000.0
+
+
 def secret_key_problems() -> list[str]:
     """SECRET_KEY ile ilgili güvenlik sorunlarını döndürür (boş liste = sorun yok)."""
     secret = os.getenv("SECRET_KEY", "").strip()

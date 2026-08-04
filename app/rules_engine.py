@@ -889,6 +889,55 @@ def _calculate_safe_to_spend(summary: Optional[Dict], kart_borcu=ZERO, buffer=ZE
     return round(max(ZERO, D(lowest) - D(kart_borcu) - D(buffer)), 2)  # ADR-030: Decimal
 
 
+def _calculate_safe_debt_payment(summary: Optional[Dict], buffer=ZERO) -> float:
+    """
+    FEAT-031: BUGÜN borca (kart/kredi) güvenle yatırılabilecek EN BÜYÜK tutar — ay-sonuna/
+    gelire kadar nakit `buffer`ın altına düşmeden. Koçun "karta ne kadar öderim?" sorusuna
+    UYDURMADAN cevap vermesi için (ADR-001: engine hesaplar, LLM açıklar — daha önce koç
+    `guvenli_harcama`'yı yanlışlıkla ödeme tutarı sanıyordu).
+
+    Matematik: bugün X ödemek tüm gelecek projekte bakiyeleri X düşürür → kısıt
+    lowest_balance - X >= buffer → X <= lowest_balance - buffer.
+
+    `_calculate_safe_to_spend` ile AYNI çekirdek, TEK farkı: borç ödemesi o borcu ORTADAN
+    kaldırır → kart_borcu düşülmez (harcamada düşülür; orada borç kalıcı yük). Öngörü kart
+    döngüsünü içermez (cashflow.py) → `buffer` ihtiyatı bu yüzden önemli.
+    """
+    if not summary:
+        return 0.0
+    lowest = summary.get("lowest_balance", 0.0)
+    return round(max(ZERO, D(lowest) - D(buffer)), 2)  # ADR-030: Decimal
+
+
+def build_safe_debt_payment_scenarios(summary: Optional[Dict], default_buffer: float) -> Dict:
+    """
+    FEAT-031: Koça tek uydurma sayı yerine ŞEFFAF bir MENÜ ver. Farklı acil-durum tamponları
+    için ödenebilir tutarları döndürür → kullanıcı koçla tartışıp anlık karar verir
+    ("0 tampon → X, 2.000 → Y, 5.000 → Z; hangisi?"). Tamponlar: {0, varsayılan, 5000}
+    (varsayılan `SAFE_DEBT_BUFFER` ile ayarlanabilir). Öngörü yoksa boş/None döner.
+    """
+    if not summary:
+        return {"uygun": False}
+    lowest = summary.get("lowest_balance", 0.0)
+    tiers = sorted({0.0, float(default_buffer), 5000.0})  # birden fazla senaryo (ayarlanabilir orta)
+    senaryolar = [
+        {
+            "tampon": round(t, 2),
+            "odenebilir": _calculate_safe_debt_payment(summary, buffer=t),
+            "varsayilan": t == float(default_buffer),
+        }
+        for t in tiers
+    ]
+    return {
+        "uygun": True,
+        "en_dusuk_nakit": round(D(lowest), 2),          # openBalance'tan projekte en düşük nokta
+        "en_dusuk_tarih": summary.get("lowest_date"),
+        "varsayilan_tampon": round(float(default_buffer), 2),
+        "onerilen_odeme": _calculate_safe_debt_payment(summary, buffer=default_buffer),
+        "senaryolar": senaryolar,
+    }
+
+
 def _calculate_cash_runway(
     user_id: int, today: date, db: Session, nakit: float, window_days: int = 30,
 ) -> Optional[int]:
@@ -2078,6 +2127,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     gizli_uyari_sayisi = max(0, len(_uyarilar) - _MAX_UYARI)
     alerts = _kritikler + _uyarilar[:_MAX_UYARI]
     guvenli_harcama = _calculate_safe_to_spend(cashflow_summary, kart_borcu=kart_borcu)  # FEAT-009 + #123 kart-farkındalığı
+    # FEAT-031: "karta/borca ne kadar öderim?" — koça uydurma yerine şeffaf senaryo menüsü.
+    from app.settings import safe_debt_buffer as _safe_debt_buffer
+    guvenli_borc_odemesi = build_safe_debt_payment_scenarios(cashflow_summary, _safe_debt_buffer())
     nakit_runway_gun = _calculate_cash_runway(user_id, today, db, nakit)  # FEAT-010
     zarflar_durumu = calculate_envelopes(user_id, today, db)  # FEAT-001
     # FEAT-002 (YNAB "Ready to Assign" / her liraya görev): zarflara henüz taahhüt edilmemiş nakit.
@@ -2162,6 +2214,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
             "daily_limit": daily_limit,
         },
         "guvenli_harcama": guvenli_harcama,  # FEAT-009: kart-hariç ileriye-dönük güvenli harcama tabanı
+        "guvenli_borc_odemesi": guvenli_borc_odemesi,  # FEAT-031: borca güvenle yatırılabilir tutar (senaryo menüsü)
         "nakit_runway_gun": nakit_runway_gun,  # FEAT-010: gelirsiz nakit kaç gün yeter (None=belirsiz)
         "kart_kullanim": kart_kullanim,  # FEAT-016: kart utilization oranı + trend + kredi-sağlık bandı (None=kart yok)
         "kart_stratejisi": kart_stratejisi,  # P1-24/MC3: ekstre-döngüsü stratejisi (util-guard'lı; [] = uygun kart yok)

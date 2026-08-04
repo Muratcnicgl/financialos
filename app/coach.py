@@ -218,6 +218,23 @@ Kullanıcı sadece tutar girerse ("250 TL", "1000") ve bu tutar cockpit'teki hi�
 - "Bu tutarı harcama olarak mı yoksa gelir olarak mı kaydetmemi istersin? Ayrıca hangi hesaptan (kart/nakit) işlem yapıldı?" diye nazikçe sor.
 - Cockpit'teki bakiyeleri bu tutarla güncellemeye çalışma.
 
+🔴 BORÇ/KART ÖDEME TUTARI — HESAP UYDURMA YASAĞI (ADR-001, MANDATORY):
+Kullanıcı "karta/borca ne kadar öderim / ödemeliyim / yatırayım?" diye sorunca ASLA kendin
+hesaplama, TAHMİN etme. Cockpit'te `guvenli_borc_odemesi` HAZIR — onu kullan. Bu bir MENÜ'dür
+(farklı acil-durum tamponları için ödenebilir tutarlar):
+- Tek sayı DAYATMA; `senaryolar`ı sun ve kullanıcıya SOR: "Ne kadar acil-durum parası kenarda
+  tutmak istersin?" Kullanıcı seninle tartışıp anlık karar verir.
+- `guvenli_harcama` (aylık HARCAMA bütçesi) ≠ `guvenli_borc_odemesi` (borç ödeme kapasitesi).
+  ASLA KARIŞTIRMA — bu tam olarak geçmişte yapılan hataydı.
+- `guvenli_borc_odemesi.uygun=false` ise sayı UYDURMA; hesaplayamadığını söyle.
+
+YANLIŞ (geçmiş gerçek hata): "B seçeneği için 1.847,30 TL ödemelisin."
+   (O sayı `guvenli_harcama`'ydı — aylık HARCAMA bütçesi, ödeme kapasitesi DEĞİL. Uydurma.)
+DOĞRU: "Karta güvenle ödeyebileceğin tutar, ne kadar acil-durum parası bıraktığına bağlı
+   (cockpit `guvenli_borc_odemesi`'nden): tampon bırakmazsan {senaryo[0].odenebilir} TL,
+   {varsayilan_tampon} TL bırakırsan {onerilen_odeme} TL (önerilen), 5.000 TL bırakırsan
+   {senaryo[son].odenebilir} TL. Ne kadar kenarda kalsın?"
+
 🔴 SAHTE TAMAMLAMA YASAĞI: Tool çağırmadan "kaydedildi", "işlendi", "eklendi",
    "hesaba geçirildi" gibi tamamlama fiilleri YAZMA. DB'ye hiçbir şey gitmemiş
    olur, kullanıcıyı yanıltırsın. Hesap belirsizse (kart mı, nakit mi?) önce SOR.
@@ -816,6 +833,23 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
     else:
         net_deger_block = f"  - Net Değer         : {_fmt(cockpit['net_deger'])} TL"
 
+    # FEAT-031: güvenli borç ödemesi MENÜSÜ — koç "karta ne kadar öderim?" sorusunda
+    # uydurmasın, guvenli_harcama ile karıştırmasın; senaryoları sunup kullanıcıya sorsun.
+    gbo = cockpit.get("guvenli_borc_odemesi") or {}
+    borc_odeme_line = ""
+    if gbo.get("uygun"):
+        _senaryo_str = " · ".join(
+            f"{_fmt(s['tampon'])} tampon→{_fmt(s['odenebilir'])} TL"
+            + (" (önerilen)" if s.get("varsayilan") else "")
+            for s in gbo.get("senaryolar", [])
+        )
+        borc_odeme_line = (
+            f"\n  - Güvenli borç ödemesi: karta/borca bugün güvenle yatırılabilir tutar (FEAT-031, "
+            f"90g öngörü; en düşük projekte nakit {_fmt(gbo.get('en_dusuk_nakit', 0))} TL @ "
+            f"{gbo.get('en_dusuk_tarih', '—')}). MENÜ: {_senaryo_str}. "
+            f"'Ne kadar öderim' sorusunda BUNU sun; guvenli_harcama ile KARIŞTIRMA, uydurma."
+        )
+
     context = f"""
 # COCKPIT — BUGÜNKÜ DURUM
 
@@ -837,7 +871,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
   - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
   - Bugün harcamazsan : yarınki limit {_fmt(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))} TL/gün (zikzak: biriken güç)
   - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (FEAT-009: 90 gün öngörü + KART BORCU düşülmüş — gelecekteki yükümlülükler hesaba katılınca bugün gerçekten güvenle harcanabilir; 0 ise güvenli boşta para yok)
-  - Nakit runway      : {cockpit.get('nakit_runway_gun') if cockpit.get('nakit_runway_gun') is not None else '—'} gün (gelirsiz mevcut nakit son 30g harcama hızıyla kaç gün yeter)
+  - Nakit runway      : {cockpit.get('nakit_runway_gun') if cockpit.get('nakit_runway_gun') is not None else '—'} gün (gelirsiz mevcut nakit son 30g harcama hızıyla kaç gün yeter){borc_odeme_line}
 
 ## Hesaplar
 {accounts_text}

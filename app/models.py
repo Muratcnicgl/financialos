@@ -952,6 +952,29 @@ class GoalAllocation(Base):
         Index("ix_goal_allocations_transaction_id", "transaction_id"),
     )
 
+class ErrorLog(Base):
+    """BUG #195 (P5): beklenmedik hatalarin KENDI DB'mizde tutuldugu kayit.
+
+    Disa bagimli bir hata-izleme servisi (Sentry vb.) kullanicinin finansal verisini
+    ucuncu tarafa tasir ve yeni hesap/anahtar gerektirir; bu yuzden hata izleme
+    kendi kendine yeter. Ayni hata tekrar ederse yeni satir acilmaz, sayac artar.
+    Mesaj/traceback PII-temizliginden gecer (bkz. app/error_tracking.temizle).
+    """
+    __tablename__ = "error_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    fingerprint = Column(String(32), nullable=False, unique=True, index=True)
+    error_type = Column(String(80), nullable=False)
+    message = Column(Text, nullable=True)
+    path = Column(String(200), nullable=True)
+    method = Column(String(10), nullable=True)
+    traceback_tail = Column(Text, nullable=True)
+    occurrence_count = Column(Integer, default=1, nullable=False)
+    first_seen_at = Column(DateTime, nullable=False)
+    last_seen_at = Column(DateTime, nullable=False)
+    last_user_id = Column(Integer, nullable=True)   # FK YOK: kullanici silinse de hata izi kalir
+
+
 class DemoDataMarker(Base):
     """BUG #194 (P3.5/H5): demo veri olarak yaratilan satirlarin kimligi.
 

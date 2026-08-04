@@ -183,6 +183,41 @@ app.add_middleware(
 
 
 # ============================================================
+# HATA IZLEME (P5 / BUG #195)
+# ============================================================
+# Beklenmedik hata YALNIZ log dosyasina dusuyordu; kapali betada operator log'u surekli
+# izleyemez -> hata sessizce yasar. Artik kendi DB'mize kaydedilir (dis servise veri gitmez).
+
+from fastapi import Request as _Request
+from fastapi.responses import JSONResponse as _JSONResponse
+
+
+@app.exception_handler(Exception)
+async def _beklenmedik_hata(request: _Request, exc: Exception):
+    from app.database import SessionLocal as _SL
+    from app.error_tracking import kaydet as _kaydet
+    user_id = None
+    try:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            from app import auth as _a
+            user_id = int(_a.decode_token(auth[7:].strip(), expected_type="access")["sub"])
+    except Exception:
+        user_id = None
+    db = _SL()
+    try:
+        _kaydet(db, hata=exc, yol=str(request.url.path), metod=request.method, user_id=user_id)
+    finally:
+        db.close()
+    logger.exception("Beklenmedik hata: %s %s", request.method, request.url.path)
+    # BUG #175 ile tutarli: kullaniciya IC DETAY sizmaz.
+    return _JSONResponse(
+        status_code=500,
+        content={"detail": "Beklenmedik bir hata oluştu. Kayıt altına alındı."},
+    )
+
+
+# ============================================================
 # ROUTER KAYIT
 # ============================================================
 

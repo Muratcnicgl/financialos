@@ -394,7 +394,7 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 | P1 | Veri izolasyonu | ✅ | 4 bug kapandı (**#162** çapraz-kullanıcı kural sızıntısı, **#163** çok-kullanıcı backfill, **#164** yıkıcı script footgun'ı, **#165** workspace kapsam tutarsızlığı) + statik kapı (3 meta-testle ispatlı) + runtime matris (17 test, kapsam kilitli) + **PostgreSQL RLS gate 13 passed** (`scripts/pg_gate_run.py`) |
 | P2 | Güvenlik review | ⬜ | |
 | P3 | Operasyonel gerçeklik | ⬜ | |
-| P3.5 | **Ürünleşme (tek-kullanıcı DNA söküm)** | 🟡 | ⚠️ YAYIN-ENGELİ. Gerçeklik ölçüldü (kişi adı/banka markası/MC sabitleri kodda); görevler §P3.5 |
+| P3.5 | **Ürünleşme (tek-kullanıcı DNA söküm)** | 🟡 | ⚠️ YAYIN-ENGELİ. **1. tur bitti:** BUG #166 (metinlerde kişi adı → jenerik + statik kapı), #167 (TR normalize Kiril 'о' + sıra hatası → sessiz veri bozulması), #168 (banka markası koda gömülü → kullanıcının kendi hesap adları). **Kalan:** kullanıcı-tanımlı kural motoru (MC sabitleri), kişiselleştirme alanları, boş-durum + demo veri, sıfırdan-kullanıcı uçtan uca testi, yorum/docstring temizliği |
 | P4 | Hukuki/uyum | ⬜ | |
 | P5 | Dayanıklılık/gözlem | ⬜ | |
 | P6 | Canlı ortam | ⬜ | §9.1 insan-kapısı bekliyor |

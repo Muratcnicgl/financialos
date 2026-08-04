@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 
 from app.database import SessionLocal
+from app.version import APP_VERSION as _APP_VERSION, build_commit as _build_commit  # P9
 from app.models import NetWorthSnapshot, User
 
 # === Router'lar ===
@@ -131,7 +132,7 @@ _docs_disabled = _is_prod()
 app = FastAPI(
     title="FinancialOS API",
     description="160 IQ stratejik finansal koc — backend.",
-    version="0.1.0",
+    version=_APP_VERSION,   # P9: tek kaynak app/version.py
     lifespan=lifespan,
     docs_url=None if _docs_disabled else "/docs",
     redoc_url=None if _docs_disabled else "/redoc",
@@ -269,7 +270,10 @@ def _health_payload() -> dict:
     return {
         "status": "ok",
         "service": "FinancialOS",
-        "version": "0.1.0",
+        # BUG #200 (P9): surum SABIT "0.1.0" idi -> canlida hangi kodun kostugu
+        # olculemiyordu (hata bildirimi, deploy dogrulamasi, geri alma sonrasi kontrol).
+        "version": _APP_VERSION,
+        "build": _build_commit(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "auth_enabled": auth_enabled(),  # M11: frontend login gate'i buna bakar
     }

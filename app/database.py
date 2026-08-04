@@ -42,7 +42,18 @@ if IS_SQLITE:
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 elif IS_POSTGRES:
     # PERF-014: kopan bağlantıları önceden tespit et (pool_pre_ping) + makul havuz.
-    _engine_kwargs.update(pool_pre_ping=True, pool_size=5, max_overflow=10)
+    # P5 (BUG #201) KAPASİTE: havuz PROCESS BAŞINADIR. Toplam bağlantı =
+    #   WEB_CONCURRENCY × (pool_size + max_overflow) + scheduler(1×)
+    # Bu toplam Postgres `max_connections` (varsayılan 100) sınırını AŞARSA uygulama
+    # yük altında "too many connections" ile düşer — ve bu ancak canlıda görülür.
+    # Varsayılan: 2 worker × (5+10) + scheduler 15 = 45 < 100 (güvenli).
+    # Küçük VM'de (Oracle Free 1GB) havuzu env ile küçültmek gerekebilir.
+    _engine_kwargs.update(
+        pool_pre_ping=True,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
+        pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "1800")),  # 30 dk: bayat bağlantı kesilir
+    )
 
 engine = create_engine(DATABASE_URL, **_engine_kwargs)
 

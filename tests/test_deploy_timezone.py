@@ -140,3 +140,26 @@ def test_env_ornekleri_kodla_ayni_degisken_adlarini_kullanir():
     assert not eksik, (
         ".env.prod.example kodun beklediği değişken adlarını içermiyor:\n" + "\n".join(eksik)
     )
+
+
+def test_deploy_surum_kimligini_enjekte_eder():
+    """P9 (BUG #200): canlıda hangi kodun koştuğu ölçülebilmeli.
+
+    `BUILD_COMMIT` enjekte edilmezse /api/health "bilinmiyor" döner ve deploy'un
+    gerçekten güncellendiği (veya geri alma sonrası hangi sürüme dönüldüğü) DOĞRULANAMAZ.
+    """
+    compose = _compose_metni()
+    assert "BUILD_COMMIT" in compose, "compose BUILD_COMMIT geçirmiyor"
+    deploy = (_ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
+    assert "git rev-parse" in deploy, "deploy.sh git SHA'yı hesaplamıyor"
+
+
+def test_kapasite_sinirlari_belgelenmis():
+    """P5 (BUG #201): havuz PROCESS BAŞINA. Formül yazılı olmazsa worker artırınca
+    'too many connections' ancak CANLIDA görülür."""
+    runbook = (_ROOT / "docs" / "deployment" / "runbook.md").read_text(encoding="utf-8")
+    assert "WEB_CONCURRENCY" in runbook and "max_connections" in runbook, (
+        "Runbook kapasite formülünü belgelemiyor"
+    )
+    compose = _compose_metni()
+    assert "DB_POOL_SIZE" in compose, "Havuz boyutu env ile ayarlanamıyor (küçük VM'de sorun)"

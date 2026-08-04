@@ -107,6 +107,22 @@ hicbir yere yazmaz (test ile kilitli: tests/test_live_gate_script.py).
 **24 saat sonra tekrar kos** — cron/fiyat tazeligi kapisi ancak bir gece gectikten
 sonra anlamlidir (P6.3).
 
+## Kapasite sınırları (P5)
+Havuz **process başınadır**; toplam bağlantı şu formülle hesaplanır:
+
+    WEB_CONCURRENCY × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + scheduler(1 process)
+
+Varsayılan: `2 × (5 + 10) + 15 = 45` < Postgres `max_connections` (100) → güvenli.
+`WEB_CONCURRENCY`'yi yükseltirsen havuzu da küçült; aksi halde yük altında
+**"too many connections"** alırsın (ve bunu ancak canlıda görürsün).
+Küçük VM'de (Oracle Free 1GB) önerilen: `WEB_CONCURRENCY=2`, `DB_POOL_SIZE=3`, `DB_MAX_OVERFLOW=5`.
+
+Kontrol:
+```sh
+docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d financialos -c "SHOW max_connections;"
+docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d financialos -c "SELECT count(*) FROM pg_stat_activity;"
+```
+
 ## Sorun giderme
 - **nginx başlamıyor:** TLS cert yok → `deploy/init-letsencrypt.sh` koşuldu mu? Logs: `docker compose logs web`.
 - **backend başlamıyor:** `.env.prod` SECRET_KEY placeholder/boş mu? Fail-fast reddeder → gerçek değer koy. Logs: `docker compose logs backend`.

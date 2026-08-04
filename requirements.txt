@@ -1,9 +1,9 @@
 # === Backend Core ===
-fastapi==0.115.0
+fastapi==0.141.1          # P2: starlette 0.38.6 CVE ailesi (12 advisory) → 1.3.1
 uvicorn[standard]==0.32.0
 sqlalchemy==2.0.36
 pydantic==2.9.2
-python-multipart==0.0.12
+python-multipart==0.0.32  # P2: PYSEC-2026-3039/3040
 
 # === LLM ===
 anthropic>=0.79.0
@@ -13,10 +13,10 @@ google-genai>=0.3.0
 tefas-crawler==0.5.0
 borsapy>=0.8.7
 yfinance==0.2.48
-requests==2.32.3
+requests==2.34.2          # P2: PYSEC-2026-1872/2275
 
 # === Yardımcılar ===
-python-dotenv==1.0.1
+python-dotenv==1.2.2      # P2: PYSEC-2026-2270
 python-dateutil==2.9.0
 
 groq>=0.11.0
@@ -26,8 +26,15 @@ apscheduler>=3.10
 
 # === Auth (Wave-3 M11) ===
 bcrypt==5.0.0               # şifre hash (doğrudan kullanım; passlib bcrypt5 uyumsuz)
-PyJWT==2.9.0                # JWT access/refresh token
+PyJWT==2.13.0               # JWT access/refresh token — P2: 11 advisory (token dogrulama kutuphanesi!)
 email-validator==2.2.0     # Pydantic EmailStr
-authlib==1.3.2             # OAuth (Google/GitHub) — API key gerekli
+authlib==1.7.2             # OAuth (Google/GitHub) — P2: 11 advisory
 psycopg2-binary==2.9.10  # M49 (Wave-7): PostgreSQL driver (hibrit dev-sqlite/prod-postgres)
 gunicorn==23.0.0  # MA1 (Wave-8): production WSGI/ASGI sunucu (uvicorn worker'ları ile)
+
+# === Guvenlik tabani (P2, Wave-9 — pip-audit 23 acik → 0) ===
+# Dolayli bagimliliklar da sabitlenir; eski surumler transitif olarak geri gelmesin.
+urllib3>=2.7.0
+cryptography>=50.0.0
+idna>=3.15
+pyasn1>=0.6.4

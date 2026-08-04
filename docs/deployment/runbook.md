@@ -55,7 +55,7 @@ docker compose -f docker-compose.prod.yml exec -T db pg_dump -U financialos fina
 ### Yedeği DOĞRULA (almak yetmez)
 ```sh
 test -s backup-$(date +%F).sql || echo "UYARI: dump BOŞ — yedek YOK sayılır"
-grep -c "CREATE TABLE" backup-$(date +%F).sql     # tablo sayısı beklenenle uyuşmalı (26)
+grep -c "CREATE TABLE" backup-$(date +%F).sql     # tablo sayısı beklenenle uyuşmalı (28 — `alembic upgrade head` sonrası)
 tail -1 backup-$(date +%F).sql                    # "PostgreSQL database dump complete" görmelisin
 ```
 

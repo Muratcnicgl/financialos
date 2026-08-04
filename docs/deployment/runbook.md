@@ -52,6 +52,49 @@ sh scripts/deploy.sh     # git pull → build → migrate → up → healthcheck
 docker compose -f docker-compose.prod.yml exec -T db pg_dump -U financialos financialos > backup-$(date +%F).sql
 ```
 
+### Yedeği DOĞRULA (almak yetmez)
+```sh
+test -s backup-$(date +%F).sql || echo "UYARI: dump BOŞ — yedek YOK sayılır"
+grep -c "CREATE TABLE" backup-$(date +%F).sql     # tablo sayısı beklenenle uyuşmalı (26)
+tail -1 backup-$(date +%F).sql                    # "PostgreSQL database dump complete" görmelisin
+```
+
+## Geri yükleme (P5 / H14 — provası yapılmış yol)
+> **Kural: geri yüklenebildiği kanıtlanmamış yedek, yedek değildir.** Bu akış
+> `tests/test_postgres_restore_drill.py` ile otomatik prova edilir (dump → veritabanını
+> düşür → geri yükle → veri birebir aynı mı). Felaket anında ilk kez denemeyin.
+
+```sh
+# 1) Yazma trafiğini durdur (veri tutarlılığı) — web + cron
+docker compose -f docker-compose.prod.yml stop backend scheduler
+
+# 2) MEVCUT durumun emniyet kopyası (yanlış yedeği yüklersen geri dönebilesin)
+docker compose -f docker-compose.prod.yml exec -T db \
+  pg_dump -U financialos financialos > pre-restore-$(date +%F-%H%M).sql
+
+# 3) Temiz veritabanı + geri yükleme (ON_ERROR_STOP: sessiz yarım yükleme YOK)
+docker compose -f docker-compose.prod.yml exec -T db \
+  psql -U financialos -d postgres -c 'DROP DATABASE financialos WITH (FORCE)'
+docker compose -f docker-compose.prod.yml exec -T db \
+  psql -U financialos -d postgres -c 'CREATE DATABASE financialos'
+cat backup-YYYY-MM-DD.sql | docker compose -f docker-compose.prod.yml \
+  exec -T db psql -U financialos -d financialos -v ON_ERROR_STOP=1
+
+# 4) Servisleri başlat + DOĞRULA (sessiz başarı sayılmaz)
+docker compose -f docker-compose.prod.yml start backend scheduler
+curl -fsS https://$DOMAIN/api/health
+docker compose -f docker-compose.prod.yml exec -T db \
+  psql -U financialos -d financialos -c 'SELECT COUNT(*) FROM users;'
+docker compose -f docker-compose.prod.yml exec -T db \
+  psql -U financialos -d financialos -c 'SELECT version_num FROM alembic_version;'
+```
+Alembic sürümü imajın beklediğinden **eskiyse** `docker compose exec backend python -m alembic
+upgrade head` çalıştırın (yedek eski şemadan gelmiş olabilir).
+
+**Dev/SQLite kurulumda:** `python -m scripts.restore --list` → `--verify <dosya>` →
+`--from <dosya> --confirm` (onaysız hiçbir şey yazılmaz, bozuk yedek reddedilir, geri
+yüklemeden önce mevcut DB'nin kopyası alınır).
+
 ## Sorun giderme
 - **nginx başlamıyor:** TLS cert yok → `deploy/init-letsencrypt.sh` koşuldu mu? Logs: `docker compose logs web`.
 - **backend başlamıyor:** `.env.prod` SECRET_KEY placeholder/boş mu? Fail-fast reddeder → gerçek değer koy. Logs: `docker compose logs backend`.

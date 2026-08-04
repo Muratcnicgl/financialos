@@ -29,6 +29,7 @@ DEFAULT_TESTS = [
     "tests/test_numeric_dual_dialect.py",
     "tests/test_net_worth_sign_source_m53.py",
     "tests/test_null_ordering_dual_dialect_m92.py",
+    "tests/test_postgres_restore_drill.py",   # P5/H14: yedek→geri yükleme provası (prod yolu)
 ]
 
 

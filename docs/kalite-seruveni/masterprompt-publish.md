@@ -59,18 +59,18 @@ yazılır, sonra ilgili faza görev olarak bağlanır. Buraya yazılmayan şey u
 | # | Madde | Kaynak | Bağlı faz | Durum |
 |---|---|---|---|---|
 | H1 | **Yeni kullanıcı kendi verisini + kendi öznel kurallarını kurabilmeli** — sistem "Murat'ın OS'u" olmaktan çıkıp ürün olmalı | Murat (4 Ağu) | P3.5 | 🟡 |
-| H2 | Kodda/prompt'ta gerçek kişi adı, banka markası, kişisel senaryo kalmamalı (statik kapı ile kilitle) | Claude (ölçüldü) | P3.5.1 | ⬜ |
+| H2 | Kodda/prompt'ta gerçek kişi adı, banka markası, kişisel senaryo kalmamalı (statik kapı ile kilitle) | Claude (ölçüldü) | P3.5.1 | 🟡 çalışma-zamanı metinleri temiz + statik kapı kuruldu; yorum/docstring turu kaldı |
 | H3 | Kullanıcının yazdığı kırmızı çizgi, koddaki MC1 kadar sert dayatılmalı | Claude | P3.5.2 | ⬜ |
 | H4 | Para birimi / dil / saat dilimi / maaş günü / kategori seti kullanıcı başına | Claude | P3.5.3 | ⬜ |
 | H5 | Boş-durum kırılmamalı + **isteğe bağlı** demo veri (tek tuşla sil) | Claude | P3.5.5 | ⬜ |
 | H6 | Hesabını silen kullanıcının verisi **gerçekten** silinmeli (KVKK "unutulma"), yedeklerdeki durum yazılı olmalı | Claude | P3.4 / P4.4 | ⬜ |
-| H7 | Veri dışa aktarma **taşınabilir** formatta (JSON/CSV) ve tam olmalı | Claude | P3.4 | ⬜ |
-| H8 | Kullanıcı başına LLM maliyet tavanı — bir kullanıcı bütçeyi tüketip diğerlerini kilitleyememeli | Claude | P3.1 | ⬜ |
-| H9 | Koça yazılan metin **prompt injection** taşıyabilir; koç başkasının verisine ulaşamamalı | Claude | P2.8 | ⬜ |
+| H7 | Veri dışa aktarma **taşınabilir** formatta (JSON/CSV) ve tam olmalı | Claude | P3.4 | ✅ doğrulandı (14 tablo, goal çocukları dahil) |
+| H8 | Kullanıcı başına LLM maliyet tavanı — bir kullanıcı bütçeyi tüketip diğerlerini kilitleyememeli | Claude | P3.1 | ✅ ADR-041 / BUG #188 |
+| H9 | Koça yazılan metin **prompt injection** taşıyabilir; koç başkasının verisine ulaşamamalı | Claude | P2.8 | 🟡 başkasının verisine ULAŞAMIYOR (doğrulandı); enjeksiyon yüzeyi sınırlandı (#177), tam ayrıştırma açık |
 | H10 | E-posta şablonları (davet/şifre sıfırlama) ürün kimliğiyle konuşmalı, kişisel imza taşımamalı | Claude | P3.5.1 | ⬜ |
 | H11 | Şifre sıfırlama/oturum akışı gerçek e-posta ile uçtan uca denenmeli (SMTP canlı) | Claude | P6.3 | ⬜ |
-| H12 | Kayıt sırasında KVKK rızası sürüm/tarih ile saklanmalı (mevcut) + metin **yayında erişilebilir** olmalı | Claude | P4.3 | 🟡 |
-| H13 | "Yatırım tavsiyesi değildir" uyarısı koç arayüzünde de görünmeli (yalnız sözleşmede değil) | Claude | P4.2 | ⬜ |
+| H12 | Kayıt sırasında KVKK rızası sürüm/tarih ile saklanmalı (mevcut) + metin **yayında erişilebilir** olmalı | Claude | P4.3 | ✅ BUG #191 (v2) |
+| H13 | "Yatırım tavsiyesi değildir" uyarısı koç arayüzünde de görünmeli (yalnız sözleşmede değil) | Claude | P4.2 | ✅ koç paneli + kayıt ekranı |
 | H14 | Yedekten **geri yükleme provası** yapılmadan yedek sayılmaz | Claude | P5.1 | ⬜ |
 | H15 | Beta kullanıcısının bildirdiği hata, geliştiriciye **kullanıcı verisi sızmadan** ulaşmalı (FEAT-033 içeriği) | Claude | P7 | ⬜ |
 | H16 | Fiyat sağlayıcıları (TEFAS/BIST/döviz) çöktüğünde uygulama çalışmaya devam etmeli, sayı **bayat** işaretlenmeli | Claude | P5.2 | 🟡 |
@@ -393,9 +393,9 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 | P0 | Temel doğrulama | ✅ | `pytest tests/ -q` → **1318 passed, 5 skipped** (63s); migration/çalışma-ağacı kontrolü yapıldı |
 | P1 | Veri izolasyonu | ✅ | 4 bug kapandı (**#162** çapraz-kullanıcı kural sızıntısı, **#163** çok-kullanıcı backfill, **#164** yıkıcı script footgun'ı, **#165** workspace kapsam tutarsızlığı) + statik kapı (3 meta-testle ispatlı) + runtime matris (17 test, kapsam kilitli) + **PostgreSQL RLS gate 13 passed** (`scripts/pg_gate_run.py`) |
 | P2 | Güvenlik review | ✅ | **19 bug kapandı + bağımlılık 23→0.** Rapor: `guvenlik-review-publish.md`. Kabul edilen 3 risk gerekçeli yazılı (kayıt enumerasyonu, dolaylı prompt injection, localStorage token). Eski not: **8 başlıktan 6'sı kapandı.** Kapatılan: #170 sıfırlama-token'ı prod'da yanıtta dönüyordu (hesap ele geçirme), #171 prod'da AUTH_ENABLED doğrulanmıyordu (API kimliksiz açık), #172 şifre sıfırlama oturumları düşürmüyordu + tek-kullanım + logout access iptali, #173 viewer paylaşılan workspace'e yazabiliyordu, #174 kimliksiz kullanıcı yaratma, #175 ham exception gövdede, #176/#177/#181 girdi sınırları, #178 prod CORS localhost, #179 OAuth token'ları URL'de, #180 PII log. **Bağımlılık: pip-audit 23 açık → 0** (PyJWT/authlib/starlette/cryptography dahil), npm audit 0. **KALAN:** rate-limit çok-worker/proxy-IP (Redis veya nginx limit_req), OAuth PKCE + state store çok-worker, refresh rotasyonu, şifre politikası (blocklist), Caddyfile CSP/gövde sınırı, register enumerasyonu kararı |
-| P3 | Operasyonel gerçeklik | ⬜ | |
+| P3 | Operasyonel gerçeklik | 🟡 | **Kota TAMAM (ADR-041, BUG #188):** kullanıcı-başına LLM tavanı — paylaşılan sağlayıcı kotasını tek kişi tüketip diğerlerini kilitleyemez; tavan dolunca uygulama kapanmaz (Rules Engine deterministik). **#189** OAuth env adı kod↔doküman uyumsuzluğu, **#190** giriş yapmış kullanıcı şifre değiştiremiyordu. Sıfırdan-kullanıcı e2e ✅ (P3.5). **Kalan:** onboarding rehberi + opsiyonel demo veri |
 | P3.5 | **Ürünleşme (tek-kullanıcı DNA söküm)** | 🟡 | ⚠️ YAYIN-ENGELİ. **1. tur bitti:** BUG #166 (metinlerde kişi adı → jenerik + statik kapı), #167 (TR normalize Kiril 'о' + sıra hatası → sessiz veri bozulması), #168 (banka markası koda gömülü → kullanıcının kendi hesap adları). **Kalan:** kullanıcı-tanımlı kural motoru (MC sabitleri), kişiselleştirme alanları, boş-durum + demo veri, sıfırdan-kullanıcı uçtan uca testi, yorum/docstring temizliği |
-| P4 | Hukuki/uyum | ⬜ | |
+| P4 | Hukuki/uyum | ✅ | **BUG #191:** rıza metni canlıda ERİŞİLEMEZDİ (imajda docs/ yok → 404). `/api/legal/<slug>` ucu + Dockerfile/dockerignore. Rıza **v2** (v1 "self-host" varsayıyordu — barındırılan betada yanlış beyan), kullanım şartları (SPK/tavsiye-değildir), veri-işleyen envanteri (kodla test-bağlı). Koç panelinde görünür uyarı (H13) |
 | P5 | Dayanıklılık/gözlem | ⬜ | |
 | P6 | Canlı ortam | ⬜ | §9.1 insan-kapısı bekliyor |
 | P7 | Kapalı beta | ⬜ | |

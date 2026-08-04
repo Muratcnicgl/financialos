@@ -98,7 +98,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     User, MasterCheckpoint, CoachMemory, PendingAction, ActionStatus,
 )
-from app.rules_engine import generate_cockpit, turkish_date, generate_monthly_summary
+from app.rules_engine import generate_cockpit, turkish_date, generate_monthly_summary, workspace_scope
 from app.action_executor import propose_action, _fmt, ACTION_TYPES  # M82: enum tek kaynak
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
@@ -203,8 +203,20 @@ sana BİLDİRDİĞİNDE çağrılır. Aşağıdaki tetikleyiciler dışında ASL
 | "4 lot TLY sattım hesaba 19.700 geçti"         | VAR   | propose_action + kısa not |
 | "Bugün 320 TL market harcadım"                 | VAR   | propose_action + kısa not |
 | "Efe 9.000 ödedi"                              | VAR   | propose_action + kısa not |
+| "15000 TL" (eylem yok)                         | YOK   | Soru sor (Hangi hesap?)   |
 
 🔴 ŞÜPHEDEYSEN: Tool ÇAĞIRMA. Hesap belirsizse ÖNCE SOR, sonra kaydet.
+
+🔴 VARSAYIM VE HALÜSİNASYON YASAĞI (MANDATORY):
+1. Cockpit verisinde olmayan HİÇBİR tutarı (TL) uydurma. Kullanıcı "15.000 TL" diyorsa ve bu cockpit'te yoksa, "Nakit kasanızda 15.000 TL var" DEME. Bunun yerine "15.000 TL'yi kaydetmek mi istiyorsunuz?" diye sor.
+2. Kullanıcının mesajındaki tutarı cockpit'teki bir hesapla (örneğin nakit kasası) doğrudan EŞLEŞTİRME, kullanıcı açıkça söylemedikçe.
+3. Kural 0 gereği eylem yoksa tool çağırma ama bakiye güncelleme niyetini (15000 tl nakit gibi) anla ve SADECE sor.
+
+🔴 SAF RAKAM VE EYLEMSİZ GİRİŞLER:
+Kullanıcı sadece tutar girerse ("250 TL", "1000") ve bu tutar cockpit'teki hiçbir kalemle eşleşmiyorsa:
+- TOOL ÇAĞIRMA (Kural 0).
+- "Bu tutarı harcama olarak mı yoksa gelir olarak mı kaydetmemi istersin? Ayrıca hangi hesaptan (kart/nakit) işlem yapıldı?" diye nazikçe sor.
+- Cockpit'teki bakiyeleri bu tutarla güncellemeye çalışma.
 
 🔴 SAHTE TAMAMLAMA YASAĞI: Tool çağırmadan "kaydedildi", "işlendi", "eklendi",
    "hesaba geçirildi" gibi tamamlama fiilleri YAZMA. DB'ye hiçbir şey gitmemiş
@@ -704,9 +716,10 @@ def _day_suffix(tarih_str: str, today) -> str:
     return f" ← {-days} gün önce vadesi geçti"
 
 
-def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
+def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int] = None) -> Tuple[str, Dict]:
     today = date.today()
-    cockpit = generate_cockpit(user_id, today, db)
+    with workspace_scope(workspace_id):
+        cockpit = generate_cockpit(user_id, today, db)
 
     checkpoints = (
         db.query(MasterCheckpoint)
@@ -714,9 +727,11 @@ def _build_context_message(db: Session, user_id: int) -> Tuple[str, Dict]:
             MasterCheckpoint.user_id == user_id,
             MasterCheckpoint.is_active == True,
         )
-        .order_by(MasterCheckpoint.priority.asc(), MasterCheckpoint.id.asc())
-        .all()
     )
+    if workspace_id is not None:
+        checkpoints = checkpoints.filter(MasterCheckpoint.workspace_id == workspace_id)
+    
+    checkpoints = checkpoints.order_by(MasterCheckpoint.priority.asc(), MasterCheckpoint.id.asc()).all()
 
     cp_lines = []
     for cp in checkpoints:
@@ -2273,6 +2288,7 @@ class CoachEngine:
         user_id: int,
         user_message: str,
         include_cockpit: bool = True,
+        workspace_id: Optional[int] = None,
     ) -> Dict:
         recorder = TraceRecorder(db, user_id=user_id)
         first_llm_step_db_id = None
@@ -2283,7 +2299,7 @@ class CoachEngine:
             system_prompt = V3_GOD_MODE_PROMPT
             cockpit_dict = None
             if include_cockpit:
-                context_text, cockpit_dict = _build_context_message(db, user_id)
+                context_text, cockpit_dict = _build_context_message(db, user_id, workspace_id)
                 system_prompt = f"{V3_GOD_MODE_PROMPT}\n\n{context_text}"
 
             with recorder.step(OperationName.RULE_CHECK, intent="Cockpit + kural durumu") as s:
@@ -2399,6 +2415,7 @@ class CoachEngine:
                             payload=inp["payload"],
                             summary=inp["summary"],
                             user_message=user_message,
+                            workspace_id=workspace_id,
                         )
                         # BUG #017 fix: Hem 'id' hem 'action_id' iceriyor (geriye uyumlu)
                         # BUG #027: _warning_text instance attr → SQLAlchemy expire'dan bağımsız
@@ -2475,6 +2492,7 @@ class CoachEngine:
                                 payload=inp["payload"],
                                 summary=inp["summary"],
                                 user_message=user_message,
+                                workspace_id=workspace_id,
                             )
                             retry_actions.append({
                                 "id": pending.id,
@@ -2552,7 +2570,7 @@ class CoachEngine:
             # LLM-003 (grounding): Koc cevabindaki her TL tutari cockpit'e izlenebilir mi?
             # Izlenemeyen tutar = potansiyel "silent hallucination" (varsayim yasak mandati).
             # UYARI sinyali — sert blok degil; guveni dusurur ve trace'e islenir.
-            grounding = check_grounding(reply, cockpit_dict or {})
+            grounding = check_grounding(reply, cockpit_dict or {}, user_message=user_message)
             if not grounding["ok"]:
                 logger.warning(
                     "grounding ihlali user_id=%s: cockpit'te bulunamayan TL tutarlari=%s",
@@ -2636,6 +2654,15 @@ class CoachEngine:
             recorder.close()
 
     def reset_history(self, db: Session, user_id: int) -> int:
+        # BUG #159 fix: ReasoningTrace satirlari CoachMemory'ye bagli, once onlari temizle.
+        # SQLAlchemy sqlite'da foreign key kısıtlamaları kapalı olsa bile verinin 
+        # yetim (orphaned) kalmasını engellemek için manuel temizlik sart.
+        from app.models import ReasoningTrace, CoachInsight
+        db.query(ReasoningTrace).filter(ReasoningTrace.user_id == user_id).delete()
+        
+        # Koçun davranışsal içgörülerini de sıfırla (kullanıcı 'sıfırla' dediğinde tam temizlik bekler)
+        db.query(CoachInsight).filter(CoachInsight.user_id == user_id).delete()
+
         deleted = db.query(CoachMemory).filter(CoachMemory.user_id == user_id).delete()
         db.commit()
         return deleted

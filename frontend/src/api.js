@@ -158,6 +158,16 @@ async function request(path, { method = 'GET', body, params, headers: extraHeade
     _emitAuthExpired();
   }
 
+  // BUG #162 fix: bayat/silinmis aktif-workspace 403'unde uygulama kilitlenmesin.
+  // localStorage'daki workspace ID silinmis/uye-olunmayan bir workspace'e isaret ediyorsa
+  // backend 403 "Bu workspace'e erisiminiz yok" doner. Bayat ID'yi temizleyip header'siz
+  // bir kez tekrar dene → backend personal workspace'e duser (kopru-desen). _retry ile dongu yok.
+  if (res.status === 403 && !_retry && _ws &&
+      typeof (data?.detail) === 'string' && data.detail.includes('workspace')) {
+    setActiveWorkspaceId(null);  // bayat secimi temizle
+    return request(path, { method, body, params, headers: extraHeaders, _retry: true });
+  }
+
   if (!res.ok) {
     // FastAPI hatalari {detail: ...} sekleinde gelir
     const detail = data?.detail ?? data;

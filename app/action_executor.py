@@ -187,6 +187,7 @@ def propose_action(
     payload: Dict,
     summary: str,
     user_message: str = "",
+    workspace_id: Optional[int] = None,
 ) -> PendingAction:
     """
     Koçun önerdiği aksiyonu PendingAction tablosuna kaydeder.
@@ -197,6 +198,7 @@ def propose_action(
         action_type: Aksiyon türü (yukarıdaki listeden biri)
         payload: Aksiyon verisi (dict, JSON serialize edilebilir olmalı)
         summary: Kullanıcıya gösterilecek tek cümle özet
+        workspace_id: Aksiyonun kaydedileceği workspace (M43)
 
     Returns:
         Yeni oluşturulan PendingAction kaydı (status=pending)
@@ -217,7 +219,12 @@ def propose_action(
                 and _DATE_KEYWORD_RE.search(summary)
                 and not payload.get("transaction_date")):
             raise ValueError("TARIH_BELIRSIZ")
-        payload = _normalize_transaction_payload(payload, user_id, db)
+        
+        # M43: normalization işlemi workspace scope'unda olmalı ki doğru hesapları bulabilsin
+        from app.rules_engine import workspace_scope
+        with workspace_scope(workspace_id):
+            payload = _normalize_transaction_payload(payload, user_id, db)
+        
         # BUG #027: Kart limit aşımı uyarısı — DB rejection yok, kullanıcı karar verir
         if payload.get("is_card_expense") and payload.get("account_id"):
             card = db.query(Account).filter(
@@ -235,15 +242,19 @@ def propose_action(
                     )
                     logger.warning(f"BUG #027: {warning}")
 
-    # M43: koç/tetikleyici önerileri kullanıcının personal workspace'ine bağlanır (varsayılan
-    # bağlam). Böylece pending listesi workspace'e göre güvenle filtrelenebilir (NULL kalmaz).
-    from app.models import Workspace
-    _pw = (db.query(Workspace)
-           .filter(Workspace.owner_user_id == user_id, Workspace.is_personal.is_(True))
-           .first())
+    # M43: koç/tetikleyici önerileri aktif workspace'e bağlanır. 
+    # workspace_id yoksa personal workspace'e düşer (geriye uyum).
+    effective_ws_id = workspace_id
+    if effective_ws_id is None:
+        from app.models import Workspace
+        _pw = (db.query(Workspace)
+               .filter(Workspace.owner_user_id == user_id, Workspace.is_personal.is_(True))
+               .first())
+        effective_ws_id = _pw.id if _pw else None
+    
     pending = PendingAction(
         user_id=user_id,
-        workspace_id=_pw.id if _pw else None,  # M43
+        workspace_id=effective_ws_id,  # M43
         action_type=action_type,
         payload=json.dumps(payload, ensure_ascii=False, default=str),
         summary=summary,

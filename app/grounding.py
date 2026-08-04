@@ -18,8 +18,9 @@ from typing import Any, Dict, List
 # "42.100,50 TL" / "268 TL" / "1.234 TL" — TL etiketli tutarları yakalar (TR sayı formatı).
 # TL etiketi zorunlu: yalnızca koçun açıkça FİNANSAL tutar olarak öne sürdüğü sayılar denetlenir
 # (yıl/gün/yüzde gibi sayılar yanlış-pozitif üretmesin).
+# Ondalık virgül (,) opsiyonel; binlik ayırıcı (.) opsiyonel.
 _TL_NUM_RE = re.compile(
-    r"(?P<num>\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)\s*TL",
+    r"(?P<num>\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d+(?:,\d+)?)\s*TL",
     re.IGNORECASE,
 )
 
@@ -46,6 +47,7 @@ def _collect_numeric(obj: Any, out: List[float]) -> None:
 def check_grounding(
     reply: str,
     cockpit: Dict[str, Any],
+    user_message: str = "",
     *,
     min_magnitude: float = 100.0,
     rel_tol: float = 0.02,
@@ -54,18 +56,21 @@ def check_grounding(
     """
     Koç cevabındaki TL tutarlarını cockpit değerleriyle karşılaştır.
 
-    Dönen:
-        {
-          "ok": bool,               # tüm TL tutarları izlenebilir mi
-          "checked": int,           # denetlenen TL tutarı sayısı
-          "unverified": [float],    # cockpit'te karşılığı bulunamayan tutarlar
-        }
-
-    min_magnitude altındaki tutarlar atlanır (küçük yuvarlamalar/gürültü).
-    Eşleşme: mutlak değer, rel_tol veya abs_tol toleransıyla herhangi bir cockpit değerine yakın.
+    Ders LLM-003a: Kullanıcının az önce söylediği tutar cockpit'e henüz girmediği
+    için (pending action) grounding ihlali vermemeli. user_message içindeki
+    tutarlar da 'geçici izinli' sayılır.
     """
     allowed_raw: List[float] = []
     _collect_numeric(cockpit, allowed_raw)
+    
+    # Kullanıcı mesajındaki tutarları da izinli listesine ekle
+    if user_message:
+        for m in _TL_NUM_RE.finditer(user_message):
+            try:
+                allowed_raw.append(_to_float_tr(m.group("num")))
+            except ValueError:
+                continue
+
     allowed = {round(abs(v), 2) for v in allowed_raw}
 
     unverified: List[float] = []

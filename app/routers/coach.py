@@ -335,6 +335,7 @@ def chat(
                 user_id=user.id,
                 user_message=payload.message,
                 include_cockpit=payload.include_cockpit,
+                workspace_id=ws_id,
             )
         tool_calls_count = len(result.get("proposed_actions") or [])
     except Exception as e:

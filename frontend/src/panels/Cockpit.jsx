@@ -3,7 +3,7 @@ import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Banknote, Calculator, Scale, ScaleIcon, AlertTriangle,
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
-  Eye, Telescope, Bell, Waves, ArrowRight, Target,
+  Eye, Telescope, Bell, Waves, ArrowRight, Target, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import {
   cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
@@ -15,6 +15,66 @@ import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+
+/**
+ * FEAT-030 (UX açıklanabilirlik): Günlük limitin AÇIK dökümü.
+ * Kullanıcı "66 TL / 208 TL nereden geliyor?" sorusunu tek bakışta görür; "kredi bakiyesinin
+ * tamamını mı düşüyor?" şüphesi kalkar. Sayılar backend `butce_dokum`'dan (rules_engine tek
+ * kaynak — ADR-001: engine hesaplar, UI gösterir); JS'te YENİDEN hesap YOK (drift riski yok).
+ */
+function BudgetBreakdown({ dokum }) {
+  const [open, setOpen] = useState(false);
+  if (!dokum) return null;
+  const Row = ({ label, value, sign, muted }) => (
+    <div className="flex items-center justify-between py-0.5">
+      <span className={muted ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-600 dark:text-zinc-300'}>
+        {label}
+      </span>
+      <span className={`font-numeric ${muted ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-200'}`}>
+        {sign}{formatTL(Math.abs(value))} TL
+      </span>
+    </div>
+  );
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1"
+      >
+        {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        Günlük limit nasıl hesaplandı?
+      </button>
+      {open && (
+        <div className="mt-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/40 px-3 py-2">
+          <Row label="Nakit" value={dokum.nakit} sign="" />
+          <Row label="Beklenen gelir (bu ay kalan)" value={dokum.beklenen_gelir} sign="+" />
+          <Row label="Kart borcu (tamamı)" value={dokum.kart_borcu} sign="−" />
+          <Row label="Bu ayki kredi taksiti" value={dokum.bu_ayki_taksit} sign="−" />
+          <div className="border-t border-zinc-200 dark:border-zinc-700 mt-1 pt-1 flex items-center justify-between font-semibold">
+            <span className="text-zinc-700 dark:text-zinc-200">= Reel bütçe</span>
+            <span className={`font-numeric ${dokum.reel_butce >= 0 ? 'text-zinc-800 dark:text-zinc-100' : 'text-negative-600 dark:text-negative-400'}`}>
+              {formatTL(dokum.reel_butce)} TL
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mt-0.5">
+            <span>÷ {dokum.days_remaining} gün</span>
+            <span className="font-numeric font-semibold text-brand-600 dark:text-brand-400">
+              = {formatTL(dokum.daily_limit)} TL/gün
+            </span>
+          </div>
+          {dokum.alacak_haric > 0 && (
+            <p className="mt-1.5 text-zinc-400 dark:text-zinc-500 leading-snug">
+              Not: Alacaklar ({formatTL(dokum.alacak_haric)} TL) bütçeye dahil DEĞİL — tahsilat
+              muhatabın kontrolünde. Kredinin yalnız <b>bu ayki taksiti</b> düşülür; bakiyenin
+              tamamı değil.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Cockpit — Ana finansal kontrol paneli.
@@ -279,6 +339,8 @@ export default function Cockpit({ setActiveTab }) {
               </span>
             )}
           </p>
+          {/* FEAT-030: günlük limitin açık dökümü (UX açıklanabilirlik) */}
+          <BudgetBreakdown dokum={data.butce_dokum} />
           {/* Zikzak projeksiyonu — kurucu "biriken güç": bugün harcamazsan yarınki limit yükselir */}
           {data.yarin_limit_harcamasiz > data.daily_limit && (
             <p className="text-xs text-positive-600 dark:text-positive-400 mt-1.5 flex items-center gap-1">

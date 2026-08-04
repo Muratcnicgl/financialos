@@ -2147,6 +2147,20 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "alacaklar_toplami": alacaklar_toplami,        # Transparency (net_deger_tam'a +)
         "borclar_toplami": borclar_toplami,            # BUG #116: kişisel payable (net_deger_tam'dan −)
         "daily_limit": daily_limit,
+        # FEAT-030 (UX açıklanabilirlik): günlük limitin AÇIK dökümü. Kullanıcı "66 TL nereden
+        # geliyor?" sorusunu tek bakışta görsün; "83 bin krediyi mi düşüyor?" şüphesi kalksın.
+        # Bileşenler reel_butce ile BİREBİR aynı (recurring_income kullanılır — alacaklar HARİÇ,
+        # muhatap kontrolünde; kredi taksitinin yalnız BU AYKI kısmı düşülür, bakiye toptan DEĞİL).
+        "butce_dokum": {
+            "nakit": round(nakit, 2),
+            "beklenen_gelir": round(recurring_income, 2),   # bütçeye giren düzenli gelir (KYK/maaş vb.)
+            "kart_borcu": round(kart_borcu, 2),             # MC4 gölge muhasebe: tamamı düşülür
+            "bu_ayki_taksit": round(loan_payments_eom, 2),  # yalnız ay sonuna kadarki kredi taksiti
+            "alacak_haric": round(receivables_eom, 2),      # bilgi: alacaklar bütçeye GİRMEZ
+            "reel_butce": reel_butce,
+            "days_remaining": days_remaining,
+            "daily_limit": daily_limit,
+        },
         "guvenli_harcama": guvenli_harcama,  # FEAT-009: kart-hariç ileriye-dönük güvenli harcama tabanı
         "nakit_runway_gun": nakit_runway_gun,  # FEAT-010: gelirsiz nakit kaç gün yeter (None=belirsiz)
         "kart_kullanim": kart_kullanim,  # FEAT-016: kart utilization oranı + trend + kredi-sağlık bandı (None=kart yok)

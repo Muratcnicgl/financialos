@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
+from app.user_prefs import user_today  # BUG #197: kullanici saat dilimi
 from app.dependencies import get_db, get_current_user
 from app.models import (
     User, PendingAction, ActionStatus, ActionHistory, ActionSource,
@@ -242,7 +243,7 @@ def approve_action(
 
     # Oncelik: net worth snapshot al (execute oncesi) — M43: aktif workspace deltası
     with workspace_scope(ws_id):
-        cockpit_before = generate_cockpit(current_user.id, date.today(), db)
+        cockpit_before = generate_cockpit(current_user.id, user_today(current_user), db)  # BUG #197
     net_worth_before = cockpit_before.get("net_deger")
     cash_before = cockpit_before.get("nakit_kasa")
 
@@ -268,7 +269,7 @@ def approve_action(
 
     # Execute sonrasi snapshot — M43: aktif workspace deltası
     with workspace_scope(ws_id):
-        cockpit_after = generate_cockpit(current_user.id, date.today(), db)
+        cockpit_after = generate_cockpit(current_user.id, user_today(current_user), db)  # BUG #197
     net_worth_after = cockpit_after.get("net_deger")
     cash_after = cockpit_after.get("nakit_kasa")
 

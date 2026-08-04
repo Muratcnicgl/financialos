@@ -37,8 +37,12 @@ class _FakeDate(date):
 
 @pytest.fixture(autouse=True)
 def _freeze_today(monkeypatch):
+    # BUG #197 (H4): "bugün" artık KULLANICININ saat diliminden türetiliyor
+    # (`user_today`). Doğru dikiş orası — modül-düzeyi `date` yaması yerine onu dondururuz.
     monkeypatch.setattr("app.routers.expenses.date", _FakeDate)
     monkeypatch.setattr("app.routers.incomes.date", _FakeDate)
+    monkeypatch.setattr("app.routers.expenses.user_today", lambda user: _TODAY)
+    monkeypatch.setattr("app.routers.incomes.user_today", lambda user: _TODAY)
 
 
 @pytest.fixture

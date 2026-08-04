@@ -54,6 +54,10 @@ def _row_to_dict(row) -> dict:
 class UserOut(BaseModel):
     id: int
     name: str
+    # H4 (BUG #197): kisisellestirme — None = sunucu/urun varsayilani
+    timezone: Optional[str] = None
+    currency: Optional[str] = None
+    locale: Optional[str] = None
     created_at: UtcDateTime
 
     model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
@@ -65,6 +69,10 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
+    # H4: gecersiz saat dilimi SESSIZCE yanlis tarih uretmesin -> yazarken dogrulanir
+    timezone: Optional[str] = Field(None, max_length=40)
+    currency: Optional[str] = Field(None, min_length=3, max_length=3)
+    locale: Optional[str] = Field(None, max_length=10)
 
 
 # ============================================================
@@ -112,9 +120,21 @@ def update_user(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> UserOut:
-    """Mevcut kullanicinin adini guncelle."""
+    """Mevcut kullanicinin adini ve tercihlerini guncelle (H4)."""
     if payload.name is not None:
         user.name = payload.name.strip()
+    if payload.timezone is not None:
+        # Gecersiz TZ kabul edilirse kullanici "ayarladim" sanir ama tarihler yanlis kalir.
+        from zoneinfo import ZoneInfo
+        try:
+            ZoneInfo(payload.timezone)
+        except Exception:
+            raise HTTPException(422, f"Gecersiz saat dilimi: {payload.timezone}")
+        user.timezone = payload.timezone
+    if payload.currency is not None:
+        user.currency = payload.currency.upper()
+    if payload.locale is not None:
+        user.locale = payload.locale
     db.commit()
     db.refresh(user)
     return user

@@ -144,6 +144,12 @@ class User(Base):
     # Zaman-çıpası yerine sayaç: JWT `iat` saniye hassasiyetindedir, aynı saniyede üretilen
     # yeni token'ı da düşürürdü. Sayaç karşılaştırması kesindir.
     token_version = Column(Integer, default=0, nullable=False, server_default="0")
+    # H4 (BUG #197): KISISELLESTIRME. Uygulama "bugun"u SUNUCU yerel saatinden hesapliyordu;
+    # farkli saat diliminde yasayan bir kullanici icin gunluk limit / islem tarihi / ay siniri
+    # YANLIS gune dusuyordu (BUG #169'un kullanici-basi karsiligi). None = sunucu varsayilani.
+    timezone = Column(String(40), nullable=True)     # ornek: "Europe/Istanbul", "Europe/Berlin"
+    currency = Column(String(3), nullable=True)      # ISO-4217; None = TRY (asamali plan, ADR-042)
+    locale = Column(String(10), nullable=True)       # ornek: "tr-TR
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")

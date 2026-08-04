@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
+from app.user_prefs import user_today  # BUG #197: kullanici saat dilimi
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, PersonalDebt, DebtDirection
@@ -133,7 +134,7 @@ def update_debt(
         if update_data["is_paid"] is False:
             debt.paid_date = None
         elif debt.paid_date is None:
-            debt.paid_date = date.today()  # ödendi işaretlendi ama tarih yok → bugün
+            debt.paid_date = user_today(user)  # BUG #197  # ödendi işaretlendi ama tarih yok → bugün
     elif "paid_date" in update_data:
         debt.is_paid = update_data["paid_date"] is not None
 

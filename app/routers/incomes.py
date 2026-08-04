@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
+from app.user_prefs import user_today  # BUG #197: kullanici saat dilimi
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, RecurringIncome, Account, AccountType, PendingAction, ActionStatus
@@ -135,7 +136,7 @@ def trigger_due_incomes(
     from app.action_executor import propose_action
     from app.action_executor import _fmt
 
-    today = date.today()
+    today = user_today(user)  # BUG #197
     year_month = f"{today.year}-{today.month:02d}"
 
     cash_acc = db.query(Account).filter(

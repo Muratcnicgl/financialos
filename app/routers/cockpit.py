@@ -22,6 +22,7 @@ from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.user_prefs import user_today  # BUG #197: kullanici saat dilimi
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id  # M43
 from app.models import User, NetWorthSnapshot
@@ -84,7 +85,7 @@ def get_cockpit(
     - alerts (kritik/uyari)
     - price_freshness (Wave-1 mukemmellestirici: fund fiyat yasi rozetleri)
     """
-    today = date.today()
+    today = user_today(user)  # BUG #197: kullanicinin saat dilimi
     with workspace_scope(ws_id):  # M43: cockpit aktif workspace verisinden üretilir
         cockpit = generate_cockpit(user.id, today, db)
 

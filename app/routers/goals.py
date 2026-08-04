@@ -272,7 +272,7 @@ def list_allocations(
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
     return (
-        db.query(models.GoalAllocation)
+        db.query(models.GoalAllocation)  # scope-exempt: goal sahipliği hemen yukarıda scope_filter ile doğrulandı
         .filter(models.GoalAllocation.goal_id == goal_id)
         .order_by(models.GoalAllocation.created_at.desc())
         .all()
@@ -357,7 +357,7 @@ def list_rules(
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
     return (
-        db.query(models.GoalRule)
+        db.query(models.GoalRule)  # scope-exempt: goal sahipliği hemen yukarıda scope_filter ile doğrulandı
         .filter(models.GoalRule.goal_id == goal_id)
         .order_by(models.GoalRule.priority.asc(), models.GoalRule.id.asc())
         .all()

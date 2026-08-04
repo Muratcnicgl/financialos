@@ -231,8 +231,8 @@ def delete_account(
     # BUG #091 fix: FK artık ENFORCE ediliyor (PRAGMA foreign_keys=ON, BUG #060). Bağlı
     # transaction/recurring expense varken silmek IntegrityError → HTTP 500 veriyordu.
     # Önce bağımlı kayıtları say, kullanıcıya düzgün 409 döndür (veri kaybı yok).
-    txn_count = db.query(Transaction).filter(Transaction.account_id == account_id).count()
-    exp_count = db.query(RecurringExpense).filter(RecurringExpense.account_id == account_id).count()
+    txn_count = db.query(Transaction).filter(Transaction.account_id == account_id).count()  # scope-exempt: sahipliği yukarıda doğrulanmış hesabın çocuk sayımı
+    exp_count = db.query(RecurringExpense).filter(RecurringExpense.account_id == account_id).count()  # scope-exempt: aynı hesabın çocuk sayımı
     if txn_count or exp_count:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

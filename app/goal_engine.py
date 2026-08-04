@@ -308,7 +308,7 @@ def link_transaction(
 def unlink_transaction(allocation_id: int, db: Session) -> int:
     """Allocation kaydını sil, progress cache'ini tazele. Dönüş: goal_id."""
     alloc = db.query(GoalAllocation) \
-              .filter(GoalAllocation.id == allocation_id).first()
+              .filter(GoalAllocation.id == allocation_id).first()  # scope-exempt: sahiplik çağıranda doğrulanır (goals router alloc→Goal scope_filter, tek çağıran)
     if not alloc:
         raise ValueError(f"Allocation {allocation_id} not found")
     goal_id = alloc.goal_id

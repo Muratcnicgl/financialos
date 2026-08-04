@@ -338,10 +338,20 @@ def _mark_recurring_triggered(db: Session, pending: PendingAction, payload: Dict
     _local = date.today()
     ym = td[:7] if isinstance(td, str) and len(td) >= 7 else \
         f"{_local.year}-{_local.month:02d}"
+    # P1 (Wave-9) sertleştirme: recurring kaydı SAHİBİNE kapsanır. source_recurring_id bugün
+    # sunucu tarafında (incomes/expenses router'ı, scope'lu kayıttan) set ediliyor; yine de
+    # id-lookup'ı sahiplikle bağlamak, ileride crafted payload'ın başka kullanıcının recurring
+    # kaydını "tetiklendi" işaretlemesini imkânsız kılar (savunma derinliği).
     if pending.source_recurring_type == "income":
-        rec = db.query(RecurringIncome).filter(RecurringIncome.id == pending.source_recurring_id).first()
+        rec = db.query(RecurringIncome).filter(
+            RecurringIncome.id == pending.source_recurring_id,
+            RecurringIncome.user_id == pending.user_id,  # scope-exempt: sahiplik pending üzerinden (kişisel-bağlı)
+        ).first()
     elif pending.source_recurring_type == "expense":
-        rec = db.query(RecurringExpense).filter(RecurringExpense.id == pending.source_recurring_id).first()
+        rec = db.query(RecurringExpense).filter(
+            RecurringExpense.id == pending.source_recurring_id,
+            RecurringExpense.user_id == pending.user_id,  # scope-exempt: sahiplik pending üzerinden (kişisel-bağlı)
+        ).first()
     else:
         rec = None
     if rec is not None:

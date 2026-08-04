@@ -187,7 +187,21 @@ def snapshot_for(db: Session, user: User, target_date: date) -> dict:
     )
 
 
-def upsert(db: Session, user_id: int, snap: dict) -> None:
+def _personal_workspace_id(db: Session, user_id: int) -> Optional[int]:
+    """BUG #163: kullanıcının personal workspace id'si (yoksa None → legacy user_id yolu).
+
+    Yazılan snapshot bu workspace'e bağlanır; aksi halde workspace-kapsamlı okumalar
+    (scheduler `_scope`, cockpit) backfill geçmişini GÖREMEZ.
+    """
+    from app.models import Workspace
+    ws = (db.query(Workspace)
+          .filter(Workspace.owner_user_id == user_id, Workspace.is_personal.is_(True))
+          .order_by(Workspace.id.asc())
+          .first())
+    return ws.id if ws else None
+
+
+def upsert(db: Session, user_id: int, snap: dict, workspace_id: Optional[int] = None) -> None:
     existing = (
         db.query(NetWorthSnapshot)
         .filter_by(user_id=user_id, snapshot_date=snap["snapshot_date"])
@@ -196,19 +210,26 @@ def upsert(db: Session, user_id: int, snap: dict) -> None:
     if existing:
         for k, v in snap.items():
             setattr(existing, k, v)
+        if workspace_id is not None and existing.workspace_id is None:
+            existing.workspace_id = workspace_id  # BUG #163: eski NULL satırları da bağla
     else:
-        db.add(NetWorthSnapshot(user_id=user_id, **snap))
+        db.add(NetWorthSnapshot(user_id=user_id, workspace_id=workspace_id, **snap))  # BUG #163
     db.commit()
 
 
-def run_backfill(start_date: date, end_date: date, verbose: bool = True) -> int:
+def run_backfill(start_date: date, end_date: date, verbose: bool = True,
+                 user_id: Optional[int] = None) -> int:
     """NetWorthSnapshot'lari start_date -> end_date araliginda yazar.
+
+    BUG #163 fix: eskiden YALNIZ ilk kullanıcı (`User.id` en küçük) işleniyordu — tek-kullanıcı
+    MVP kalıntısı. Çok-kullanıcıda 2. kullanıcıdan itibaren net-değer geçmişi hiç dolmuyordu.
+    Artık kullanıcı verilmezse TÜM kullanıcılar döngüye alınır; `user_id` verilirse yalnız o.
 
     Idempotent (upsert pattern). Kullanim:
     - CLI: python -m scripts.backfill_net_worth (main() bunu cagirir)
     - Programatic: from scripts.backfill_net_worth import run_backfill
 
-    Returns: yazilan snapshot sayisi.
+    Returns: yazilan snapshot sayisi (tüm kullanıcılar toplamı).
     """
     if start_date > end_date:
         if verbose:
@@ -217,29 +238,37 @@ def run_backfill(start_date: date, end_date: date, verbose: bool = True) -> int:
 
     db: Session = SessionLocal()
     try:
-        user = db.query(User).order_by(User.id.asc()).first()
-        if not user:
+        q = db.query(User).order_by(User.id.asc())
+        if user_id is not None:
+            q = q.filter(User.id == user_id)
+        users = q.all()
+        if not users:
             if verbose:
                 print("HATA: Kullanici yok. python -m scripts.setup_data calistirin.")
             return 0
 
         n = (end_date - start_date).days + 1
         if verbose:
-            print(f"Backfill basliyor: {start_date} -> {end_date} ({n} gun)\n")
+            print(f"Backfill basliyor: {start_date} -> {end_date} ({n} gun) "
+                  f"— {len(users)} kullanici\n")
 
-        cur = start_date
         written = 0
-        while cur <= end_date:
-            snap = snapshot_for(db, user, cur)
-            upsert(db, user.id, snap)
+        for user in users:
+            ws_id = _personal_workspace_id(db, user.id)  # BUG #163: satırlar workspace'e bağlanır
             if verbose:
-                print(
-                    f"  {cur}  Gorulen={snap['net_worth_seen']:>12,.2f} TL  "
-                    f"Tam={snap['net_worth_full']:>12,.2f} TL  "
-                    f"Yatirim={snap['investment_value']:>10,.2f}"
-                )
-            cur += timedelta(days=1)
-            written += 1
+                print(f"[user {user.id}] {user.name}")
+            cur = start_date
+            while cur <= end_date:
+                snap = snapshot_for(db, user, cur)
+                upsert(db, user.id, snap, workspace_id=ws_id)
+                if verbose:
+                    print(
+                        f"  {cur}  Gorulen={snap['net_worth_seen']:>12,.2f} TL  "
+                        f"Tam={snap['net_worth_full']:>12,.2f} TL  "
+                        f"Yatirim={snap['investment_value']:>10,.2f}"
+                    )
+                cur += timedelta(days=1)
+                written += 1
 
         if verbose:
             print(f"\nTamam: {written} snapshot yazildi.")

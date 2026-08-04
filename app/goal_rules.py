@@ -26,6 +26,12 @@ GUNCELLEMELER:
     ("AccountType.cash") yerine acc.account_type.value ("cash") kullanılır.
     Önceki kod account_type kriterli HER GoalRule'u sessizce ölü bırakıyordu
     (tx_type dalı ~satır 102'de zaten .value kullanıyordu). Kalite serüveni RULE-001.
+  BUG #162 fix: kural sorgusu TÜM kullanıcıların/workspace'lerin aktif kurallarını
+    çekiyordu → bir kullanıcının işlemi BAŞKA kullanıcının hedefine allocation
+    yaratıyordu (çapraz-kullanıcı veri sızıntısı; sahibi olmadığı işlemin tutarı +
+    transaction_id'si karşı tarafın allocation listesinde görünürdü). Artık kurallar
+    işlemin sahibine/workspace'ine kapsanır (scope_filter köprü-deseni). Tek-kullanıcı
+    kurulumda görünmezdi; kapalı-beta izolasyon denetiminde bulundu.
 """
 from __future__ import annotations
 
@@ -37,6 +43,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.goal_engine import refresh_goal
+from app.workspace_deps import scope_filter  # BUG #162: sahiplik kapsamı (köprü-desen)
 
 
 def evaluate_rules_for_transaction(
@@ -53,9 +60,17 @@ def evaluate_rules_for_transaction(
     if not tx:
         return []
 
+    # BUG #162 fix: kurallar İŞLEMİN sahibine kapsanır. Köprü-desen (M43/ADR-037):
+    # tx workspace'e bağlıysa o workspace'in hedefleri (ADR-036 — aile üyesinin kuralı
+    # ortak workspace'te geçerlidir), değilse legacy user_id. Kapsamsız sorgu başka
+    # kullanıcının hedefine allocation yazıyordu.
     rules = (
         db.query(models.GoalRule)
-        .filter(models.GoalRule.is_active.is_(True))
+        .join(models.Goal, models.GoalRule.goal_id == models.Goal.id)
+        .filter(
+            models.GoalRule.is_active.is_(True),
+            scope_filter(models.Goal, tx.user_id, tx.workspace_id),
+        )
         .order_by(models.GoalRule.priority.asc(), models.GoalRule.id.asc())
         .all()
     )
@@ -127,7 +142,7 @@ def _matches(tx: models.Transaction, criteria: dict, db: Session) -> bool:
         if not tx.account_id:
             return False
         acc = db.query(models.Account) \
-                .filter(models.Account.id == tx.account_id).first()
+                .filter(models.Account.id == tx.account_id).first()  # scope-exempt: tx'in KENDİ hesabı (tx zaten sahibine kapsanmış)
         if not acc:
             return False
         allowed = criteria["account_type"]

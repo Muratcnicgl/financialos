@@ -19,41 +19,46 @@ logger = logging.getLogger(__name__)
 
 
 def catch_up_snapshots() -> None:
-    """App açılışında eksik NetWorthSnapshot günlerini doldur.
+    """App açılışında eksik NetWorthSnapshot günlerini doldur — HER kullanıcı için.
 
-    Mantık: last_snapshot_date < bugün ise aralığı doldur.
+    Mantık: kullanıcının last_snapshot_date'i < bugün ise o kullanıcının aralığı doldurulur.
     Idempotent (backfill upsert kullanır, aynı tarih yazılırsa eskisini ezer).
     Hata olursa app açılması engellenmemeli — çağıran try/except ile sarar.
+
+    BUG #163 fix: eskiden yalnız ilk kullanıcı (`User.id` en küçük) işleniyordu; çok-kullanıcıda
+    diğer kullanıcıların net-değer geçmişinde kalıcı boşluklar oluşuyordu (trend/atıf raporları
+    sessizce eksik). Kullanıcı başına ayrı aralık hesaplanır — herkesin kendi boşluğu kadar.
     """
     from scripts.backfill_net_worth import run_backfill
 
     db = SessionLocal()
     try:
-        user = db.query(User).order_by(User.id.asc()).first()
-        if not user:
+        users = db.query(User).order_by(User.id.asc()).all()
+        if not users:
             logger.info("Catch-up: Kullanici yok, atlandi")
             return
 
-        last_date = (
-            db.query(func.max(NetWorthSnapshot.snapshot_date))
-            .filter(NetWorthSnapshot.user_id == user.id)
-            .scalar()
-        )
-        if last_date is None:
-            logger.info("Catch-up: Hic snapshot yok, manuel backfill gerekli "
-                        "(python -m scripts.backfill_net_worth)")
-            return
-
         today = date.today()
-        start = last_date + timedelta(days=1)
-        if start > today:
-            logger.info(f"Catch-up: Snapshot guncel ({last_date}), atlandi")
-            return
+        for user in users:  # BUG #163: tüm kullanıcılar
+            last_date = (
+                db.query(func.max(NetWorthSnapshot.snapshot_date))
+                .filter(NetWorthSnapshot.user_id == user.id)
+                .scalar()
+            )
+            if last_date is None:
+                logger.info("Catch-up: user %s icin hic snapshot yok, manuel backfill gerekli "
+                            "(python -m scripts.backfill_net_worth)", user.id)
+                continue
 
-        n_days = (today - start).days + 1
-        logger.info(f"Catch-up: Eksik {n_days} gun bulundu ({start} -> {today}), "
-                    f"backfill calistiriliyor...")
-        written = run_backfill(start, today, verbose=False)
-        logger.info(f"Catch-up: {written} snapshot yazildi")
+            start = last_date + timedelta(days=1)
+            if start > today:
+                logger.info("Catch-up: user %s guncel (%s), atlandi", user.id, last_date)
+                continue
+
+            n_days = (today - start).days + 1
+            logger.info("Catch-up: user %s icin eksik %s gun (%s -> %s), backfill calistiriliyor...",
+                        user.id, n_days, start, today)
+            written = run_backfill(start, today, verbose=False, user_id=user.id)
+            logger.info("Catch-up: user %s icin %s snapshot yazildi", user.id, written)
     finally:
         db.close()

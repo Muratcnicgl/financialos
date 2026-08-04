@@ -408,7 +408,13 @@ def get_history(
                              getattr(m, "id", "?"), exc_info=True)
     pa_map: Dict[int, PendingAction] = {}
     if all_pa_ids:
-        pas = db.query(PendingAction).filter(PendingAction.id.in_(all_pa_ids)).all()
+        # P1 (Wave-9) sertleştirme: id listesi kullanıcının KENDİ hafıza satırlarından geliyor,
+        # yine de sorgu sahibe kapsanır — bozuk/elle düzenlenmiş bir memory satırı başka
+        # kullanıcının aksiyon özetini geçmişte gösteremesin (savunma derinliği).
+        pas = db.query(PendingAction).filter(
+            PendingAction.id.in_(all_pa_ids),
+            PendingAction.user_id == user.id,  # scope-exempt: koç geçmişi kişisel-bağlı (workspace paylaşımı yok)
+        ).all()
         pa_map = {pa.id: pa for pa in pas}
 
     items_mapped = [_memory_to_history_item(m, pa_map) for m in items]

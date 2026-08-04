@@ -381,7 +381,7 @@ def link_premortem_outcome(
     Sessiz gec — premortem zorunlu degil (kullanici karar verir, AI aciklar).
     """
     sentinel = f"PendingAction#{pending_action_id}"
-    dj = session.execute(
+    dj = session.execute(  # scope-exempt: sentinel KÜRESEL BENZERSİZ PendingAction id'si taşır — DJ satırı o aksiyonun sahibinindir
         select(DecisionJournal).where(DecisionJournal.decision_text == sentinel)
     ).scalar_one_or_none()
 

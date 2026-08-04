@@ -180,7 +180,7 @@ class TraceRecorder:
         """
         if not self._step_ids:
             return
-        self.db.query(ReasoningTrace).filter(
+        self.db.query(ReasoningTrace).filter(  # scope-exempt: yalnız BU trace örneğinin kendi yazdığı satır id'leri
             ReasoningTrace.id.in_(self._step_ids),
             ReasoningTrace.coach_memory_id.is_(None),
         ).update(

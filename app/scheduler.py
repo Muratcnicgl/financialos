@@ -237,7 +237,7 @@ async def fetch_investment_prices_job() -> None:
     from app.models import Account, AccountType
     db = SessionLocal()
     try:
-        accounts = db.query(Account).filter(Account.account_type == AccountType.investment).all()
+        accounts = db.query(Account).filter(Account.account_type == AccountType.investment).all()  # scope-exempt: SİSTEM cron'u — piyasa fiyatı tüm kullanıcıların yatırım hesapları için tazelenir (kullanıcı verisi okunmaz/karışmaz)
         updated = 0
         for acc in accounts:
             try:

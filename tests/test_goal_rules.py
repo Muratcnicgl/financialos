@@ -198,3 +198,80 @@ def test_14_paused_goal_allocation_atlanir(db_session, test_user):
     created = evaluate_rules_for_transaction(tx.id, db_session)
 
     assert len(created) == 0
+
+
+# ──────────────────────────────────────────────
+# BUG #162 — Çapraz-kullanıcı / çapraz-workspace kural sızıntısı (kapalı-beta izolasyon denetimi)
+# ──────────────────────────────────────────────
+
+def _user(db, name):
+    from app.models import User
+    u = User(name=name)
+    db.add(u)
+    db.flush()
+    return u
+
+
+def test_15_baska_kullanicinin_kurali_benim_islemime_uygulanmaz(db_session, test_user):
+    """BUG #162: B'nin aktif kuralı, A'nın işlemine allocation YARATMAMALI.
+
+    Eskiden evaluate_rules_for_transaction TÜM kullanıcıların aktif kurallarını çekiyordu →
+    A para kazandığında B'nin hedefine allocation düşüyordu (B, A'nın tutarını + transaction_id'sini
+    kendi allocation listesinde görürdü). Tek-kullanıcıda görünmez, kapalı-betada gerçek sızıntı.
+    """
+    diger = _user(db_session, "diger_kullanici")
+    acc = _account(db_session, test_user.id)
+
+    # B'nin her gelire uyan kuralı
+    b_goal = _goal(db_session, user_id=diger.id)
+    _rule(db_session, b_goal.id, criteria={"tx_type": "income"}, alloc_type="full")
+
+    tx = _tx(db_session, test_user.id, acc.id, amount=5000.0,
+             tx_type=TransactionType.income)
+    created = evaluate_rules_for_transaction(tx.id, db_session)
+
+    assert created == [], "Başka kullanıcının kuralı bu işleme uygulandı — veri sızıntısı"
+
+
+def test_16_baska_workspace_kurali_uygulanmaz(db_session, test_user):
+    """BUG #162: farklı workspace'in kuralı bu workspace'in işlemine uygulanmamalı."""
+    acc = _account(db_session, test_user.id)
+
+    yabanci_goal = _goal(db_session, user_id=test_user.id)
+    yabanci_goal.workspace_id = 999          # başka workspace
+    db_session.flush()
+    _rule(db_session, yabanci_goal.id, criteria={"tx_type": "income"}, alloc_type="full")
+
+    tx = _tx(db_session, test_user.id, acc.id, amount=5000.0,
+             tx_type=TransactionType.income)
+    tx.workspace_id = 1
+    db_session.flush()
+
+    created = evaluate_rules_for_transaction(tx.id, db_session)
+
+    assert created == [], "Başka workspace'in kuralı uygulandı — workspace izolasyonu kırık"
+
+
+def test_17_ayni_workspace_farkli_uye_kurali_UYGULANIR(db_session, test_user):
+    """ADR-036 pozitif kontrol: paylaşılan workspace'te aile üyesinin kuralı GEÇERLİ.
+
+    Fix aşırı-daraltmamalı — workspace ortak veri alanıdır; aynı workspace içindeki
+    başka üyenin hedef kuralı o workspace'in işlemine uygulanır.
+    """
+    aile_uyesi = _user(db_session, "aile_uyesi")
+    acc = _account(db_session, test_user.id)
+
+    ortak_goal = _goal(db_session, user_id=aile_uyesi.id)
+    ortak_goal.workspace_id = 7
+    db_session.flush()
+    _rule(db_session, ortak_goal.id, criteria={"tx_type": "income"}, alloc_type="full")
+
+    tx = _tx(db_session, test_user.id, acc.id, amount=5000.0,
+             tx_type=TransactionType.income)
+    tx.workspace_id = 7
+    db_session.flush()
+
+    created = evaluate_rules_for_transaction(tx.id, db_session)
+
+    assert len(created) == 1, "Aynı workspace'teki üyenin kuralı uygulanmadı (fix aşırı daralttı)"
+    assert created[0].amount == Decimal("5000")

@@ -52,7 +52,11 @@ def test_eksik_gun_backfill_cagirir(Session, monkeypatch):
     s.add(_snap(1, date.today() - timedelta(days=5)))
     s.commit(); s.close()
     called = {}
-    monkeypatch.setattr("scripts.backfill_net_worth.run_backfill",
-                        lambda start, end, verbose=False: called.setdefault("n", (start, end)) or 5)
+    # BUG #163: catch-up artık kullanıcı başına çağırır → imza `user_id` de alır
+    monkeypatch.setattr(
+        "scripts.backfill_net_worth.run_backfill",
+        lambda start, end, verbose=False, user_id=None:
+            called.setdefault("n", (start, end, user_id)) or 5)
     startup.catch_up_snapshots()
     assert "n" in called  # backfill tetiklendi (eksik günler için)
+    assert called["n"][2] == 1  # BUG #163: hedef kullanıcı açıkça geçirilir

@@ -14,6 +14,13 @@ Kapsam dışı (Wave-3):
 BUG #058 fix: Kredi taksitleri artık "expenses" chip altında tam olarak genişletiliyor.
   Eski _loan_payments_in_range sadece next_payment_date'e bakıyordu (tek occurrence).
   Yeni _expand_loan_payments remaining_installments kadar aylık ileri gider.
+BUG #165 fix (P1, Wave-9): sorgular workspace kapsamını (ADR-036/M43 köprü-deseni) YOK
+  SAYIYORDU. generate_cockpit → _detect_cashflow_crunch → generate_forecast zinciri
+  `workspace_scope(ws_id)` bloğu içinde koşarken bu modül ham `Model.user_id == user_id`
+  kullanıyordu; paylaşımlı (aile) workspace görünümünde nakit krizi / güvenli-harcama
+  rakamları kişisel workspace verisinden hesaplanıyor, workspace'in kendi kalemleri hiç
+  sayılmıyordu. Artık rules_engine `_scope` ile aynı köprüyü kullanır (kapsam yoksa
+  legacy user_id yolu korunur → mevcut testler ve tek-workspace kurulum etkilenmez).
 """
 
 from __future__ import annotations
@@ -30,6 +37,7 @@ from app.models import (
     RecurringIncome, RecurringExpense,
 )
 from app.money import D, ZERO  # ADR-030: para Decimal akar
+from app.rules_engine import _scope  # BUG #165: workspace köprü filtresi (tek kaynak)
 
 
 # ============================================================
@@ -113,7 +121,7 @@ def _personal_debts_in_range(
     rows = (
         db.query(PersonalDebt)
         .filter(
-            PersonalDebt.user_id == user_id,
+            _scope(PersonalDebt, user_id),  # BUG #165: workspace köprüsü
             PersonalDebt.direction == direction,
             PersonalDebt.is_paid == False,   # noqa: E712
             PersonalDebt.due_date.isnot(None),
@@ -282,7 +290,7 @@ def generate_forecast(
     # Şu an hiçbir UI çağrısı account_id GEÇMİYOR (hep agregat mod) → yol pratikte kullanılmıyor.
     # İzole-hesap semantiği ürün kararı gerektirir; varsayımla davranış değiştirilmedi.
     cash_q = db.query(Account).filter(
-        Account.user_id == user_id,
+        _scope(Account, user_id),  # BUG #165: workspace köprüsü
         Account.account_type == AccountType.cash,
     )
     if account_id is not None:
@@ -294,14 +302,14 @@ def generate_forecast(
 
     if "incomes" in include:
         for inc in db.query(RecurringIncome).filter(
-            RecurringIncome.user_id == user_id,
+            _scope(RecurringIncome, user_id),  # BUG #165: workspace köprüsü
             RecurringIncome.is_active == True,  # noqa: E712
         ).all():
             all_events.extend(_expand_recurring_income(inc, today, end))
 
     if "expenses" in include:
         exp_q = db.query(RecurringExpense).filter(
-            RecurringExpense.user_id == user_id,
+            _scope(RecurringExpense, user_id),  # BUG #165: workspace köprüsü
             RecurringExpense.is_active == True,  # noqa: E712
         )
         if account_id is not None:
@@ -310,7 +318,7 @@ def generate_forecast(
             all_events.extend(_expand_recurring_expense(exp, today, end))
         # BUG #058 fix: kredi taksitleri sabit gider sınıfında, "expenses" chip'i ile dahil edilir
         for loan in db.query(Account).filter(
-            Account.user_id == user_id,
+            _scope(Account, user_id),  # BUG #165: workspace köprüsü
             Account.account_type == AccountType.loan,
         ).all():
             all_events.extend(_expand_loan_payments(loan, today, end))

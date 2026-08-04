@@ -17,7 +17,7 @@ const EXPENSE_CATEGORIES = ['abonelik', 'fatura', 'kira', 'sigorta', 'internet',
 /**
  * IncomeDebt paneli — Iki sutunlu yonetim:
  *  - Sol: Periyodik gelirler (Maas, vs.)
- *  - Sag: Borc/Alacak (PersonalDebt — Efe alacaklari + diger)
+ *  - Sag: Borc/Alacak (PersonalDebt — kisisel alacaklar + diger)
  *
  * Ozellikler:
  *  - CRUD her iki tablo icin
@@ -915,7 +915,7 @@ function DebtFormModal({ debt, onClose, onSave }) {
             value={counterparty}
             onChange={(e) => setCounterparty(e.target.value)}
             className="input"
-            placeholder="Efe, Anne, Baba..."
+            placeholder="Ali, Anne, Kardeşim..."
             autoFocus
           />
         </div>

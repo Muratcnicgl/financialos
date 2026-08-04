@@ -20,9 +20,9 @@ GÜNCELLEMELER:
   gününü de proaktif hatırlatır (payment_day 0-7 gün + kart borcu > 0). Kurucu vizyonun
   en kritik proaktif uyarısı — kart %99.8 doluyken hayati.
 - BUG #119 (A1 tamamlama): _collect_upcoming_reminders artık vadesi yaklaşan ALACAKLARI
-  (receivable, is_paid=False, due_date 0-7 gün) da hatırlatır. Roadmap A1 "alacak (Efe vb.)
-  tarihleri yaklaşınca koç proaktif" der; nakit dar (günlük 62 TL) olduğundan Efe'den
-  zamanında TAHSİL etmek doğrudan ödeme-gücü meselesi (Garanti kredileri buna bağlı).
+  (receivable, is_paid=False, due_date 0-7 gün) da hatırlatır. Roadmap A1 "alacak (kişisel alacak vb.)
+  tarihleri yaklaşınca koç proaktif" der; nakit dar (günlük 62 TL) olduğundan borçludan
+  zamanında TAHSİL etmek doğrudan ödeme-gücü meselesi (kredi hesapları buna bağlı).
 - BUG #120: _collect_overdue_debts — vadesi GEÇMİŞ ödenmemiş borç/alacaklar alert olur.
   Hatırlatmalar sadece 0-7 gün ileri baktığından vade geçince kalem sessizce kayboluyordu;
   gecikmiş yükümlülük (kritik) / tahsil edilmemiş alacak (uyarı) artık kokpit alerts'ine düşer.
@@ -54,9 +54,9 @@ GÜNCELLEMELER:
   Zarflara henüz taahhüt edilmemiş "boşta" nakit; negatif = aşırı-bütçeleme. Zarf yoksa = tüm nakit.
 - FEAT-013 (faiz sızıntısı sayacı): calculate_interest_leak — kredi+kart borçlarının AYLIK faiz
   maliyeti (borç × aylık_oran/100). Cockpit'e `faiz_sizintisi` {kalemler, aylik/yillik/gunluk}.
-  "Her ay faize kaç TL kaptırıyorsun" — Murat'ın 5-kredi durumunda sarsıcı realist metrik.
+  "Her ay faize kaç TL kaptırıyorsun" — çok-kredili durumda sarsıcı realist metrik.
 - FEAT-012 (borçsuzluk tarihi): generate_cockpit'e `borc_ozgurluk` {kalan_ay, borcsuz_tarih,
-  toplam_faiz, asla_bitmez} — avalanche calc'tan (min ödemeyle). Murat'ın borç serüveninin hedefi.
+  toplam_faiz, asla_bitmez} — avalanche calc'tan (min ödemeyle). borçtan çıkışın hedefi.
 - FEAT-024 (enflasyon-düzeltilmiş net değer): calculate_real_networth — nominal net değer değişimi
   vs enflasyona göre deflate edilmiş REEL değişim (Türkiye'de servet enflasyonla erir; borçlu için
   tersine erime lehte). GET /api/reports/real-net-worth. Enflasyon .env INFLATION_ANNUAL (varsayılan %40).
@@ -279,7 +279,7 @@ def evaluate_credit_card_strategy(
     credit_limit: float,
 ) -> Dict:
     """
-    Ziraat kart döngüsü analizi (MC3).
+    Kart kesim/ödeme döngüsü analizi (MC3).
 
     Üç durum:
     - 'vade_avantaji': Kesim sonrası — yeni harcama 35-40 gün vadeye gider (stratejik kullanım dönemi)
@@ -323,7 +323,7 @@ def evaluate_credit_card_strategy(
                 f"Kullanım %{kullanim_orani} (sağlıklı) — kart stratejik kullanılabilir, nakit korumalı."
             )
     elif today.day <= payment_day_eff and today.day > 1:  # BUG #150 (P1-24/RULE-004): effective
-        # NOT (R3): `today.day > 1` KORUNDU — erken-statement kartta (Murat: kesim=2) ayın 1'i
+        # NOT (R3): `today.day > 1` KORUNDU — erken-statement kartta (örnek: kesim günü 2) ayın 1'i
         # kesim ÖNCESİ (kesim_dikkat DOĞRU). RULE-005'in "day-1 odeme'ye düşmeli" iddiası yalnız
         # geç-statement kartlarda geçerli; erken-statement'ta day-1→kesim_dikkat doğru davranış.
         durum = "odeme_dikkat"
@@ -394,7 +394,7 @@ def simulate_partial_sale(
     """
     Kısmi satış simülasyonu — Gürcistan senaryosu için kritik.
 
-    Örnek: 4 lot × 4.929,56 TL = 19.718,24 TL satış tutarı (Murat'ın gerçek verisi).
+    Örnek: 4 lot × 4.929,56 TL = 19.718,24 TL satış tutarı (gerçek kullanım verisi).
 
     Returns:
         satis_tutari, kalan_lot, kalan_deger, satis_maliyeti, brut_kar, stopaj, net_kar
@@ -564,7 +564,7 @@ def _collect_upcoming_receivables(
     db: Session,
     horizon_days: int = 90,
 ) -> List[Dict]:
-    """Beklenen alacaklar — Efe ödemeleri vb. (MC7)"""
+    """Beklenen alacaklar — alacak tahsilatları vb. (MC7)"""
     horizon = today + timedelta(days=horizon_days)
     debts = (
         db.query(PersonalDebt)
@@ -593,7 +593,7 @@ def _calculate_total_receivables(user_id: int, db: Session) -> float:
     Tüm ödenmemiş alacakların toplamı (zaman ufku YOK — sözleşmeli takvim baz alınır).
 
     BUG #006 fix (2 May 2026): Tam Net Değer hesabında kullanılır.
-    Sebebi: 5 May Efe ödemesi ile 5 Ocak Efe ödemesi aynı belirsizlikte değil — ikisi de
+    Sebebi: 5 May alacak tahsilatı ile 5 Ocak alacak tahsilatı aynı belirsizlikte değil — ikisi de
     sözleşmeli, ikisi de varlık sayılır. Sadece is_paid=False ve direction=receivable
     olanlar dahil edilir.
 
@@ -620,7 +620,7 @@ def _calculate_total_payables(user_id: int, db: Session) -> float:
     BUG #116 fix: Tam Net Değer, alacakları (varlık) sayarken kişisel borçları (yükümlülük)
     saymıyordu → net değeri fazla-iyimser gösteriyordu (realist-koç etiğiyle çelişki). Simetri:
     net_deger_tam = net_deger + alacaklar − borçlar. Banka borçları (kart/kredi) zaten
-    net_deger'de düşülüyor; bu yalnız KİŞİSEL payable'ları kapsar (Efe'ye borç gibi).
+    net_deger'de düşülüyor; bu yalnız KİŞİSEL payable'ları kapsar (alacaklı kişi'ye borç gibi).
     """
     debts = (
         db.query(PersonalDebt)
@@ -655,7 +655,7 @@ def _collect_upcoming_reminders(
     A1: 0-7 gün içinde vadesi gelen olaylar.
     - RecurringIncome/Expense: last_triggered_year_month != bu_ay AND day_of_month 0-7 gün
     - PersonalDebt payable: due_date 0-7 gün, is_paid=False (borç öde)
-    - PersonalDebt receivable: due_date 0-7 gün, is_paid=False (BUG #119: Efe'den tahsil et)
+    - PersonalDebt receivable: due_date 0-7 gün, is_paid=False (BUG #119: borçludan tahsil et)
     - Kredi kartı SON ÖDEME: payment_day 0-7 gün + kart borcu > 0 (BUG #096)
     Sıralama: card_risk önce, sonra days_until.
     """
@@ -728,8 +728,8 @@ def _collect_upcoming_reminders(
                 "card_risk": False,
             })
 
-    # PersonalDebt (receivable, unpaid, due soon) — BUG #119: Efe alacakları.
-    # Vadesi yaklaşan alacak = Murat'ın TAHSİL etmesi gereken nakit girişi. Nakit dar
+    # PersonalDebt (receivable, unpaid, due soon) — BUG #119: kişisel alacaklar.
+    # Vadesi yaklaşan alacak = kullanıcının TAHSİL etmesi gereken nakit girişi. Nakit dar
     # olduğundan (günlük 62 TL) zamanında tahsilat solvency-kritik; roadmap A1'in açık
     # hedefi. card_risk=False (risk değil, giriş fırsatı → sıralamada risklerden sonra).
     for debt in db.query(PersonalDebt).filter(
@@ -751,7 +751,7 @@ def _collect_upcoming_reminders(
             })
 
     # Kredi kartı SON ÖDEME (A1 tamamlama): kurucu vizyonun EN kritik proaktif hatırlatması.
-    # Ziraat döngüsü — son ödeme günü (payment_day) yaklaşıp kart borcu varken koç proaktif
+    # Kart döngüsü — son ödeme günü (payment_day) yaklaşıp kart borcu varken koç proaktif
     # uyarmalı ("borç hazırlığı yap"). Kart %99.8 doluyken bu hayati; RecurringExpense/Debt
     # kapsamı bunu içermiyordu → eksikti.
     for acc in accounts:
@@ -781,8 +781,8 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
     BUG #120: Vadesi GEÇMİŞ, ödenmemiş borç/alacaklar → gecikme uyarısı (alert).
     Hatırlatmalar sadece 0-7 gün İLERİ bakar; vade geçince kalem sessizce kaybolurdu.
     Solvency koçu için bu kör nokta:
-    - payable geç: Murat bir yükümlülüğü kaçırdı (ceza/temerrüt riski) → seviye 'kritik'
-    - receivable geç: Efe geç kaldı, tahsil edilmeli (beklenen nakit girişi) → seviye 'uyari'
+    - payable geç: kullanıcı bir yükümlülüğü kaçırdı (ceza/temerrüt riski) → seviye 'kritik'
+    - receivable geç: alacaklı kişi geç kaldı, tahsil edilmeli (beklenen nakit girişi) → seviye 'uyari'
     Sıralama: en çok geciken önce (aciliyet).
     """
     debts = db.query(PersonalDebt).filter(
@@ -877,10 +877,10 @@ def _calculate_safe_to_spend(summary: Optional[Dict], kart_borcu=ZERO, buffer=ZE
     gelecek bakiyeleri X düşürür → kısıt lowest_balance - X >= buffer → X <= lowest_balance - buffer.
 
     BUG #123 (KART-FARKINDALIĞI — kritik güvenlik düzeltmesi): forecast kredi KARTI döngüsünü
-    İÇERMEZ (cashflow.py). Kart borcu düşülmezse, bir alacak (ör. Efe) forecast'i pozitife
+    İÇERMEZ (cashflow.py). Kart borcu düşülmezse, bir alacak (ör. alacaklı kişi) forecast'i pozitife
     taşıdığında güvenli-harcama TÜM nakdi gösteriyordu — oysa 12.000 kart borcu varken bu
     TEHLİKELİ İYİMSER (reel_butce negatif / "hayatta kalma modu" ile çelişir). Bu yüzden kart
-    borcu (Gölge Muhasebe ruhu) düşülür → Murat gibi kart-batık durumda 0 döner. Realist koç
+    borcu (Gölge Muhasebe ruhu) düşülür → kullanıcı gibi kart-batık durumda 0 döner. Realist koç
     "12.000 borç dururken 4.276'yı güvenle harca" DEMEZ.
     """
     if not summary:
@@ -1571,7 +1571,7 @@ _AGING_BUCKETS = (
 
 def calculate_receivables_aging(user_id: int, today: date, db: Session) -> Optional[Dict]:
     """
-    FEAT-027 (alacak yaşlandırma / AR aging): ödenmemiş alacakları (Murat'ın 13 dağınık
+    FEAT-027 (alacak yaşlandırma / AR aging): ödenmemiş alacakları (kullanıcının 13 dağınık
     alacağı) vade yaşına göre gruplar — hangi alacağın peşine ÖNCE düşüleceğini netleştirir.
     Nakit dar; zamanında tahsilat solvency-kritik (koç Kural 12). Salt okuma.
 
@@ -1635,7 +1635,7 @@ def calculate_receivables_aging(user_id: int, today: date, db: Session) -> Optio
 
 def calculate_interest_leak(user_id: int, db: Session) -> Dict:
     """
-    FEAT-013 (faiz sızıntısı sayacı): kredi + kart borçlarının AYLIK faiz maliyeti. Murat'ın
+    FEAT-013 (faiz sızıntısı sayacı): kredi + kart borçlarının AYLIK faiz maliyeti. kullanıcının
     5 kredi + dolu kartında "her ay faize kaç TL kaptırıyorsun" görünür olur — realist koçun
     en sarsıcı metriklerinden. Salt hesap: aylık_faiz = borç × (aylık_faiz_oranı/100).
     interest_rate yoksa (None) o hesap atlanır. Emanet/yatırım hariç.
@@ -1756,7 +1756,7 @@ def calculate_card_utilization(
     FEAT-016: Kredi kartı KULLANIM ORANI (utilization) + iyileşme trendi + kredi-sağlık bandı.
 
     Oran = toplam kart borcu / toplam kart limiti. Kredi notu davranışında en ağır tek
-    faktörlerden biridir; %30 altı sağlıklı sayılır. Murat %99.8'de → notu baskılıyor, her
+    faktörlerden biridir; %30 altı sağlıklı sayılır. kullanıcı %99.8'de → notu baskılıyor, her
     ödenen TL oranı düşürür. `saglikli_borc_hedefi` = %30'a inmek için borç seviyesi (somut çapa).
 
     Trend: en eski NetWorthSnapshot'ın kart borcu, GÜNCEL toplam limitle oranlanır (limit
@@ -2050,7 +2050,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     net_deger = round(_nws(nakit, yatirim_deger, kart_borcu, kredi_borcu), 2)
 
     # BUG #006 fix: Tam Net Değer (stratejik, sözleşmeli alacaklar dahil)
-    # Efe takvimi gibi sözleşmeli alacaklar varlık olarak sayılır.
+    # alacak takvimi gibi sözleşmeli alacaklar varlık olarak sayılır.
     alacaklar_toplami = _calculate_total_receivables(user_id, db)
     borclar_toplami = _calculate_total_payables(user_id, db)  # BUG #116: kişisel payable
     # Simetri + finansal doğruluk: alacaklar varlık (+), kişisel borçlar yükümlülük (−).
@@ -2136,7 +2136,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
              [a for a in overdue_alerts if a["seviye"] != "kritik"] + \
              sub_price_alerts + overspend_alerts + trap_alerts
     # #125: KARARLI önem sıralaması — tüm 'kritik' kalemler tüm 'uyari'lardan önce (iç sıra korunur).
-    # detect_alerts kritik/uyari'yi karıştırıyordu; Murat en ciddi sinyali her zaman en başta görsün.
+    # detect_alerts kritik/uyari'yi karıştırıyordu; kullanıcı en ciddi sinyali her zaman en başta görsün.
     _SEV = {"kritik": 0, "uyari": 1}
     alerts.sort(key=lambda a: _SEV.get(a.get("seviye"), 2))
     # #126: alert yorgunluğu — TÜM kritikler kalır (solvency emniyeti), uyarılar top-3 ile sınırlı.
@@ -2187,7 +2187,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         runway_gun=nakit_runway_gun, crunch_var=crunch_alert is not None,
         zarf_asan=zarflar_durumu["asan_adet"], zarf_var=len(zarflar_durumu["zarflar"]) > 0,
     )
-    # FEAT-012: borçsuzluk tarihi — Murat'ın borç serüveninin motive edici hedefi (avalanche calc).
+    # FEAT-012: borçsuzluk tarihi — borçtan çıkış tarihinin motive edici hedefi (avalanche calc).
     # _dbts yukarıda FEAT-015 için BİR KEZ toplandı (collect_debts tekrar çağrılmaz).
     borc_ozgurluk = None
     try:

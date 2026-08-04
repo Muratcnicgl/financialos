@@ -716,7 +716,7 @@ export function signClass(value) {
 /**
  * Bugünün LOCAL tarihi "YYYY-MM-DD".
  * `new Date().toISOString().slice(0,10)` UTC tarihi verir → Türkiye'de (+3) gece
- * 00:00-03:00 arası BİR GÜN GERİ kayar. Murat gece vardiyası çalıştığından geç saatte
+ * 00:00-03:00 arası BİR GÜN GERİ kayar. kullanıcı gece vardiyası çalıştığından geç saatte
  * girilen paid_date/transaction_date bir gün önceye kaydolabiliyordu — bu onu düzeltir.
  */
 export function todayLocalISO() {

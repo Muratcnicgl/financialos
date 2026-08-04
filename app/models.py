@@ -6,7 +6,7 @@ ANA TABLOLAR (8):
 2. Account           — hesaplar (cash/credit_card/loan/investment)
 3. RecurringIncome   — düzenli gelirler (maaş, burs vb.)
 4. Transaction       — işlemler (gelir/gider)
-5. PersonalDebt      — kişisel borç/alacak (Efe ödemeleri vb.)
+5. PersonalDebt      — kişisel borç/alacak (alacak tahsilatları vb.)
 6. MasterCheckpoint  — kırmızı çizgiler / kurallar
 7. CoachMemory       — koç sohbet geçmişi
 8. PendingAction     — onay bekleyen aksiyonlar (function calling)
@@ -344,7 +344,7 @@ class PersonalDebt(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
-    counterparty = Column(String(100), nullable=False)  # Örn: "Efe"
+    counterparty = Column(String(100), nullable=False)  # Örn: "alacaklı kişi"
     direction = Column(SQLEnum(DebtDirection), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
     description = Column(Text, nullable=True)
@@ -499,12 +499,12 @@ class CoachInsight(Base):
     """
     Koç'un kendi kalıcı notları. Sohbet biten konularda koc kendi icin
     önemli baglami buraya yazar. Sonraki sohbetlerde sistem prompt'a otomatik
-    enjekte edilir — boylece koc Murat'i 6 ay sonra da hatirlar.
+    enjekte edilir — boylece koc kullanıcı'i 6 ay sonra da hatirlar.
 
     Ornekler:
-    - "Murat 28 Nisan'da Gurcistan seyahatinin TLY satisiyla finanse edilecegini soyledi"
-    - "Murat kart kapatmak yerine yatirim onerimi 3 kez reddetti — risk profili yuksek"
-    - "Murat Temmuz'da Efe alacaklari biteceginden tek basina kalacak"
+    - "kullanıcı 28 Nisan'da Gurcistan seyahatinin TLY satisiyla finanse edilecegini soyledi"
+    - "kullanıcı kart kapatmak yerine yatirim onerimi 3 kez reddetti — risk profili yuksek"
+    - "kullanıcı Temmuz'da kisisel alacaklar biteceginden tek basina kalacak"
     """
     __tablename__ = "coach_insights"
 
@@ -1058,7 +1058,7 @@ class Feedback(Base):
     """FEAT-033: Uygulama-içi Şikayet / İstek / Öneri.
 
     Kapalı-beta test-fix döngüsü için: kullanıcı basit bir arayüzden geri bildirim gönderir,
-    tabloya düşer (admin=Murat sonra inceler). kind app-katmanında (Pydantic) doğrulanır —
+    tabloya düşer (admin=kullanıcı sonra inceler). kind app-katmanında (Pydantic) doğrulanır —
     dual-dialect basitlik için String (enum CREATE TYPE derdi yok, M50 dersi).
     """
     __tablename__ = "feedback"

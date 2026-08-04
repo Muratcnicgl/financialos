@@ -470,7 +470,7 @@ def simulate_purchase_opportunity_cost(
     applied = round(amount - remaining, 2)   # fiilen borca giden (amount > toplam borç ise fazlası hariç)
     # NOT (modelleme sınırı): ödeme bir borcu TAMAMEN bitirirse, o borcun payoff-EVENT'i (ve
     # min ödemesinin rollover'ı) baseline'da olurdu, ön-ödemede olmaz → çok küçük borçları yok
-    # eden uç girdilerde tasarruf hafife/tersine gösterilebilir. Gerçekçi kısmi ödemede (Murat:
+    # eden uç girdilerde tasarruf hafife/tersine gösterilebilir. Gerçekçi kısmi ödemede (kullanıcı:
     # amount < kart bakiyesi) sorun yok; araç caydırıcı amaçlı, bu yönde tutucu (maliyeti abartmaz).
     with_payment = calc_avalanche([d for d in reduced if d.balance > 0.01],
                                   extra_monthly=0.0, today=today)

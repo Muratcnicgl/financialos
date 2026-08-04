@@ -23,7 +23,7 @@ from app.models import Account, AccountType, PriceHistory, PriceSource
 logger = logging.getLogger(__name__)
 
 # Basit TTL cache: (fund_code, date_iso) -> (price, source, ts). Aynı gün aynı fon
-# (Murat'ın 2 TLY hesabı gibi) tek çağrıda çekilir; TEFAS rate-limit'i korunur.
+# (kullanıcının 2 TLY hesabı gibi) tek çağrıda çekilir; TEFAS rate-limit'i korunur.
 _CACHE: dict[Tuple[str, str], Tuple[Decimal, str, float]] = {}
 _TTL = 4 * 3600  # 4 saat
 

@@ -387,7 +387,7 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
-      {/* FEAT-012: borçsuz olma tarihi — Murat'ın borç serüveninin motive edici hedefi */}
+      {/* FEAT-012: borçsuz olma tarihi — borçtan çıkış tarihinin motive edici hedefi */}
       {data.borc_ozgurluk && (
         <div className="card p-3 flex items-center gap-2 text-sm">
           <Target className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />

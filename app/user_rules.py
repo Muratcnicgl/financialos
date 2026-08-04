@@ -1,7 +1,7 @@
 """
 Kullanıcı-tanımlı kural motoru (P3.5 / H3, BUG #192).
 
-**Sorun (Murat, 4 Ağu):** Sistem "giriş yapılabilen Murat'ın OS'u"ydu. Kod içinde MC1 gibi
+**Sorun (kullanıcı, 4 Ağu):** Sistem "giriş yapılabilen kullanıcının OS'u"ydu. Kod içinde MC1 gibi
 SABİT kurallar vardı (`is_emanet` hesabı satılamaz) ve bunlar gerçekten **kod seviyesinde**
 dayatılıyordu; ama kullanıcının kendi yazdığı kırmızı çizgi ("acil fonuma dokunmam") yalnızca
 koça **tavsiye** olarak gidiyordu — yani LLM'in iyi niyetine kalmıştı. ADR-001'in ruhu

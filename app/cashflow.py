@@ -8,7 +8,7 @@ Para birimi: TL (float), mevcut model şemasıyla tutarlı.
 Timezone: date.today() — lokal sistem saati (UTC+3 Istanbul).
 Kapsam dışı (Wave-3):
   - Yatırım hesapları (multi-asset ayrı design)
-  - Kredi kartı taksit döngüsü (MC3 Ziraat cycle ayrı design)
+  - Kredi kartı taksit döngüsü (MC3 kart döngüsü ayrı design)
   - One-off scheduled tx (Transaction.due_date yok)
 
 BUG #058 fix: Kredi taksitleri artık "expenses" chip altında tam olarak genişletiliyor.

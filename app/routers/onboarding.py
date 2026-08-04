@@ -2,7 +2,7 @@
 Onboarding — isteğe bağlı DEMO VERİ (P3.5 / H5, BUG #194).
 
 Sorun: yeni kullanıcı bomboş bir ekranla karşılaşıyor. "Örnek veri" ihtiyacı vardı ama
-tek çözüm `scripts/setup_data.py`'ydi — o da **başkasının (Murat'ın) kanonik verisini**
+tek çözüm `scripts/setup_data.py`'ydi — o da **başkasının (kullanıcının) kanonik verisini**
 yükler ve `drop_all` yapar; bir beta kullanıcısına asla bulaşmamalı.
 
 Karar:

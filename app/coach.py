@@ -1224,7 +1224,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([bi["odendi"], bi["baslangic_borc"]])
 
-    # KART KULLANIM ORANI (FEAT-016): utilization + kredi-sağlık bandı + trend. Murat'ın
+    # KART KULLANIM ORANI (FEAT-016): utilization + kredi-sağlık bandı + trend. kullanıcının
     # kartı neredeyse dolu → kredi notunu baskılıyor; %30 hedef somut çapa. Yalnız yüksek/kritik
     # bantta koça taşınır (sağlıklıysa gürültü yapma).
     ku = cockpit.get("kart_kullanim") or {}

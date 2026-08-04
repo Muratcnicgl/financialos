@@ -80,7 +80,7 @@ def get_cockpit(
     - Hesap detaylari (id ile, frontend kart paneli)
     - investment_pnl (TLY brut kar % getiri)
     - upcoming_payments (60 gun horizon)
-    - upcoming_receivables (Efe takvimi, 90 gun)
+    - upcoming_receivables (alacak takvimi, 90 gun)
     - alerts (kritik/uyari)
     - price_freshness (Wave-1 mukemmellestirici: fund fiyat yasi rozetleri)
     """

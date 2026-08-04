@@ -4,7 +4,7 @@ FinancialOS Senaryo Motoru — "Eger X yaparsam ne olur?"
 Mimari prensip:
 - Gercek DB'ye HIC dokunmaz. Tum hesaplar/borclar/gelirler RAM'e kopyalanir.
 - Aksiyon kopyaya uygulanir, sonra T+gun kadar projeksiyon yapilir.
-- Projeksiyon: dusulen kredi taksitleri + gelen maaslar + Efe alacaklari + kart son odemeleri.
+- Projeksiyon: dusulen kredi taksitleri + gelen maaslar + kisisel alacaklar + kart son odemeleri.
 - Cikti: T+0, T+30, T+60, T+90 snapshot'lari + delta tablosu.
 
 Bu modul iki yerden cagrilir:
@@ -388,7 +388,7 @@ def _next_payment_in_window(
 
 def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
     """Mevcut dunyayi 'days' gun ileri al. RecurringIncome + kredi taksiti +
-    Efe alacaklari + kart kesim/odeme dongusu hesaplanir.
+    kisisel alacaklar + kart kesim/odeme dongusu hesaplanir.
     """
     start = world.as_of
     end = world.as_of + timedelta(days=days)
@@ -463,7 +463,7 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
                 f"(faiz +{interest:,.2f}, kalan borc {a.balance:,.2f})"
             )
 
-    # 3. Efe & diger kisi alacaklari/borclari
+    # 3. alacaklı kişi & diger kisi alacaklari/borclari
     for d in world.debts:
         if d.paid_date:
             continue

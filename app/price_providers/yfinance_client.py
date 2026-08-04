@@ -2,7 +2,7 @@
 M12 (ADR-031): yfinance fiyat sağlayıcı — global hisse + (deneme) BIST (`.IS` suffix).
 
 R3 UYARISI (13 Tem 2026): Bu ortamda Yahoo Finance erişilemez (THYAO.IS ve AAPL
-"no price data" döndü — network/rate-limit blok). Kod doğru; canlı doğrulama Murat'ın
+"no price data" döndü — network/rate-limit blok). Kod doğru; canlı doğrulama kullanıcının
 ortamında gerekli. Erişilemezse None döner (fund_tracker deseni — sessiz fallback).
 Sonlu-değer güvenliği (SEC-032): NaN/inf reddedilir.
 """

@@ -74,7 +74,7 @@ def list_debts(
     """
     Borc/alacak listesi.
     ornek: GET /api/debts?direction=receivable&paid=false
-    -> Tahsil edilmemis tum alacaklar (Efe alacaklari icin)
+    -> Tahsil edilmemis tum alacaklar (kisisel alacaklar icin)
     """
     q = db.query(PersonalDebt).filter(scope_filter(PersonalDebt, user.id, ws_id))
 

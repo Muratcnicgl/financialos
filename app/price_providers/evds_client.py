@@ -4,7 +4,7 @@ M19-v3 (ADR-029 revize) — TCMB EVDS v3 fiyat sağlayıcı: döviz + altın.
 R3 (14 Tem 2026): EVDS **v3'e taşındı** — eski `evds2.tcmb.gov.tr/service/evds/` 405/SPA
 döndürüyordu (M19 regression). Yeni v3 canlı doğrulandı (USD alış 46.7854 / satış 46.8697).
 
-v3 gerçekleri (EVDS Web Servis + Python Kılavuzu, Murat 14 Tem):
+v3 gerçekleri (EVDS Web Servis + Python Kılavuzu, kullanıcı doğrulaması 14 Tem):
 - Base: https://evds3.tcmb.gov.tr/igmevdsms-dis
 - Format: {base}/series=<KODLAR>&startDate=<gg-aa-yyyy>&endDate=<gg-aa-yyyy>&type=json
   (series PATH'e gömülü, query-param DEĞİL; çoklu seri tire ile: A-B-C)

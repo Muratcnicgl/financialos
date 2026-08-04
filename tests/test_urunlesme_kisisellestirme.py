@@ -112,28 +112,25 @@ YASAK_IZLER = [
     r"\bEnpara\b", r"\bZiraat\b", r"\bGaranti\s+(kredi|kart|hesab)",
 ]
 
-_TARANAN_DOSYALAR = [
-    _ROOT / "app" / "coach.py",
-    _ROOT / "app" / "premortem.py",
-    _ROOT / "app" / "action_executor.py",
-    _ROOT / "app" / "coach_insights.py",
-    _ROOT / "app" / "grounding.py",
-]
+# P3.5/H2 (2. tur): kapsam TÜM app/ + frontend/src — ve artık YORUMLAR DA dahil.
+# Gerekçe: yorumdaki "Murat'ın 5-kredi durumu" gibi ifadeler kod okuyanı (ve bir sonraki
+# değişikliği yapanı) tek-kullanıcı varsayımına geri çeker; ürün DNA'sı orada da temiz olmalı.
+_TARANAN_DOSYALAR = (
+    sorted((_ROOT / "app").rglob("*.py"))
+    + sorted((_ROOT / "frontend" / "src").rglob("*.jsx"))
+    + sorted((_ROOT / "frontend" / "src").rglob("*.js"))
+)
 
 
 def _kod_satirlari(path: Path) -> list[tuple[int, str]]:
-    """Yorum satırlarını (# ile başlayan) ele — yalnız kod/metin satırları."""
-    out = []
-    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        s = line.strip()
-        if s.startswith("#"):
-            continue
-        out.append((i, line))
-    return out
+    """Dosyanın TÜM satırları (yorum/docstring dahil — H2 2. tur)."""
+    if "__pycache__" in str(path) or ".test." in path.name or "node_modules" in str(path):
+        return []
+    return list(enumerate(path.read_text(encoding="utf-8").splitlines(), 1))
 
 
 def test_llm_ve_kullanici_metinlerinde_kisi_adi_yok():
-    """BUG #166 kilidi: koç/premortem metinlerinde gerçek kişi adı veya banka markası olamaz.
+    """BUG #166 kilidi: app/ ve frontend/src'de gerçek kişi adı veya banka markası olamaz.
 
     Bu kapı olmasa, bir sonraki prompt düzenlemesinde isim geri sızar ve yeni kullanıcıya
     'Murat'ın borç serüveni' diye seslenir.

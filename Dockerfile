@@ -31,6 +31,8 @@ COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini .
 COPY scripts ./scripts
+# BUG #191 (P4): hukuki metinler API uzerinden sunulur -> imajda BULUNMALI
+COPY docs/legal ./docs/legal
 COPY docker-entrypoint.sh .
 RUN chmod +x docker-entrypoint.sh && mkdir -p /data && chown -R appuser:appuser /app /data
 # Prod'da DATABASE_URL env'den (postgres) verilir; volume /data SQLite fallback (dev/tek-dosya).

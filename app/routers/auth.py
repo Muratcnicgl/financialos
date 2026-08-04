@@ -36,7 +36,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 users_router = APIRouter(prefix="/api/users", tags=["users"])
 
-KVKK_CONSENT_VERSION = "v1"
+# P4: v2 — v1 metni uygulamayi yalniz self-host varsayiyordu ("veriniz kendi sunucunuzda");
+# barindirilan kapali betada bu YANLIS beyandi. v2 dogru veri-sorumlusu tanimini icerir.
+KVKK_CONSENT_VERSION = "v2"
 
 # M21: rate limiter app/rate_limit.py'a taşındı (per-bucket production değerleri).
 # _rate_limit/_RATE alias'ları test uyumu için korunur (auth_mod._RATE.clear()).

@@ -493,6 +493,14 @@ function CoachInner({ onActionResolved }) {
           {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
         </button>
       </div>
+      {/* P4 (H13): "yatırım tavsiyesi değildir" uyarısı yalnız sözleşmede değil, koçun
+          KULLANILDIĞI yerde görünür olmalı — kullanıcı metni orada okur. */}
+      <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+        Koç yatırım/finans tavsiyesi vermez; ürettiği metin hatalı olabilir. Sayısal
+        hesaplar kural motorundan gelir, kararların sorumluluğu sana aittir.{' '}
+        <a href="/api/legal/kullanim-sartlari" target="_blank" rel="noreferrer"
+          className="underline hover:text-zinc-400">Kullanım şartları</a>
+      </p>
     </div>
   );
 }

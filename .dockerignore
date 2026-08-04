@@ -11,6 +11,9 @@ scratchpad*/
 *.db
 data/backups/
 docs/
+# BUG #191 (P4): hukuki metinler API uzerinden sunulur -> imaja GIRMELI (istisna)
+!docs/legal
+!docs/legal/**
 tests/
 .env
 .pytest_cache/

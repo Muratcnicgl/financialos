@@ -120,9 +120,17 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
           {isRegister && (
             <label className="flex items-start gap-2 text-xs text-zinc-300">
               <input type="checkbox" checked={kvkk} onChange={(e) => setKvkk(e.target.checked)} className="mt-0.5" />
+              {/* BUG #191 (P4): eski link /docs/legal/...md idi — prod imajında docs/ YOK,
+                  nginx SPA fallback'i index.html'e düşürüyordu → kullanıcı rıza verdiği metni
+                  OKUYAMIYORDU. Metinler artık API'den sunuluyor. */}
               <span>
-                <a href="/docs/legal/kvkk-consent-v1.md" target="_blank" rel="noreferrer"
-                  className="text-brand-400 underline">KVKK açık rıza metnini</a> okudum, onaylıyorum.
+                <a href="/api/legal/kvkk" target="_blank" rel="noreferrer"
+                  className="text-brand-400 underline">KVKK açık rıza metnini</a> ve{' '}
+                <a href="/api/legal/kullanim-sartlari" target="_blank" rel="noreferrer"
+                  className="text-brand-400 underline">kullanım şartlarını</a> okudum, onaylıyorum.
+                <span className="block mt-1 text-zinc-500">
+                  FinancialOS yatırım/finans tavsiyesi vermez; kararların sorumluluğu sana aittir.
+                </span>
               </span>
             </label>
           )}

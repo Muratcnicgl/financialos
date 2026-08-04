@@ -109,10 +109,25 @@ def main() -> int:
             return 1
         print("      OK — /api/health yanit veriyor")
 
-        print("\n[4/5] Prova kullanicisi olusturuluyor (gercek kayit akisi)...")
+        print("\n[4/5] Prova kullanicisi olusturuluyor (gercek KAPALI BETA akisi)...")
         import json
+        # P7 (BUG #199): production'da kayit davetli-only. Operatorun yaptigi isi yap:
+        # once davet kodu uret, sonra o kodla kaydol -> akisin TAMAMI provaya girer.
+        from sqlalchemy import create_engine as _ce
+        from sqlalchemy.orm import sessionmaker as _sm
+        from app.beta_access import davet_olustur as _davet
+        _eng = _ce(db_url)
+        _db = _sm(bind=_eng)()
+        try:
+            _d = _davet(_db, email="prova@example.com", note="prod provasi")
+            kod = _d.code
+        finally:
+            _db.close()
+            _eng.dispose()
+        print(f"      davet kodu uretildi (uzunluk={len(kod)})")
+
         kayit = {"email": "prova@example.com", "password": "Prova-Parolasi-2026!",
-                 "name": "Prova", "kvkk_consent": True}
+                 "name": "Prova", "kvkk_consent": True, "invite_code": kod}
         req = urllib.request.Request(f"{BASE}/api/auth/register",
                                      data=json.dumps(kayit).encode(), method="POST")
         req.add_header("Content-Type", "application/json")

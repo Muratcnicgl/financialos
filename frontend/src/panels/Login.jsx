@@ -13,6 +13,7 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [kvkk, setKvkk] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');  // P7: kapalı beta davet kodu
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
   const [notice, setNotice] = useState(null);         // başarı/bilgi mesajı
@@ -47,7 +48,8 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
       if (isRegister && password.length < 8) { setError('Şifre en az 8 karakter olmalı.'); return; }
       if (isRegister && !kvkk) { setError('Devam etmek için KVKK açık rızası zorunlu.'); return; }
       if (isRegister) {
-        await authApi.register({ email: email.trim(), password, name: name.trim() || undefined, kvkk_consent: kvkk });
+        await authApi.register({ email: email.trim(), password, name: name.trim() || undefined,
+          kvkk_consent: kvkk, invite_code: inviteCode.trim() || undefined });
       } else {
         await authApi.login({ email: email.trim(), password });
       }
@@ -115,6 +117,21 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                 autoComplete={isRegister || isReset ? 'new-password' : 'current-password'} required
                 className="mt-1 w-full rounded-md bg-zinc-800 border border-zinc-700 px-3 py-2 text-sm text-zinc-100" />
+            </div>
+          )}
+          {isRegister && (
+            <div>
+              {/* P7 (BUG #199): kapalı betada kayıt davetlilere açıktır. Alan opsiyonel
+                  görünür çünkü açık beta/dev modunda gerekmez; backend karar verir. */}
+              <label className="block text-xs text-zinc-400 mb-1">Davet kodu</label>
+              <input
+                type="text"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                className="input"
+                placeholder="Kapalı beta davet kodun (varsa)"
+                autoComplete="off"
+              />
             </div>
           )}
           {isRegister && (

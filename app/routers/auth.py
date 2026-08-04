@@ -48,6 +48,8 @@ from app.rate_limit import rate_limit as _rate_limit, _RATE  # noqa: E402,F401
 # --- Şemalar ---
 
 class RegisterIn(BaseModel):
+    # BUG #199 (P7): kapali betada davet kodu ZORUNLU (production varsayilani).
+    invite_code: Optional[str] = Field(default=None, max_length=64)
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)  # bcrypt 72-byte sınırı
     name: Optional[str] = Field(default=None, max_length=100)
@@ -116,6 +118,17 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
         raise HTTPException(422, "KVKK açık rıza zorunlu (kvkk_consent=true).")
     _sifre_dogrula(body.password)  # BUG #187: yaygin/zayif sifre reddi
     email = body.email.lower().strip()
+
+    # BUG #199 (P7): KAPALI BETA. Kayit ucu herkese acikti -> domain canliya cikar cikmaz
+    # baglantiyi bilen herkes hesap acabilirdi. Production varsayilani invite_only
+    # (fail-closed): acik kayit ancak operator ACIKCA REGISTRATION_MODE=open yazarsa.
+    from app.beta_access import invite_required, davet_dogrula, davet_kullan
+    davet = None
+    if invite_required():
+        davet = davet_dogrula(db, body.invite_code, email)
+        if davet is None:
+            # Sebep AYRISTIRILMAZ (kod deneme saldirisina bilgi verilmez).
+            raise HTTPException(403, "Kayıt şu anda davetlilere açık. Geçerli bir davet kodu gerekli.")
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "Bu e-posta zaten kayıtlı.")
     user = User(
@@ -131,6 +144,8 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)) 
     # M62 (ADR-037): personal workspace + owner membership AYNI transaction'da
     from app.services.workspace_setup import ensure_personal_workspace
     ensure_personal_workspace(db, user, commit=False)
+    if davet is not None:
+        davet_kullan(db, davet, user.id)   # BUG #199: davet TEK KULLANIMLIK, ayni transaction
     db.commit()
     db.refresh(user)
     return _issue_tokens(user)

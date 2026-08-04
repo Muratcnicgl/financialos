@@ -958,6 +958,27 @@ class GoalAllocation(Base):
         Index("ix_goal_allocations_transaction_id", "transaction_id"),
     )
 
+class BetaInvite(Base):
+    """BUG #199 (P7): KAPALI BETA davet kodu.
+
+    Kayit ucu herkese acikti: domain canliya cikar cikmaz baglantiyi bilen herkes
+    kayit olabilirdi -> "kapali beta" bir IDDIA olurdu, kontrol degil. Finansal veri
+    tasiyan bir uygulamada davetli-disi kayit kabul edilemez (masterprompt §2 Basamak A).
+
+    Kod tek kullanimliktir; e-posta baglanirsa YALNIZ o adres kullanabilir.
+    """
+    __tablename__ = "beta_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(40), nullable=False, unique=True, index=True)
+    email = Column(String(255), nullable=True)      # None = herhangi bir adres kullanabilir
+    note = Column(String(200), nullable=True)       # operator notu ("Ali - is arkadasi")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    used_by_user_id = Column(Integer, nullable=True)
+
+
 class ErrorLog(Base):
     """BUG #195 (P5): beklenmedik hatalarin KENDI DB'mizde tutuldugu kayit.
 

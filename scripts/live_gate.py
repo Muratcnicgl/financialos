@@ -107,7 +107,15 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
     kod, _b, _g = _iste(f"{base}/openapi.json")
     s.ekle("/openapi.json kapalı", kod in (404, 401, 403), f"kod={kod}")
 
-    print("\n== 5. HUKUKİ METİNLER (KVKK) ==")
+    print("\n== 5. KAPALI BETA (kayıt kontrolü) ==")
+    # P7 (BUG #199): canlıda kayıt herkese açıksa "kapalı beta" bir İDDİADIR, kontrol değil.
+    kod, _b, _g = _iste(f"{base}/api/auth/register", metod="POST", veri={
+        "email": "kapali-beta-kontrol@example.com", "password": "Rastgele-Parola-2026!",
+        "name": "kontrol", "kvkk_consent": True})
+    s.ekle("kayıt davetlilere kapalı", kod == 403,
+           f"kod={kod} — 201 ise BAĞLANTIYI BİLEN HERKES hesap açabiliyor")
+
+    print("\n== 6. HUKUKİ METİNLER (KVKK) ==")
     for slug in ("kvkk", "kullanim-sartlari", "veri-isleyenler"):
         kod, _b, govde = _iste(f"{base}/api/legal/{slug}")
         s.ekle(f"/api/legal/{slug} okunabilir",

@@ -95,6 +95,18 @@ upgrade head` çalıştırın (yedek eski şemadan gelmiş olabilir).
 `--from <dosya> --confirm` (onaysız hiçbir şey yazılmaz, bozuk yedek reddedilir, geri
 yüklemeden önce mevcut DB'nin kopyası alınır).
 
+## Canlı doğrulama (P6 — deploy sonrası ZORUNLU)
+```sh
+# Tek komut: saglik, HTTPS/HSTS/CSP, kimlik zorunlulugu, /docs kapali, KVKK metinleri,
+# PWA, brute-force limiti + (kimlik verilirse) giris/cockpit/koc kotasi.
+python scripts/live_gate.py https://$DOMAIN
+python scripts/live_gate.py https://$DOMAIN --email <e-posta> --password '<parola>'
+```
+Cikis kodu 0 degilse **kapali beta ACILMAZ**. Parola yalnizca parametredir; script
+hicbir yere yazmaz (test ile kilitli: tests/test_live_gate_script.py).
+**24 saat sonra tekrar kos** — cron/fiyat tazeligi kapisi ancak bir gece gectikten
+sonra anlamlidir (P6.3).
+
 ## Sorun giderme
 - **nginx başlamıyor:** TLS cert yok → `deploy/init-letsencrypt.sh` koşuldu mu? Logs: `docker compose logs web`.
 - **backend başlamıyor:** `.env.prod` SECRET_KEY placeholder/boş mu? Fail-fast reddeder → gerçek değer koy. Logs: `docker compose logs backend`.

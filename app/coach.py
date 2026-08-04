@@ -808,6 +808,31 @@ def _day_suffix(tarih_str: str, today) -> str:
     return f" ← {-days} gün önce vadesi geçti"
 
 
+# FEAT-032: kullanıcı döviz sorduysa CANLI FX'i context'e enjekte et (koç uydurmasın).
+# Kapsam SCOPED (yalnız döviz; açık web değil). ReAct döngüsü yok → önceden çek + context'e koy.
+_FX_QUERY_RE = re.compile(r'\b(dolar|dolara|usd|euro|eur|döviz|dövize|kur)\b', re.IGNORECASE)
+
+
+def _maybe_market_block(user_message: str) -> Tuple[str, list]:
+    """Döviz sorusunda canlı FX bloğu + grounding sayıları döner. Sormadıysa ('', [])."""
+    if not user_message or not _FX_QUERY_RE.search(user_message):
+        return "", []
+    from app.price_providers.fx_live import get_live_fx
+    fx = get_live_fx()
+    if not fx:
+        return ("\n\n## CANLI PİYASA\n  - Canlı döviz verisi şu an alınamadı (ağ/servis). "
+                "Kur sorulursa UYDURMA; 'şu an canlı kuru çekemedim, güncel için bankana/döviz "
+                "sitesine bak' de.", [])
+    block = (
+        f"\n\n## CANLI PİYASA — ŞU ANKİ GÜNCEL KUR (canlı çekildi: {fx['guncelleme']})\n"
+        f"  - USD/TRY: {_fmt(float(fx['usd_try']))} TL\n"
+        f"  - EUR/TRY: {_fmt(float(fx['eur_try']))} TL\n"
+        f"  (Kur sorulursa bunu 'şu anki/güncel kur' diye ver; 'kaydedilmiş' DEME — canlı "
+        f"değerdir. Kaynak adı zorunlu değil, uydurma.)"
+    )
+    return block, [float(fx['usd_try']), float(fx['eur_try'])]
+
+
 def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int] = None) -> Tuple[str, Dict]:
     today = date.today()
     with workspace_scope(workspace_id):
@@ -2417,6 +2442,12 @@ class CoachEngine:
             if include_cockpit:
                 context_text, cockpit_dict = _build_context_message(db, user_id, workspace_id)
                 system_prompt = f"{V3_GOD_MODE_PROMPT}\n\n{context_text}"
+                # FEAT-032: döviz sorusunda canlı FX'i context'e ekle (koç uydurmasın; grounding'e de gir)
+                _mkt_block, _mkt_nums = _maybe_market_block(user_message)
+                if _mkt_block:
+                    system_prompt += _mkt_block
+                    if cockpit_dict is not None and _mkt_nums:
+                        cockpit_dict.setdefault("_coach_extra_numbers", []).extend(_mkt_nums)
 
             with recorder.step(OperationName.RULE_CHECK, intent="Cockpit + kural durumu") as s:
                 # BUG #111 fix (öz-denetim): cockpit anahtarı "alerts" (uyarilar DEĞİL) ve

@@ -134,3 +134,58 @@ def test_sifirlamada_da_politika_uygulanir(client, kayitli):
     r = client.post("/api/auth/password-reset-confirm",
                     json={"token": token, "new_password": "password"})
     assert r.status_code == 422, f"Sıfırlamada zayıf şifre kabul edildi ({r.status_code})"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BUG #190 (P3) — giriş yapmış kullanıcı şifresini DEĞİŞTİREMİYORDU
+# Tek yol e-posta ile sıfırlamaydı; prod'da SMTP yapılandırılmamışsa (yeni deploy,
+# ücretsiz kademe beklerken) kullanıcı şifresini hiç değiştiremiyordu.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_sifre_degistirme_ucu_calisir(client, kayitli):
+    h = {"Authorization": f"Bearer {kayitli['access_token']}"}
+    r = client.post("/api/auth/change-password", headers=h, json={
+        "current_password": "Guclu-Parola-2026!", "new_password": "Yepyeni-Parola-2026!"})
+    assert r.status_code == 200, r.text[:200]
+
+    # Yeni şifreyle giriş çalışır, eskisi çalışmaz
+    assert client.post("/api/auth/login", json={
+        "email": "rot@example.com", "password": "Yepyeni-Parola-2026!"}).status_code == 200
+    assert client.post("/api/auth/login", json={
+        "email": "rot@example.com", "password": "Guclu-Parola-2026!"}).status_code == 401
+
+
+def test_yanlis_mevcut_sifre_reddedilir(client, kayitli):
+    h = {"Authorization": f"Bearer {kayitli['access_token']}"}
+    r = client.post("/api/auth/change-password", headers=h, json={
+        "current_password": "Yanlis-Parola-2026!", "new_password": "Yepyeni-Parola-2026!"})
+    assert r.status_code == 401, f"Mevcut şifre doğrulanmadan değiştirildi ({r.status_code})"
+
+
+def test_degistirmede_de_politika_uygulanir(client, kayitli):
+    h = {"Authorization": f"Bearer {kayitli['access_token']}"}
+    r = client.post("/api/auth/change-password", headers=h, json={
+        "current_password": "Guclu-Parola-2026!", "new_password": "12345678"})
+    assert r.status_code == 422
+
+
+def test_degistirme_diger_oturumlari_dusurur(client, kayitli):
+    """Güvenlik: şifre değişince ÇALINMIŞ diğer oturumlar ölmeli (BUG #172 ailesi)."""
+    eski_refresh = kayitli["refresh_token"]
+    h = {"Authorization": f"Bearer {kayitli['access_token']}"}
+    r = client.post("/api/auth/change-password", headers=h, json={
+        "current_password": "Guclu-Parola-2026!", "new_password": "Yepyeni-Parola-2026!"})
+    assert r.status_code == 200
+    assert client.post("/api/auth/refresh",
+                       json={"refresh_token": eski_refresh}).status_code == 401
+
+
+def test_degistirme_cagirana_yeni_token_verir(client, kayitli):
+    """Kullanıcı deneyimi: şifresini değiştiren kişi anında atılmamalı."""
+    h = {"Authorization": f"Bearer {kayitli['access_token']}"}
+    r = client.post("/api/auth/change-password", headers=h, json={
+        "current_password": "Guclu-Parola-2026!", "new_password": "Yepyeni-Parola-2026!"})
+    yeni = r.json()
+    assert yeni.get("access_token") and yeni.get("refresh_token")
+    assert client.get("/api/auth/me",
+                      headers={"Authorization": f"Bearer {yeni['access_token']}"}).status_code == 200

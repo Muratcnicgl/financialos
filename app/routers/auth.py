@@ -87,6 +87,12 @@ class PasswordResetRequestIn(BaseModel):
     email: EmailStr
 
 
+class PasswordChangeIn(BaseModel):
+    """BUG #190 (P3): giris yapmis kullanicinin sifre degistirmesi."""
+    current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class PasswordResetConfirmIn(BaseModel):
     token: str
     new_password: str = Field(min_length=8, max_length=72)
@@ -198,6 +204,33 @@ def logout(body: RefreshIn, request: Request, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.post("/change-password", response_model=TokenOut)
+def change_password(
+    body: PasswordChangeIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TokenOut:
+    """BUG #190 (P3): giris yapmis kullanici sifresini degistirir.
+
+    Onceden TEK yol e-posta ile sifirlamaydi; SMTP yapilandirilmamis bir kurulumda
+    (yeni deploy) kullanici sifresini HIC degistiremiyordu. Mevcut sifre dogrulanir,
+    politika uygulanir (BUG #187), diger TUM oturumlar dusurulur (BUG #172 ailesi) ve
+    cagirana yeni token cifti verilir (kullanici kendi islemiyle atilmaz).
+    """
+    _rate_limit(request, "login", db=db)  # brute-force: mevcut sifre denemesi
+    if not user.password_hash:
+        raise HTTPException(400, "Bu hesap sosyal giris (OAuth) ile acilmis — sifresi yok.")
+    if not _auth.verify_password(body.current_password, user.password_hash):
+        raise HTTPException(401, "Mevcut sifre hatali.")
+    _sifre_dogrula(body.new_password)
+    user.password_hash = _auth.hash_password(body.new_password)
+    user.token_version = int(getattr(user, "token_version", 0) or 0) + 1  # diger oturumlar duser
+    db.commit()
+    db.refresh(user)
+    return _issue_tokens(user)
 
 
 # --- Şifre sıfırlama (SMTP — API_KEY_TALEP: Brevo/Sendgrid) ---

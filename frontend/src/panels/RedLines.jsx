@@ -4,7 +4,7 @@ import {
   Loader2, AlertTriangle, RefreshCw, CheckCircle, Power,
   Flame, Target, BookOpen, Info,
 } from 'lucide-react';
-import { checkpointsApi } from '../api.js';
+import { checkpointsApi, accountsApi, parseTRNumber } from '../api.js';  // H21: dayatılan kural formu
 
 /**
  * RedLines paneli — Master Checkpoint yonetimi.
@@ -53,6 +53,7 @@ const PRIORITY_META = {
 
 export default function RedLines() {
   const [checkpoints, setCheckpoints] = useState([]);
+  const [accounts, setAccounts] = useState([]);   // H21: 'dokunulmaz hesap' kuralı için
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,6 +78,12 @@ export default function RedLines() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // H21: 'dokunulmaz hesap' kuralı için hesap listesi (hata olursa kural formu yine açılır —
+  // yalnız o seçenek boş kalır; panel çökmez).
+  useEffect(() => {
+    accountsApi.list().then(setAccounts).catch(() => setAccounts([]));
+  }, []);
 
   const handleRefresh = () => { setRefreshing(true); load(); };
 
@@ -277,6 +284,7 @@ export default function RedLines() {
       {editing && (
         <CheckpointFormModal
           checkpoint={editing === 'new' ? null : editing}
+          accounts={accounts}
           onClose={() => setEditing(null)}
           onSave={handleSave}
         />
@@ -371,7 +379,7 @@ function CheckpointCard({ checkpoint, onEdit, onDelete, onToggleActive }) {
 // CHECKPOINT FORM MODAL
 // ============================================================
 
-function CheckpointFormModal({ checkpoint, onClose, onSave }) {
+function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
   const isNew = !checkpoint;
   const [title, setTitle] = useState(checkpoint?.title || '');
   const [description, setDescription] = useState(checkpoint?.description || '');
@@ -380,6 +388,15 @@ function CheckpointFormModal({ checkpoint, onClose, onSave }) {
   const [isActive, setIsActive] = useState(checkpoint?.is_active !== false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // H21 / BUG #192: DAYATILAN kural. Serbest metin kurallar koça bağlam olarak gider;
+  // buradan bir tip seçilirse kural KOD SEVİYESİNDE uygulanır (işlem bloklanır).
+  const [ruleType, setRuleType] = useState(checkpoint?.rule_type || '');
+  const [ruleAmount, setRuleAmount] = useState(
+    checkpoint?.rule_params?.amount != null ? String(checkpoint.rule_params.amount) : ''
+  );
+  const [ruleAccountId, setRuleAccountId] = useState(
+    checkpoint?.rule_params?.account_id != null ? String(checkpoint.rule_params.account_id) : ''
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -390,12 +407,26 @@ function CheckpointFormModal({ checkpoint, onClose, onSave }) {
     setError(null);
 
     try {
+      // H21: yapılandırılmış kural parametreleri (boşsa gönderilmez → serbest metin kural)
+      let rule_params = null;
+      if (ruleType === 'account_untouchable') {
+        const id = parseInt(ruleAccountId, 10);
+        if (!id) { setError('Hesap seçmelisin'); setBusy(false); return; }
+        rule_params = { account_id: id };
+      } else if (ruleType) {
+        const tutar = parseTRNumber(ruleAmount);
+        if (!tutar || tutar <= 0) { setError('Geçerli bir tutar gir'); setBusy(false); return; }
+        rule_params = { amount: tutar };
+      }
+
       await onSave({
         title: title.trim(),
         description: description.trim(),
         checkpoint_type: type,
         priority: parseInt(priority),
         is_active: isActive,
+        rule_type: ruleType || null,
+        rule_params,
       }, isNew);
     } catch (e) {
       setError(e.message);
@@ -470,6 +501,53 @@ function CheckpointFormModal({ checkpoint, onClose, onSave }) {
           <p className="text-[10px] text-zinc-500 mt-1">
             Net, açık ve koçun anlayacağı şekilde yaz. Örnek: "Kart kullanım oranı %95'i aşarsa kullanıcıya kritik uyarı ver."
           </p>
+        </div>
+
+        {/* H21 / BUG #192: DAYATILAN kural — koçun iyi niyetine bırakılmaz, kod uygular */}
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+          <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            Bu kural otomatik UYGULANSIN mı? (opsiyonel)
+          </label>
+          <select
+            value={ruleType}
+            onChange={(e) => setRuleType(e.target.value)}
+            className="input"
+          >
+            <option value="">Hayır — yalnız koç dikkate alsın (serbest metin)</option>
+            <option value="min_cash_floor">Nakdim şu tutarın altına inmesin</option>
+            <option value="max_single_expense">Tek seferde şu tutardan fazla harcamayayım</option>
+            <option value="account_untouchable">Şu hesaba dokunulmasın</option>
+          </select>
+
+          {ruleType && ruleType !== 'account_untouchable' && (
+            <div>
+              <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Tutar (TL)</label>
+              <input
+                type="text" inputMode="decimal"
+                value={ruleAmount}
+                onChange={(e) => setRuleAmount(e.target.value)}
+                className="input" placeholder="örn. 8.000"
+              />
+            </div>
+          )}
+
+          {ruleType === 'account_untouchable' && (
+            <div>
+              <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Hesap</label>
+              <select value={ruleAccountId} onChange={(e) => setRuleAccountId(e.target.value)} className="input">
+                <option value="">Seç…</option>
+                {(accounts || []).map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {ruleType && (
+            <p className="text-[10px] text-brand-600 dark:text-brand-400">
+              Bu kural seçildiğinde işlem <strong>gerçekten engellenir</strong> — koçun onayına bağlı değildir.
+            </p>
+          )}
         </div>
 
         <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">

@@ -305,6 +305,16 @@ export const debtsApi = {
 };
 
 // =============================================================
+// ONBOARDING (H20 / BUG #194) — istege bagli demo veri
+// =============================================================
+
+export const onboardingApi = {
+  durum:  () => request('/api/onboarding/demo'),
+  yukle:  () => request('/api/onboarding/demo', { method: 'POST' }),
+  kaldir: () => request('/api/onboarding/demo', { method: 'DELETE' }),
+};
+
+// =============================================================
 // CHECKPOINTS (4)
 // =============================================================
 

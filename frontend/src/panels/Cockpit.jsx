@@ -15,6 +15,7 @@ import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import Onboarding from '../components/Onboarding.jsx';  // H20: ilk kullanım rehberi + demo veri
 
 /**
  * FEAT-030 (UX açıklanabilirlik): Günlük limitin AÇIK dökümü.
@@ -175,8 +176,13 @@ export default function Cockpit({ setActiveTab }) {
     borclarToplami > 0 ? `−${formatTL(borclarToplami)} TL kişisel borç` : null,
   ].filter(Boolean).join(', ');
 
+  // H20 (BUG #194): veri yoksa yeni kullanıcı yönlendirilir; verisi olanı rahatsız etmez.
+  const bosMu = (data?.accounts?.length || 0) === 0;
+
   return (
     <div className="space-y-6 animate-fade-in">
+      <Onboarding bosMu={bosMu} onDegisti={handleRefresh} />
+
       {/* Statu + Yenile */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">

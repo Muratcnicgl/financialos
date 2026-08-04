@@ -189,6 +189,8 @@ app.add_middleware(
 # Grup 1
 from app.routers import legal as legal_router  # P4: hukuki metinler (kimliksiz erisim)
 app.include_router(legal_router.router)
+from app.routers import onboarding as onboarding_router  # P3.5/H5: opsiyonel demo veri
+app.include_router(onboarding_router.router)
 app.include_router(user_router.router)
 app.include_router(accounts_router.router)
 # Grup 2

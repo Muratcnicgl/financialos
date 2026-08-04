@@ -952,6 +952,27 @@ class GoalAllocation(Base):
         Index("ix_goal_allocations_transaction_id", "transaction_id"),
     )
 
+class DemoDataMarker(Base):
+    """BUG #194 (P3.5/H5): demo veri olarak yaratilan satirlarin kimligi.
+
+    Demo verinin TEK TUSLA ve TAM olarak silinebilmesi icin gerekli. Is tablolarina
+    `is_demo` kolonu eklemek yerine ayri isaretleyici: mevcut semayi kirletmez ve
+    "yalnizca isaretli satirlar silinir" garantisi acikca test edilebilir
+    (kullanicinin KENDI verisi asla silinmez).
+    """
+    __tablename__ = "demo_data_markers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    table_name = Column(String(40), nullable=False)
+    row_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_demo_marker_user_table", "user_id", "table_name"),
+    )
+
+
 class RateLimitHit(Base):
     """BUG #182 (P2): rate-limit sayaci — PROCESS-YEREL degil, paylasilan.
 

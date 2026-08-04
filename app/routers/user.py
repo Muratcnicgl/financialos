@@ -23,6 +23,7 @@ from app.models import (
     Goal, Envelope, MasterCheckpoint, NetWorthSnapshot, CoachMemory, CoachInsight,
     # KVKK/egemenlik tamlığı: kullanıcının eylem/karar/hedef-izleme kayıtları da dahil.
     PendingAction, ActionHistory, DecisionJournal, ReasoningTrace, ApiCallLog,
+    DemoDataMarker,  # BUG #194
     GoalAllocation, GoalRule, WishlistItem,
     Workspace, WorkspaceMembership,  # M40 (ADR-036) — KVKK tamlığı
     Feedback,  # FEAT-033 — KVKK tamlığı
@@ -155,6 +156,9 @@ def export_data(
         "envelopes": dump(Envelope),
         "wishlist_items": dump(WishlistItem),  # FEAT-032: istek listesi
         "feedback": dump(Feedback),  # FEAT-033: kullanıcının gönderdiği geri bildirimler
+        # BUG #194 (P3.5/H5): demo veri isaretleyicileri de kullaniciya ait kayittir —
+        # KVKK tamlik invariant'i (tests/test_data_export.py) bunu zorunlu kilar.
+        "demo_data_markers": dump(DemoDataMarker),
 
         "master_checkpoints": dump(MasterCheckpoint),
         "net_worth_snapshots": dump(NetWorthSnapshot),

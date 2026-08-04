@@ -475,6 +475,21 @@ Kullanici bu satiri gormeyecek (sistem tarafindan ayri parse edilir).
 """
 
 
+# İki-geçiş "plan-sonra-yaz" (kalite mimarisi): analiz/soru cevaplarında model önce GİZLİ bir
+# iç plan üretir (sentez + doğru çerçeve + söylenmeyecekler), sonra nihai cevabı bu plana göre
+# yazar. Amaç: "okudukça yapıştırma" + iç-jargon sızıntısı + tutarsızlık hatalarını YAPISAL
+# olarak engellemek. Rakamlar yine bağlamdan üretilir (yeniden-yazma DEĞİL → grounding bozulmaz).
+_PLAN_INSTRUCTION = """# İÇ PLAN ÜRET (bu adımda kullanıcıya CEVAP YAZMA — sadece kendine plan çıkar)
+
+Yukarıdaki cockpit + kurallar ışığında, kullanıcının son mesajına vereceğin cevabın KISA iç
+planını yaz (madde madde, en fazla 6 satır). Kullanıcı bunu GÖRMEYECEK:
+1. İlgili gerçekler: hangi sayı/durum belirleyici (örn. "kart borcu 0", "kredi 79.625").
+2. Mantık bütünlüğü: çözülmesi gereken koşul/çelişki (örn. "kart 0 → soru aslında krediye bakıyor").
+3. Net sonuç/öneri: tek tutarlı çerçeve + varsa riskli seçeneğin işareti.
+4. SÖYLENMEYECEKLER: iç terim (menü/senaryo/model/alan-adı), gereksiz tekrar/dolgu.
+Yalnız planı yaz. Cevap metnini SONRAKİ adımda yazacaksın."""
+
+
 # ============================================================
 # 2. TOOL ŞEMASI
 # ============================================================
@@ -2430,6 +2445,32 @@ class CoachEngine:
                 s.observation = f"is_question={is_q}, offer_propose={offer_propose}, tool_count={len(active_tools)}"
                 tool_names = [t.get("name", "?") for t in active_tools]
                 s.inference = f"active_tools: {tool_names}"
+
+            # --------------------------------------------------------
+            # STEP B.5: DELİBERASYON — iki-geçiş "plan-sonra-yaz" (kalite mimarisi)
+            # --------------------------------------------------------
+            # Analiz/soru/tavsiye yolunda önce GİZLİ iç plan üret, sonra ana cevabı bu plana göre
+            # yaz → sentez garantisi + jargon-siz register. GERÇEKLEŞMİŞ EYLEM bildiriminde
+            # (harcadım/sattım/ödedim → tool çağrılacak) YAPILMAZ; tool akışını bozmasın. Plan
+            # üretilemezse sessizce tek-geçişe düşer (robustluk — cevap ASLA kilitlenmesin).
+            if include_cockpit and not has_realized_action(user_message):
+                with recorder.step(OperationName.LLM_CALL, intent="İç plan (deliberasyon)") as plan_step:
+                    try:
+                        plan_resp = self.provider.chat(
+                            system_prompt=f"{system_prompt}\n\n{_PLAN_INSTRUCTION}",
+                            messages=messages,
+                            tools=[],
+                        )
+                        plan_text = (plan_resp.text or "").strip()
+                        plan_step.observation = plan_text[:500]
+                    except Exception as e:  # noqa: BLE001 — plan opsiyonel; hata tek-geçişe düşürür
+                        plan_text = ""
+                        plan_step.observation = f"plan uretilemedi ({type(e).__name__}) → tek-gecis"
+                if plan_text:
+                    system_prompt = (
+                        f"{system_prompt}\n\n# UYGULANACAK İÇ PLAN (kullanıcıya GÖSTERME; "
+                        f"cevabını buna göre TEK bütün, sade ve jargonsuz yaz):\n{plan_text}"
+                    )
 
             # --------------------------------------------------------
             # STEP C: Ana LLM cagrisi

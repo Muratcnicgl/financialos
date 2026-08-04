@@ -4,7 +4,7 @@
 > buradaki protokolü uygular. "Kaldığımız yerden devam" = bu dosyanın §11 DURUM TABLOSU'ndaki
 > ilk ⬜/🟡 satırdan devam etmek demektir.
 >
-> **Sürüm:** v1.0 · **Yazıldı:** 2026-08-04 · **Sahip:** Murat İçgil · **Yürütücü:** asistan araci
+> **Sürüm:** v2.0 · **Yazıldı:** 2026-08-04 · **Revize:** 2026-08-05 (41 bug sonrası ders-kuralları) · **Sahip:** Murat İçgil · **Yürütücü:** asistan araci
 > **Değişiklik günlüğü:** §12 (yalnız İLERİ yönlü — kapsam daraltma/kalite düşürme yasak)
 
 ---
@@ -45,6 +45,28 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
 - **DURMAK YOK.** Bir faz bitince rapor + bir sonraki faza geçiş aynı turda başlar. Onay beklenmez
   (Murat tüm işlemleri önceden onayladı) — **tek istisna §9 İNSAN-KAPISI**.
 - **GERİLEME YASAK.** Bu masterprompt yalnız ileri yönlü güncellenir (§12).
+
+### §1.3 DERS-KURALLARI L1-L10 (v2.0 — 41 bug'ın ardından, YALNIZ EKLENİR)
+
+> Not: `D1` §1'de **sektör referansı** kuralıdır; karışmasın diye ders-kuralları **L** ile numaralanır.
+
+Bu kurallar teorik değil: her biri bu goal'de **gerçekten yaşanmış** bir hatadan çıkarıldı.
+Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
+
+| # | Kural | Nereden çıktı |
+|---|---|---|
+| L1 | **"İkinci kullanıcı geldiğinde ne bozulur?"** — her özellik için sor. Tek kullanıcıda görünmeyen hata, ikinci kullanıcıda VERİ SIZINTISIDIR. | #162 (çapraz-kullanıcı kural sızıntısı), #163 (yalnız ilk kullanıcı), #188 (paylaşılan kota) |
+| L2 | **Sessiz kabul, en kötü hatadır.** Geçersiz girdi/ayar kabul edilirse kullanıcı KORUNDUĞUNU SANIR. Yazma anında gürültüyle reddet. | #192 (bozuk kural), #197 (geçersiz saat dilimi), #164 (bozuk yedek) |
+| L3 | **Yeşil kapı ≠ çalışan kapı.** Her statik/otomatik kapıya, kapının kendisini sınayan meta-test yaz. | #162'yi kaçıran Wave-5 kapısı |
+| L4 | **Provasız güvence yoktur.** "Yedeğimiz var / migration çalışır / deploy hazır" iddiaları ancak TATBİKATLA doğrulanır. | H14 (geri yükleme), #196 (veri-dolu migration), prod provası |
+| L5 | **Production varsayılanları FAIL-CLOSED olmalı.** Operatör hiçbir şey yazmazsa sistem güvenli tarafta kalmalı. | #171 (AUTH_ENABLED), #199 (kayıt modu), #170 (sıfırlama token'ı) |
+| L6 | **Sertleştirirken geliştirmeyi kilitleme.** Kapsamı prod'a daralt; dev/test akışı bozulursa kapsam yanlıştır. | #202 ilk denemesi 25 testi kırdı → kapsam prod+açık-kayda daraltıldı |
+| L7 | **Kapılar birbirini etkileyebilir.** Sıra/yan etki düşün; yoksa kapı YANLIŞ ALARM verir. | #198 (rate-limit testi login kovasını tüketiyordu) |
+| L8 | **Belgelenen ≠ ulaşılabilir.** Metin/ayar var diye erişilebilir sanma; canlı yolu ölç. | #191 (KVKK metni prod imajında yoktu) |
+| L9 | **Kod ile doküman arasına test koy.** Env adı/sürüm/envanter gibi sözleşmeler elle senkron kalmaz. | #189 (OAuth env adları), #200 (CHANGELOG↔sürüm), veri-işleyen envanteri |
+| L10 | **Yalnız yerelde görünmeyeni ara.** Sunucu/konteyner/çok-worker/başka saat dilimi farklı davranır. | #169 (TZ), #182 (proxy/çok-worker), #185 (state process-yerel) |
+
+---
 
 ---
 
@@ -412,4 +434,5 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 | Sürüm | Tarih | Değişiklik | Gerekçe |
 |---|---|---|---|
 | v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, ajan protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
+| v2.0 | 2026-08-05 | **§1.3 DERS-KURALLARI (L1-L10)** eklendi — 41 bug'dan çıkarılan, tekrar etmemesi gereken hata SINIFLARI. Faz kapıları KORUNDU, hiçbiri gevşetilmedi | Murat'ın 3. adımı: "masterprompt'u gerileme/duraksama yönü hariç, kaliteyi artırma amaçlı geliştir" |
 | v1.1 | 2026-08-04 | **§P3.5 ÜRÜNLEŞME fazı eklendi** (tek-kullanıcı DNA'sının sökülmesi — yayın-engeli) + **§1.2 kalıcı hatırlatma listesi** (H1-H18) + P0/P1 kapıları kanıtla kapatıldı + R7 riski eklendi | Murat: "kullanıcı sorununu da çözmek lazım publish etmeden… ben unutsam da sen hatırla, nicelerini de sen eklersin". Kapı EKLENDİ, hiçbir kapı gevşetilmedi (§10 kuralına uygun) |

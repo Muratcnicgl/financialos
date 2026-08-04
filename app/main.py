@@ -226,6 +226,8 @@ async def _beklenmedik_hata(request: _Request, exc: Exception):
 from app.routers import legal as legal_router  # P4: hukuki metinler (kimliksiz erisim)
 app.include_router(legal_router.router)
 from app.routers import onboarding as onboarding_router  # P3.5/H5: opsiyonel demo veri
+from app.routers import ops as ops_router  # P5.3: cron gorunurlugu
+app.include_router(ops_router.router)
 app.include_router(onboarding_router.router)
 app.include_router(user_router.router)
 app.include_router(accounts_router.router)

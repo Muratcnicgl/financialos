@@ -962,6 +962,24 @@ class GoalAllocation(Base):
         Index("ix_goal_allocations_transaction_id", "transaction_id"),
     )
 
+class SchedulerRun(Base):
+    """P5.3 (BUG #203): cron/batch is calistirma kaydi — "cron calisti mi" GORUNUR olsun.
+
+    Onceden zamanlanmis isler yalnizca log'a yaziyordu. Operator, fiyat cron'unun gece
+    calisip calismadigini ancak konteyner log'unu okuyarak anlayabiliyordu; bir is
+    sessizce olurse (scheduler servisi ayakta ama job patliyor) HAFTALARCA fark edilmezdi
+    — fiyatlar bayatlar, gece batch'i insight uretmez, kullanici bunu bilmez.
+    """
+    __tablename__ = "scheduler_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_name = Column(String(60), nullable=False, index=True)
+    started_at = Column(DateTime, nullable=False)
+    finished_at = Column(DateTime, nullable=True)
+    ok = Column(Boolean, nullable=True)          # None = devam ediyor
+    detail = Column(String(300), nullable=True)  # kisa ozet / hata tipi (PII yok)
+
+
 class BetaInvite(Base):
     """BUG #199 (P7): KAPALI BETA davet kodu.
 

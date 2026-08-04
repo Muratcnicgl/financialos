@@ -141,6 +141,17 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
             if kod == 200:
                 s.ekle("kullanıcı-başı tavan tanımlı", (uc.get("user_daily_limit") or 0) > 0,
                        f"limit={uc.get('user_daily_limit')} (ADR-041)")
+            # P5.3 (BUG #203): cron GORUNUR mu? 24 saat sonra bu satir "calisti" demeli.
+            kod, _b, sc = _iste(f"{base}/api/ops/scheduler", token=token)
+            s.ekle("scheduler görünürlük ucu", kod == 200, f"kod={kod}", zorunlu=False)
+            if kod == 200:
+                isler = sc.get("isler", [])
+                s.ekle("cron en az bir kez çalıştı (24s sonra ZORUNLU)",
+                       bool(isler), f"is sayisi={len(isler)}", zorunlu=False)
+                basarisiz = [i["job_name"] for i in isler if i.get("son_sonuc") is False]
+                s.ekle("son çalışmalarda hata yok", not basarisiz,
+                       f"basarisiz={basarisiz}", zorunlu=False)
+
             kod, _b, fr = _iste(f"{base}/api/fund-price/freshness", token=token)
             s.ekle("fiyat tazeliği ucu", kod == 200, f"kod={kod}", zorunlu=False)
             if kod == 200:

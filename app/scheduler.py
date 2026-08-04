@@ -164,17 +164,67 @@ def _get_active_user_ids(db: Session) -> list[int]:
     return [u.id for u in users]
 
 
+def _kayit_basla(job_name: str):
+    """P5.3 (BUG #203): is basladi kaydi. Izleme ASLA isi dusurmemeli -> hatalar yutulur."""
+    from app.models import SchedulerRun
+    try:
+        db = SessionLocal()
+        try:
+            k = SchedulerRun(job_name=job_name,
+                             started_at=datetime.utcnow())
+            db.add(k)
+            db.commit()
+            return k.id
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("[scheduler] calisma kaydi acilamadi (%s)", job_name)
+        return None
+
+
+def _kayit_bitir(kayit_id, ok: bool, detail: str = "") -> None:
+    """Isi kapat + o is icin son 50 kaydi birak (tablo sismesin)."""
+    from app.models import SchedulerRun
+    if kayit_id is None:
+        return
+    try:
+        db = SessionLocal()
+        try:
+            k = db.get(SchedulerRun, kayit_id)
+            if k is None:
+                return
+            k.finished_at = datetime.utcnow()
+            k.ok = ok
+            k.detail = (detail or "")[:300]
+            db.commit()
+            eski = (db.query(SchedulerRun)
+                    .filter(SchedulerRun.job_name == k.job_name)
+                    .order_by(SchedulerRun.id.desc())
+                    .offset(50).all())
+            for e in eski:
+                db.delete(e)
+            if eski:
+                db.commit()
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("[scheduler] calisma kaydi kapatilamadi")
+
+
 async def nightly_batch_job():
     """APScheduler cron job - gece 03:00 calisir, tum user'lar icin batch."""
     logger.info(f"Nightly batch job started at {datetime.utcnow().isoformat()}")
+    _kayit = _kayit_basla("nightly_batch")   # BUG #203
     try:
         with _db_session() as db:
             user_ids = _get_active_user_ids(db)
             for uid in user_ids:
                 results = run_periodic_batch_for_user(db, uid)
                 logger.info(f"Nightly batch for user {uid}: {results}")
+        _kayit_bitir(_kayit, True, f"{len(user_ids)} kullanici")  # BUG #203
     except Exception as e:
         logger.exception(f"Nightly batch job failed globally: {e}")
+        _kayit_bitir(_kayit, False, type(e).__name__)
     logger.info(f"Nightly batch job completed at {datetime.utcnow().isoformat()}")
 
 
@@ -235,6 +285,7 @@ async def fetch_investment_prices_job() -> None:
     """
     from app.price_providers import fetch_for_account, record_investment_price
     from app.models import Account, AccountType
+    _kayit = _kayit_basla("fetch_investment_prices")   # BUG #203
     db = SessionLocal()
     try:
         accounts = db.query(Account).filter(Account.account_type == AccountType.investment).all()  # scope-exempt: SİSTEM cron'u — piyasa fiyatı tüm kullanıcıların yatırım hesapları için tazelenir (kullanıcı verisi okunmaz/karışmaz)
@@ -254,9 +305,11 @@ async def fetch_investment_prices_job() -> None:
                 logger.warning("[price] %s (%s): fiyat çekilemedi (elle giriş gerekebilir)",
                                acc.name, acc.fund_code)
         logger.info("[price] %d/%d yatırım hesabı güncellendi", updated, len(accounts))
-    except Exception:
+        _kayit_bitir(_kayit, True, f"{updated}/{len(accounts)} hesap guncellendi")  # BUG #203
+    except Exception as e:
         db.rollback()
         logger.exception("[price] fetch_investment_prices_job başarısız")
+        _kayit_bitir(_kayit, False, type(e).__name__)  # BUG #203: sessiz olum YOK
     finally:
         db.close()
 

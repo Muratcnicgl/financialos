@@ -14,10 +14,12 @@ from sqlalchemy.orm import Session
 
 from app.rules_engine import detect_subscriptions, workspace_scope  # M70
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M70 workspace scoping
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M70 + BUG #173
 from app.models import User, RecurringExpense, Account
 
-router = APIRouter(prefix="/api/subscriptions", tags=["subscriptions"])
+# BUG #173 (P2): require_write YOKTU — viewer paylaşılan workspace'e düzenli gider yazabiliyordu.
+router = APIRouter(prefix="/api/subscriptions", tags=["subscriptions"],
+                   dependencies=[Depends(require_write())])
 
 
 class SubscriptionOut(BaseModel):

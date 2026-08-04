@@ -81,7 +81,8 @@ def compare(
         result = compare_strategies(db, current_user.id, extra_monthly)
     except Exception as e:
         logger.exception("debt-strategy compare failed user_id=%s", current_user.id)
-        raise HTTPException(status_code=500, detail=f"Strateji hesabi hatasi: {e}")
+        raise HTTPException(status_code=500,  # BUG #175: ham exception metni sızmaz (loglandı)
+                            detail="Strateji hesabi su anda yapilamiyor. Lutfen tekrar deneyin.")
 
     logger.info(
         "debt-strategy compare user_id=%s debts=%d extra=%.2f",

@@ -117,7 +117,7 @@ def run_premortem(
         logger.error("premortem generation failed action_id=%s error=%s", action_id, e)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Premortem motoru su anda cevap veremedi: {e}",
+            detail="Premortem su anda cevap veremedi. Lutfen tekrar deneyin.",  # BUG #175
         )
 
     dj = persist_premortem(db, action, current_user.id, result, snapshot_hash)

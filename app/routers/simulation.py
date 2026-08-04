@@ -127,7 +127,7 @@ def simulate_pending_action(
         logger.exception("simulate: engine fail action_id=%s", action_id)
         raise HTTPException(
             status_code=500,
-            detail=f"Simulasyon motoru hatasi: {e}",
+            detail="Simulasyon su anda yapilamiyor. Lutfen tekrar deneyin.",  # BUG #175
         )
 
     if not result.get("ok", False):

@@ -238,7 +238,10 @@ def test_premortem_503_llm_fail(mock_generate, client, db_session, user_alice):
     resp = client.post(f"/api/premortem/{action.id}")
 
     assert resp.status_code == 503
-    assert "motoru" in resp.json()["detail"].lower()
+    # BUG #175 (P2): kullanıcıya SABİT metin döner; sağlayıcı/exception detayı sızmaz.
+    detay = resp.json()["detail"]
+    assert "premortem" in detay.lower()
+    assert "quota" not in detay.lower(), f"İç hata metni sızdı: {detay}"
 
 
 @patch("app.routers.premortem.generate_premortem")

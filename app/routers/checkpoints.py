@@ -35,7 +35,9 @@ router = APIRouter(prefix="/api/checkpoints", tags=["checkpoints"], dependencies
 
 class CheckpointBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
-    description: str = Field(..., min_length=1)
+    # BUG #177 (P2): SINIRSIZDI ve icerigi SISTEM PROMPT'una gomuluyor (coach context) —
+    # dev metin hem DB'yi sisirir hem her koc cagrisinda maliyeti/baglami patlatir.
+    description: str = Field(..., min_length=1, max_length=2000)
     checkpoint_type: CheckpointType
     priority: int = Field(2, ge=1, le=3, description="1=en yuksek, 3=en dusuk")
     is_active: bool = True

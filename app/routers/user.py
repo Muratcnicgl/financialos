@@ -82,6 +82,15 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     Ilk kurulum. Sadece DB'de hic kullanici yoksa olusturur.
     Daha sonra ek kullanici eklemek isteniyorsa burada degil, admin endpoint'inde olmali.
     """
+    # BUG #174 (P2): bu uç kimlik doğrulaması İSTEMİYORDU (tek-kullanıcı kurulum kalıntısı).
+    # Çok-kullanıcı/AUTH açık kurulumda kayıt YOLU /api/auth/register'dır; taze bir
+    # instance'ta yabancı birinin id=1 kullanıcıyı yaratmasına izin verilmez.
+    from app import auth as _auth
+    if _auth.auth_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Kullanıcı oluşturma kapalı — kayıt için POST /api/auth/register kullanın.",
+        )
     existing = db.query(User).first()
     if existing:
         raise HTTPException(

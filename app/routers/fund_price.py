@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from typing import Optional
 from app.dependencies import get_db, get_current_user
-from app.workspace_deps import active_workspace_id, scope_filter  # M70 workspace scoping
+from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M70 + BUG #173
 from app.models import User, Account, AccountType
 from app.schema_types import FinansTutar  # SEC-032: sonlu/pozitif fiyat (inf → lot*inf=inf bakiye)
 from app.fund_tracker import (
@@ -32,7 +32,10 @@ from app.fund_tracker import (
     get_freshness_summary,
 )
 
-router = APIRouter(prefix="/api/fund-price", tags=["fund_price"])
+# BUG #173 (P2): require_write YOKTU — paylaşılan workspace'e viewer olarak davet edilen
+# kullanıcı yatırım fiyatını (dolayısıyla bakiye + net değeri) değiştirebiliyordu (ADR-036 ihlali).
+router = APIRouter(prefix="/api/fund-price", tags=["fund_price"],
+                   dependencies=[Depends(require_write())])
 
 
 # ============================================================

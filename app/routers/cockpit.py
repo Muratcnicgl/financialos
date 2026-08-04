@@ -93,10 +93,12 @@ def get_cockpit(
     try:
         freshness = get_freshness_summary(db, user.id)
         cockpit["price_freshness"] = freshness
-    except Exception as e:
-        # fund_tracker beklenmedik hata verirse cockpit yine donsun
+    except Exception:
+        # fund_tracker beklenmedik hata verirse cockpit yine donsun.
+        # BUG #175: detay YALNIZ log'a (kullanıcıya iç hata metni sızmaz).
+        logger.exception("price_freshness hesaplanamadi user_id=%s", user.id)
         cockpit["price_freshness"] = {
-            "error": str(e),
+            "error": "fiyat tazeligi hesaplanamadi",  # BUG #175: ham exception metni sızmaz
             "total_investments": 0,
             "stale_count": 0,
             "never_set_count": 0,

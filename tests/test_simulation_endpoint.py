@@ -207,4 +207,7 @@ def test_simulate_500_engine_exception(mock_sim, client, db_session, user_alice)
     resp = client.post(f"/api/simulate/{action.id}")
 
     assert resp.status_code == 500
-    assert "motoru" in resp.json()["detail"].lower()
+    # BUG #175 (P2): ham exception metni ("engine cokmesi") kullanıcıya DÖNMEZ.
+    detay = resp.json()["detail"]
+    assert "simulasyon" in detay.lower()
+    assert "cokmesi" not in detay.lower(), f"İç hata metni sızdı: {detay}"

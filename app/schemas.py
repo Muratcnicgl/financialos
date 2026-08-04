@@ -257,7 +257,9 @@ class CockpitSnapshot(BaseModel):
 class GoalCreate(BaseModel):
     goal_type: Literal["debt_freedom", "cash_target"]
     title: str = Field(..., min_length=1, max_length=200)
-    target_amount: Decimal = Field(..., gt=0)
+    # BUG #176 (P2): ust sinir + sonluluk yoktu — 1E+308 / Infinity ilerleme ve
+    # projeksiyon hesabini bozuyordu (SEC-032'nin Goal'da atlanmis hali).
+    target_amount: Decimal = Field(..., gt=0, le=Decimal("1e12"), allow_inf_nan=False)
     target_date: Optional[date] = None
 
 
@@ -315,7 +317,9 @@ class GoalRead(BaseModel):
 
 class GoalAllocationCreate(BaseModel):
     transaction_id: int
-    amount: Decimal  # pozitif=katkı, negatif=çekim
+    # BUG #176 (P2): hicbir sinir yoktu (Infinity/1E+308 kabul ediliyordu).
+    amount: Decimal = Field(..., ge=Decimal("-1e12"), le=Decimal("1e12"),
+                            allow_inf_nan=False)  # pozitif=katkı, negatif=çekim
 
 
 class GoalAllocationRead(BaseModel):

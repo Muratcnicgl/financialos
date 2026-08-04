@@ -374,7 +374,7 @@ def edit_action(
         try:
             new_payload = _normalize_transaction_payload(new_payload, current_user.id, db)
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Payload gecersiz: {e}")
+            raise HTTPException(status_code=400, detail="Aksiyon icerigi gecersiz.")  # BUG #175
 
     pending.payload = json.dumps(new_payload, ensure_ascii=False, default=float)
     pending.summary = body.summary

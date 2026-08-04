@@ -158,8 +158,14 @@ def _compute_cors_origins() -> list[str]:
     explicit = os.getenv("CORS_ORIGINS", "").strip()
     if explicit:
         return [o.strip() for o in explicit.split(",") if o.strip()]
-    origins = [o.strip() for o in _DEFAULT_CORS_ORIGINS.split(",") if o.strip()]
     frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    # BUG #178 (P2): production'da localhost fallback'i YASAK. Önerilen prod kurulumda
+    # (aynı-origin nginx → CORS_ORIGINS boş) backend, kurbanın makinesindeki herhangi bir
+    # yerel geliştirme sunucusuna credentialed CORS izni veriyordu (en-az-yetki ihlali).
+    from app.settings import is_production
+    if is_production():
+        return [frontend] if frontend else []
+    origins = [o.strip() for o in _DEFAULT_CORS_ORIGINS.split(",") if o.strip()]
     if frontend and frontend not in origins:
         origins.append(frontend)
     return origins

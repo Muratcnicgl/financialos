@@ -122,3 +122,21 @@ def test_caddy_csp_ve_govde_siniri():
     assert not any("0.0.0.0" in l for l in kod), (
         "Geçersiz site adresi (0.0.0.0) — Caddy IP için sertifika alamaz, TLS hatası verir"
     )
+
+
+def test_env_ornekleri_kodla_ayni_degisken_adlarini_kullanir():
+    """BUG #189: .env.prod.example OAuth adları KODLA uyuşmuyordu (OAUTH_ öneki yoktu).
+
+    Operatör dokümandaki adı doldurur, kod başka adı okur → OAuth sessizce 501 döner.
+    Bu kapı, env dokümanı ile kodun sözleşmesini bağlar.
+    """
+    from app.services.oauth import _PROVIDERS
+    ornek = (_ROOT / ".env.prod.example").read_text(encoding="utf-8")
+    eksik = []
+    for provider, cfg in _PROVIDERS.items():
+        for anahtar in (cfg["cid_env"], cfg["secret_env"]):
+            if anahtar not in ornek:
+                eksik.append(f"{provider}: {anahtar}")
+    assert not eksik, (
+        ".env.prod.example kodun beklediği değişken adlarını içermiyor:\n" + "\n".join(eksik)
+    )

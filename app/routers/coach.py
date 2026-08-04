@@ -26,6 +26,7 @@ GUNCELLEMELER:
   tool_calls_json dolu ise placeholder set ediliyor. get_history None filtreliyor.
 """
 
+import os
 import json
 import time
 import logging
@@ -73,6 +74,10 @@ class UsageInfo(BaseModel):
     percentage: float
     warn: bool                 # %80 ustunde mi?
     block: bool                # %100 mi?
+    # BUG #188 (P3): KULLANICI-BASINA tavan. Yukaridakiler saglayicinin PAYLASILAN gunluk
+    # kotasidir; tek kullanici onu tuketirse herkes kilitlenir. Bu iki alan kisisel tavandir.
+    user_today_count: int = 0
+    user_daily_limit: int = 0
 
 
 class ChatResponse(BaseModel):
@@ -188,13 +193,38 @@ def _today_call_count(db: Session, user_id: int, provider: str) -> int:
     )
 
 
+def coach_user_daily_limit() -> int:
+    """BUG #188 (P3): kullanici basina gunluk LLM cagri tavani (0 = kapali).
+
+    Koc mesaji basina 2 cagri yapilir (iki-gecis mimarisi) -> varsayilan 80 cagri
+    ~40 mesaj/gun. Cok-kullanicida hem MALIYET tavani hem ADALET guard'idir:
+    saglayici kotasi paylasildigi icin bir kullanici herkesi kilitleyemez.
+    """
+    try:
+        return max(0, int(os.getenv("COACH_DAILY_USER_LIMIT", "80")))
+    except ValueError:
+        return 80
+
+
+def _user_today_call_count(db: Session, user_id: int) -> int:
+    """Kullanicinin bugunku (UTC gunu) TUM saglayicilardaki cagri sayisi."""
+    today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+    return (
+        db.query(func.count(ApiCallLog.id))
+        .filter(ApiCallLog.user_id == user_id, ApiCallLog.called_at >= today_start)
+        .scalar()
+    ) or 0
+
+
 def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
     target = _daily_constrained_provider(provider)
     count = _today_call_count(db, user_id, target)
     limit = PROVIDER_DAILY_LIMITS.get(target)
     if not limit:
         # günlük limiti bilinmeyen sağlayıcı (TPM-limitli) → sayıyı göster, % yanıltmasın
-        return UsageInfo(today_count=count, daily_limit=0, percentage=0.0, warn=False, block=False)
+        return UsageInfo(today_count=count, daily_limit=0, percentage=0.0, warn=False, block=False,
+                         user_today_count=_user_today_call_count(db, user_id),
+                         user_daily_limit=coach_user_daily_limit())
     pct = round((count / limit) * 100, 1)
     return UsageInfo(
         today_count=count,
@@ -202,6 +232,8 @@ def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
         percentage=pct,
         warn=pct >= 80.0,
         block=pct >= 100.0,
+        user_today_count=_user_today_call_count(db, user_id),
+        user_daily_limit=coach_user_daily_limit(),
     )
 
 
@@ -315,11 +347,22 @@ def chat(
 
     # Pre-check: gunluk limit dolmussa cevap vermeden once uyar
     pre_usage = _build_usage_info(db, user.id, provider_name)
-    if pre_usage.block:
+    # BUG #188 (P3): KULLANICI-BASINA tavan — saglayici kotasindan BAGIMSIZ. Paylasilan
+    # kotayi tek kisi tuketip digerlerini kilitleyemez; maliyet de kullanici basina sinirli.
+    kisisel_tavan = coach_user_daily_limit()
+    if kisisel_tavan and pre_usage.user_today_count >= kisisel_tavan:
         raise HTTPException(
             status_code=429,
-            detail=f"Gunluk LLM limiti doldu ({pre_usage.today_count}/{pre_usage.daily_limit}). "
-                   f"Yarin sifirlanacak. Anthropic'e gecis icin .env: LLM_PROVIDER=anthropic.",
+            detail="Bugunku koc kullanim hakkin doldu. Yarin yeniden sohbet edebilirsin — "
+                   "paneller ve hesaplamalar calismaya devam ediyor.",
+        )
+    if pre_usage.block:
+        # BUG #188: kullaniciya IC YAPILANDIRMA tavsiyesi verilmez (eskiden .env/saglayici
+        # adi yaziyordu — son kullanici icin anlamsiz, ic mimariyi ifsa eder).
+        raise HTTPException(
+            status_code=429,
+            detail="Koc su an yogun (gunluk kapasite doldu). Yarin yeniden dene — "
+                   "paneller ve hesaplamalar calismaya devam ediyor.",
         )
 
     # Asil cagri + sure olcumu

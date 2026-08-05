@@ -139,3 +139,86 @@ def send_password_reset_email(to_email: str, reset_link: str) -> bool:
   </div>
 </body></html>"""
     return send_email(to_email, subject, text_body, html_body)
+
+
+def send_email_change_verification(to_email: str, dogrulama_link: str) -> bool:
+    """P4.4 (BUG #215): YENİ adrese gönderilen doğrulama — adres ancak tıklanınca değişir.
+
+    Neden yeni adrese: kullanıcı adresi yanlış yazarsa (asıl senaryo — hesabı kilitleyen
+    şey budur) bağlantı gelmez, DEĞİŞİKLİK OLMAZ ve eski adresiyle girmeye devam eder.
+    Adresi anında değiştirseydik tek harflik bir hata hesabı kalıcı olarak öldürürdü.
+    """
+    destek = destek_adresi()
+    subject = "FinancialOS — E-posta Adresi Doğrulama"
+    text_body = (
+        "Merhaba,\n\n"
+        "FinancialOS hesabınızın e-posta adresinin BU adresle değiştirilmesi talep edildi.\n"
+        "Onaylamak için aşağıdaki bağlantıya tıklayın (bağlantı 2 saat geçerlidir):\n\n"
+        f"{dogrulama_link}\n\n"
+        "Bu talebi siz yapmadıysanız hiçbir şey yapmayın — tıklanmadıkça adres DEĞİŞMEZ.\n\n"
+        f"Sorularınız için: {destek}\n\n"
+        "— FinancialOS"
+    )
+    html_body = f"""\
+<!doctype html>
+<html lang="tr"><body style="margin:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#18181b">
+  <div style="max-width:480px;margin:24px auto;background:#ffffff;border-radius:12px;padding:28px">
+    <h1 style="font-size:20px;margin:0 0 8px">FinancialOS</h1>
+    <p style="font-size:14px;line-height:1.6;color:#3f3f46">Merhaba,</p>
+    <p style="font-size:14px;line-height:1.6;color:#3f3f46">
+      Hesabınızın e-posta adresinin <b>bu adresle</b> değiştirilmesi talep edildi.
+      Onaylamak için butona tıklayın. Bağlantı <b>2 saat</b> geçerlidir.
+    </p>
+    <p style="text-align:center;margin:24px 0">
+      <a href="{dogrulama_link}" style="background:#4f46e5;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;display:inline-block">
+        Adresi Doğrula
+      </a>
+    </p>
+    <p style="font-size:12px;line-height:1.6;color:#71717a">
+      Buton çalışmazsa bu bağlantıyı tarayıcınıza kopyalayın:<br>
+      <span style="word-break:break-all;color:#4f46e5">{dogrulama_link}</span>
+    </p>
+    <hr style="border:none;border-top:1px solid #e4e4e7;margin:20px 0">
+    <p style="font-size:12px;line-height:1.6;color:#a1a1aa">
+      Bu talebi siz yapmadıysanız hiçbir şey yapmayın — bağlantıya tıklanmadıkça adresiniz
+      değişmez. Sorularınız için: {destek}
+    </p>
+  </div>
+</body></html>"""
+    return send_email(to_email, subject, text_body, html_body)
+
+
+def send_email_changed_notice(to_email: str, yeni_adres_maskeli: str) -> bool:
+    """ESKİ adrese uyarı — çalınmış bir oturumla yapılan adres değişimi GÖRÜNÜR olsun.
+
+    Bildirim olmasaydı saldırgan adresi sessizce değiştirir, şifre sıfırlamayı kendi
+    kutusuna yönlendirir; gerçek sahip hesabını kaybettiğini ancak giriş yapamayınca
+    (ve artık sıfırlayamayacak durumdayken) fark ederdi.
+    """
+    destek = destek_adresi()
+    subject = "FinancialOS — Hesabınızın e-posta adresi değişti"
+    text_body = (
+        "Merhaba,\n\n"
+        f"FinancialOS hesabınızın e-posta adresi {yeni_adres_maskeli} olarak değiştirildi "
+        "ve güvenlik gereği tüm oturumlar kapatıldı.\n\n"
+        "BU İŞLEMİ SİZ YAPMADIYSANIZ hemen aşağıdaki adrese yazın — hesabınıza başkası "
+        "erişmiş olabilir:\n"
+        f"{destek}\n\n"
+        "— FinancialOS"
+    )
+    html_body = f"""\
+<!doctype html>
+<html lang="tr"><body style="margin:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#18181b">
+  <div style="max-width:480px;margin:24px auto;background:#ffffff;border-radius:12px;padding:28px">
+    <h1 style="font-size:20px;margin:0 0 8px">FinancialOS</h1>
+    <p style="font-size:14px;line-height:1.6;color:#3f3f46">
+      Hesabınızın e-posta adresi <b>{yeni_adres_maskeli}</b> olarak değiştirildi ve güvenlik
+      gereği tüm oturumlar kapatıldı.
+    </p>
+    <p style="font-size:14px;line-height:1.6;color:#b91c1c">
+      Bu işlemi siz yapmadıysanız hemen <b>{destek}</b> adresine yazın — hesabınıza başkası
+      erişmiş olabilir.
+    </p>
+  </div>
+</body></html>"""
+    return send_email(to_email, subject, text_body, html_body)

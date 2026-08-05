@@ -27,7 +27,13 @@ from sqlalchemy.orm import Session
 from app import auth as _auth
 from app.dependencies import get_db, get_current_user
 from app.models import User, RevokedToken
-from app.services.email import send_password_reset_email, smtp_configured
+from app.services.email import (  # BUG #215: e-posta düzeltme akışı
+    _mask,
+    send_email_change_verification,
+    send_email_changed_notice,
+    send_password_reset_email,
+    smtp_configured,
+)
 from app.services import oauth as _oauth
 from app.settings import is_production  # BUG #185: prod'da PKCE çerezi yalnız HTTPS
 
@@ -100,6 +106,17 @@ class PasswordChangeIn(BaseModel):
 class PasswordResetConfirmIn(BaseModel):
     token: str
     new_password: str = Field(min_length=8, max_length=72)
+
+
+class EmailChangeIn(BaseModel):
+    """P4.4 (BUG #215): KVKK 'duzeltme hakki' — e-posta adresini duzeltme talebi."""
+    new_email: EmailStr
+    # OAuth-only hesapta sifre YOKTUR; orada yeni adrese giden dogrulama tek kanittir.
+    current_password: Optional[str] = Field(default=None, max_length=72)
+
+
+class EmailChangeConfirmIn(BaseModel):
+    token: str
 
 
 def _sifre_dogrula(password: str) -> None:
@@ -302,6 +319,109 @@ def change_password(
     db.commit()
     db.refresh(user)
     return _issue_tokens(user)
+
+
+# --- E-posta değiştirme (P4.4 / BUG #215 — KVKK "düzeltme hakkı") ---
+
+@router.post("/change-email")
+def change_email(
+    body: EmailChangeIn,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """E-posta DEĞİŞTİRME talebi — yeni adrese doğrulama gönderilir, adres HEMEN değişmez.
+
+    BUG #215 (P4.4): e-posta hiçbir yerden değiştirilemiyordu. İki sonucu vardı:
+    (a) `docs/legal/kvkk-consent-v2.md` "verilerinizi dilediğiniz an güncelleyebilirsiniz"
+        diyor — e-posta için bu YANLIŞ BEYANDI (KVKK 11/d düzeltme hakkı fiilen yok).
+    (b) Kayıtta adresini yanlış yazan kullanıcı KALICI olarak kilitleniyordu: doğrulama
+        postası gelmez, şifre sıfırlanamaz, kimse ona ulaşamaz, kendisi de düzeltemez.
+        Açık betada bu, sessizce kaybedilen kullanıcı demektir.
+
+    Güvenlik tasarımı:
+    - Şifresi olan hesapta MEVCUT ŞİFRE zorunlu (çalınmış oturumla adres kaçırılamaz).
+    - Adres ancak YENİ adrese giden bağlantı tıklanınca değişir (yanlış yazım hesabı öldürmez).
+    - Yanıt her durumda AYNIDIR: adresin kayıtlı olup olmadığı sızmaz (BUG #202 dersi).
+    """
+    _rate_limit(request, "pwreset", db=db)   # BUG #182: paylaşılan sayaç (posta gönderen uç)
+    yeni = body.new_email.lower().strip()
+    mevcut = (user.email or "").lower().strip()
+
+    if user.password_hash:
+        if not body.current_password:
+            raise HTTPException(422, "Mevcut sifre gerekli.")
+        if not _auth.verify_password(body.current_password, user.password_hash):
+            raise HTTPException(401, "Mevcut sifre hatali.")
+
+    generic = {"message": "Adres uygunsa doğrulama bağlantısı yeni adrese gönderildi."}
+    if yeni == mevcut:
+        # Enumerasyon riski yok: kullanıcı zaten kendi adresini biliyor.
+        raise HTTPException(400, "Yeni adres mevcut adresle ayni.")
+    # Adres başkasındaysa SESSİZ kalınır — "bu e-posta kayıtlı" demek kullanıcı listesi sızdırır.
+    if db.query(User).filter(User.email == yeni).first():
+        logger.info("[auth] e-posta degistirme: hedef adres zaten kayitli (sessiz gecildi)")
+        return generic
+
+    token = _auth.create_email_change_token(user.id, yeni, mevcut)
+    frontend = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    link = f"{frontend}/auth/change-email?token={token}"
+    if smtp_configured():
+        background_tasks.add_task(send_email_change_verification, yeni, link)
+        return generic
+    from app.settings import is_production
+    if is_production():
+        # BUG #170 dersi: production'da token ASLA yanıtta dönmez (tam hesap ele geçirme).
+        logger.error("[auth] SMTP yok — e-posta degistirme dogrulamasi GONDERILEMEDI.")
+        return generic
+    return {**generic, "_dev_token": token, "_note": "SMTP tanımsız — dev token (prod'da gösterilmez)."}
+
+
+@router.post("/change-email-confirm")
+def change_email_confirm(
+    body: EmailChangeConfirmIn,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Yeni adrese giden bağlantı — adres BURADA değişir (BUG #215)."""
+    try:
+        payload = _auth.decode_token(body.token, expected_type="email_change")
+    except _jwt.PyJWTError:
+        raise HTTPException(400, "Geçersiz veya süresi geçmiş doğrulama bağlantısı.")
+    if _auth.token_revoked(db, payload.get("jti")):
+        raise HTTPException(400, "Bu bağlantı daha önce kullanıldı.")
+
+    user = db.get(User, int(payload["sub"]))
+    if not user:
+        raise HTTPException(404, "Kullanıcı bulunamadı.")
+    if not user.is_active:
+        raise HTTPException(403, "Hesap pasif.")
+
+    # Talep anındaki adres hâlâ geçerli mi? Arada adres değiştiyse eski bağlantı ÖLÜR —
+    # aksi halde eski bir bağlantı tekrar oynatılıp hesap önceki adrese döndürülebilirdi.
+    if (user.email or "").lower().strip() != (payload.get("old") or ""):
+        raise HTTPException(400, "Bağlantı artık geçerli değil (adres bu arada değişti).")
+
+    yeni = (payload.get("new") or "").lower().strip()
+    if not yeni:
+        raise HTTPException(400, "Bağlantı eksik.")
+    # Yarış: talep ile onay arasında başkası aynı adresi almış olabilir.
+    if db.query(User).filter(User.email == yeni, User.id != user.id).first():
+        raise HTTPException(409, "Bu adres artık kullanilamiyor.")
+
+    eski = user.email
+    user.email = yeni
+    user.email_verified_at = datetime.now(timezone.utc).replace(tzinfo=None)  # yeni adres kanıtlandı
+    # Kimlik değişti: tüm oturumlar düşer (şifre sıfırlamayla aynı çizgi, BUG #172).
+    user.token_version = int(getattr(user, "token_version", 0) or 0) + 1
+    _auth.revoke_jti(db, payload.get("jti"), payload.get("exp"), commit=False)
+    db.commit()
+
+    # ESKİ adrese bildirim: çalınmış oturumla yapılan değişiklik görünür olsun.
+    if eski and smtp_configured():
+        background_tasks.add_task(send_email_changed_notice, eski, _mask(yeni))
+    return {"message": "E-posta adresin güncellendi. Güvenlik için tüm oturumlar kapatıldı."}
 
 
 # --- Şifre sıfırlama (SMTP — API_KEY_TALEP: Brevo/Sendgrid) ---

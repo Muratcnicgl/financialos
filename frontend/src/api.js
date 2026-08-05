@@ -537,6 +537,15 @@ export const authApi = {
   me: () => request('/api/auth/me'),
   exportData: () => request('/api/users/me/export'),
   deleteMe: () => request('/api/users/me', { method: 'DELETE' }),
+  // BUG #216 (P4.4): KVKK hakları arayüzden ULAŞILABİLİR olmalı — bu üç uç backend'de
+  // vardı ama api.js'te/panelde karşılığı yoktu, yani "uygulama üzerinden kullanabilirsiniz"
+  // beyanı karşılıksızdı (L8: belgelenen ≠ ulaşılabilir).
+  changePassword: (current_password, new_password) =>
+    request('/api/auth/change-password', { method: 'POST', body: { current_password, new_password } }),
+  changeEmail: (new_email, current_password) =>
+    request('/api/auth/change-email', { method: 'POST', body: { new_email, current_password } }),
+  changeEmailConfirm: (token) =>
+    request('/api/auth/change-email-confirm', { method: 'POST', body: { token } }),
   passwordResetRequest: (email) =>
     request('/api/auth/password-reset-request', { method: 'POST', body: { email } }),
   passwordResetConfirm: (token, new_password) =>

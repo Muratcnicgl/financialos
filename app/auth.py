@@ -155,6 +155,33 @@ def create_password_reset_token(user_id: int, ttl_minutes: int = 30) -> str:
     return token
 
 
+def create_email_change_token(user_id: int, new_email: str, current_email: Optional[str],
+                              ttl_hours: int = 2) -> str:
+    """P4.4 (BUG #215): e-posta DEĞİŞTİRME token'ı — yeni adrese gönderilir.
+
+    Token iki ek iddia taşır:
+    - `new`: onaylanınca yazılacak adres. Adres token'ın İÇİNDE olduğu için sunucuda
+      "bekleyen değişiklik" tablosu gerekmez ve çok-worker kurulumda da çalışır (L10).
+    - `old`: talep anındaki adres. Onayda hâlâ aynı mı diye bakılır; arada e-posta
+      değiştiyse eski bağlantı ölür (tekrar-oynatma ile eski adrese geri döndürme yok).
+
+    Kısa ömür (2 saat) bilinçli: bağlantı, çalınmış bir posta kutusunda uzun süre
+    yaşayan bir hesap-ele-geçirme aracına dönüşmemeli.
+    """
+    now = datetime.now(timezone.utc)
+    exp = now + timedelta(hours=ttl_hours)
+    payload = {
+        "sub": str(user_id),
+        "type": "email_change",
+        "jti": uuid.uuid4().hex,
+        "new": (new_email or "").lower().strip(),
+        "old": (current_email or "").lower().strip(),
+        "iat": int(now.timestamp()),
+        "exp": int(exp.timestamp()),
+    }
+    return jwt.encode(payload, _secret(), algorithm=_ALGO)
+
+
 # --- BUG #172 (P2): oturum geçersizleme + jti kara listesi ---
 
 def token_revoked(db, jti: Optional[str]) -> bool:

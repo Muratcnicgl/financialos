@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut, Users,
+  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut, Users, UserCog,
 } from 'lucide-react';
 import { healthApi, authApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl,
   workspaceApi, getActiveWorkspaceId, setActiveWorkspaceId } from './api.js';
@@ -23,6 +23,7 @@ import Cashflow from './panels/Cashflow.jsx';
 import DebtStrategy from './panels/DebtStrategy.jsx';
 import Goals from './panels/Goals.jsx';
 import Budget from './panels/Budget.jsx';
+import Hesap from './panels/Hesap.jsx';  // P4.4 (BUG #215/#216): KVKK haklari arayuzde
 import FeedbackWidget from './components/FeedbackWidget.jsx';  // FEAT-033
 
 const TABS = [
@@ -38,6 +39,7 @@ const TABS = [
   { id: 'goals',        label: 'Hedefler',        icon: Target      },
   { id: 'budget',       label: 'Bütçe',           icon: PiggyBank   },
   { id: 'workspace',    label: 'Aile',            icon: Users       },
+  { id: 'hesap',        label: 'Hesap',           icon: UserCog     },
 ];
 
 function useTheme() {
@@ -328,6 +330,7 @@ function AppContent({ onLogout }) {
             {activeTab === 'goals' && <Goals />}
             {activeTab === 'budget' && <Budget />}
             {activeTab === 'workspace' && <Workspace />}
+            {activeTab === 'hesap' && <Hesap />}
           </ErrorBoundary>
         </div>
       </main>
@@ -335,10 +338,12 @@ function AppContent({ onLogout }) {
       <footer className="flex-shrink-0 max-w-6xl mx-auto px-4 py-3 text-center text-xs text-zinc-500">
         FinancialOS · 160 IQ stratejist finansal koç · v0.1.0
         {' · '}
-        <a href="/api/user/export" download="financialos-verim.json"
+        {/* BUG #216: duz <a href> Authorization basligi TASIMAZ -> giris acikken 401
+            indiriyordu. Indirme artik yetkili istekle Hesap panelinde yapiliyor. */}
+        <button type="button" onClick={() => setActiveTab('hesap')}
            className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
-          Verimi indir
-        </a>
+          Hesap & verilerim
+        </button>
       </footer>
 
       {showPalette && (

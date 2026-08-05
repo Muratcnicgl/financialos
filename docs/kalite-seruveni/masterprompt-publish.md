@@ -85,19 +85,19 @@ yazılır, sonra ilgili faza görev olarak bağlanır. Buraya yazılmayan şey u
 | H3 | Kullanıcının yazdığı kırmızı çizgi, koddaki MC1 kadar sert dayatılmalı | Claude | P3.5.2 | ✅ BUG #192 — rules-as-data, aksiyon öncesi kod-seviyesi dayatma (11 test) |
 | H4 | Para birimi / dil / saat dilimi / kategori seti kullanıcı başına | Claude | P3.5.3 | 🟡 **saat dilimi TAMAM** (BUG #197 — davranışsal); para birimi/locale **alan olarak** var, görüntüleme aşaması ADR-042 ile P8 öncesine planlandı |
 | H5 | Boş-durum kırılmamalı + **isteğe bağlı** demo veri (tek tuşla sil) | Claude | P3.5.5 | ✅ BUG #194 — `/api/onboarding/demo`; kaldırma KULLANICININ verisine dokunmaz (testli) |
-| H6 | Hesabını silen kullanıcının verisi **gerçekten** silinmeli (KVKK "unutulma"), yedeklerdeki durum yazılı olmalı | Claude | P3.4 / P4.4 | ⬜ |
+| H6 | Hesabını silen kullanıcının verisi **gerçekten** silinmeli (KVKK "unutulma"), yedeklerdeki durum yazılı olmalı | Claude | P3.4 / P4.4 | ✅ **BUG #204** — KIRIKTI: verisi olan kullanıcı hesabını silemiyordu (FK ihlali). Şema-türetimli determinist silme + 4 test |
 | H7 | Veri dışa aktarma **taşınabilir** formatta (JSON/CSV) ve tam olmalı | Claude | P3.4 | ✅ doğrulandı (14 tablo, goal çocukları dahil) |
 | H8 | Kullanıcı başına LLM maliyet tavanı — bir kullanıcı bütçeyi tüketip diğerlerini kilitleyememeli | Claude | P3.1 | ✅ ADR-041 / BUG #188 |
 | H9 | Koça yazılan metin **prompt injection** taşıyabilir; koç başkasının verisine ulaşamamalı | Claude | P2.8 | 🟡 başkasının verisine ULAŞAMIYOR (doğrulandı); enjeksiyon yüzeyi sınırlandı (#177), tam ayrıştırma açık |
-| H10 | E-posta şablonları (davet/şifre sıfırlama) ürün kimliğiyle konuşmalı, kişisel imza taşımamalı | Claude | P3.5.1 | ⬜ |
+| H10 | E-posta şablonları ürün kimliğiyle konuşmalı, kişisel imza taşımamalı | Claude | P3.5.1 | ✅ **BUG #205** — şifre sıfırlama şablonunda kişisel gmail vardı; `SUPPORT_EMAIL` + kapı genişletildi |
 | H11 | Şifre sıfırlama/oturum akışı gerçek e-posta ile uçtan uca denenmeli (SMTP canlı) | Claude | P6.3 | ⬜ |
 | H12 | Kayıt sırasında KVKK rızası sürüm/tarih ile saklanmalı (mevcut) + metin **yayında erişilebilir** olmalı | Claude | P4.3 | ✅ BUG #191 (v2) |
 | H13 | "Yatırım tavsiyesi değildir" uyarısı koç arayüzünde de görünmeli (yalnız sözleşmede değil) | Claude | P4.2 | ✅ koç paneli + kayıt ekranı |
 | H14 | Yedekten **geri yükleme provası** yapılmadan yedek sayılmaz | Claude | P5.1 | ✅ SQLite + **PostgreSQL (prod yolu)** provası otomatik koşuyor |
-| H15 | Beta kullanıcısının bildirdiği hata, geliştiriciye **kullanıcı verisi sızmadan** ulaşmalı (FEAT-033 içeriği) | Claude | P7 | ⬜ |
+| H15 | Beta kullanıcısının bildirdiği hata, geliştiriciye **kullanıcı verisi sızmadan** ulaşmalı | Claude | P7 | ✅ **BUG #209** — geri bildirim kimseye ULAŞMIYORDU; `scripts/beta_triage.py` (hata kayıtlarıyla yan yana, e-posta maskeli) |
 | H16 | Fiyat sağlayıcıları (TEFAS/BIST/döviz) çöktüğünde uygulama çalışmaya devam etmeli, sayı **bayat** işaretlenmeli | Claude | P5.2 | 🟡 |
 | H17 | Çok kullanıcı aynı anda koç kullanınca sağlayıcı kotası/kilit sorunu olmamalı | Claude | P3.1 / P8 | ⬜ |
-| H18 | Kullanıcı silme/çıkarma sonrası workspace sahipliği ortada kalmamalı (aile senaryosu) | Claude | P3.4 | ⬜ |
+| H18 | Kullanıcı silme/çıkarma sonrası workspace sahipliği ortada kalmamalı | Claude | P3.4 | ✅ **BUG #206** — VERİ KAYBI: aile workspace'i sahibiyle siliniyordu (eşin verisi yok oluyordu). Sahiplik devri + 3 test |
 | H19 | **`alembic/env.py` config URL'ini yok sayıyor** — test/script içinden migration çağrısı GERÇEK DB'ye gidebilir (BUG #196) | Claude (ölçüldü 5 Ağu) | P5.4 | ✅ düzeltildi + veri-dolu migration provası (4 test) |
 | H20 | Onboarding UI: demo veri + ilk-kurulum rehberi arayüze bağlanmalı | Claude | P3.3 | ✅ Cockpit'te boş-durum kartı (sıralı yol + örnek veriyle gez/kaldır) |
 | H21 | Kullanıcı-tanımlı kural arayüzü: kural tiplerini UI'dan seçebilmeli | Claude | P3.5.2 | ✅ kırmızı-çizgi formunda "otomatik uygulansın mı?" seçimi (3 tip) |
@@ -423,9 +423,9 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 | P4 | Hukuki/uyum | ✅ | **BUG #191:** rıza metni canlıda ERİŞİLEMEZDİ (imajda docs/ yok → 404). `/api/legal/<slug>` ucu + Dockerfile/dockerignore. Rıza **v2** (v1 "self-host" varsayıyordu — barındırılan betada yanlış beyan), kullanım şartları (SPK/tavsiye-değildir), veri-işleyen envanteri (kodla test-bağlı). Koç panelinde görünür uyarı (H13) |
 | P5 | Dayanıklılık/gözlem | ✅ | **Geri yükleme provası TAMAM (H14):** `scripts/restore.py` (onaysız yazmaz, bozuk yedeği reddeder, emniyet kopyası alır) + SQLite drill (7 test) + **PostgreSQL dump→drop→restore→doğrula** provası + runbook geri-yükleme bölümü. **Hata izleme TAMAM (#195):** kendi DB'mizde (dış servise veri gitmez), tekrarlar gruplanır, PII/sır maskelenir, izleme isteği düşürmez. **Canlı-veri migration provası TAMAM (#196):** `alembic/env.py` config URL'ini yok sayıyordu (test/script içinden migration GERÇEK DB'ye gidiyordu) → düzeltildi; prova artık izole DB'de koşuyor ve *gerçek DB'ye dokunulmadığı* da teste bağlı. **Kalan:** kapasite sınırları |
 | P6 | Canlı ortam | ⏸️ | **İNSAN-KAPISI (§9.1-9.3):** Oracle VM + domain/DNS + canlı sırlar Murat'ta. **Hazırlık TAMAM:** `scripts/live_gate.py` tek komutla 20+ canlı kapıyı ölçer (kimlik zorunluluğu, HTTPS/CSP, /docs kapalı, KVKK metinleri, brute-force limiti, koç kotası); çıkış kodu 0 değilse beta AÇILMAZ. Runbook'ta canlı-doğrulama + geri-yükleme bölümleri hazır |
-| P7 | Kapalı beta | ⬜ | |
-| P8 | Açık beta | ⬜ | |
-| P9 | Publish | ⬜ | |
+| P7 | Kapalı beta | 🟡 | **Altyapı TAMAM:** davetli-only kayıt (#199) + davet üretici + **geri bildirim/hata triyajı (#209)** + cron görünürlüğü (#203). **Kalan: gerçek davetlilerin kayıt olması** (sunucu sonrası) |
+| P8 | Açık beta | 🟡 | **Ön koşul TAMAM:** kayıt enumerasyonu kapatıldı + e-posta doğrulama akışı (#202), destek adresi yapılandırılabilir (#205). **Kalan: gerçek trafik** |
+| P9 | Publish | 🟡 | **Sürüm yönetimi + CHANGELOG (#200), GERİ ALMA PROVASI (#208), kullanıcı rehberi (#207) TAMAM.** Kalan: duyuru + (opsiyonel) TWA — canlı yayın sonrası |
 
 ---
 

@@ -440,7 +440,9 @@ def password_reset_request(
     generic = {"message": "E-posta kayıtlıysa sıfırlama bağlantısı gönderildi."}
     if not user or not user.password_hash:
         return generic
-    token = _auth.create_password_reset_token(user.id)
+    # BUG #225 (D04): token kullanıcının GÜNCEL token_version'ını taşır → şifre
+    # değişince (sayaç artınca) bekleyen bağlantı ölür.
+    token = _auth.create_password_reset_token(user.id, int(getattr(user, "token_version", 0) or 0))
     frontend = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
     reset_link = f"{frontend}/auth/reset?token={token}"
     # SMTP yapılandırılmışsa GERÇEK gönderim (BackgroundTasks — istek bloklanmaz).
@@ -477,6 +479,16 @@ def password_reset_confirm(body: PasswordResetConfirmIn, db: Session = Depends(g
         raise HTTPException(404, "Kullanıcı bulunamadı.")
     if not user.is_active:
         raise HTTPException(403, "Hesap pasif.")
+    # BUG #225 (D04): bağlantı ÜRETİLDİĞİ ANDAKİ oturum sürümüne bağlıdır. Arada şifre
+    # değiştiyse (kullanıcının "hemen şifremi değiştireyim" refleksi) veya başka bir
+    # sıfırlama bağlantısı kullanıldıysa sayaç artmıştır → bu bağlantı ÖLÜR. Aksi halde
+    # posta kutusuna geçici erişen biri bağlantıyı bekletip hesabı kalıcı ele geçirebilir.
+    if not _auth.token_version_ok(payload, user):
+        raise HTTPException(
+            400,
+            "Bu sıfırlama bağlantısı artık geçerli değil (şifre bu bağlantı üretildikten "
+            "sonra değişti). Lütfen yeniden sıfırlama isteyin.",
+        )
     _sifre_dogrula(body.new_password)  # BUG #187: sifirlamada da ayni politika
     user.password_hash = _auth.hash_password(body.new_password)
     # BUG #172 (P2/a): mevcut TÜM oturumları düşür — çalınmış refresh/access token'lar ölür.

@@ -150,8 +150,18 @@ def create_email_verification_token(user_id: int, ttl_hours: int = 48) -> str:
     return token
 
 
-def create_password_reset_token(user_id: int, ttl_minutes: int = 30) -> str:
-    token, _, _ = _create_token(user_id, "pwreset", timedelta(minutes=ttl_minutes))
+def create_password_reset_token(user_id: int, token_version: int = 0,
+                                ttl_minutes: int = 30) -> str:
+    """BUG #225 (D04): `token_version` artık payload'a GİRER.
+
+    Eskiden `tv` daima 0 idi → sıfırlama bağlantısı, kullanıcı şifresini değiştirdikten
+    (sayaç arttıktan) sonra da geçerli kalıyordu: posta kutusuna geçici erişen biri
+    bağlantıyı bekletip hesabı kalıcı ele geçirebiliyordu. `password_reset_confirm`
+    artık `token_version_ok(...)` ile bu claim'i doğrular; sayacı artıran her olay
+    (şifre değişimi, başka bir sıfırlamanın kullanılması) bekleyen bağlantıları öldürür.
+    """
+    token, _, _ = _create_token(user_id, "pwreset", timedelta(minutes=ttl_minutes),
+                                token_version)
     return token
 
 

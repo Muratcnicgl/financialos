@@ -205,7 +205,16 @@ app/simulation_engine.py:134/162/178 — `Account.user_id == user_id`, `Recurrin
 
 ### D04 · [yuksek] Sifre sifirlama token'i, kullanici sifresini degistirdikten sonra HALA gecerli — hesap geri alinamiyor (BUG #172 ailesinin acik kalan kolu)
 
-- **Boyut:** kimlik-oturum · **Yer:** `app/routers/auth.py:465` · **Durum:** ⬜ AÇIK
+- **Boyut:** kimlik-oturum · **Yer:** `app/routers/auth.py:465` · **Durum:** ✅ **KAPANDI — BUG #225** (5 Ağu).
+  `create_password_reset_token` artık `token_version`'ı payload'a yazar (eskiden `tv` daima 0'dı,
+  yani sürüm kontrolü eklense bile etkisiz kalırdı) + `password_reset_confirm` `token_version_ok(...)`
+  doğrular. Sayacı artıran her olay (şifre değişimi, başka bir sıfırlamanın kullanılması) bekleyen
+  bağlantıları öldürür. Kapı: `tests/auth/test_pwreset_token_gecerliligi.py` (5 test — denetimin
+  PoC'si + iki-canlı-bağlantı senaryosu + meşru akışın bozulmadığı + tek-kullanımlık regresyonu
+  + `tv` claim'inin gerçekten taşındığı). Düzeltme öncesi 3'ü kırmızıydı.
+  **Sınıf taraması (L11):** diğer token tipleri de bakıldı — `email_verify` (tek-kullanımlık,
+  yalnız `email_verified_at` yazar), `oauth_exchange` (60 sn, tek-kullanımlık), `email_change`
+  (2 saat + eski-adres bağı). Hiçbiri hesap-ele-geçirme sınıfında değil; sıfırlama tek koldu.
 - **Neden yayın engeli / etki:** Posta kutusuna gecici erisim saglayan saldirgan (paylasilan bilgisayar, ele gecirilmis e-posta, iletilmis bir sifirlama postasi) bir sifirlama baglantisini alip BEKLETEBILIR. Kullanicinin dogru refleksi olan 'hemen sifremi degistireyim' saldirganin elindeki baglantiyi OLDURMEZ; saldirgan 30 dakika icinde sifreyi tekrar degistirip hesabi kalici olarak ele gecirir ve gercek sahibini disarida birakir. Hesap icinde tum banka hesap bakiyeleri, borclar, islem gecmisi ve KVKK export'u (GET /api/users/me/export) bulunur; ayrica DELETE /api/users/me ile tum veri geri alinamaz sekilde silinebilir. Uygulama kullaniciya 'Güvenlik için tüm oturumlar kapatıldı' diyerek yanlis guvenlik hissi de verir.
 
 <details><summary>Kanıt</summary>

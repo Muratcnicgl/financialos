@@ -123,6 +123,21 @@ docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d fi
 docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d financialos -c "SELECT count(*) FROM pg_stat_activity;"
 ```
 
+## Beta işletimi (P7)
+```sh
+# Davet kodu uret (kapali beta)
+python -m scripts.beta_invite --email <davetli> --note "<kim>"
+python -m scripts.beta_invite --list
+
+# GERI BILDIRIM + SISTEM HATASI TRIYAJI — gunluk bak
+python -m scripts.beta_triage                      # acik geri bildirimler + son 7 gun hatalar
+python -m scripts.beta_triage --kapat <ID> --not "duzeltildi: BUG #NNN"
+
+# Cron sagligi (gece islerinin gercekten kostugu)
+curl -fsS -H "Authorization: Bearer <token>" https://$DOMAIN/api/ops/scheduler
+```
+Kullanici e-postalari triyaj ciktisinda MASKELIDIR (gizlilik); kimlik gerekiyorsa user_id ile bak.
+
 ## Sorun giderme
 - **nginx başlamıyor:** TLS cert yok → `deploy/init-letsencrypt.sh` koşuldu mu? Logs: `docker compose logs web`.
 - **backend başlamıyor:** `.env.prod` SECRET_KEY placeholder/boş mu? Fail-fast reddeder → gerçek değer koy. Logs: `docker compose logs backend`.

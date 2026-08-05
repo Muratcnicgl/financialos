@@ -214,6 +214,34 @@ def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> 
     return {**payload, "category": category, "account_id": card.id, "is_card_expense": True}
 
 
+def _yazma_workspace_id(db: Session, user_id: int, kaynak=None) -> Optional[int]:
+    """BUG #221: koç yolundan yazılan kaydın hangi workspace'e ait olacağını çözer.
+
+    Sıra (ilk dolu olan kazanır):
+      1. Aktif kapsam — `execute_pending_action`, handler'ları `workspace_scope(...)` içine
+         alır; aksiyonun yaratıldığı workspace budur.
+      2. Kaynağın workspace'i — ör. işlemin hesabı. Bir kayıt, bağlı olduğu kaynaktan
+         FARKLI bir kapsamda yaşayamaz; eski (workspace'siz) PendingAction satırları da
+         bu sayede doğru yere düşer.
+      3. Kullanıcının personal workspace'i — köprü-desen (`workspace_deps` ile aynı kural).
+      4. None — legacy/dev kurulumu (personal workspace yok). Okuma tarafı `user_id`
+         filtresine düşer; davranış değişmez.
+    """
+    from app.rules_engine import _active_workspace
+    from app.models import Workspace
+    aktif = _active_workspace.get()
+    if aktif is not None:
+        return aktif
+    kaynak_ws = getattr(kaynak, "workspace_id", None)
+    if kaynak_ws is not None:
+        return kaynak_ws
+    ws = (db.query(Workspace)
+          .filter(Workspace.owner_user_id == user_id, Workspace.is_personal.is_(True))
+          .order_by(Workspace.id.asc())
+          .first())
+    return ws.id if ws else None
+
+
 # ============================================================
 # 1. PROPOSE — Koç bir aksiyon önerir, DB'ye 'pending' yazılır
 # ============================================================
@@ -451,7 +479,14 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
                 "checkpoint_title": ihlal.checkpoint_title}
 
     try:
-        result = handler(db, user_id, payload)
+        # BUG #221 fix: handler'lar workspace bağlamı OLMADAN çağrılıyordu — yazdıkları
+        # satırlar workspace_id=NULL kalıyor ve kullanıcının kendi (workspace kapsamlı)
+        # görünümünden eleniyordu. Aksiyonun yaratıldığı workspace artık handler boyunca
+        # aktif kapsamdır: hem yazma (`_yazma_workspace_id`) hem handler içindeki
+        # rules_engine okumaları doğru kapsamda çalışır. None → legacy davranış (değişmez).
+        from app.rules_engine import workspace_scope
+        with workspace_scope(getattr(pending, "workspace_id", None)):
+            result = handler(db, user_id, payload)
 
         # Başarısız iş mantığı (örn. emanet ihlali)
         if not result.get("success", False):
@@ -614,6 +649,12 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
 
     txn = Transaction(
         user_id=user_id,
+        # BUG #221 fix: workspace_id YAZILMIYORDU. Okuma tarafı workspace kapsamlı
+        # (scope_filter) ve production'da personal workspace zorunlu olduğu için NULL satır
+        # kullanıcının KENDİ listesinden/raporundan eleniyordu: bakiye düşüyor ama işlem
+        # hiçbir yerde görünmüyordu. Hesabın workspace'i son çare olarak kullanılır —
+        # bir işlem, hesabından farklı bir kapsamda yaşayamaz.
+        workspace_id=_yazma_workspace_id(db, user_id, account if account_id else None),
         account_id=account_id,
         transaction_type=TransactionType(txn_type),
         amount=amount,  # SEC-032: yukarıda _parse_finite ile sonlu+pozitif doğrulandı
@@ -935,6 +976,9 @@ def _execute_add_master_checkpoint(db: Session, user_id: int, payload: Dict) -> 
 
     cp = MasterCheckpoint(
         user_id=user_id,
+        # BUG #221 fix: aynı defektin ikinci kolu — koç-onaylı kırmızı çizgi NULL yazılıyor,
+        # kullanıcının kendi panelinde de koç bağlamında da görünmüyordu.
+        workspace_id=_yazma_workspace_id(db, user_id),
         title=title,
         description=desc,
         checkpoint_type=cp_type_enum,

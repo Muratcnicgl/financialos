@@ -337,6 +337,11 @@ def persist_premortem(
     else:
         dj = DecisionJournal(
             user_id=user_id,
+            # BUG #221 fix (3. kol): workspace_id yazılmıyordu. `decision_journal` RLS
+            # listesinde (alembic f5a6b7c8d9e0) ve okuma tarafı workspace kapsamlı →
+            # prod PostgreSQL'de NULL satır INSERT edilir ama sonra GÖRÜNMEZ. Kaydın
+            # kapsamı, ait olduğu aksiyonun kapsamıdır.
+            workspace_id=getattr(action, "workspace_id", None),
             decision_text=sentinel,
             decision_type=action.action_type,
             predicted_outcome=action.summary or "",

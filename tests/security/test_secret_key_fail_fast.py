@@ -40,6 +40,8 @@ def test_production_guclu_secret_gecer(monkeypatch):
     # BUG #171 (P2): production artık AUTH_ENABLED de şart koşuyor — bu test SECRET_KEY
     # kapısını ölçüyor, o yüzden diğer prod-şartı açıkça sağlanır.
     monkeypatch.setenv("AUTH_ENABLED", "true")
+    # BUG #210 (P8): production destek kanalı da şart — bu test SECRET_KEY kapısını ölçer.
+    monkeypatch.setenv("SUPPORT_EMAIL", "destek@ornek-urun.com")
     validate_security_config()  # raise ETMEZ
 
 

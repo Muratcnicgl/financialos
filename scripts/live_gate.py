@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -114,6 +115,18 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
         "name": "kontrol", "kvkk_consent": True})
     s.ekle("kayıt davetlilere kapalı", kod == 403,
            f"kod={kod} — 201 ise BAĞLANTIYI BİLEN HERKES hesap açabiliyor")
+
+    print("\n== 6. DESTEK KANALI (P8) ==")
+    # BUG #210: giriş YAPAMAYAN kullanıcının tek kanalı. Künye kimliksiz okunabilmeli
+    # ve destek adresi gerçek olmalı — yoksa kullanıcı sessizce kaybedilir.
+    kod, _b, kunye = _iste(f"{base}/api/meta")
+    s.ekle("künye kimliksiz okunabiliyor", kod == 200, f"kod={kod}")
+    destek = str(kunye.get("destek", ""))
+    s.ekle("destek adresi tanımlı", "@" in destek,
+           f"destek={destek!r} — SUPPORT_EMAIL set edilmemiş")
+    s.ekle("destek adresi şahsi değil",
+           not re.search(r"@(gmail|hotmail|outlook|yahoo|yandex)\.", destek),
+           f"destek={destek!r} — ürün kimliğiyle konuşmalı", zorunlu=False)
 
     print("\n== 6. HUKUKİ METİNLER (KVKK) ==")
     for slug in ("kvkk", "kullanim-sartlari", "veri-isleyenler"):

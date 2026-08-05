@@ -84,6 +84,7 @@ def main() -> int:
         COACH_DAILY_USER_LIMIT="80",
         TRUST_PROXY_HEADERS="0",       # nginx yok
         RATE_LIMIT_LOGIN_MAX="5",
+        SUPPORT_EMAIL="destek@ornek-urun.com",   # BUG #210: prod'da zorunlu (destek kanali)
     )
 
     print("\n[2/5] alembic upgrade head (PROD semasi, Postgres)...")

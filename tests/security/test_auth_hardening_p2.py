@@ -112,6 +112,8 @@ def test_production_auth_acikken_gecer(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("SECRET_KEY", "yeterince-uzun-ve-guclu-bir-secret-key-0123456789")
     monkeypatch.setenv("AUTH_ENABLED", "true")
+    # BUG #210 (P8): production destek kanalı da şart — bu test AUTH kapısını ölçer.
+    monkeypatch.setenv("SUPPORT_EMAIL", "destek@ornek-urun.com")
     validate_security_config()  # hata fırlatmamalı
 
 

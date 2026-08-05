@@ -71,9 +71,27 @@ def auth_problems() -> list[str]:
     return []
 
 
+def support_problems() -> list[str]:
+    """BUG #210 (P8): production'da DESTEK KANALI tanımsız olamaz.
+
+    Giriş yapamayan kullanıcı (yanlış şifre / doğrulanmamış e-posta / davet kodu
+    çalışmıyor) uygulama-içi geri bildirim widget'ına da ulaşamaz — geriye tek kanal
+    olarak destek adresi kalır. Tanımsızsa kullanıcı sessizce kaybedilir ve KVKK'nın
+    "veri sorumlusuna başvuru" hakkı fiilen kullanılamaz hale gelir.
+    """
+    if not is_production():
+        return []
+    adres = os.getenv("SUPPORT_EMAIL", "").strip()
+    if not adres:
+        return ["SUPPORT_EMAIL tanımlı olmalı (giriş yapamayan kullanıcının tek kanalı)"]
+    if "@" not in adres:
+        return [f"SUPPORT_EMAIL geçerli bir e-posta değil: {adres!r}"]
+    return []
+
+
 def validate_security_config() -> None:
     """Startup fail-fast. Production'da güvenlik config sorunu → RuntimeError; dev'de warning."""
-    problems = secret_key_problems() + auth_problems()
+    problems = secret_key_problems() + auth_problems() + support_problems()
     if not problems:
         logger.info("[security] config doğrulaması geçti (environment=%s)", environment())
         return

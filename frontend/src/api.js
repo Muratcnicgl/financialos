@@ -188,6 +188,13 @@ async function request(path, { method = 'GET', body, params, headers: extraHeade
 // USER (3)
 // =============================================================
 
+// P8 (BUG #210): kimliksiz ürün künyesi — GİRİŞ YAPAMAYAN kullanıcı da okur
+// (destek adresi, kayıt modu, hukuki metinler). Token gerektirmez.
+export const metaApi = {
+  get:    () => request('/api/meta'),
+  durum:  () => request('/api/meta/durum'),
+};
+
 export const userApi = {
   get:    () => request('/api/user'),
   create: (name) => request('/api/user', { method: 'POST', body: { name } }),

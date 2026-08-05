@@ -48,14 +48,17 @@ def destek_adresi() -> str:
 
     Yabanci bir beta kullanicisinin aldigi ilk resmi e-posta bir sahsin gmail'ine
     yonlendiriyordu: hem guven sorunu hem KVKK "veri sorumlusu iletisim" beyaniyla
-    celiski. Adres artik env'den gelir (SUPPORT_EMAIL); tanimsizsa SMTP gonderen
-    adresine duser, o da yoksa jenerik metin.
+    celiski. Adres artik env'den gelir (SUPPORT_EMAIL).
+
+    BUG #210 (P8) düzeltmesi: eski hali SUPPORT_EMAIL yoksa **SMTP gönderen adresine**
+    düşüyordu. Bu adres pratikte operatörün kişisel posta kutusudur ve destek adresi
+    artık kimliksiz `/api/meta` ucundan YAYINLANIYOR — yani sessiz bir yedek, şahsi
+    adresi herkese açık hale getirirdi. Yedek kaldırıldı: adres ya bilinçli olarak
+    `SUPPORT_EMAIL` ile tanımlanır ya da uygulama-içi kanal gösterilir. Production'da
+    tanımsız bırakmak startup'ta fail-fast'tir (`app/settings.py: support_problems`).
     """
-    ozel = os.getenv("SUPPORT_EMAIL", "").strip()
-    if ozel:
-        return ozel
-    c = _smtp_config()
-    return c["from_addr"] or "uygulama içi geri bildirim (Şikâyet/İstek/Öneri)"
+    return os.getenv("SUPPORT_EMAIL", "").strip() or \
+        "uygulama içi geri bildirim (Şikâyet/İstek/Öneri)"
 
 
 def smtp_configured() -> bool:

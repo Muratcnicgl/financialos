@@ -27,6 +27,7 @@ from app.models import NetWorthSnapshot, User
 
 # === Router'lar ===
 # Grup 1: kullanici + hesaplar
+from app.routers import meta as meta_router  # P8/BUG #210: kimliksiz kunye + destek
 from app.routers import user as user_router
 from app.routers import accounts as accounts_router
 # Grup 2: islemler + gelirler + giderler + borclar + kirmizi cizgiler
@@ -228,6 +229,7 @@ app.include_router(legal_router.router)
 from app.routers import onboarding as onboarding_router  # P3.5/H5: opsiyonel demo veri
 from app.routers import ops as ops_router  # P5.3: cron gorunurlugu
 app.include_router(ops_router.router)
+app.include_router(meta_router.router)   # /api/meta (kimliksiz)
 app.include_router(onboarding_router.router)
 app.include_router(user_router.router)
 app.include_router(accounts_router.router)

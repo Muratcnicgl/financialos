@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LogIn, UserPlus, Loader2, AlertTriangle, KeyRound, MailCheck } from 'lucide-react';
-import { authApi } from '../api.js';
+import { authApi, metaApi } from '../api.js';
 
 /**
  * M11/M17/M18 (ADR-033) — Auth ekranı. AUTH_ENABLED açıkken token yokken App.jsx gösterir.
@@ -17,6 +17,15 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
   const [notice, setNotice] = useState(null);         // başarı/bilgi mesajı
+  // P8 (BUG #210): destek kanalı + kayıt modu. Giriş yapamayan kullanıcının
+  // uygulama-içi geri bildirim widget'ına da erişimi yoktur; tek kanal budur.
+  const [meta, setMeta] = useState(null);
+
+  useEffect(() => {
+    let iptal = false;
+    metaApi.get().then((m) => { if (!iptal) setMeta(m); }).catch(() => {});
+    return () => { iptal = true; };
+  }, []);
 
   const isRegister = mode === 'register';
   const isResetReq = mode === 'reset-request';
@@ -203,6 +212,31 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
             <button type="button" onClick={() => go('login')} className="text-brand-400 underline">← Girişe dön</button>
           )}
         </div>
+
+        {/* P8 (BUG #210): DESTEK + hukuki metinler. Giriş yapamayan kullanıcı buradan
+            ulaşır; kayıt öncesi KVKK/şartlar okunabilir olmalı. */}
+        {meta && (
+          <div className="pt-4 mt-4 border-t border-zinc-700/60 text-center text-[11px] text-zinc-500 space-y-1">
+            <div>
+              Sorun mu var?{' '}
+              {meta.destek?.includes('@') ? (
+                <a href={`mailto:${meta.destek}`} className="text-zinc-400 hover:text-brand-400 underline">
+                  {meta.destek}
+                </a>
+              ) : (
+                <span className="text-zinc-400">{meta.destek}</span>
+              )}
+            </div>
+            {meta.davet_kodu_gerekli && <div>Kayıt şu an <b>davetlilere</b> açık.</div>}
+            <div className="flex items-center justify-center gap-3">
+              {Object.entries(meta.hukuki || {}).map(([slug, url]) => (
+                <a key={slug} href={url} target="_blank" rel="noreferrer"
+                   className="text-zinc-500 hover:text-brand-400 underline">{slug}</a>
+              ))}
+            </div>
+            <div className="text-zinc-600">v{meta.surum}</div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -75,8 +75,8 @@ def _yedek_al() -> Optional[str]:
         print("[!] SQLite değil — yedek bu araçla alınamaz. Kendi yedeğini alıp "
               "`--yedek-atla` ile tekrar çalıştır.", file=sys.stderr)
         return None
-    from scripts.backup import main as backup_main  # mevcut, testli yedek yolu
-    backup_main([])
+    from scripts.backup import backup  # mevcut, testli yedek yolu
+    backup()
     return "alindi"
 
 

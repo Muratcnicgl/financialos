@@ -84,6 +84,12 @@ async def lifespan(app: FastAPI):
     from app.settings import validate_security_config
     validate_security_config()
 
+    # BUG #222: şema sürümü fail-fast. Canlı DB kodun 9 migration gerisinde kalmıştı ve
+    # uygulama yine de "sağlıklı" açılıyordu — kırıklık ancak kullanıcı bir aksiyonu
+    # onaylayınca (eksik kolon → 500) ortaya çıkıyordu. Test/create_all yolunda sessiz geçer.
+    from app.schema_guard import validate_schema_version
+    validate_schema_version()
+
     # Startup: catch-up backfill (eksik gunleri doldur)
     # ADR-013: Schema yonetimi alembic ile, burada sadece runtime is mantigi.
     logger.info("Backend baslatildi. Schema: alembic upgrade head ile.")

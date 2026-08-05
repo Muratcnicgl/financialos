@@ -66,6 +66,7 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L9 | **Kod ile doküman arasına test koy.** Env adı/sürüm/envanter gibi sözleşmeler elle senkron kalmaz. | #189 (OAuth env adları), #200 (CHANGELOG↔sürüm), veri-işleyen envanteri |
 | L10 | **Yalnız yerelde görünmeyeni ara.** Sunucu/konteyner/çok-worker/başka saat dilimi farklı davranır. | #169 (TZ), #182 (proxy/çok-worker), #185 (state process-yerel) |
 | L11 | **"Hepsini tarar" diyen kapı, KAÇ TANE taradığını da ölçmeli.** Kapsamı üçüncü-taraf iç yapısından (ör. `app.routes`) türetme; kararlı kamu sözleşmesinden türet ve **taban assert et**. Aksi halde bir kütüphane sürümü kapıyı sessizce körleştirir, kapı yeşil kalır. L3'ün meta-testi bile bunu kaçırır — meta-test kapının MANTIĞINI sınar, KAPSAMINI değil. | #217 (FastAPI 0.141 `_IncludedRouter` → 87 uçtan 1'i taranıyordu; izolasyon kapısı 0 ölçüyordu, ikisi de yeşildi) |
+| L13 | **Kurulum adımını denetleyen bir kapı yoksa, o adım eninde sonunda atlanır.** "Runbook'ta yazıyor" bir kapı değildir. Kod ile ÇALIŞAN sistemin durumu (şema sürümü, uygulanmış migration, yapılandırma) arasına startup'ta fail-fast koy — aksi halde sistem yarım çalışır ve sağlık ucu yeşil kalır. | #222 (canlı DB 9 migration geride; koç onayı 500 verirken `/api/health` yeşildi) |
 | L12 | **Hata yolu da bir ürün yüzeyidir.** Panel/akış "veri yok" halinde test edilip "istek patladı" halinde test edilmiyorsa yarısı sınanmamıştır — çökme ve **istek döngüsü** oradan çıkar. | #218 (toast kimliği → sonsuz istek), #219 (hata → state null → panel çöktü) |
 
 ---
@@ -417,12 +418,32 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
-### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 13:40)
+### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 14:40)
 
-**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li.
-**Test tabanı:** `1608 passed, 6 skipped` (backend) + `125 passed` (vitest, önceki tur 71).
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. Son commit `4b05c64`.
+**Test tabanı:** `1616 passed, 6 skipped` (backend) + `125 passed` (vitest, önceki tur 71).
 Kırmızı yok. Frontend test sayısındaki sıçrama gerçek kapsam artışıdır (13 panel × boş-durum
 + 13 panel × hata-durumu).
+
+---
+
+#### ⚠️ ÖNCE OKU — bekleyen İKİ şey
+
+**(a) CANLI DB — yapıldı (Murat onayıyla, 5 Ağu). Not olarak kalsın.**
+Sıra: yedek → `repair_null_workspace --uygula` (BUG #221'in canlıda oluşmuş 2 satırı:
+4 Ağu 2310 TL 'sigara' işlemi + 1 net-değer anlık görüntüsü) → yedek → **`alembic upgrade head`
+(9 migration — BUG #222)** → doğrulama: satır kaybı yok, bakiye değişmedi. Ardından kullanıcının
+bildirdiği 5 Ağu 300 TL yemek harcaması uygulamanın kendi akışıyla yazıldı (Enpara Nakit,
+2.263,52 → 1.963,52 TL) — #221 düzeltmesinin canlı doğrulaması.
+Yedekler: `data/backups/2026-08-05-141912.db` (onarım öncesi) ve `-142714.db` (upgrade öncesi).
+
+**(b) TOKEN BÜTÇESİ — workflow maliyeti ölçüldü (5 Ağu).**
+Doğrulama denetimi 49 ajanla koştu: **~3.97M token, haftalık limitin ~%50'si, 31 dakika.**
+Pahalı kısım 8 denetçi değil **41 çelişme ajanıydı** (her bulguya bir ajan). Kural:
+workflow yalnız Murat açıkça isterse; istendiğinde **tavan konur** ("en fazla 5 ajan" ya da
+`/config` → Dynamic workflow size = small) ve **çelişme turu yalnız kritik/yüksek bulgulara**
+uygulanır (~1/4 maliyet). Solo çalışma bunun yanında ihmal edilebilir — yavaşlama gerekiyorsa
+kısılacak şey ajan fan-out'udur, çalışmanın kendisi değil.
 
 **Bu turda kapanan 4 defekt + 1 altyapı** (P3.2 — boş/hata durumu arayüz kapısı):
 
@@ -437,22 +458,55 @@ Kırmızı yok. Frontend test sayısındaki sıçrama gerçek kapsam artışıd�
 **Yeni ders-kuralları:** L11 (kapsamı ölç, taban assert et) · L12 (hata yolu da ürün yüzeyidir).
 **Yeni hatırlatmalar:** H24 (arayüz katmanı boş/hata durumunda sınanmalı) · H25 (kapsam ölçülmeden kapı sayılmaz).
 
+**Sonra kapatılan (aynı gün, denetim bulgusundan — commit `4b05c64`):**
+
+| Bug | Konu |
+|---|---|
+| #222 | **CANLI ŞEMA KODUN 9 MIGRATION GERİSİNDEYDİ.** `data/financialos.db` `a1b2c3d4e5f6`'da kalmış, kod `e1f2a3b4c5d6` bekliyordu. `master_checkpoints.rule_type` yoktu → `enforce_user_rules` her onayda onu sorguladığı için **koç yolundan yapılan her onay 500 veriyordu**; rate-limit/hata-izleme/davet/e-posta-doğrulama/cron-görünürlüğü de canlıda fiilen yoktu. Uygulama yine de açılıyor, `/api/health` yeşil dönüyordu. Kapı yoktu: ADR-013 "şema yalnız Alembic" doğruydu ama "migration'ı çalıştırmayı unutma" adımı denetlenmiyordu. Fix: `app/schema_guard` startup fail-fast (prod), dev'de uyarı, test/`create_all` yolunda sessiz geçer. **Canlı DB head'e yükseltildi** (yedekli, satır kaybı yok) |
+| #221 | **KRİTİK — koç-onaylı kayıt kullanıcının KENDİ listesinden kayboluyordu.** `execute_pending_action` handler'ları `(db, user_id, payload)` imzasıyla çağrılıyordu; workspace bağlamı hiç geçmiyordu → `Transaction` / `MasterCheckpoint` satırları `workspace_id=NULL`. Okuma workspace kapsamlı olduğu için: koça "500 TL harcadım" de → onayla → **bakiye düşüyor ama işlem hiçbir listede/raporda yok**. 3. kol: `premortem.DecisionJournal` de NULL yazıyordu (`decision_journal` RLS listesinde → prod Postgres'te satır yazılır ama görünmez). Fix: handler çağrısı `workspace_scope(pending.workspace_id)` içine alındı + `_yazma_workspace_id()` (aktif kapsam → kaynağın workspace'i → personal → None). **Statik kapı:** `tests/test_workspace_insert_kapisi.py` — workspace'li modele `workspace_id` vermeden kayıt açılamaz (AST, model listesi şemadan türer, kapsam tabanı assert'li, mutasyon kontrolü yapıldı) |
+
+---
+
+#### DOĞRULAMA DENETİMİ SONUCU (5 Ağu, `wf_ddd8b54e-1c9`)
+
+**Rapor: `docs/kalite-seruveni/publish-dogrulama-denetimi.md`** — 8 boyut, salt-okur denetim +
+her bulguya ayrı çelişme (adversarial) turu. **40 bulgu onaylandı, 1 çürütüldü.**
+Şiddet dağılımı: 1 kritik · 12 yüksek · 17 orta · 10 düşük.
+
+- **Kapandı:** D01/D02 (+3. kol) → BUG #221 · D19/D20/D21 → BUG #217 · D35 → BUG #220.
+  (D19/D20/D35 bu turdaki düzeltmelerin **bağımsız doğrulamasıdır** — denetim onlardan
+  önceki ağaçta koştu ve aynı defektleri buldu.)
+- **Açık yüksek bulgular (sıradaki iş, şiddet sırasıyla):**
+  1. **D03** `/api/cashflow/forecast` + `/api/debt-strategy/*` workspace bağlamını hiç kurmuyor (BUG #165 fix'i uç seviyesinde bağlanmamış)
+  2. **D04** şifre sıfırlama token'ı, şifre değiştikten sonra HÂLÂ geçerli (BUG #172 ailesinin açık kolu)
+  3. **D05** OAuth callback davet kapısını atlıyor → `invite_only` iken sınırsız hesap
+  4. **D06** `docs/deployment/README.md` "Yol 2" + `.env.example` kimliksiz canlı sunucu üretebiliyor (fail-fast tetiklenmiyor)
+  5. **D07** premortem ucu LLM kotasını tamamen atlıyor
+  6. **D08** fiyat cron'u `Account.balance`'ı güncellemiyor → Hesaplar paneli ile Cockpit aynı hesap için FARKLI para gösteriyor
+  7. **D11/D12/D13** `docker-compose.prod.yml`: `env_file` yok (prod backend fail-fast ile hiç açılmıyor), scheduler'da `AUTH_ENABLED` yok, otomatik yedek yok
+  8. **D10** yayınlanan KVKK/veri-işleyen beyanı yanlış: ham işlem açıklamaları + üçüncü kişi adları yurt dışı LLM'e gidiyor
+  9. **D09** production yığınında otomatik yedek yok
+- **Not:** denetim "1581 passed" varsayımıyla başladı, diskte o an 3 kırmızı vardı — o üçü de bu turda kapandı.
+
 **SIRADAKİ İŞLER** (öncelik sırasıyla, hepsi asistan araci'un yapabileceği işler):
 
-1. **Doğrulama denetimi.** 8 bağımsız boyutta salt-okur denetim workflow'u; script diskte:
-   `~/.asistan/projects/.../workflows/scripts/publish-dogrulama-denetimi-wf_87c89bbf-0d8.js`
-   **5 Ağu 13:20'de `scriptPath` ile baştan başlatıldı** (run `wf_ddd8b54e-1c9`).
-   ⚠️ `resumeFromRunId` yalnız AYNI oturumda çalışır — yeni oturumda script baştan koşturulur.
-   Boyutlar: izolasyon, kimlik-oturum, kota-maliyet, ürünleşme, test-kalitesi, dayanıklılık,
-   hukuki-gizlilik, operasyon-deploy. Her bulgu ayrıca "çelişme" (adversarial) turundan geçer.
-   **Ultracode/workflow yalnız Murat açıkça isterse koşulur.**
-2. **P2.1** — session-fixation kararının yazılı gerekçesi (kabul edilen risk mi, değil mi).
-3. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
-4. **H4 kalanı** — para birimi/locale GÖRÜNTÜLEME aşaması (ADR-042).
-5. **H9 kalanı** — prompt injection tam ayrıştırma.
-6. **L11 taraması (yeni):** "hepsini tarar" diyen DİĞER kapılar da kapsam tabanı almalı —
+1. **Denetimin açık YÜKSEK bulguları** — yukarıdaki D03…D13 listesi, şiddet sırasıyla.
+   Çalışma ritmi: tek bulgu → TDD ile düzeltme → tam süit → ayrı commit. Her commit kendi
+   başına tam olsun (oturum/kota kesilirse yarım iş kalmasın).
+2. **Denetimin ORTA bulguları** (17 adet) — rapordaki D14…D30.
+3. **P2.1** — session-fixation kararının yazılı gerekçesi (kabul edilen risk mi, değil mi).
+4. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
+5. **H4 kalanı** — para birimi/locale GÖRÜNTÜLEME aşaması (ADR-042).
+6. **H9 kalanı** — prompt injection tam ayrıştırma.
+7. **L11 taraması:** "hepsini tarar" diyen DİĞER kapılar da kapsam tabanı almalı —
    `test_scope_enforcement` (AST taraması), yasaklı-iz kapısı, veri-işleyen envanteri.
-   #217 bu sınıfın yalnız ilk örneğiydi; sınıf taranmadı.
+   #217 bu sınıfın yalnız ilk örneğiydi; sınıf taranmadı. (Denetim D31 aynı yöne işaret
+   ediyor: statik kapı `db.get` / `Model.kolon` / `func(Model.kolon)` şekillerini modellemiyor.)
+
+**Denetim workflow'unun scripti** (yeniden koşulacaksa): `~/.asistan/projects/.../workflows/
+scripts/publish-dogrulama-denetimi-wf_87c89bbf-0d8.js`. `resumeFromRunId` yalnız AYNI
+oturumda çalışır; yeni oturumda `scriptPath` ile baştan koşar. **Tekrar koşurmadan önce
+maliyeti oku (yukarıdaki (b) maddesi) — tavan koymadan çalıştırma.**
 
 **İNSAN-KAPISI (Claude yapamaz, Murat'ta):** §9 — Oracle VM + domain/DNS + canlı sırlar,
 gerçek davetliler, gerçek trafik, duyuru. Canlı deploy olmadan P6/P7/P8/P9 kapanmaz.

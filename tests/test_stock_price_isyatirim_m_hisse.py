@@ -74,5 +74,9 @@ def test_bist_hesabi_uctan_uca(monkeypatch):
         assert db.query(PriceHistory).filter(PriceHistory.source == "isyatirim").count() == 1
         c = generate_cockpit(1, date.today(), db)
         assert c["yatirim_deger"] == 3295.0  # 10 * 329.50
+        # BUG #229 (D08): bu test eskiden YALNIZ cockpit'i doğruluyordu; `balance` bayat
+        # (0) kalıyor ve Hesaplar paneli 0 TL gösteriyordu — sapma yeşil teste gömülmüştü.
+        assert float(acc.balance) == 3295.0, \
+            "Hesaplar paneli bayat bakiye gösterir (cockpit ile çelişir)"
     finally:
         db.close(); eng.dispose()

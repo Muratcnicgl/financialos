@@ -19,6 +19,7 @@ from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.models import Account, AccountType, PriceHistory, PriceSource
+from app.money import D  # BUG #229: ADR-030 Decimal aritmetiği (lot × fiyat)
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,15 @@ def record_investment_price(db: Session, account: Account, price: Decimal, sourc
     """
     Fiyatı KALICI kaydet: PriceHistory'ye satır (ADR-012 kompozit PK, idempotent) +
     Account.current_price/last_price_update denormalize cache güncelle. True=yeni kayıt.
+
+    BUG #229 fix (D08): `Account.balance` da güncellenir. Yatırım hesaplarında
+    `balance == lot_count × current_price` bir DEĞİŞMEZDİR ve diğer TÜM yazma yolları
+    onu korur (fund_tracker manuel fiyat, accounts create/update, action_executor,
+    simulation_engine). Yalnız bu cron yolu ihlal ediyordu: fiyat yazılıp bakiye bayat
+    bırakılıyordu. Okuma tarafı ayrışık olduğu için (cockpit `lot × fiyat` hesaplar,
+    `/api/accounts` ham `balance` döner) kullanıcı AYNI hesap için iki farklı TL
+    rakamı görüyordu (Cockpit 36.000 / Hesaplar 30.000) ve yanlış rakama göre karar
+    verebiliyordu.
     """
     from datetime import datetime
     today = date.today()
@@ -118,5 +128,9 @@ def record_investment_price(db: Session, account: Account, price: Decimal, sourc
         exists.close_price = price  # aynı gün+kaynak güncellenirse üzerine yaz
     account.current_price = price
     account.last_price_update = datetime.utcnow()
+    # BUG #229 (D08): değişmezi koru — yalnız YATIRIM hesabında ve lot BİLİNİYORSA.
+    # lot_count None ise `lot × fiyat` hesaplanamaz; bakiyeyi 0'a düşürmek veri kaybı olur.
+    if account.account_type == AccountType.investment and account.lot_count is not None:
+        account.balance = round(D(account.lot_count) * D(price), 2)  # ADR-030: Decimal aritmetik
     db.commit()
     return is_new

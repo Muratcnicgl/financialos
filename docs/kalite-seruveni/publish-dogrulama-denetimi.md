@@ -474,7 +474,15 @@ SIDDET NOTU: kritik degil cunku veri sizintisi/yetkisiz erisim yok ve saldirgan 
 
 ### D08 · [yuksek] Otomatik fiyat cron'u Account.balance'i guncellemiyor — Hesaplar paneli ile Cockpit ayni hesap icin FARKLI para gosteriyor
 
-- **Boyut:** dayaniklilik · **Yer:** `app/price_providers/router.py:119` · **Durum:** ⬜ AÇIK
+- **Boyut:** dayaniklilik · **Yer:** `app/price_providers/router.py:119` · **Durum:** ✅ **KAPANDI — BUG #229** (5 Ağu).
+  `record_investment_price` artık `balance == lot_count × current_price` DEĞİŞMEZİNİ korur —
+  diğer tüm yazma yolları (fund_tracker, accounts create/update, action_executor,
+  simulation_engine) zaten koruyordu, tek ihlal eden cron yoluydu. `lot_count` None ise bakiyeye
+  DOKUNULMAZ (hesaplanamaz; 0'a düşürmek veri kaybı olurdu), lot=0 ise bakiye 0 olur.
+  Kapı: `tests/test_fiyat_cron_bakiye_senkron.py` (6 test — değişmez, **iki panelin aynı hesapta
+  aynı TL'yi göstermesi** [kullanıcı-görünür sözleşme], lot bilinmiyor/0 uç durumları,
+  PriceHistory+damga regresyonu, yatırım-dışı hesaba dokunmama). Ayrıca sapmayı yeşil teste gömen
+  `test_stock_price_isyatirim_m_hisse.py` bakiye assert'iyle güçlendirildi.
 - **Neden yayın engeli / etki:** Kullanici ayni uygulamada ayni yatirim hesabi icin iki farkli TL rakami gorur (Cockpit 36.000, Hesaplar 30.000) ve hangisinin dogru oldugunu bilemez. Bir finansal urunde birbiriyle celisen bakiye = para kaybi (yanlis rakama gore satis/harcama karari) + urune guvenin bir defada bitmesi. Fark her fiyat hareketiyle buyur; kullanici manuel fiyat girmedigi surece Hesaplar paneli kalici olarak donmus kalir.
 
 <details><summary>Kanıt</summary>

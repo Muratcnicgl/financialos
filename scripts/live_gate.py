@@ -128,6 +128,15 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
            not re.search(r"@(gmail|hotmail|outlook|yahoo|yandex)\.", destek),
            f"destek={destek!r} — ürün kimliğiyle konuşmalı", zorunlu=False)
 
+    print("\n== 6. GÖVDE BOYUTU SINIRI (P2.9 / BUG #213) ==")
+    # Sınır iki katmanda da uygulanmalı (nginx + uygulama). Canlıda ölçülen şey ikisinin
+    # BİRLİKTE verdiği sonuçtur: 2 MiB'lik gövde 413 ile reddedilmeli (kimlik gerekmeden —
+    # sınır kimlik doğrulamadan ÖNCE devreye girer, yoksa saldırgan bedava bellek tüketir).
+    kod, _b, _g = _iste(f"{base}/api/coach/chat", metod="POST",
+                        veri={"message": "x" * (2 * 1024 * 1024)})
+    s.ekle("2 MiB gövde reddediliyor (413)", kod == 413,
+           f"kod={kod} — sınır ne nginx'te ne uygulamada devrede")
+
     print("\n== 6. HUKUKİ METİNLER (KVKK) ==")
     for slug in ("kvkk", "kullanim-sartlari", "veri-isleyenler"):
         kod, _b, govde = _iste(f"{base}/api/legal/{slug}")

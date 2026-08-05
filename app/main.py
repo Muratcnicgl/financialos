@@ -185,6 +185,29 @@ app.add_middleware(
 
 
 # ============================================================
+# ISTEK GOVDESI SINIRI (BUG #213 / P2.9)
+# ============================================================
+# Sinir nginx'te (client_max_body_size 1m) vardi ama TEK savunmaydi: ters vekil
+# atlanirsa, nginx yapilandirmasi degisirse veya chunked govde gelirse koruma yok.
+# ADR-008 (iki katmanli savunma) geregi uygulama katmaninda da uygulanir ve testle
+# kilitlenir. Ayrintili gerekce: app/request_limits.py
+from app.request_limits import GovdeBoyutuMiddleware as _GovdeBoyutuMiddleware
+from app.request_limits import GovdeCokBuyuk as _GovdeCokBuyuk
+
+app.add_middleware(_GovdeBoyutuMiddleware)
+
+
+@app.exception_handler(_GovdeCokBuyuk)
+async def _govde_cok_buyuk(request, exc: _GovdeCokBuyuk):
+    # Beklenen bir reddetme — 500 degil 413; hata izlemeye "beklenmedik hata" olarak DUSMEZ.
+    from fastapi.responses import JSONResponse as _JR
+    return _JR(
+        status_code=413,
+        content={"detail": f"Istek govdesi cok buyuk. Azami {exc.azami_bayt} bayt."},
+    )
+
+
+# ============================================================
 # HATA IZLEME (P5 / BUG #195)
 # ============================================================
 # Beklenmedik hata YALNIZ log dosyasina dusuyordu; kapali betada operator log'u surekli

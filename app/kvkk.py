@@ -48,9 +48,32 @@ def purge_user_data(db: Session, user_id: int, delete_user_row: bool = True) -> 
             if r.rowcount:
                 silinen[table.name] = r.rowcount
 
-    # 2) Kullanıcının SAHİBİ olduğu workspace'ler + o workspace'lere bağlı artık satırlar
-    ws_ids = [w.id for w in db.query(Workspace)
-              .filter(Workspace.owner_user_id == user_id).all()]
+    # 2) Kullanıcının SAHİBİ olduğu workspace'ler.
+    #
+    # BUG #206 (H18): eskiden SAHİBİ olunan HER workspace siliniyordu — paylaşılan (aile)
+    # workspace'i de dahil. Sonuç: aile workspace'inin sahibi hesabını silince EŞİNİN/
+    # ÇOCUĞUNUN tüm finansal kayıtları da sessizce yok oluyordu (repro ile doğrulandı).
+    # Bir kullanıcının kendi hesabını silmesi, BAŞKASININ verisini yok etme yetkisi vermez.
+    #
+    # Kural: başka üyesi olan workspace SİLİNMEZ — sahiplik devredilir (en eski üyeye,
+    # önce editor sonra viewer). Yalnız kişisel/üyesiz workspace'ler silinir.
+    from app.models import WorkspaceMembership, WorkspaceRole
+    ws_ids: list[int] = []
+    for w in db.query(Workspace).filter(Workspace.owner_user_id == user_id).all():
+        diger = (db.query(WorkspaceMembership)
+                 .filter(WorkspaceMembership.workspace_id == w.id,
+                         WorkspaceMembership.user_id != user_id)
+                 .order_by(WorkspaceMembership.id.asc()).all())
+        if not diger:
+            ws_ids.append(w.id)
+            continue
+        yeni_sahip = next((m for m in diger if m.role == WorkspaceRole.editor), diger[0])
+        w.owner_user_id = yeni_sahip.user_id
+        yeni_sahip.role = WorkspaceRole.owner
+        silinen["workspace_devredildi"] = silinen.get("workspace_devredildi", 0) + 1
+        logger.info("[kvkk] workspace %s sahipligi devredildi: %s -> %s",
+                    w.id, user_id, yeni_sahip.user_id)
+    db.flush()
     if ws_ids:
         for table in reversed(Base.metadata.sorted_tables):
             if table.name in ("users", "workspaces"):

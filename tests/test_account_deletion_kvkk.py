@@ -128,3 +128,65 @@ def test_export_silmeden_once_tam_veri_doner(db, client):
     body = c.get("/api/user/export").json()
     assert body["accounts"] and body["goals"] and body["envelopes"]
     assert c.delete("/api/users/me").status_code in (200, 204)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# H18 / BUG #206 — hesabını silen kullanıcı, BAŞKASININ verisini yok edemez
+# Aile workspace'inin sahibi hesabını silince eşinin/çocuğunun tüm finansal
+# kayıtları da sessizce siliniyordu (repro ile doğrulandı). Bir kullanıcının
+# kendi hesabını silme hakkı, başkasının verisi üzerinde yetki vermez.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _aile_workspace(db):
+    sahip = User(name="Sahip", email="sahip@example.com", is_active=True)
+    uye = User(name="Es", email="es@example.com", is_active=True)
+    db.add_all([sahip, uye])
+    db.commit()
+    ws = Workspace(owner_user_id=sahip.id, name="Aile", is_personal=False)
+    db.add(ws)
+    db.commit()
+    db.add_all([
+        WorkspaceMembership(workspace_id=ws.id, user_id=sahip.id, role=WorkspaceRole.owner),
+        WorkspaceMembership(workspace_id=ws.id, user_id=uye.id, role=WorkspaceRole.editor),
+        Account(user_id=uye.id, workspace_id=ws.id, name="Eşin hesabı",
+                account_type=AccountType.cash, balance=50000.0),
+        Goal(user_id=uye.id, workspace_id=ws.id, goal_type="cash_target",
+             title="Eşin hedefi", target_amount=25000, status="active"),
+    ])
+    db.commit()
+    return sahip, uye, ws
+
+
+def test_sahip_silinince_aile_workspace_i_yok_olmaz(db, client):
+    sahip, uye, ws = _aile_workspace(db)
+    ws_id = ws.id
+    r = client(sahip).delete("/api/users/me")
+    assert r.status_code in (200, 204), r.text[:200]
+
+    assert db.query(Workspace).filter(Workspace.id == ws_id).count() == 1, (
+        "Paylaşılan workspace sahibiyle birlikte SİLİNDİ — diğer üyelerin verisi yok oldu"
+    )
+    assert db.query(Account).filter(Account.user_id == uye.id).count() == 1
+    assert db.query(Goal).filter(Goal.user_id == uye.id).count() == 1
+
+
+def test_sahiplik_kalan_uyeye_devredilir(db, client):
+    """Sahipsiz workspace yönetilemez hale gelir (davet/çıkarma owner ister)."""
+    sahip, uye, ws = _aile_workspace(db)
+    ws_id, uye_id = ws.id, uye.id
+    client(sahip).delete("/api/users/me")
+
+    yeni = db.query(Workspace).filter(Workspace.id == ws_id).first()
+    assert yeni.owner_user_id == uye_id, "Workspace SAHİPSİZ kaldı"
+    m = (db.query(WorkspaceMembership)
+         .filter(WorkspaceMembership.workspace_id == ws_id,
+                 WorkspaceMembership.user_id == uye_id).first())
+    assert m.role == WorkspaceRole.owner, "Devralan üye owner rolüne yükseltilmedi"
+
+
+def test_kisisel_workspace_silinmeye_devam_eder(db, client):
+    """Regresyon: üyesi olmayan kişisel workspace silinir (veri artığı kalmaz)."""
+    u, ws = _dolu_kullanici(db, "tek@example.com", "Tek")
+    ws_id = ws.id
+    client(u).delete("/api/users/me")
+    assert db.query(Workspace).filter(Workspace.id == ws_id).count() == 0

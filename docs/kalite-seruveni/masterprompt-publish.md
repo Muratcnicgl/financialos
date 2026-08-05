@@ -413,6 +413,42 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
+### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 09:20)
+
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. `main` başı `8cad7bc`.
+**Test tabanı:** `1606 passed, 6 skipped` (backend) + `71 passed` (vitest). Kırmızı yok.
+
+**Bu turda kapanan 6 defekt** (hepsi commit'li, ledger + §1.2 güncel):
+
+| Bug | Konu | Commit |
+|---|---|---|
+| #211 | Döviz sağlayıcısı çökünce kur TAMAMEN kayboluyordu → bayat işaretli son değer | `bb27baf` |
+| #212 | Eşzamanlı koç isteği kota tavanını deliyordu + muhasebe etiketi paylaşılan durumdan | `bb27baf` |
+| #213 | Gövde sınırı yalnız nginx'teydi → uygulama katmanına taşındı (chunked dahil) | `75e0076` |
+| #214 | Betanın kullanılıp kullanılmadığı ölçülemiyordu → `scripts/beta_metrics.py` | `90c80c2` |
+| #215 | E-posta hiçbir yerden değiştirilemiyordu (KVKK yanlış beyan + kalıcı hesap kilidi) | `8cad7bc` |
+| #216 | KVKK haklarının hiçbiri arayüzden ulaşılamıyordu + export bağı 401 indiriyordu | `8cad7bc` |
+
+**SIRADAKİ İŞLER** (öncelik sırasıyla, hepsi asistan araci'un yapabileceği işler):
+
+1. **Doğrulama denetimi (yarım kaldı).** 8 bağımsız boyutta salt-okur denetim workflow'u
+   yazıldı ve PAUSE edildi. Script diskte duruyor:
+   `~/.asistan/projects/.../workflows/scripts/publish-dogrulama-denetimi-wf_87c89bbf-0d8.js`
+   ⚠️ `resumeFromRunId` **aynı oturum içinde** çalışır — yeni oturumda resume EDİLEMEZ,
+   script `scriptPath` ile baştan koşturulur. Boyutlar: izolasyon, kimlik-oturum, kota-maliyet,
+   ürünleşme, test-kalitesi, dayanıklılık, hukuki-gizlilik, operasyon-deploy. Her bulgu
+   ayrıca "çelişme" (adversarial) turundan geçer. **Ultracode/workflow yalnız Murat açıkça
+   isterse koşulur.**
+2. **P3.2** — boş-durum (yeni kullanıcı) React panel testleri.
+3. **P2.1** — session-fixation kararının yazılı gerekçesi (kabul edilen risk mi, değil mi).
+4. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
+5. **H4 kalanı** — para birimi/locale GÖRÜNTÜLEME aşaması (ADR-042).
+6. **H9 kalanı** — prompt injection tam ayrıştırma.
+
+**İNSAN-KAPISI (Claude yapamaz, Murat'ta):** §9 — Oracle VM + domain/DNS + canlı sırlar,
+gerçek davetliler, gerçek trafik, duyuru. Canlı deploy olmadan P6/P7/P8/P9 kapanmaz.
+
+
 Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ insan-kapısı bekliyor
 
 | Faz | Konu | Durum | Kanıt / Not |

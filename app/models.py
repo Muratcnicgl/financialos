@@ -183,6 +183,17 @@ class User(Base):
         "WorkspaceMembership", foreign_keys="WorkspaceMembership.user_id",
         back_populates="user", cascade="all, delete-orphan"
     )
+    # BUG #204 (P3.4/H6): KVKK "unutulma hakki" KIRIKTI. Bu 6 tablo user_id FK'si tasiyor
+    # ama User'da cascade iliskisi YOKTU -> verisi olan bir kullanici hesabini silmeye
+    # calisinca "FOREIGN KEY constraint failed" (workspace silinemiyor, cunku zarf/hedef/
+    # istek satirlari hala isaret ediyor). Yani gercek bir beta kullanicisi hesabini
+    # SILEMEZDI; rıza metninde taahhut edilen hak fiilen calismiyordu.
+    envelopes = relationship("Envelope", cascade="all, delete-orphan")
+    wishlist_items = relationship("WishlistItem", cascade="all, delete-orphan")
+    goals = relationship("Goal", cascade="all, delete-orphan")
+    feedback_items = relationship("Feedback", cascade="all, delete-orphan")
+    demo_markers = relationship("DemoDataMarker", cascade="all, delete-orphan")
+    reasoning_traces = relationship("ReasoningTrace", cascade="all, delete-orphan")
 
 
 class Account(Base):

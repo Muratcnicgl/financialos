@@ -43,6 +43,21 @@ def _mask(email: str) -> str:
     return f"{local[:2]}***@{domain}"
 
 
+def destek_adresi() -> str:
+    """BUG #205 (H10/P8): DESTEK adresi — sablonlara KISISEL gmail gomuluyordu.
+
+    Yabanci bir beta kullanicisinin aldigi ilk resmi e-posta bir sahsin gmail'ine
+    yonlendiriyordu: hem guven sorunu hem KVKK "veri sorumlusu iletisim" beyaniyla
+    celiski. Adres artik env'den gelir (SUPPORT_EMAIL); tanimsizsa SMTP gonderen
+    adresine duser, o da yoksa jenerik metin.
+    """
+    ozel = os.getenv("SUPPORT_EMAIL", "").strip()
+    if ozel:
+        return ozel
+    c = _smtp_config()
+    return c["from_addr"] or "uygulama içi geri bildirim (Şikâyet/İstek/Öneri)"
+
+
 def smtp_configured() -> bool:
     """SMTP gönderime hazır mı (host+user+pass+from dolu)."""
     c = _smtp_config()
@@ -82,6 +97,7 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str) -> b
 def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     """Şifre sıfırlama e-postası (Türkçe, KVKK-uyumlu, HTML + text alternatifli)."""
     subject = "FinancialOS — Şifre Sıfırlama"
+    destek = destek_adresi()   # BUG #205: kişisel adres şablona GÖMÜLMEZ
     text_body = (
         "Merhaba,\n\n"
         "FinancialOS hesabınız için şifre sıfırlama talebinde bulunuldu.\n"
@@ -90,7 +106,7 @@ def send_password_reset_email(to_email: str, reset_link: str) -> bool:
         f"{reset_link}\n\n"
         "Bu talebi siz yapmadıysanız bu e-postayı görmezden gelebilirsiniz; "
         "hesabınız güvende ve hiçbir değişiklik yapılmaz.\n\n"
-        "Sorularınız için: muraticgil@gmail.com\n\n"
+        f"Sorularınız için: {destek}\n\n"
         "— FinancialOS"
     )
     html_body = f"""\
@@ -115,7 +131,7 @@ def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     <hr style="border:none;border-top:1px solid #e4e4e7;margin:20px 0">
     <p style="font-size:12px;line-height:1.6;color:#a1a1aa">
       Bu talebi siz yapmadıysanız bu e-postayı görmezden gelebilirsiniz; hesabınız güvende
-      ve hiçbir değişiklik yapılmaz. Sorularınız için: muraticgil@gmail.com
+      ve hiçbir değişiklik yapılmaz. Sorularınız için: {destek}
     </p>
   </div>
 </body></html>"""

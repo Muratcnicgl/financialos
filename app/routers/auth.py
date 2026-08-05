@@ -492,7 +492,14 @@ def oauth_exchange(body: OAuthExchangeIn, request: Request,
 @users_router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """KVKK m.7 silme hakkı: kullanıcı + tüm verisi (cascade). Geri alınamaz."""
-    db.delete(user)  # User ilişkileri cascade="all, delete-orphan" → tüm veri silinir
+    # BUG #204 (P3.4/H6): ORM cascade'ine guvenmek YETMEDI — 6 tablonun cascade iliskisi
+    # yoktu ve silme SIRASI kosullara gore degisiyordu (verisi olan kullanici hesabini
+    # SILEMIYORDU). Artik sira SEMADAN turetilir (deterministik).
+    from app.kvkk import purge_user_data
+    # Cocuk satirlar Core-DELETE ile (deterministik sira), kullanici satiri ORM ile:
+    # boylece session tutarli kalir (yetim nesne -> ObjectDeleted/DetachedInstanceError).
+    purge_user_data(db, user.id, delete_user_row=False)
+    db.delete(user)
     db.commit()
     return None
 

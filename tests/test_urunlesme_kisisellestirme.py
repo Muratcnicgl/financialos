@@ -110,6 +110,11 @@ def test_jenerik_kelimeler_calismaya_devam_eder(db, kullanici):
 YASAK_IZLER = [
     r"\bMurat\b", r"\bEfe\b", r"\bRezan\b", r"\bİçgil\b", r"\bIcgil\b",
     r"\bEnpara\b", r"\bZiraat\b", r"\bGaranti\s+(kredi|kart|hesab)",
+    # BUG #205 (H10): KİŞİSEL e-posta adresi de bir izdir. Şifre sıfırlama şablonunda
+    # gerçek bir gmail adresi gömülüydü ve bu kapı onu KAÇIRIYORDU (yalnız isim/marka
+    # arıyordu). Yabancı bir kullanıcının aldığı ilk resmî e-posta, ürün yerine bir
+    # şahsın gmail'ine yönlendiriyordu — güven + KVKK "veri sorumlusu" beyanıyla çelişir.
+    r"[\w\.\-]+@(gmail|hotmail|outlook|yahoo|yandex)\.[a-z]+",
 ]
 
 # P3.5/H2 (2. tur): kapsam TÜM app/ + frontend/src — ve artık YORUMLAR DA dahil.

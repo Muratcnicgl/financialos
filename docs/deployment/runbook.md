@@ -125,7 +125,7 @@ docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d fi
 
 ## Beta işletimi (P7)
 ```sh
-# Davet kodu uret (kapali beta)
+# Davet kodu uret (kapali beta) — --email VER (asagidaki nota bak)
 python -m scripts.beta_invite --email <davetli> --note "<kim>"
 python -m scripts.beta_invite --list
 
@@ -137,6 +137,13 @@ python -m scripts.beta_triage --kapat <ID> --not "duzeltildi: BUG #NNN"
 curl -fsS -H "Authorization: Bearer <token>" https://$DOMAIN/api/ops/scheduler
 ```
 Kullanici e-postalari triyaj ciktisinda MASKELIDIR (gizlilik); kimlik gerekiyorsa user_id ile bak.
+
+⚠️ **Daveti HER ZAMAN `--email` ile ac (BUG #226 / D05).** Kapali betada iki kayit yolu var:
+kod ile `/register` ve Google/GitHub ile OAuth. OAuth akisinda kod girilecek alan YOKTUR —
+kapi davetin e-postasiyla eslesir. E-postasiz (yalniz-kod) davet OAuth girisini ACMAZ; davetli
+"kapali betada, davetli listesinde degilsin" hatasi alir. Davetliye once sagliyici hesabinin
+adresini sor, daveti o adrese ac. Mevcut kullanicilarin girisi davetten etkilenmez (davet
+KAYIT kapisidir, giris kapisi degil).
 
 ### Kullanim metrikleri — haftada bir bak (BUG #214)
 

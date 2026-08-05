@@ -264,7 +264,18 @@ SIDDET GEREKCESI (kritik degil, yuksek): Uzaktan kimlik-dogrulamasiz saldirgan t
 
 ### D05 · [yuksek] OAuth callback, kapali-beta davet kapisini tamamen atliyor — REGISTRATION_MODE=invite_only iken sinirsiz hesap acilabiliyor
 
-- **Boyut:** kimlik-oturum · **Yer:** `app/routers/auth.py:556` · **Durum:** ⬜ AÇIK
+- **Boyut:** kimlik-oturum · **Yer:** `app/routers/auth.py:556` · **Durum:** ✅ **KAPANDI — BUG #226** (5 Ağu).
+  OAuth akışında davet kodu girilecek alan yok (kullanıcı sağlayıcıya gidip geliyor) → kapı
+  **e-posta eşleşmeli davet** üzerinden kuruldu: davetli-only modda YENİ OAuth kullanıcısı ancak
+  kendi adresine açılmış, kullanılmamış, süresi geçmemiş bir davet varsa yaratılır ve davet aynı
+  transaction'da TÜKETİLİR (`BetaInvite` artık gerçeği yansıtır). Süre/kullanım/adres kuralları
+  tek kaynaktan (`davet_dogrula`) uygulanır — ikinci kural kopyası yok. E-postasız (yalnız-kod)
+  davetler bu yolda fail-closed kalır; operatör aracı (`scripts/beta_invite.py`) ve runbook bunu
+  açıkça uyarır. MEVCUT kullanıcının girişi etkilenmez (davet kayıt kapısıdır, giriş kapısı değil).
+  Kapı: `tests/auth/test_oauth_davet_kapisi.py` (11 test — PoC, `/register` ile aynı davranış,
+  meşru davetli akışı + davet tüketimi, büyük/küçük harf, mevcut kullanıcı girişi, `open` modda
+  davranış değişmedi, tükenmiş/süresi geçmiş/başka adrese açılmış/e-postasız davet, `/api/meta`
+  beyanının kodda karşılığı). Düzeltme öncesi 8'i kırmızıydı.
 - **Neden yayın engeli / etki:** BUG #199'un tum gerekcesi 'kapali beta bir iddia degil kontrol olsun' idi; bu yol o kontrolu fail-open birakiyor. OAuth yapilandirilmis bir canliya cikista, alan adini bilen herkes Google/GitHub hesabiyla tek tikla FinancialOS hesabi acar: (a) davetsiz, izlenemeyen kullanicilar KVKK'da veri sorumlusu yukumlulugu dogurur ve envanterde gorunmez; (b) her yeni kullanici COACH_DAILY_USER_LIMIT tavanina ragmen paylasilan LLM saglayici kotasini tuketir (davetli gercek kullanicilar kocu kullanamaz hale gelir); (c) operatorun 'kimler betada' dedigi liste (BetaInvite) gercekle uyusmaz. Ayrica /api/meta kimliksiz olarak `davet_kodu_gerekli: true` beyan eder — urun, uygulamadigi bir kontrolu ilan etmis olur.
 
 <details><summary>Kanıt</summary>

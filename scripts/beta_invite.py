@@ -8,6 +8,11 @@ Kullanım:
 
 Kod tek kullanımlıktır. `--email` verilirse YALNIZ o adres kullanabilir (kod paylaşılsa
 bile başkası kayıt olamaz). Kodlar hiçbir log'a yazılmaz; yalnız burada ekrana basılır.
+
+⚠️ GOOGLE/GITHUB ile girecek davetliler için `--email` ZORUNLU (BUG #226 / D05):
+OAuth akışında kod girilecek bir alan yoktur, kapı e-posta eşleşmesiyle çalışır.
+E-postasız (yalnız-kod) davetler OAuth yolunu AÇMAZ — davetliye sağlayıcı hesabının
+adresini sor ve daveti o adrese aç.
 """
 from __future__ import annotations
 
@@ -48,6 +53,11 @@ def main(argv: list[str] | None = None) -> int:
         if d.expires_at:
             print(f"  gecerlilik: {d.expires_at.date()}")
         print("\nKullanicinin kayit ekraninda bu kodu girmesi gerekir.")
+        if d.email:
+            print("  (Google/GitHub ile girecekse kod gerekmez — davet adresi eslesir.)")
+        else:
+            print("  UYARI: --email verilmedi -> bu davet GOOGLE/GITHUB girisinde CALISMAZ")
+            print("         (OAuth kapisi e-posta eslesmesiyle calisir, BUG #226).")
         return 0
     finally:
         db.close()

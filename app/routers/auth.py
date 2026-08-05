@@ -566,6 +566,40 @@ def oauth_callback(
             user.oauth_sub = info["sub"]
             db.commit()
     else:
+        # BUG #226 (D05): KAPALI BETA KAPISI OAUTH YOLUNDA YOKTU. `invite_required()`
+        # yalnız register()'da çağrılıyordu → OAuth yapılandırılmış bir canlıda alan adını
+        # bilen herkes tek tıkla hesap açabiliyordu (aynı e-posta /register'da 403 alırken):
+        # davetsiz izlenemeyen kullanıcılar (KVKK), paylaşılan LLM kotasının tükenmesi,
+        # BetaInvite listesinin gerçekle uyuşmaması.
+        #
+        # OAuth akışında davet kodu girilecek alan YOK (kullanıcı sağlayıcıya gidip
+        # geliyor) → kapı E-POSTA EŞLEŞMELİ davet üzerinden kurulur: operatör davetliyi
+        # e-postasıyla davet eder, davet ilk OAuth girişinde tüketilir. E-postasız
+        # (yalnız-kod) davetler bu yolda eşleştirilemez ve fail-closed kalır — aksi halde
+        # tek genel kod, adres bilmeden sınırsız OAuth hesabı açardı.
+        from app.beta_access import invite_required, davet_dogrula, davet_kullan
+        davet = None
+        if invite_required():
+            from app.models import BetaInvite
+            normal_eposta = (email or "").lower().strip()
+            adaylar = (db.query(BetaInvite)
+                       .filter(BetaInvite.email == normal_eposta,
+                               BetaInvite.used_at.is_(None))
+                       .order_by(BetaInvite.id.asc())
+                       .all())
+            # Süre/kullanım/e-posta kuralları TEK KAYNAKTAN (davet_dogrula) uygulanır —
+            # burada ikinci bir kural kopyası tutulmaz (kurallar ayrışırsa kapı bozulur).
+            for aday in adaylar:
+                if davet_dogrula(db, aday.code, normal_eposta) is not None:
+                    davet = aday
+                    break
+            if davet is None:
+                logger.warning("[oauth] davetsiz kayit denemesi reddedildi provider=%s", provider)
+                raise HTTPException(
+                    403,
+                    "FinancialOS şu anda kapalı betada. Bu e-posta davetli listesinde "
+                    "olmadığı için hesap açılamadı.",
+                )
         # Yeni OAuth kullanıcısı (şifresiz). KVKK: OAuth onayıyla açık rıza kaydı.
         user = User(
             email=email,
@@ -578,6 +612,9 @@ def oauth_callback(
             is_active=True,
         )
         db.add(user)
+        db.flush()  # user.id gerekli (davet tüketimi aynı transaction'da)
+        if davet is not None:
+            davet_kullan(db, davet, user.id)  # BUG #226: davet TEK KULLANIMLIK
         db.commit()
         db.refresh(user)
 

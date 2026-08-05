@@ -1,0 +1,10 @@
+# Kabuk betikleri ve konteynere giren dosyalar DAİMA LF (BUG #230 takibi).
+# Windows'ta geliştirilip Linux konteynerine mount edilen bir betik CRLF'liyse
+# `#!/bin/sh\r` yüzünden "no such file or directory" verir — yedek/entrypoint
+# SESSİZCE çalışmaz. Bu tam da D09'un sınıfı: "kurdum sandığı ama koşmayan iş".
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+deploy/*.sh text eol=lf
+Dockerfile* text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

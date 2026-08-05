@@ -22,9 +22,16 @@ _LEGAL_DIR = _ROOT / "docs" / "legal"
 
 # Yayınlanan belgeler: slug → (dosya, başlık). Slug listesi SABİT — dosya adı
 # kullanıcı girdisinden gelmez (path traversal yüzeyi açılmaz).
+# BUG #231 (D10): dosya adı SABİT yazılıydı ("kvkk-consent-v2.md"). Rıza sürümü
+# yükseltildiğinde kullanıcıya HÂLÂ eski metin sunuluyordu — yani onay verdiği sürüm ile
+# okuduğu metin ayrışıyordu. Sürüm tek kaynaktan (KVKK_CONSENT_VERSION) türetilir.
+from app.routers.auth import KVKK_CONSENT_VERSION  # noqa: E402
+
+_KVKK_DOSYA = f"kvkk-consent-{KVKK_CONSENT_VERSION}.md"
+
 BELGELER: dict[str, tuple[str, str]] = {
-    "kvkk": ("kvkk-consent-v2.md", "KVKK Açık Rıza Metni"),
-    "gizlilik": ("kvkk-consent-v2.md", "Gizlilik ve Kişisel Veri Politikası"),
+    "kvkk": (_KVKK_DOSYA, "KVKK Açık Rıza Metni"),
+    "gizlilik": (_KVKK_DOSYA, "Gizlilik ve Kişisel Veri Politikası"),
     "kullanim-sartlari": ("kullanim-sartlari.md", "Kullanım Şartları"),
     "veri-isleyenler": ("veri-isleyen-envanteri.md", "Veri İşleyen Envanteri"),
 }

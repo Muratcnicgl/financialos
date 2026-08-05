@@ -539,7 +539,21 @@ Bulgu diskten dogrulandi, curutulemedi. (1) docker-compose.prod.yml tamami okund
 
 ### D10 · [yuksek] Yayınlanan KVKK/veri-işleyen beyanı yalan: ham işlem listesi + açıklama metinleri + üçüncü kişi adları yurt dışındaki LLM'e gidiyor
 
-- **Boyut:** hukuki-gizlilik · **Yer:** `docs/legal/veri-isleyen-envanteri.md:17` · **Durum:** ⬜ AÇIK
+- **Boyut:** hukuki-gizlilik · **Yer:** `docs/legal/veri-isleyen-envanteri.md:17` · **Durum:** ✅ **KAPANDI — BUG #231** (5 Ağu).
+  Beyan gerçeğe uyduruldu: envanterde "koça her mesajda GÖNDERİLEN veri (tam liste)" bölümü
+  (hesap adları, **ham işlem listesi + serbest metin açıklamalar**, **üçüncü kişi adları**,
+  kategori kırılımları, kırmızı çizgiler, sohbet geçmişi) + **özel nitelikli veri uyarısı**
+  (KVKK m.6) + üçüncü kişi uyarısı + gerçekten gönderilmeyenler. Kapsam maddi olarak
+  değiştiği için **rıza sürümü v3'e çıkarıldı** (`kvkk-consent-v3.md`) ve
+  `/api/legal/kvkk` artık dosyayı **tek kaynaktan türetiyor** (router'da sabit
+  "kvkk-consent-v2.md" yazılıydı → sürüm yükselse bile kullanıcı ESKİ metni okuyacaktı).
+  "Sürümü yükseltip susmak" L8 tuzağı olacağı için **rıza tazeleme yolu** eklendi
+  (`GET/POST /api/users/me/kvkk-consent`) ve Koç panelinde bant olarak gösteriliyor; ayrıca
+  aktarımın kapsamı **aktarımın yapıldığı yerde** (mesaj kutusunun altında) yazıyor.
+  Kapı: `tests/test_kvkk_beyan_gercek_akis.py` (14 test) — işaretli bir kullanıcıyla gerçek
+  bağlam üretilip **giden her veri sınıfının beyanda yazılı olduğu** doğrulanıyor; koç
+  bağlamına yeni alan eklenip beyan güncellenmezse kapı KIRILIR. Ters yön de korunuyor
+  (şifre hash'i / e-posta gerçekten gitmiyor).
 - **Neden yayın engeli / etki:** İşlem açıklaması kullanıcının serbest metnidir ve pratikte özel nitelikli kişisel veri taşır (sağlık: 'psikiyatri kontrol', inanç: 'cemaat bağışı', sendika/siyasi aidat). KVKK m.6 özel nitelikli veri ve m.9 yurt dışına aktarım için AYRI ve BİLGİLENDİRİLMİŞ açık rıza şart; kullanıcıya 'ham işlem listesi gönderilmez' denerek alınan rıza geçersiz, beyan yanlış olduğu için idari para cezası ve tazminat riski doğar. Ayrıca alacak/borç kaydındaki üçüncü kişinin adı-tutarı, o kişinin hiçbir rızası olmadan ABD'deki sağlayıcıya aktarılıyor — veri sahibi uygulamanın kullanıcısı bile değil.
 
 <details><summary>Kanıt</summary>

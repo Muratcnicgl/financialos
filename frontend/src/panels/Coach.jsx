@@ -3,7 +3,7 @@ import {
   Send, Loader2, RotateCcw, MessageSquare, AlertTriangle, User, Sparkles, RefreshCw,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { coachApi, cockpitApi } from '../api.js';
+import { coachApi, cockpitApi, userApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import EmptyState from '../components/EmptyState.jsx';
@@ -152,6 +152,10 @@ function CoachInner({ onActionResolved }) {
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // BUG #231 (D10): koça giden verinin gerçek kapsamı rıza metninde eksik beyan edilmişti.
+  // Sürüm v3'e çıktı; ESKİ sürüme onay vermiş kullanıcı yeni kapsamı onaylamış sayılmaz.
+  const [kvkkDurum, setKvkkDurum] = useState(null);
+  const [kvkkOnaylaniyor, setKvkkOnaylaniyor] = useState(false);
 
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
@@ -159,6 +163,15 @@ function CoachInner({ onActionResolved }) {
   // ============================================================
   // GECMISI YUKLE (sayfa acilisi)
   // ============================================================
+
+  // BUG #231: rıza sürümü durumu — hata olursa panel çalışmaya devam eder (banner çıkmaz).
+  useEffect(() => {
+    let mounted = true;
+    userApi.kvkkDurum()
+      .then((d) => { if (mounted) setKvkkDurum(d); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -393,6 +406,42 @@ function CoachInner({ onActionResolved }) {
         </button>
       </div>
 
+      {/* ===== RIZA TAZELEME BANTI (BUG #231 / D10) =====
+          Rıza metninin KAPSAMI değişti (koça giden verinin gerçek listesi). Eski sürüme
+          verilmiş onay yeni kapsamı kapsamaz; sürümü yükseltip susmak "belgede düzelttik"
+          olurdu (L8). Kullanıcı okumadan onaylamak zorunda değil — koç yine çalışır,
+          bant kalır. */}
+      {kvkkDurum?.yeniden_onay_gerekli && (
+        <div className="card p-3 mb-3 border-warn-300 dark:border-warn-700/50 bg-warn-50 dark:bg-warn-950/30">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4 text-warn-600 dark:text-warn-400 flex-shrink-0" />
+            <span className="text-warn-700 dark:text-warn-300 flex-1">
+              Gizlilik metni güncellendi: koça <strong>hangi verinin</strong> gittiği artık
+              tam olarak yazıyor (işlem açıklamaların ve kişi adları dahil).{' '}
+              <a href="/api/legal/kvkk" target="_blank" rel="noreferrer" className="underline">
+                Metni oku
+              </a>
+            </span>
+            <button
+              type="button"
+              disabled={kvkkOnaylaniyor}
+              onClick={async () => {
+                setKvkkOnaylaniyor(true);
+                try {
+                  const d = await userApi.kvkkTazele();
+                  setKvkkDurum({ ...kvkkDurum, ...d });
+                } catch {
+                  setKvkkOnaylaniyor(false);
+                }
+              }}
+              className="btn-secondary text-xs min-h-[44px] sm:min-h-0 sm:py-1.5 px-3 whitespace-nowrap"
+            >
+              {kvkkOnaylaniyor ? 'Kaydediliyor…' : 'Okudum, onaylıyorum'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ===== USAGE UYARI BANTI ===== */}
       {usageBlock && (
         <div className="card p-3 mb-3 border-negative-300 dark:border-negative-700/50 bg-negative-50 dark:bg-negative-950/30">
@@ -500,6 +549,15 @@ function CoachInner({ onActionResolved }) {
         hesaplar kural motorundan gelir, kararların sorumluluğu sana aittir.{' '}
         <a href="/api/legal/kullanim-sartlari" target="_blank" rel="noreferrer"
           className="underline hover:text-zinc-400">Kullanım şartları</a>
+      </p>
+      {/* BUG #231 (D10): aktarımın KAPSAMI, aktarımın YAPILDIĞI yerde yazmalı — kullanıcı
+          rıza metnini kayıtta bir kez okur, mesajı burada yazar. */}
+      <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+        Mesaj gönderdiğinde hesap adların, <strong>son işlemlerin (yazdığın açıklamalar
+        dahil)</strong> ve alacak/borç kayıtlarındaki <strong>kişi adları</strong> yapay
+        zekâ sağlayıcısına gider (yurt dışı olabilir).{' '}
+        <a href="/api/legal/veri-isleyenler" target="_blank" rel="noreferrer"
+          className="underline hover:text-zinc-400">Neler gönderiliyor?</a>
       </p>
     </div>
   );

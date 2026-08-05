@@ -199,6 +199,9 @@ export const userApi = {
   get:    () => request('/api/user'),
   create: (name) => request('/api/user', { method: 'POST', body: { name } }),
   update: (name) => request('/api/user', { method: 'PUT', body: { name } }),
+  // BUG #231 (D10): rıza metninin KAPSAMI değiştiğinde eski onay o kapsamı kapsamaz.
+  kvkkDurum: () => request('/api/users/me/kvkk-consent'),
+  kvkkTazele: () => request('/api/users/me/kvkk-consent', { method: 'POST' }),
 };
 
 // =============================================================

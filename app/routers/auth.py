@@ -44,7 +44,7 @@ users_router = APIRouter(prefix="/api/users", tags=["users"])
 
 # P4: v2 — v1 metni uygulamayi yalniz self-host varsayiyordu ("veriniz kendi sunucunuzda");
 # barindirilan kapali betada bu YANLIS beyandi. v2 dogru veri-sorumlusu tanimini icerir.
-KVKK_CONSENT_VERSION = "v2"
+KVKK_CONSENT_VERSION = "v3"  # BUG #231 (D10): koç aktarım kapsamı düzeltildi → yeni rıza sürümü
 
 # M21: rate limiter app/rate_limit.py'a taşındı (per-bucket production değerleri).
 # _rate_limit/_RATE alias'ları test uyumu için korunur (auth_mod._RATE.clear()).
@@ -656,7 +656,37 @@ def oauth_exchange(body: OAuthExchangeIn, request: Request,
     return _issue_tokens(user)
 
 
-# --- KVKK (silme + export) ---
+# --- KVKK (rıza tazeleme + silme + export) ---
+
+@users_router.get("/me/kvkk-consent")
+def kvkk_consent_durumu(user: User = Depends(get_current_user)) -> dict:
+    """BUG #231 (D10): kullanıcının onayladığı rıza sürümü GÜNCEL mi?
+
+    Rıza metninin kapsamı maddi olarak değiştiğinde (v2→v3: koça giden verinin gerçek
+    listesi) eski sürüme verilmiş onay o kapsamı KAPSAMAZ. Sürüm yükseltmek tek başına
+    yeterli değildir — kullanıcının bunu GÖRMESİ ve yeniden onaylaması gerekir; aksi halde
+    "sürümü yükselttik" belgede kalır, gerçekte kimse yeni kapsamı onaylamamış olur (L8).
+    """
+    onayli = getattr(user, "kvkk_consent_version", None)
+    return {
+        "onayli_surum": onayli,
+        "guncel_surum": KVKK_CONSENT_VERSION,
+        "yeniden_onay_gerekli": onayli != KVKK_CONSENT_VERSION,
+        "metin_url": "/api/legal/kvkk",
+        "veri_isleyenler_url": "/api/legal/veri-isleyenler",
+    }
+
+
+@users_router.post("/me/kvkk-consent")
+def kvkk_consent_tazele(user: User = Depends(get_current_user),
+                        db: Session = Depends(get_db)) -> dict:
+    """Kullanıcı güncel rıza metnini okuyup onayladığında sürümü kaydeder (BUG #231)."""
+    user.kvkk_consent_version = KVKK_CONSENT_VERSION
+    user.kvkk_consent_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    logger.info("[kvkk] riza tazelendi user_id=%s surum=%s", user.id, KVKK_CONSENT_VERSION)
+    return {"onayli_surum": KVKK_CONSENT_VERSION, "yeniden_onay_gerekli": False}
+
 
 @users_router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):

@@ -47,8 +47,32 @@ sh scripts/deploy.sh     # git pull → build → migrate → up → healthcheck
 ```
 
 ## Yedekleme
+
+**OTOMATİK (BUG #230 / D13):** compose yığınındaki `backup` servisi 24 saatte bir
+`deploy/pg_backup.sh` koşar: `pg_dump | gzip` → **boyut + gzip bütünlüğü doğrulanır** →
+adlandırılmış `pg-backups` hacmine yazılır → `BACKUP_KEEP_DAYS` (varsayılan 30) günden
+eskiler silinir. Doğrulamayı geçmeyen dump SİLİNİR (yarım dosya "yedeğim var" yanılsaması
+üretmesin). Ayrı bir cron/timer kurmana gerek yok.
+
 ```sh
-# Postgres dump (cron ile günlük önerilir)
+# Yedekleri listele (en yenisi üstte)
+docker compose -f docker-compose.prod.yml exec -T backup ls -lt /backups
+
+# Yedek servisinin son koşumu ne dedi
+docker compose -f docker-compose.prod.yml logs --tail=20 backup
+
+# Hemen bir yedek al (beklemeden — ör. migration öncesi)
+docker compose -f docker-compose.prod.yml exec -T backup sh /usr/local/bin/pg_backup.sh
+
+# Yedeği host'a kopyala (VM ölürse volume de ölür — DIŞARI kopyala!)
+docker compose -f docker-compose.prod.yml cp backup:/backups ./yedekler
+```
+
+> ⚠️ **Tek VM = tek nokta.** Otomatik yedek volume kaybına karşı korumaz. Haftada bir
+> `cp` ile dışarı (kendi bilgisayarın / başka bir sağlayıcı) al.
+
+```sh
+# Elle dump (tek seferlik, ham .sql)
 docker compose -f docker-compose.prod.yml exec -T db pg_dump -U financialos financialos > backup-$(date +%F).sql
 ```
 

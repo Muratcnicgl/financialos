@@ -510,7 +510,11 @@ Diskten dogrulandi, curutulemedi. (1) Kod: app/price_providers/router.py:119-121
 
 ### D09 · [yuksek] Production yiginda OTOMATIK YEDEK YOK; depodaki tek yedek otomasyonu Postgres'te hata verip cikiyor
 
-- **Boyut:** dayaniklilik · **Yer:** `docker-compose.prod.yml:7` · **Durum:** ⬜ AÇIK
+- **Boyut:** dayaniklilik · **Yer:** `docker-compose.prod.yml:7` · **Durum:** ✅ **KAPANDI — BUG #230** (5 Ağu, D13 ile aynı commit).
+  Otomatik yedek servisi eklendi (yukarıda D13). Ayrıca **yanıltıcı systemd unit'i** düzeltildi:
+  `deploy/financialos-backup.service` artık başlığında YALNIZ SQLite kurulumu için olduğunu ve
+  Docker/Postgres yığınında kullanılmaması gerektiğini söylüyor — operatör "timer kurdum" sanıp
+  her gece sessizce başarısız olmasın (teste bağlandı).
 - **Neden yayın engeli / etki:** Kapali betada gercek kullanicilarin tum finansal verisi tek bir Docker volume'unde (pg-data) ve hicbir otomatik kopyasi yok. VM/volume kaybi, hatali migration veya yanlis `DROP DATABASE` (runbook geri-yukleme adimi bunu iceriyor) durumunda veri GERI DONULMEZ sekilde kaybolur — operator 'systemd timer'i kurdum' zannederken script her gece cikis kodu 1 ile oluyor, kimse gormuyor. Ayrica KVKK metni kullaniciya var olmayan bir yedek saklama/rotasyon politikasi taahhut ediyor: silme talebinden sonra 'yedeklerdeki kopyalar 30 gun icinde silinir' beyani uygulanmayan bir surece dayaniyor (hukuki risk).
 
 <details><summary>Kanıt</summary>
@@ -587,7 +591,11 @@ SIDDET NEDEN "yuksek", "kritik" DEGIL: yurt disi aktarimin KENDISI beyan edilmis
 
 ### D11 · [yuksek] docker-compose.prod.yml'de env_file YOK — .env.prod'daki zorunlu degiskenler konteynere hic ulasmiyor, prod backend fail-fast ile hic acilmiyor
 
-- **Boyut:** operasyon-deploy · **Yer:** `docker-compose.prod.yml:34` · **Durum:** ⬜ AÇIK
+- **Boyut:** operasyon-deploy · **Yer:** `docker-compose.prod.yml:34` · **Durum:** ✅ **KAPANDI — BUG #230** (5 Ağu).
+  `backend` ve `scheduler` servislerine `env_file: [.env.prod]` eklendi — `--env-file` yalnız
+  `${...}` interpolasyonunu besliyordu, konteyner ortamına değişken yazmıyordu. `environment`
+  bloğu env_file'ı ezdiği için hesaplanmış/sabit değerler otoriter kalır. Böylece `SUPPORT_EMAIL`,
+  `SMTP_*`, `OAUTH_*`, `REGISTRATION_MODE`, `MAX_REQUEST_BODY_BYTES` gerçekten uygulamaya ulaşır.
 - **Neden yayın engeli / etki:** Belgelenen tek deploy komutu ile beta HIC ayaga kalkmaz: backend konteyneri startup'ta RuntimeError verip restart dongusune girer, deploy.sh'in 60 saniyelik healthcheck'i gecmez ve otomatik rollback bir onceki (ayni sekilde bozuk) surume doner. Operatorun elinde 'neden acilmiyor' sorusunun cevabi yok, cunku .env.prod'a dogru degeri yazmis olmasina ragmen uygulama o degeri hic gormuyor. Ayrica ayni kok neden yuzunden REGISTRATION_MODE (kapali beta anahtari) ve MAX_REQUEST_BODY_BYTES operator tarafindan fiilen ayarlanamaz — operator .env.prod'da 'invite_only' yazdigini sanip aslinda yalnizca kod varsayilanina guveniyor.
 
 <details><summary>Kanıt</summary>
@@ -616,7 +624,11 @@ Bulgu diskten dogrulandi, curutulemedi. (1) docker-compose.prod.yml YAML parse e
 
 ### D12 · [yuksek] scheduler servisinde AUTH_ENABLED tanimli degil — production fail-fast'i tetikler, cron servisi hic calismaz (fiyatlar bayat kalir)
 
-- **Boyut:** operasyon-deploy · **Yer:** `docker-compose.prod.yml:70` · **Durum:** ⬜ AÇIK
+- **Boyut:** operasyon-deploy · **Yer:** `docker-compose.prod.yml:70` · **Durum:** ✅ **KAPANDI — BUG #230** (5 Ağu).
+  `scheduler`'a `AUTH_ENABLED: "true"` eklendi + backend↔scheduler kritik ortam paritesi teste
+  bağlandı. Ayrıca **sessiz arıza kapatıldı:** `scripts/deploy.sh` scheduler ayakta değilse
+  artık UYARI basıp geçmiyor, **rollback** ediyor; `restarting` (crash-loop) durumu da yakalanıyor
+  (eski `Up|running` grep'i onu kaçırıyordu).
 - **Neden yayın engeli / etki:** Scheduler servisi hic ayaga kalkmaz: 02:45 fiyat cron'u ve 03:00 gece batch'i calismaz. Kullanici panelde BAYAT fon/hisse/kur fiyatlariyla hesaplanmis net deger gorur ve buna gore borc odeme/yatirim karari verir — yanlis sayiya dayali para karari. Ustelik hata sessizdir: web servisi calisiyor gorunur, deploy.sh sadece 'UYARI: scheduler servisi calismiyor' basip cikis kodu 0 ile TAMAM der (scripts/deploy.sh son adim).
 
 <details><summary>Kanıt</summary>
@@ -642,7 +654,13 @@ Diskten tam doğrulandı, çürütülemedi. (1) docker-compose.prod.yml:70-79 sc
 
 ### D13 · [yuksek] Production'da OTOMATIK YEDEK yok: compose'ta yedek servisi, scheduler'da yedek isi yok; mevcut systemd unit'i SQLite-only script cagiriyor
 
-- **Boyut:** operasyon-deploy · **Yer:** `docker-compose.prod.yml:109` · **Durum:** ⬜ AÇIK
+- **Boyut:** operasyon-deploy · **Yer:** `docker-compose.prod.yml:109` · **Durum:** ✅ **KAPANDI — BUG #230** (5 Ağu).
+  Compose'a `backup` servisi eklendi: 24 saatte bir `deploy/pg_backup.sh` → `pg_dump | gzip` →
+  **doğrulama** (asgari boyut + `gzip -t` bütünlüğü; geçmeyen dump SİLİNİR — yarım dosya
+  "yedeğim var" yanılsaması üretmesin) → adlandırılmış `pg-backups` hacmi (konteyner katmanı
+  DEĞİL, `down` ile yok olmaz) → `BACKUP_KEEP_DAYS` rotasyonu. Geçici dosyaya yazıp doğrulandıktan
+  SONRA adlandırma (yarım dosya asla geçerli görünmez). Runbook'a listeleme/elle koşma/**dışarı
+  kopyalama** adımları eklendi (tek VM = tek nokta; otomatik yedek volume kaybına karşı korumaz).
 - **Neden yayın engeli / etki:** Beta kullanicilarinin butun finansal gecmisi (hesaplar, islemler, borclar, hedefler, kocluk hafizasi) tek bir Docker volume'unde ve tek bir Free-Tier VM'de duruyor; hicbir otomatik kopya yok. VM'in silinmesi, volume bozulmasi veya hatali bir `docker compose down -v` tum kullanici verisini kalici olarak yok eder. Operator elle pg_dump almayi bir gun unutursa kayip kaciniIMAZ hale gelir; KVKK acisindan da veri sorumlusunun butunluk/erisilebilirlik yukumlulugunu karsilamaz.
 
 <details><summary>Kanıt</summary>

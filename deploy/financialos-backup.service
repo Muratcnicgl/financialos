@@ -1,5 +1,9 @@
 [Unit]
-Description=FinancialOS SQLite günlük yedek
+Description=FinancialOS SQLite gunluk yedek (YALNIZ SQLite kurulumu — Yol 2 / bare-metal)
+# BUG #230 (D09): bu unit `scripts/backup.py`'yi cagirir ve o script SQLite-only'dir;
+# DATABASE_URL Postgres ise cikis kodu 1 ile olur. Docker/Postgres kurulumunda BUNU KULLANMA —
+# orada yedek `docker-compose.prod.yml` icindeki `backup` servisi tarafindan alinir
+# (deploy/pg_backup.sh). Operator "timer kurdum" sanip her gece sessizce basarisiz olmasin.
 [Service]
 Type=oneshot
 User=financialos

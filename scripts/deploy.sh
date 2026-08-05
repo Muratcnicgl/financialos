@@ -36,7 +36,21 @@ until $COMPOSE exec -T backend curl -fsS http://localhost:8000/api/health >/dev/
 done
 
 echo "[deploy] 5) scheduler servisi ayakta mı (cron 7/24)?"
-$COMPOSE ps scheduler | grep -q "Up\|running" || echo "[deploy] UYARI: scheduler servisi çalışmıyor (fiyat/batch cron durabilir)"
+# BUG #230 (D12): burası eskiden yalnız "UYARI" basıp çıkış kodu 0 ile devam ediyordu.
+# Scheduler ölüyken deploy "TAMAM" diyordu ve kullanıcı BAYAT fiyatlarla hesaplanmış net
+# değere göre para kararı veriyordu — sessiz arıza. Ayrıca "restarting" durumu eski
+# `Up|running` grep'iyle EŞLEŞMİYOR, yani crash-loop bile fark edilmiyordu.
+DURUM=$($COMPOSE ps scheduler 2>/dev/null || true)
+if ! echo "$DURUM" | grep -qE "Up|running"; then
+    echo "[deploy] scheduler AYAKTA DEĞİL — fiyat/gece batch cron'ları koşmaz:"
+    echo "$DURUM"
+    rollback
+fi
+echo "$DURUM" | grep -qi "restarting" && { echo "[deploy] scheduler crash-loop'ta"; rollback; }
+
+echo "[deploy] 6) otomatik yedek servisi ayakta mı (D13)?"
+YEDEK=$($COMPOSE ps backup 2>/dev/null || true)
+echo "$YEDEK" | grep -qE "Up|running" || echo "[deploy] UYARI: yedek servisi çalışmıyor — otomatik kopya ALINMIYOR"
 
 echo "[deploy] ✅ TAMAM — $(git rev-parse --short HEAD) canlı. Web: https://<DOMAIN>"
 trap - INT TERM

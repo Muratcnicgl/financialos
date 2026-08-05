@@ -129,8 +129,33 @@ docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d fi
 - **fiyat güncellenmiyor:** `docker compose ps scheduler` Up mı? `docker compose logs scheduler`.
 - **DB bağlanamıyor:** `db` healthy mi? `docker compose ps db`. POSTGRES_PASSWORD .env.prod ile compose DATABASE_URL eşleşiyor mu.
 
-## Geri alma (manuel)
+## Geri alma (P9 — provası yapılmış yol)
+> **Kod'u geri almak yetmez: ŞEMA da geri alınmalı.** Kötü sürüm canlıya çıktığında şema
+> zaten ilerlemiştir; eski kod yeni şemayla açılmaya çalışır. Bu akış
+> `tests/test_rollback_drill.py` ile prova edilir (head → veri → 1/3 sürüm geri → veri
+> bozulmadı mı → tekrar head).
+
 ```sh
+# 0) ONCE YEDEK (geri almanin kendisi de riskli bir islemdir)
+docker compose -f docker-compose.prod.yml exec -T db   pg_dump -U financialos financialos > pre-rollback-$(date +%F-%H%M).sql
+
+# 1) Yazma trafigini durdur
+docker compose -f docker-compose.prod.yml stop backend scheduler
+
+# 2) SEMAYI geri al — kac surum geri gidilecegi, hatali surumun kac migration
+#    getirdigine baglidir (git log ile bak: alembic/versions/ altinda kac yeni dosya var).
+docker compose -f docker-compose.prod.yml run --rm backend   python -m alembic downgrade -1        # veya -2 / -3 …
+
+# 3) KODU geri al + ayaga kaldir
 git reset --hard <önceki-tag>   # ör. milestone-<N>
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# 4) DOGRULA (sessiz basari sayilmaz)
+curl -fsS https://$DOMAIN/api/health      # "version" alani eski surume donmus olmali
+python scripts/live_gate.py https://$DOMAIN
+docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d financialos -c 'SELECT COUNT(*) FROM users;'
 ```
+
+**Downgrade'i olmayan migration'la karşılaşırsan** geri alma yolu kapalıdır: o durumda
+yedekten geri yükleme (yukarıdaki bölüm) tek seçenektir. Bu yüzden yeni her migration
+gerçek bir `downgrade()` taşımalıdır (kapı: `tests/test_rollback_drill.py`).

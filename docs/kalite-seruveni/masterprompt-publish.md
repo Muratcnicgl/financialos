@@ -68,6 +68,7 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L11 | **"Hepsini tarar" diyen kapı, KAÇ TANE taradığını da ölçmeli.** Kapsamı üçüncü-taraf iç yapısından (ör. `app.routes`) türetme; kararlı kamu sözleşmesinden türet ve **taban assert et**. Aksi halde bir kütüphane sürümü kapıyı sessizce körleştirir, kapı yeşil kalır. L3'ün meta-testi bile bunu kaçırır — meta-test kapının MANTIĞINI sınar, KAPSAMINI değil. | #217 (FastAPI 0.141 `_IncludedRouter` → 87 uçtan 1'i taranıyordu; izolasyon kapısı 0 ölçüyordu, ikisi de yeşildi) |
 | L13 | **Kurulum adımını denetleyen bir kapı yoksa, o adım eninde sonunda atlanır.** "Runbook'ta yazıyor" bir kapı değildir. Kod ile ÇALIŞAN sistemin durumu (şema sürümü, uygulanmış migration, yapılandırma) arasına startup'ta fail-fast koy — aksi halde sistem yarım çalışır ve sağlık ucu yeşil kalır. | #222 (canlı DB 9 migration geride; koç onayı 500 verirken `/api/health` yeşildi) |
 | L12 | **Hata yolu da bir ürün yüzeyidir.** Panel/akış "veri yok" halinde test edilip "istek patladı" halinde test edilmiyorsa yarısı sınanmamıştır — çökme ve **istek döngüsü** oradan çıkar. | #218 (toast kimliği → sonsuz istek), #219 (hata → state null → panel çöktü) |
+| L14 | **Güvenlik varsayılanı fail-CLOSED olmalı; koruma "unutulması en kolay değişkene" bağlanamaz.** "Varsayılan kapalı + prod'da fail-fast" kalıbı, prod işaretini kimsenin set etmediği bir dağıtım yolu olduğu anda çöker. Doğru kalıp: korumayı aç, kapatmayı AÇIK BEYAN şartına bağla. Ayrıca dokümanın söylediği kurulum adımını **çalıştırıp sonucunu assert eden** bir test yaz (şablonu kopyala → kimlikli sunucu çıkıyor mu). | #227 (systemd yolu: `cp .env.example .env` → kimliksiz canlı sunucu; #171'in fail-fast'i bu yolda hiç tetiklenmiyordu), #225 (tv claim'i hiç taşınmadığı için sürüm kontrolü sessizce etkisiz kalırdı) |
 
 ---
 
@@ -418,90 +419,75 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
-### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 14:40)
+### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 16:15)
 
-**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. Son commit `4b05c64`.
-**Test tabanı:** `1616 passed, 6 skipped` (backend) + `125 passed` (vitest, önceki tur 71).
-Kırmızı yok. Frontend test sayısındaki sıçrama gerçek kapsam artışıdır (13 panel × boş-durum
-+ 13 panel × hata-durumu).
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. Son commit `0a78f28`.
+**Test tabanı:** `1686 passed, 6 skipped` (backend) + `125 passed` (vitest). Kırmızı yok.
 
 ---
 
-#### ⚠️ ÖNCE OKU — bekleyen İKİ şey
+#### BU OTURUMDA KAPANAN — denetimin YÜKSEK bulguları (6 commit, BUG #223-#228)
 
-**(a) CANLI DB — yapıldı (Murat onayıyla, 5 Ağu). Not olarak kalsın.**
-Sıra: yedek → `repair_null_workspace --uygula` (BUG #221'in canlıda oluşmuş 2 satırı:
-4 Ağu 2310 TL 'sigara' işlemi + 1 net-değer anlık görüntüsü) → yedek → **`alembic upgrade head`
-(9 migration — BUG #222)** → doğrulama: satır kaybı yok, bakiye değişmedi. Ardından kullanıcının
-bildirdiği 5 Ağu 300 TL yemek harcaması uygulamanın kendi akışıyla yazıldı (Enpara Nakit,
-2.263,52 → 1.963,52 TL) — #221 düzeltmesinin canlı doğrulaması.
-Yedekler: `data/backups/2026-08-05-141912.db` (onarım öncesi) ve `-142714.db` (upgrade öncesi).
+| Bug | Denetim | Konu |
+|---|---|---|
+| #223 | D03 | **Nakit-akış + borç-stratejisi uçları workspace bağlamı kurmuyordu.** BUG #165 motoru düzeltmişti ama HTTP uçları `workspace_scope` bloğuna hiç girmiyordu → köprü her zaman legacy `user_id` dalına düşüyordu. Aile görünümünde cockpit "0 TL borç" derken debt-strategy KİŞİSEL iki borcu listeliyor, snowball/avalanche/konsolidasyon **yanlış borç kümesi** üzerinde koşuyordu. Uçlar üyelik doğrulaması da yapmıyordu (üye olunmayan ws → 200) |
+| #224 | D03b | **Aynı sınıfın kalan iki ucu** (#223'ün sınıf taramasında bulundu): premortem + simülasyon. `simulation_engine` hiç workspace-farkında değildi çünkü tasarım gereği `rules_engine`'i import etmiyor ve köprü orada tanımlıydı → köprü **yaprak modül `app/scope.py`'ye taşındı** (rules_engine geriye-uyum re-export'u yapar) |
+| #225 | D04 | **Şifre sıfırlama bağlantısı, şifre değiştikten sonra hâlâ geçerliydi.** Kurbanın doğru refleksi ("hemen şifremi değiştireyim") saldırganın elindeki bağlantıyı öldürmüyordu → kalıcı hesap ele geçirme. Çift kök: confirm `token_version_ok` çağırmıyordu VE token `tv` claim'ini hiç taşımıyordu (yani tek başına birinci düzeltme sessizce etkisiz kalırdı) |
+| #226 | D05 | **OAuth kaydı kapalı-beta davet kapısını atlıyordu.** Alan adını bilen herkes Google/GitHub ile hesap açabiliyordu — aynı e-posta `/register`'da 403 alırken. Mevcut süit bu fail-open davranışı KİLİTLİYORDU. Kapı **e-posta eşleşmeli davet** ile kuruldu (OAuth'ta kod girilecek alan yok); davet ilk girişte tüketilir |
+| #227 | D06 | **Belgelenen systemd dağıtım yolu KİMLİKSİZ canlı sunucu üretiyordu.** Kök neden doküman değil, güvenlik varsayılanının fail-OPEN olması. **`AUTH_ENABLED` varsayılanı AÇIK oldu (kırıcı değişiklik, CHANGELOG'da geçiş notu)** + systemd unit'i kendini production ilan eder + README `.env.prod.example` gösterir + ADR-033 §5 güncellendi |
+| #228 | D07 + D16 | **LLM kotası tek uca cıvatalanmıştı.** Kota DOLU iken premortem 5/5 istekte 200 dönüp 5 üretim yapıyor, `ApiCallLog` hiç artmıyordu (maliyet metrikleri kör). Aksiyon onayının arka plan yansıması da kotasız+kayıtsızdı. Muhasebe `app/llm_quota.py`'ye alındı; **statik kapı** artık `provider.chat` çağıran her dosyanın kotadan geçmesini ya gerekçeli muafiyet taşımasını dayatıyor |
 
-**(b) TOKEN BÜTÇESİ — workflow maliyeti ölçüldü (5 Ağu).**
-Doğrulama denetimi 49 ajanla koştu: **~3.97M token, haftalık limitin ~%50'si, 31 dakika.**
-Pahalı kısım 8 denetçi değil **41 çelişme ajanıydı** (her bulguya bir ajan). Kural:
-workflow yalnız Murat açıkça isterse; istendiğinde **tavan konur** ("en fazla 5 ajan" ya da
-`/config` → Dynamic workflow size = small) ve **çelişme turu yalnız kritik/yüksek bulgulara**
-uygulanır (~1/4 maliyet). Solo çalışma bunun yanında ihmal edilebilir — yavaşlama gerekiyorsa
-kısılacak şey ajan fan-out'udur, çalışmanın kendisi değil.
-
-**Bu turda kapanan 4 defekt + 1 altyapı** (P3.2 — boş/hata durumu arayüz kapısı):
-
-| Bug | Konu |
-|---|---|
-| #217 | **İki kapı fiilen ÖLÜYDÜ.** Kapsam `app.routes`'tan türetiliyordu; FastAPI 0.141 router'ları düzleştirmeyi bırakınca boş-durum taraması 87 uçtan **1**'ini tarar oldu, izolasyon matrisi kapsamı **0** ölçtü — ikisi de yeşildi. Envanter OpenAPI'ye taşındı + **kapsam tabanı** assert edildi (`tests/endpoint_envanteri.py`). Kapı açılınca ilk gerçek bulgu: `/api/legal/{slug}` matris dışıydı |
-| #218 | **Tek hatalı istek → sonsuz istek döngüsü.** `ToastProvider` context değerini her render'da yeniden yaratıyordu → `[toast]` bağımlı effect'ler tekrar koşuyordu. Ölçüldü: Aile paneli 150 ms'de **54 istek**, durmuyor. `useMemo` ile sabitlendi → 2 istek |
-| #219 | **Bütçe paneli backend hata verince çöküyordu** (`data` null iken `data.envelopes`). Artık kalıcı hata kartı + "Tekrar dene"; yükleme başarısızken kullanıcıya "zarfın yok" DENMİYOR |
-| #220 | **Zamana bağlı gizli flaky test** — UTC+14/UTC-11 farkı günün ~1/24'ünde 2 gün olur, iddia `(0,1)` idi. Üretim kodu doğruydu, test yanlıştı |
-| altyapı | Frontend boş-durum testi **gerçek** boş-kullanıcı cevaplarıyla koşuyor (`frontend/src/__fixtures__/bos-kullanici.json`, 36 uç) + **sözleşme kayması kapısı** (backend gövde yapısını değiştirirse test kırılır, frontend sessizce bayatlayamaz) |
-
-**Yeni ders-kuralları:** L11 (kapsamı ölç, taban assert et) · L12 (hata yolu da ürün yüzeyidir).
-**Yeni hatırlatmalar:** H24 (arayüz katmanı boş/hata durumunda sınanmalı) · H25 (kapsam ölçülmeden kapı sayılmaz).
-
-**Sonra kapatılan (aynı gün, denetim bulgusundan — commit `4b05c64`):**
-
-| Bug | Konu |
-|---|---|
-| #222 | **CANLI ŞEMA KODUN 9 MIGRATION GERİSİNDEYDİ.** `data/financialos.db` `a1b2c3d4e5f6`'da kalmış, kod `e1f2a3b4c5d6` bekliyordu. `master_checkpoints.rule_type` yoktu → `enforce_user_rules` her onayda onu sorguladığı için **koç yolundan yapılan her onay 500 veriyordu**; rate-limit/hata-izleme/davet/e-posta-doğrulama/cron-görünürlüğü de canlıda fiilen yoktu. Uygulama yine de açılıyor, `/api/health` yeşil dönüyordu. Kapı yoktu: ADR-013 "şema yalnız Alembic" doğruydu ama "migration'ı çalıştırmayı unutma" adımı denetlenmiyordu. Fix: `app/schema_guard` startup fail-fast (prod), dev'de uyarı, test/`create_all` yolunda sessiz geçer. **Canlı DB head'e yükseltildi** (yedekli, satır kaybı yok) |
-| #221 | **KRİTİK — koç-onaylı kayıt kullanıcının KENDİ listesinden kayboluyordu.** `execute_pending_action` handler'ları `(db, user_id, payload)` imzasıyla çağrılıyordu; workspace bağlamı hiç geçmiyordu → `Transaction` / `MasterCheckpoint` satırları `workspace_id=NULL`. Okuma workspace kapsamlı olduğu için: koça "500 TL harcadım" de → onayla → **bakiye düşüyor ama işlem hiçbir listede/raporda yok**. 3. kol: `premortem.DecisionJournal` de NULL yazıyordu (`decision_journal` RLS listesinde → prod Postgres'te satır yazılır ama görünmez). Fix: handler çağrısı `workspace_scope(pending.workspace_id)` içine alındı + `_yazma_workspace_id()` (aktif kapsam → kaynağın workspace'i → personal → None). **Statik kapı:** `tests/test_workspace_insert_kapisi.py` — workspace'li modele `workspace_id` vermeden kayıt açılamaz (AST, model listesi şemadan türer, kapsam tabanı assert'li, mutasyon kontrolü yapıldı) |
+**Çalışma ritmi (işe yaradı, sürdür):** tek bulgu → denetimin kanıtını **HTTP/davranış seviyesinde
+kırmızı teste çevir** → düzelt → **mutasyon kontrolü** (kapı gerçekten kırılıyor mu) → sınıf
+taraması (L11: aynı şekil başka nerede) → tam süit → ayrı commit + ledger + denetim raporu satırı.
+Bu turda sınıf taraması iki ek defekt buldu (#224, ve D16'nın #228'e katılması).
 
 ---
 
-#### DOĞRULAMA DENETİMİ SONUCU (5 Ağu, `wf_ddd8b54e-1c9`)
+#### ⚠️ ÖNCE OKU — devam eden iki not
 
-**Rapor: `docs/kalite-seruveni/publish-dogrulama-denetimi.md`** — 8 boyut, salt-okur denetim +
-her bulguya ayrı çelişme (adversarial) turu. **40 bulgu onaylandı, 1 çürütüldü.**
-Şiddet dağılımı: 1 kritik · 12 yüksek · 17 orta · 10 düşük.
+**(a) CANLI DB — yapıldı (Murat onayıyla, 5 Ağu).** Yedek → `repair_null_workspace --uygula`
+(BUG #221'in canlıda oluşmuş 2 satırı) → yedek → `alembic upgrade head` (9 migration, BUG #222)
+→ doğrulama: satır kaybı yok, bakiye değişmedi. Yedekler: `data/backups/2026-08-05-141912.db`
+ve `-142714.db`.
 
-- **Kapandı:** D01/D02 (+3. kol) → BUG #221 · D19/D20/D21 → BUG #217 · D35 → BUG #220.
-  (D19/D20/D35 bu turdaki düzeltmelerin **bağımsız doğrulamasıdır** — denetim onlardan
-  önceki ağaçta koştu ve aynı defektleri buldu.)
-- **Açık yüksek bulgular (sıradaki iş, şiddet sırasıyla):**
-  1. **D03** `/api/cashflow/forecast` + `/api/debt-strategy/*` workspace bağlamını hiç kurmuyor (BUG #165 fix'i uç seviyesinde bağlanmamış)
-  2. **D04** şifre sıfırlama token'ı, şifre değiştikten sonra HÂLÂ geçerli (BUG #172 ailesinin açık kolu)
-  3. **D05** OAuth callback davet kapısını atlıyor → `invite_only` iken sınırsız hesap
-  4. **D06** `docs/deployment/README.md` "Yol 2" + `.env.example` kimliksiz canlı sunucu üretebiliyor (fail-fast tetiklenmiyor)
-  5. **D07** premortem ucu LLM kotasını tamamen atlıyor
-  6. **D08** fiyat cron'u `Account.balance`'ı güncellemiyor → Hesaplar paneli ile Cockpit aynı hesap için FARKLI para gösteriyor
-  7. **D11/D12/D13** `docker-compose.prod.yml`: `env_file` yok (prod backend fail-fast ile hiç açılmıyor), scheduler'da `AUTH_ENABLED` yok, otomatik yedek yok
-  8. **D10** yayınlanan KVKK/veri-işleyen beyanı yanlış: ham işlem açıklamaları + üçüncü kişi adları yurt dışı LLM'e gidiyor
-  9. **D09** production yığınında otomatik yedek yok
-- **Not:** denetim "1581 passed" varsayımıyla başladı, diskte o an 3 kırmızı vardı — o üçü de bu turda kapandı.
+**(b) TOKEN BÜTÇESİ — workflow maliyeti ölçüldü (5 Ağu).** Doğrulama denetimi 49 ajanla koştu:
+**~3.97M token, haftalık limitin ~%50'si, 31 dakika.** Pahalı kısım 8 denetçi değil **41 çelişme
+ajanıydı**. Kural: workflow yalnız Murat açıkça isterse; istendiğinde **tavan konur** ("en fazla
+5 ajan" ya da `/config` → Dynamic workflow size = small) ve **çelişme turu yalnız kritik/yüksek
+bulgulara** uygulanır. Solo çalışma bunun yanında ihmal edilebilir.
+
+---
+
+#### DOĞRULAMA DENETİMİ DURUMU (5 Ağu, `wf_ddd8b54e-1c9`)
+
+**Rapor: `docs/kalite-seruveni/publish-dogrulama-denetimi.md`** — 8 boyut, 40 bulgu onaylandı,
+1 çürütüldü. Şiddet: 1 kritik · 12 yüksek · 17 orta · 10 düşük.
+
+- **Kapandı:** D01/D02 → #221 · D19/D20/D21 → #217 · D35 → #220 · **D03 → #223 · D03b → #224 ·
+  D04 → #225 · D05 → #226 · D06 → #227 · D07+D16 → #228**.
+- **AÇIK YÜKSEK bulgular (SIRADAKİ İŞ, şiddet sırasıyla):**
+  1. **D08** fiyat cron'u `Account.balance`'ı güncellemiyor → Hesaplar paneli ile Cockpit aynı hesap için FARKLI para gösteriyor
+  2. **D11/D12/D13** `docker-compose.prod.yml`: `env_file` yok (prod backend fail-fast ile hiç açılmıyor), scheduler'da `AUTH_ENABLED` yok, otomatik yedek yok
+  3. **D10** yayınlanan KVKK/veri-işleyen beyanı yanlış: ham işlem açıklamaları + üçüncü kişi adları yurt dışı LLM'e gidiyor
+  4. **D09** production yığınında otomatik yedek yok (D13 ile birlikte ele alınabilir)
+- **Sonra:** ORTA bulgular (D14…D30, 16 adet — D16 kapandı), ardından DÜŞÜK (D31…D40).
 
 **SIRADAKİ İŞLER** (öncelik sırasıyla, hepsi asistan araci'un yapabileceği işler):
 
-1. **Denetimin açık YÜKSEK bulguları** — yukarıdaki D03…D13 listesi, şiddet sırasıyla.
-   Çalışma ritmi: tek bulgu → TDD ile düzeltme → tam süit → ayrı commit. Her commit kendi
-   başına tam olsun (oturum/kota kesilirse yarım iş kalmasın).
-2. **Denetimin ORTA bulguları** (17 adet) — rapordaki D14…D30.
-3. **P2.1** — session-fixation kararının yazılı gerekçesi (kabul edilen risk mi, değil mi).
-4. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
-5. **H4 kalanı** — para birimi/locale GÖRÜNTÜLEME aşaması (ADR-042).
-6. **H9 kalanı** — prompt injection tam ayrıştırma.
-7. **L11 taraması:** "hepsini tarar" diyen DİĞER kapılar da kapsam tabanı almalı —
-   `test_scope_enforcement` (AST taraması), yasaklı-iz kapısı, veri-işleyen envanteri.
-   #217 bu sınıfın yalnız ilk örneğiydi; sınıf taranmadı. (Denetim D31 aynı yöne işaret
-   ediyor: statik kapı `db.get` / `Model.kolon` / `func(Model.kolon)` şekillerini modellemiyor.)
+1. **D08** (para tutarsızlığı — kullanıcı iki panelde farklı rakam görüyor).
+2. **D11/D12/D13 + D09** (prod yığını: compose `env_file`, scheduler auth, otomatik yedek).
+   Bunlar canlı-deploy'un ÖN KOŞULU — Murat sunucuyu açtığında bloklamasınlar.
+3. **D10** (KVKK beyanı ↔ gerçek veri akışı uyumsuzluğu — hukuki).
+4. Denetimin ORTA bulguları (D14…D30).
+5. **P2.1** — session-fixation kararının yazılı gerekçesi.
+6. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
+7. **H4 kalanı** — para birimi/locale GÖRÜNTÜLEME aşaması (ADR-042).
+8. **H9 kalanı** — prompt injection tam ayrıştırma.
+9. **L11 taraması:** "hepsini tarar" diyen DİĞER kapılar da kapsam tabanı almalı
+   (`test_scope_enforcement`, yasaklı-iz kapısı, veri-işleyen envanteri). Bu turda üç yeni kapı
+   (workspace uç kapsamı, dağıtım şablonları, LLM kota kapsamı) **taban assert'li** yazıldı —
+   desen oturdu, eski kapılara uygulanması kaldı.
 
 **Denetim workflow'unun scripti** (yeniden koşulacaksa): `~/.asistan/projects/.../workflows/
 scripts/publish-dogrulama-denetimi-wf_87c89bbf-0d8.js`. `resumeFromRunId` yalnız AYNI
@@ -536,5 +522,6 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 |---|---|---|---|
 | v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, ajan protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
 | v2.0 | 2026-08-05 | **§1.3 DERS-KURALLARI (L1-L10)** eklendi — 41 bug'dan çıkarılan, tekrar etmemesi gereken hata SINIFLARI. Faz kapıları KORUNDU, hiçbiri gevşetilmedi | Murat'ın 3. adımı: "masterprompt'u gerileme/duraksama yönü hariç, kaliteyi artırma amaçlı geliştir" |
+| v2.2 | 2026-08-05 | **§11.0 devir-teslim yenilendi** (6 yüksek bulgu kapandı: #223-#228); sıradaki iş listesi D08 → D11/D12/D13+D09 → D10 olarak önceliklendi. **§1.3'e L14** eklendi (güvenlik varsayılanı fail-CLOSED olmalı: koruma 'unutulması en kolay değişkene' bağlanamaz — BUG #227 dersi). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin yüksek bulgu turu: workspace uç kapsamı (#223/#224), sıfırlama token'ı (#225), OAuth davet kapısı (#226), kimliksiz deploy (#227), LLM kotası (#228). Üçü de yeni STATİK kapı üretti (kapsam tabanı assert'li) |
 | v2.1 | 2026-08-05 | **§1.3'e L11 + L12**, **§1.2'ye H24 + H25** eklendi; §11 P0/P1/P3 kanıt satırları düzeltildi (P1'in "kapsam kilitli" iddiası BUG #217 ile GEÇERSİZ çıktı, yazıldı) | P3.2 turunda ölçülen 4 defekt: kapsam sessizce çöken kapılar (#217), hata yolunda sonsuz istek döngüsü (#218), hata yolunda panel çökmesi (#219), zamana bağlı flaky (#220). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) |
 | v1.1 | 2026-08-04 | **§P3.5 ÜRÜNLEŞME fazı eklendi** (tek-kullanıcı DNA'sının sökülmesi — yayın-engeli) + **§1.2 kalıcı hatırlatma listesi** (H1-H18) + P0/P1 kapıları kanıtla kapatıldı + R7 riski eklendi | Murat: "kullanıcı sorununu da çözmek lazım publish etmeden… ben unutsam da sen hatırla, nicelerini de sen eklersin". Kapı EKLENDİ, hiçbir kapı gevşetilmedi (§10 kuralına uygun) |

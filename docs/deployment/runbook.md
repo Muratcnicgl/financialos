@@ -138,6 +138,27 @@ curl -fsS -H "Authorization: Bearer <token>" https://$DOMAIN/api/ops/scheduler
 ```
 Kullanici e-postalari triyaj ciktisinda MASKELIDIR (gizlilik); kimlik gerekiyorsa user_id ile bak.
 
+### Kullanim metrikleri — haftada bir bak (BUG #214)
+
+Triyaj yalniz **sikayet edeni** gosterir. Beta'nin en olasi basarisizligi gurultulu cokus
+degil **sessiz terk**tir: davet edilir, kayit olur, ilk ekranda takilir, kimse sikayet etmez,
+panelde her sey yesil gorunur. Onu bu arac gorunur kilar:
+
+```sh
+python -m scripts.beta_metrics             # son 30 gun
+python -m scripts.beta_metrics --gun 7
+python -m scripts.beta_metrics --json      # cron/izleme icin
+```
+
+Ciktida **yalniz sayi/oran** vardir — e-posta, isim, serbest metin ve para tutari bu araçtan
+CIKMAZ (testle kilitli). Dis analitik servisi YOKTUR; sorgular kendi DB'mize gider.
+
+**Neye bakilir:**
+- `hic iz birakmayan` yuksekse (>%40) sorun onboarding'dedir, ozellikte degil.
+- `hesap ekleyen` << `kayitli` ise ilk kurulum adimi kiriliyor demektir.
+- `yalniz ilk gun` >> `baska bir gun donen` ise urun merak uyandiriyor ama tutmuyor.
+- `koc hata orani` %10'u asiyorsa saglayici/kota tarafina bak (`beta_triage` hata gruplari).
+
 ## Sorun giderme
 - **nginx başlamıyor:** TLS cert yok → `deploy/init-letsencrypt.sh` koşuldu mu? Logs: `docker compose logs web`.
 - **backend başlamıyor:** `.env.prod` SECRET_KEY placeholder/boş mu? Fail-fast reddeder → gerçek değer koy. Logs: `docker compose logs backend`.

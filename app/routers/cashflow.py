@@ -1,5 +1,11 @@
 """
 GET /api/cashflow/forecast — Nakit akışı tahmini endpoint'i.
+
+GUNCELLEMELER:
+- BUG #223 fix (D03): uç `workspace_scope` bloğuna hiç girmiyordu → motor katmanındaki
+  `_scope` köprüsü (BUG #165) her zaman legacy `user_id` dalına düşüyor, aile
+  workspace'i seçiliyken kişisel + aile kasası TOPLANIYORDU (cockpit ile çelişen
+  açılış bakiyesi). Ayrıca üyelik doğrulaması yoktu (üye olunmayan ws → 200).
 """
 
 from typing import List, Optional
@@ -10,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from app.cashflow import generate_forecast
 from app.dependencies import get_db, get_current_user
+from app.rules_engine import workspace_scope  # BUG #223: aktif workspace kapsamı
+from app.workspace_deps import active_workspace_id  # BUG #223: üyelik doğrulama + ws çözümü
 from app.models import User
 
 router = APIRouter(prefix="/api/cashflow", tags=["cashflow"])
@@ -97,23 +105,27 @@ def cashflow_forecast(
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # BUG #223
 ):
     """
     Gelecek N gün nakit akışı tahmini.
 
     Kaynak: RecurringIncome, RecurringExpense, PersonalDebt, kredi taksitleri.
     Hariç: yatırım hesapları, kredi kartı taksit döngüsü (Wave-3).
+
+    Kapsam: aktif workspace (X-Workspace-Id; yoksa personal). BUG #223.
     """
     include_set = {s.strip() for s in include.split(",") if s.strip()}
 
-    result = generate_forecast(
-        db=db,
-        user_id=current_user.id,
-        horizon_days=days,
-        account_id=account_id,
-        include=include_set,
-        crunch_threshold=crunch_threshold,
-    )
+    with workspace_scope(ws_id):  # BUG #223: cockpit ile aynı kapsam kaynağı
+        result = generate_forecast(
+            db=db,
+            user_id=current_user.id,
+            horizon_days=days,
+            account_id=account_id,
+            include=include_set,
+            crunch_threshold=crunch_threshold,
+        )
 
     days_out: list[ForecastDayOut] = []
     for day in result["days"]:

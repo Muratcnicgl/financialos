@@ -127,7 +127,13 @@ Bulgu DISKTEN DOGRULANDI, curutulemedi. (1) Kod aynen iddia edildigi gibi: app/a
 
 ### D03 · [yuksek] /api/cashflow/forecast ve /api/debt-strategy/* workspace bağlamını hiç kurmuyor — BUG #165 fix'i uç seviyesinde bağlanmamış
 
-- **Boyut:** izolasyon · **Yer:** `app/routers/cashflow.py:84` · **Durum:** ⬜ AÇIK
+- **Boyut:** izolasyon · **Yer:** `app/routers/cashflow.py:84` · **Durum:** ✅ **KAPANDI — BUG #223** (5 Ağu).
+  4 uç (`cashflow/forecast`, `debt-strategy/compare|consolidation|opportunity-cost`)
+  `Depends(active_workspace_id)` + `with workspace_scope(ws_id):` deseniyle cockpit'e
+  hizalandı; üyelik doğrulaması da bu dependency'den geldi (üye olunmayan ws → 403).
+  Kapı: `tests/test_cashflow_debt_endpoint_workspace_scope.py` (12 test, HTTP seviyesinde;
+  düzeltme öncesi 12'si de kırmızıydı). **Sınıf taraması:** aynı kör nokta `routers/premortem.py`
+  ve `routers/simulation.py` içinde de ölçüldü → ayrı bulgu olarak açıldı (aşağıda D03b).
 - **Neden yayın engeli / etki:** ADR-036 paylaşımlı (aile) workspace özelliği canlı (POST /api/workspaces/{id}/invite mevcut). Aile görünümündeyken kullanıcının KİŞİSEL borçları ve kişisel nakdi bu ekranlarda görünüyor — kullanıcı 'burada yalnız ortak veriler var' varsayımıyla ekranı aile üyesine gösterirse özel finansal bilgisi istem dışı ifşa olur. Ayrıca aynı bağlamda cockpit 0 TL borç derken debt-strategy iki borç listeliyor (60.000 vs 50.000) → çelişen rakamlar üzerinden yanlış borç kapatma/harcama kararı.
 
 <details><summary>Kanıt</summary>
@@ -169,6 +175,24 @@ MEVCUT TESTİN KÖR NOKTASI: tests/test_cashflow_workspace_scope.py yalnız `gen
 6) KABUL EDİLEN RİSK DEĞİL: docs/kalite-seruveni/guvenlik-review-publish.md §4'teki üç kabul-edilen risk (e-posta enumerasyonu, depolanmış-metin prompt injection, localStorage token) bunu kapsamıyor; §1/§3'te de geçmiyor.
 
 BULGUNUN DÜZELTİLMESİ GEREKEN KISMI (şiddeti kritik'ten yüksek'e indiren): bu bir ÇAPRAZ-KULLANICI ifşası DEĞİL. Eş kullanıcı testinde Murat'ın MURAT-GIZLI-KREDI hesabı eşin yanıtında ÇIKMADI (fallback `user_id`'ye düştüğü için her kullanıcı yalnız kendi verisini görüyor). Dolayısıyla API üzerinden başka hesabın verisi sızmıyor; ifşa yalnız "kullanıcı aile ekranını üyeye gösterirse" dolaylılığında. Asıl kesin zarar para tarafında: paylaşımlı workspace canlı (POST /api/workspaces/{id}/invite mevcut, app/routers/workspaces.py:210) ve aynı ekranda çelişen borç/nakit rakamları + yanlış veri kümesiyle üretilen borç kapatma/konsolidasyon tavsiyeleri kullanıcıyı hatalı finansal karara götürür. Yayın engeli olacak kadar ciddi, ancak hesap-ele-geçirme/çapraz-kiracı sızıntı sınıfı olmadığı için "kritik" değil, "yüksek".
+</details>
+
+### D03b · [yuksek] D03'ün AYNI SINIFI: premortem ve simülasyon uçları da workspace bağlamı kurmuyor (D03 düzeltilirken ölçüldü)
+
+- **Boyut:** izolasyon · **Yer:** `app/routers/premortem.py:93`, `app/routers/simulation.py:81` · **Durum:** ⬜ AÇIK
+- **Nasıl bulundu:** D03 kapatılırken sınıf taraması yapıldı (L11 — "bir örnek bulunduysa sınıf taranmadan kapatılmaz"). `app/routers/*.py` üzerinde "kapsam-duyarlı motor çağırıyor mu / workspace bağlamı kuruyor mu" ölçümü: engine>0 ve ws=0 olan iki router kaldı.
+- **Neden yayın engeli / etki:** ADR-036 paylaşımlı workspace canlı. Aile bağlamındayken bir aksiyonun ön-ölüm (premortem) analizi ve 3-ufuklu simülasyonu **kişisel** finansal manzara üzerinde koşar → kullanıcı ekranda gördüğü aile rakamlarıyla çelişen bir risk/etki analizi okur ve ona göre karar verir. `simulation_engine` hiç workspace-farkında değil (3 sorgu da ham `Model.user_id == user_id`), yani bu bir uç-bağlama düzeltmesinden fazlası: motor katmanı da köprüye geçirilmeli.
+
+<details><summary>Kanıt (statik, disk)</summary>
+
+```
+app/routers/premortem.py — dosyada `workspace_scope` / `active_workspace_id` / `scope_filter` YOK (0 eşleşme);
+  :93 `snapshot = build_cockpit_snapshot(db, current_user.id)` → app/cockpit_snapshot.py:50 `generate_cockpit(user_id, today, db)`
+  (generate_cockpit kapsam-duyarlı ama contextvar boş → legacy user_id dalı).
+app/routers/simulation.py — aynı şekilde 0 eşleşme; :121 `simulate_action(..., user_id=current_user.id, ...)`.
+app/simulation_engine.py:134/162/178 — `Account.user_id == user_id`, `RecurringIncome.user_id == user_id`,
+  `PersonalDebt.user_id == user_id` — `_scope` köprüsü hiç kullanılmıyor (workspace_id'ye hiç bakmıyor).
+```
 </details>
 
 ### D04 · [yuksek] Sifre sifirlama token'i, kullanici sifresini degistirdikten sonra HALA gecerli — hesap geri alinamiyor (BUG #172 ailesinin acik kalan kolu)

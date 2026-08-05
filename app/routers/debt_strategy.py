@@ -4,6 +4,12 @@ GET /api/debt-strategy/compare?extra_monthly=0
 Snowball vs Avalanche karsilastirmasi.
 Algoritma deterministik (app/debt_strategy.py), endpoint sadece HTTP wrapper.
 ADR-001: algoritma karar verir (sektor standardi matematik), kullanici secer.
+
+GUNCELLEMELER:
+- BUG #223 fix (D03): uclar `workspace_scope` blogu icine hic girmiyordu → `collect_debts`
+  icindeki `_scope` koprusu (M72) her zaman legacy `user_id` dalina dusuyor, aile
+  workspace'i secili iken KISISEL borclar uzerinde snowball/avalanche/konsolidasyon
+  kosuyordu (cockpit ayni ekranda "0 TL borc" derken). Uyelik dogrulamasi da yoktu.
 """
 from __future__ import annotations
 
@@ -15,6 +21,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.rules_engine import workspace_scope  # BUG #223: aktif workspace kapsami
+from app.workspace_deps import active_workspace_id  # BUG #223: uyelik dogrulama + ws cozumu
 from app.debt_strategy import (
     compare_strategies, collect_debts, simulate_consolidation,
     simulate_purchase_opportunity_cost,
@@ -70,15 +78,19 @@ def compare(
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # BUG #223
 ) -> DebtStrategyResponse:
     """
     Snowball ve Avalanche stratejilerini hesapla, yan yana karsilastir.
 
     extra_monthly: Kullanicinin minimum odemeler uzerine ekleyebilecegi para.
                    0 = mevcut taksitlerle, ekstra yok.
+
+    Kapsam: aktif workspace (X-Workspace-Id; yoksa personal). BUG #223.
     """
     try:
-        result = compare_strategies(db, current_user.id, extra_monthly)
+        with workspace_scope(ws_id):  # BUG #223: cockpit ile ayni kapsam kaynagi
+            result = compare_strategies(db, current_user.id, extra_monthly)
     except Exception as e:
         logger.exception("debt-strategy compare failed user_id=%s", current_user.id)
         raise HTTPException(status_code=500,  # BUG #175: ham exception metni sızmaz (loglandı)
@@ -103,6 +115,7 @@ def consolidation(
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # BUG #223
 ) -> dict:
     """
     FEAT-014: Tüm borçları tek krediye (verilen oran + vade) toplayınca aylık taksit +
@@ -110,8 +123,10 @@ def consolidation(
     Tavsiye DEĞİL: kullanıcı teklif edilen oran/vadeyi girer, sistem matematiği yapar.
 
     <2 borç → 404 (konsolidasyon en az iki borç ister).
+    Kapsam: aktif workspace (X-Workspace-Id; yoksa personal). BUG #223.
     """
-    debts = collect_debts(db, current_user.id)
+    with workspace_scope(ws_id):  # BUG #223
+        debts = collect_debts(db, current_user.id)
     result = simulate_consolidation(debts, rate, term)
     if result is None:
         raise HTTPException(status_code=404, detail="Konsolidasyon için en az iki aktif borç gerekir.")
@@ -127,13 +142,17 @@ def opportunity_cost(
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # BUG #223
 ) -> dict:
     """
     FEAT-030: `amount` TL'yi harcamak vs en yüksek faizli borca ödemek — borçsuzluk tarihine
     ve toplam faize etkisi. İmpuls harcamayı somut maliyetle yavaşlatan nötr what-if aracı
     (harcama emri değil). Aktif borç yoksa 404.
+
+    Kapsam: aktif workspace (X-Workspace-Id; yoksa personal). BUG #223.
     """
-    debts = collect_debts(db, current_user.id)
+    with workspace_scope(ws_id):  # BUG #223
+        debts = collect_debts(db, current_user.id)
     result = simulate_purchase_opportunity_cost(debts, amount)
     if result is None:
         raise HTTPException(status_code=404, detail="Fırsat maliyeti için aktif borç gerekir.")

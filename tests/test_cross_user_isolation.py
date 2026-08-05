@@ -25,6 +25,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.dependencies import get_db, get_current_user
 from app.models import Base, User, Workspace, WorkspaceMembership, WorkspaceRole
+from tests.endpoint_envanteri import yol_parametreli_uclar  # BUG #217
 
 
 @pytest.fixture(autouse=True)
@@ -254,6 +255,8 @@ MATRIS_DISI = {
     "/api/fund-price/tefas-link/{fund_code}": "kullanıcı kaynağı değil (piyasa verisi)",
     "/api/prices/currency/{currency_code}": "kullanıcı kaynağı değil (piyasa verisi)",
     "/api/prices/gold/{gold_type}": "kullanıcı kaynağı değil (piyasa verisi)",
+    # BUG #217: kapsam kilidi körken (P4'te) eklendi, kilit açılınca ilk kez görüldü.
+    "/api/legal/{slug}": "kullanıcı kaynağı değil; sabit slug listesi, rıza öncesi kimliksiz okunur (BUG #191)",
 }
 
 
@@ -282,10 +285,9 @@ def test_id_alan_endpointler_matriste_kapsanir():
     disi_norm = {normalize(u) for u in MATRIS_DISI}
 
     eksik = []
-    for r in app.routes:
-        path = getattr(r, "path", "")
-        if not path.startswith("/api") or "{" not in path:
-            continue
+    # BUG #217 fix: envanter `app.routes` yerine OpenAPI'den (kapsam tabanı assert'li).
+    # Eskisi FastAPI 0.141'de sessizce boş dönüyordu → bu kapı fiilen ölüydü.
+    for path in yol_parametreli_uclar(app):
         n = normalize(path)
         if n in kapsanan_norm or n in disi_norm:
             continue

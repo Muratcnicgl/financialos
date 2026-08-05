@@ -65,6 +65,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L8 | **Belgelenen ≠ ulaşılabilir.** Metin/ayar var diye erişilebilir sanma; canlı yolu ölç. | #191 (KVKK metni prod imajında yoktu) |
 | L9 | **Kod ile doküman arasına test koy.** Env adı/sürüm/envanter gibi sözleşmeler elle senkron kalmaz. | #189 (OAuth env adları), #200 (CHANGELOG↔sürüm), veri-işleyen envanteri |
 | L10 | **Yalnız yerelde görünmeyeni ara.** Sunucu/konteyner/çok-worker/başka saat dilimi farklı davranır. | #169 (TZ), #182 (proxy/çok-worker), #185 (state process-yerel) |
+| L11 | **"Hepsini tarar" diyen kapı, KAÇ TANE taradığını da ölçmeli.** Kapsamı üçüncü-taraf iç yapısından (ör. `app.routes`) türetme; kararlı kamu sözleşmesinden türet ve **taban assert et**. Aksi halde bir kütüphane sürümü kapıyı sessizce körleştirir, kapı yeşil kalır. L3'ün meta-testi bile bunu kaçırır — meta-test kapının MANTIĞINI sınar, KAPSAMINI değil. | #217 (FastAPI 0.141 `_IncludedRouter` → 87 uçtan 1'i taranıyordu; izolasyon kapısı 0 ölçüyordu, ikisi de yeşildi) |
+| L12 | **Hata yolu da bir ürün yüzeyidir.** Panel/akış "veri yok" halinde test edilip "istek patladı" halinde test edilmiyorsa yarısı sınanmamıştır — çökme ve **istek döngüsü** oradan çıkar. | #218 (toast kimliği → sonsuz istek), #219 (hata → state null → panel çöktü) |
 
 ---
 
@@ -103,6 +105,8 @@ yazılır, sonra ilgili faza görev olarak bağlanır. Buraya yazılmayan şey u
 | H21 | Kullanıcı-tanımlı kural arayüzü: kural tiplerini UI'dan seçebilmeli | Claude | P3.5.2 | ✅ kırmızı-çizgi formunda "otomatik uygulansın mı?" seçimi (3 tip) |
 | H22 | **Hiçbir güvenlik sınırı tek katmanda (ters vekilde) yaşamamalı** — nginx atlanabilir, yapılandırma sessizce değişebilir | Claude (ölçüldü 5 Ağu) | P2.9 | ✅ **BUG #213** — gövde sınırı YALNIZ `client_max_body_size 1m` idi; uygulama katmanına taşındı (chunked dahil), nginx şablonu testle kilitlendi |
 | H23 | **Operatör betanın kullanılıp kullanılmadığını görebilmeli** — beta'nın en olası başarısızlığı gürültülü çöküş değil SESSİZ TERK'tir | Claude (ölçüldü 5 Ağu) | P7/P8 | ✅ **BUG #214** — yalnız şikâyet edeni gören `beta_triage` vardı; `scripts/beta_metrics.py` (onboarding hunisi, sessiz terk, tutunma, koç hata oranı — **yalnız sayı, PII testle yasak**) |
+| H24 | **Kullanıcının GÖRDÜĞÜ katman da boş/hata durumunda sınanmalı** — backend uçları sağlam diye arayüz sağlam değildir; kullanıcı beyaz ekran görür, süit yeşil kalır | Claude (ölçüldü 5 Ağu) | P3.2 | ✅ **BUG #218/#219** — 13 panel hem boş-veri hem hata yolunda taranıyor (`empty-state` + `error-state`, 54 test); mock'lar tahmin değil **gerçek boş-kullanıcı cevapları** (fixture + sözleşme kayması kapısı) |
+| H25 | **Kapsam ölçülmeden kapı sayılmaz** — "hepsini tarar" diyen her kapıya taban (minimum sayı) assert et; kütüphane sürümü kapıyı sessizce körleştirebilir | Claude (ölçüldü 5 Ağu) | P0/P1 | ✅ **BUG #217** — iki kapı (boş-durum taraması + izolasyon matrisi kapsamı) fiilen ölüydü; envanter OpenAPI'ye taşındı + taban assert (L11) |
 
 ---
 
@@ -413,37 +417,42 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
-### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 09:20)
+### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 13:40)
 
-**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. `main` başı `8cad7bc`.
-**Test tabanı:** `1606 passed, 6 skipped` (backend) + `71 passed` (vitest). Kırmızı yok.
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li.
+**Test tabanı:** `1608 passed, 6 skipped` (backend) + `125 passed` (vitest, önceki tur 71).
+Kırmızı yok. Frontend test sayısındaki sıçrama gerçek kapsam artışıdır (13 panel × boş-durum
++ 13 panel × hata-durumu).
 
-**Bu turda kapanan 6 defekt** (hepsi commit'li, ledger + §1.2 güncel):
+**Bu turda kapanan 4 defekt + 1 altyapı** (P3.2 — boş/hata durumu arayüz kapısı):
 
-| Bug | Konu | Commit |
-|---|---|---|
-| #211 | Döviz sağlayıcısı çökünce kur TAMAMEN kayboluyordu → bayat işaretli son değer | `bb27baf` |
-| #212 | Eşzamanlı koç isteği kota tavanını deliyordu + muhasebe etiketi paylaşılan durumdan | `bb27baf` |
-| #213 | Gövde sınırı yalnız nginx'teydi → uygulama katmanına taşındı (chunked dahil) | `75e0076` |
-| #214 | Betanın kullanılıp kullanılmadığı ölçülemiyordu → `scripts/beta_metrics.py` | `90c80c2` |
-| #215 | E-posta hiçbir yerden değiştirilemiyordu (KVKK yanlış beyan + kalıcı hesap kilidi) | `8cad7bc` |
-| #216 | KVKK haklarının hiçbiri arayüzden ulaşılamıyordu + export bağı 401 indiriyordu | `8cad7bc` |
+| Bug | Konu |
+|---|---|
+| #217 | **İki kapı fiilen ÖLÜYDÜ.** Kapsam `app.routes`'tan türetiliyordu; FastAPI 0.141 router'ları düzleştirmeyi bırakınca boş-durum taraması 87 uçtan **1**'ini tarar oldu, izolasyon matrisi kapsamı **0** ölçtü — ikisi de yeşildi. Envanter OpenAPI'ye taşındı + **kapsam tabanı** assert edildi (`tests/endpoint_envanteri.py`). Kapı açılınca ilk gerçek bulgu: `/api/legal/{slug}` matris dışıydı |
+| #218 | **Tek hatalı istek → sonsuz istek döngüsü.** `ToastProvider` context değerini her render'da yeniden yaratıyordu → `[toast]` bağımlı effect'ler tekrar koşuyordu. Ölçüldü: Aile paneli 150 ms'de **54 istek**, durmuyor. `useMemo` ile sabitlendi → 2 istek |
+| #219 | **Bütçe paneli backend hata verince çöküyordu** (`data` null iken `data.envelopes`). Artık kalıcı hata kartı + "Tekrar dene"; yükleme başarısızken kullanıcıya "zarfın yok" DENMİYOR |
+| #220 | **Zamana bağlı gizli flaky test** — UTC+14/UTC-11 farkı günün ~1/24'ünde 2 gün olur, iddia `(0,1)` idi. Üretim kodu doğruydu, test yanlıştı |
+| altyapı | Frontend boş-durum testi **gerçek** boş-kullanıcı cevaplarıyla koşuyor (`frontend/src/__fixtures__/bos-kullanici.json`, 36 uç) + **sözleşme kayması kapısı** (backend gövde yapısını değiştirirse test kırılır, frontend sessizce bayatlayamaz) |
+
+**Yeni ders-kuralları:** L11 (kapsamı ölç, taban assert et) · L12 (hata yolu da ürün yüzeyidir).
+**Yeni hatırlatmalar:** H24 (arayüz katmanı boş/hata durumunda sınanmalı) · H25 (kapsam ölçülmeden kapı sayılmaz).
 
 **SIRADAKİ İŞLER** (öncelik sırasıyla, hepsi asistan araci'un yapabileceği işler):
 
-1. **Doğrulama denetimi (yarım kaldı).** 8 bağımsız boyutta salt-okur denetim workflow'u
-   yazıldı ve PAUSE edildi. Script diskte duruyor:
+1. **Doğrulama denetimi.** 8 bağımsız boyutta salt-okur denetim workflow'u; script diskte:
    `~/.asistan/projects/.../workflows/scripts/publish-dogrulama-denetimi-wf_87c89bbf-0d8.js`
-   ⚠️ `resumeFromRunId` **aynı oturum içinde** çalışır — yeni oturumda resume EDİLEMEZ,
-   script `scriptPath` ile baştan koşturulur. Boyutlar: izolasyon, kimlik-oturum, kota-maliyet,
-   ürünleşme, test-kalitesi, dayanıklılık, hukuki-gizlilik, operasyon-deploy. Her bulgu
-   ayrıca "çelişme" (adversarial) turundan geçer. **Ultracode/workflow yalnız Murat açıkça
-   isterse koşulur.**
-2. **P3.2** — boş-durum (yeni kullanıcı) React panel testleri.
-3. **P2.1** — session-fixation kararının yazılı gerekçesi (kabul edilen risk mi, değil mi).
-4. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
-5. **H4 kalanı** — para birimi/locale GÖRÜNTÜLEME aşaması (ADR-042).
-6. **H9 kalanı** — prompt injection tam ayrıştırma.
+   **5 Ağu 13:20'de `scriptPath` ile baştan başlatıldı** (run `wf_ddd8b54e-1c9`).
+   ⚠️ `resumeFromRunId` yalnız AYNI oturumda çalışır — yeni oturumda script baştan koşturulur.
+   Boyutlar: izolasyon, kimlik-oturum, kota-maliyet, ürünleşme, test-kalitesi, dayanıklılık,
+   hukuki-gizlilik, operasyon-deploy. Her bulgu ayrıca "çelişme" (adversarial) turundan geçer.
+   **Ultracode/workflow yalnız Murat açıkça isterse koşulur.**
+2. **P2.1** — session-fixation kararının yazılı gerekçesi (kabul edilen risk mi, değil mi).
+3. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
+4. **H4 kalanı** — para birimi/locale GÖRÜNTÜLEME aşaması (ADR-042).
+5. **H9 kalanı** — prompt injection tam ayrıştırma.
+6. **L11 taraması (yeni):** "hepsini tarar" diyen DİĞER kapılar da kapsam tabanı almalı —
+   `test_scope_enforcement` (AST taraması), yasaklı-iz kapısı, veri-işleyen envanteri.
+   #217 bu sınıfın yalnız ilk örneğiydi; sınıf taranmadı.
 
 **İNSAN-KAPISI (Claude yapamaz, Murat'ta):** §9 — Oracle VM + domain/DNS + canlı sırlar,
 gerçek davetliler, gerçek trafik, duyuru. Canlı deploy olmadan P6/P7/P8/P9 kapanmaz.
@@ -453,10 +462,10 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 
 | Faz | Konu | Durum | Kanıt / Not |
 |---|---|---|---|
-| P0 | Temel doğrulama | ✅ | `pytest tests/ -q` → **1318 passed, 5 skipped** (63s); migration/çalışma-ağacı kontrolü yapıldı |
-| P1 | Veri izolasyonu | ✅ | 4 bug kapandı (**#162** çapraz-kullanıcı kural sızıntısı, **#163** çok-kullanıcı backfill, **#164** yıkıcı script footgun'ı, **#165** workspace kapsam tutarsızlığı) + statik kapı (3 meta-testle ispatlı) + runtime matris (17 test, kapsam kilitli) + **PostgreSQL RLS gate 13 passed** (`scripts/pg_gate_run.py`) |
+| P0 | Temel doğrulama | ✅ | `pytest tests/ -q` → **1608 passed, 6 skipped** (2 dk 12 sn) + vitest **125 passed**; migration/çalışma-ağacı kontrolü yapıldı. **BUG #220:** süitte zamana bağlı gizli bir flaky vardı (UTC+14/UTC-11 farkı günün ~1/24'ünde 2 gün) — kapatıldı |
+| P1 | Veri izolasyonu | ✅ | 4 bug kapandı (**#162** çapraz-kullanıcı kural sızıntısı, **#163** çok-kullanıcı backfill, **#164** yıkıcı script footgun'ı, **#165** workspace kapsam tutarsızlığı) + statik kapı (3 meta-testle ispatlı) + runtime matris (17 test) + **PostgreSQL RLS gate 13 passed** (`scripts/pg_gate_run.py`). ⚠️ **Düzeltme (BUG #217, 5 Ağu):** buradaki "kapsam kilitli" iddiası yazıldığı andan itibaren GEÇERSİZDİ — kapsam kilidi `app.routes`'tan besleniyordu ve FastAPI 0.141'de boş dönüyordu, yani hiçbir ucu ölçmüyordu. Kilit OpenAPI'ye taşındı + taban assert edildi; açılır açılmaz `/api/legal/{slug}` matris dışı çıktı (gerekçeli istisnaya yazıldı). Matrisin kendisi (17 test) doğruydu, **kapsamı** ölçülmemişti |
 | P2 | Güvenlik review | ✅ | **19 bug kapandı + bağımlılık 23→0.** Rapor: `guvenlik-review-publish.md`. Kabul edilen 3 risk gerekçeli yazılı (kayıt enumerasyonu, dolaylı prompt injection, localStorage token). Eski not: **8 başlıktan 6'sı kapandı.** Kapatılan: #170 sıfırlama-token'ı prod'da yanıtta dönüyordu (hesap ele geçirme), #171 prod'da AUTH_ENABLED doğrulanmıyordu (API kimliksiz açık), #172 şifre sıfırlama oturumları düşürmüyordu + tek-kullanım + logout access iptali, #173 viewer paylaşılan workspace'e yazabiliyordu, #174 kimliksiz kullanıcı yaratma, #175 ham exception gövdede, #176/#177/#181 girdi sınırları, #178 prod CORS localhost, #179 OAuth token'ları URL'de, #180 PII log. **Bağımlılık: pip-audit 23 açık → 0** (PyJWT/authlib/starlette/cryptography dahil), npm audit 0. **Gövde sınırı TAMAM (H22 / #213):** sınır yalnız nginx'teydi (ters vekil atlanırsa koruma yok, chunked gövdede `Content-Length` hiç gelmez) → uygulama katmanına taşındı, akan gövde sayılır, 413 hata-izlemeye düşmez, nginx şablonu testle kilitlendi (14 test). **KALAN:** rate-limit çok-worker/proxy-IP (Redis veya nginx limit_req), OAuth PKCE + state store çok-worker, refresh rotasyonu, şifre politikası (blocklist), register enumerasyonu kararı |
-| P3 | Operasyonel gerçeklik | ✅ | **Onboarding UI TAMAM (H20)** — Cockpit boş-durum kartı + demo veri akışı. **Kota TAMAM (ADR-041, BUG #188):** kullanıcı-başına LLM tavanı — paylaşılan sağlayıcı kotasını tek kişi tüketip diğerlerini kilitleyemez; tavan dolunca uygulama kapanmaz (Rules Engine deterministik). **#189** OAuth env adı kod↔doküman uyumsuzluğu, **#190** giriş yapmış kullanıcı şifre değiştiremiyordu. Sıfırdan-kullanıcı e2e ✅ (P3.5). **Kalan:** onboarding rehberi + opsiyonel demo veri |
+| P3 | Operasyonel gerçeklik | ✅ | **Onboarding UI TAMAM (H20)** — Cockpit boş-durum kartı + demo veri akışı. **Kota TAMAM (ADR-041, BUG #188):** kullanıcı-başına LLM tavanı — paylaşılan sağlayıcı kotasını tek kişi tüketip diğerlerini kilitleyemez; tavan dolunca uygulama kapanmaz (Rules Engine deterministik). **#189** OAuth env adı kod↔doküman uyumsuzluğu, **#190** giriş yapmış kullanıcı şifre değiştiremiyordu. Sıfırdan-kullanıcı e2e ✅ (P3.5). **P3.2 (boş-veri hali her panelde) TAMAM (5 Ağu):** backend tarafı zaten kanıtlıydı ama kapsamı ölçülmemişti (**#217** — 87 uçtan 1'i taranıyordu); arayüz tarafı hiç sınanmamıştı → 13 panel × boş-durum + 13 panel × hata-durumu (54 test, gerçek boş-kullanıcı fixture'ı + sözleşme kayması kapısı). Bulunan gerçek defektler: **#218** (sonsuz istek döngüsü), **#219** (Bütçe paneli hata yolunda çöküyordu). **Kalan:** onboarding rehberi + opsiyonel demo veri |
 | P3.5 | **Ürünleşme (tek-kullanıcı DNA söküm)** | ✅ | **H1/H2/H3/H5/H21 ✅ + H4 saat dilimi ✅** (para birimi görüntüleme ADR-042 ile P8 öncesine planlı — yayın-engeli değil). Eski not: **H1/H2/H3/H5 ✅** (kullanıcı-tanımlı kural motoru #192, demo veri #194, iz temizliği). **Kalan: H4** (para birimi/dil/saat dilimi/kategori seti kullanıcı başına) — TRY/TR varsayımı hâlâ kodda; çok-para-birimi büyük bir iş, ayrı ADR ile ele alınacak. Eski not: **1. tur:** BUG #166 (metinlerde kişi adı → jenerik + statik kapı), #167 (TR normalize Kiril 'о' + sıra hatası → sessiz veri bozulması), #168 (banka markası koda gömülü → kullanıcının kendi hesap adları). **Kalan:** kullanıcı-tanımlı kural motoru (MC sabitleri), kişiselleştirme alanları, boş-durum + demo veri, sıfırdan-kullanıcı uçtan uca testi, yorum/docstring temizliği |
 | P4 | Hukuki/uyum | ✅ | **BUG #191:** rıza metni canlıda ERİŞİLEMEZDİ (imajda docs/ yok → 404). `/api/legal/<slug>` ucu + Dockerfile/dockerignore. Rıza **v2** (v1 "self-host" varsayıyordu — barındırılan betada yanlış beyan), kullanım şartları (SPK/tavsiye-değildir), veri-işleyen envanteri (kodla test-bağlı). Koç panelinde görünür uyarı (H13) |
 | P5 | Dayanıklılık/gözlem | ✅ | **Geri yükleme provası TAMAM (H14):** `scripts/restore.py` (onaysız yazmaz, bozuk yedeği reddeder, emniyet kopyası alır) + SQLite drill (7 test) + **PostgreSQL dump→drop→restore→doğrula** provası + runbook geri-yükleme bölümü. **Hata izleme TAMAM (#195):** kendi DB'mizde (dış servise veri gitmez), tekrarlar gruplanır, PII/sır maskelenir, izleme isteği düşürmez. **Canlı-veri migration provası TAMAM (#196):** `alembic/env.py` config URL'ini yok sayıyordu (test/script içinden migration GERÇEK DB'ye gidiyordu) → düzeltildi; prova artık izole DB'de koşuyor ve *gerçek DB'ye dokunulmadığı* da teste bağlı. **Fiyat sağlayıcı çöküşü TAMAM (H16 / #211):** fon-hisse zaten bayat işaretliydi; **döviz** kesintide TAMAMEN susuyordu → son bilinen kur `bayat`/`yas_dakika` ile sunuluyor, koç "şu anki" demiyor, 12 saatten eski değer hiç dönmüyor. **Kalan:** kapasite sınırları |
@@ -473,4 +482,5 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 |---|---|---|---|
 | v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, ajan protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
 | v2.0 | 2026-08-05 | **§1.3 DERS-KURALLARI (L1-L10)** eklendi — 41 bug'dan çıkarılan, tekrar etmemesi gereken hata SINIFLARI. Faz kapıları KORUNDU, hiçbiri gevşetilmedi | Murat'ın 3. adımı: "masterprompt'u gerileme/duraksama yönü hariç, kaliteyi artırma amaçlı geliştir" |
+| v2.1 | 2026-08-05 | **§1.3'e L11 + L12**, **§1.2'ye H24 + H25** eklendi; §11 P0/P1/P3 kanıt satırları düzeltildi (P1'in "kapsam kilitli" iddiası BUG #217 ile GEÇERSİZ çıktı, yazıldı) | P3.2 turunda ölçülen 4 defekt: kapsam sessizce çöken kapılar (#217), hata yolunda sonsuz istek döngüsü (#218), hata yolunda panel çökmesi (#219), zamana bağlı flaky (#220). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) |
 | v1.1 | 2026-08-04 | **§P3.5 ÜRÜNLEŞME fazı eklendi** (tek-kullanıcı DNA'sının sökülmesi — yayın-engeli) + **§1.2 kalıcı hatırlatma listesi** (H1-H18) + P0/P1 kapıları kanıtla kapatıldı + R7 riski eklendi | Murat: "kullanıcı sorununu da çözmek lazım publish etmeden… ben unutsam da sen hatırla, nicelerini de sen eklersin". Kapı EKLENDİ, hiçbir kapı gevşetilmedi (§10 kuralına uygun) |

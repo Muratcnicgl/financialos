@@ -60,7 +60,12 @@ def test_farkli_saat_dilimi_farkli_gun_verebilir():
         timezone = "Pacific/Midway"       # UTC-11
 
     ileri, geri = user_today(Sahte()), user_today(Sahte2())
-    assert (ileri - geri).days in (0, 1), f"beklenmedik fark: {ileri} vs {geri}"
+    # BUG #220 fix: iddia (0,1) idi ve ZAMANA BAĞLI KIRILIYORDU. UTC+14 ile UTC-11 arası
+    # 25 saat; UTC günü 10:00-10:59 arasındayken takvim farkı 2 GÜN olur (Kiritimati yeni
+    # güne girmiş, Midway hâlâ bir önceki gündedir). Üretim kodu doğru, test yanlıştı —
+    # günün ~1/24'ünde kırmızı veren gizli flaky (M90 "flaky yok" ölçümü bu pencereye denk
+    # gelmemişti). Doğru sınır: fark 0..2 gün.
+    assert (ileri - geri).days in (0, 1, 2), f"beklenmedik fark: {ileri} vs {geri}"
     # UTC gününe göre en az biri farklı olmalı (25 saatlik yelpaze)
     utc_gun = datetime.now(dt_tz.utc).date()
     assert ileri >= utc_gun >= geri - timedelta(days=1)

@@ -10,6 +10,11 @@ BOŞ dünyası hiç sınanmamıştı.
 
 Kapsam otomatik türetilir: parametresiz her GET ucu boş-durumda çağrılır. Yeni bir uç
 eklenip boş-durumda çökerse bu test kırılır (kapsam kendiliğinden daralamaz).
+
+BUG #217 fix (P3.2): kapsam türetme `app.routes` üzerindeydi ve FastAPI 0.141'de SESSİZCE
+körleşmişti (`include_router` artık düzleştirmiyor, `_IncludedRouter` sarmalıyor) — "her GET
+ucu" fiilen 1 uç (`/api/health`) demekti, test yeşil ama kör kalıyordu. Envanter artık
+OpenAPI'den türetiliyor ve kapsam TABANI assert ediliyor (`tests/endpoint_envanteri.py`).
 """
 from __future__ import annotations
 
@@ -24,6 +29,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.dependencies import get_db
 from app.models import Base
+from tests.endpoint_envanteri import parametresiz_get_uclari  # BUG #217
 
 # Boş-durum taramasında hariç tutulanlar — GEREKÇELİ (dış servis / yan etki / kimlik dışı)
 BOS_DURUM_HARIC = {
@@ -83,16 +89,8 @@ def yeni_kullanici(client):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _parametresiz_get_uclari() -> list[str]:
-    yollar = []
-    for r in app.routes:
-        p = getattr(r, "path", "")
-        m = getattr(r, "methods", set()) or set()
-        if not p.startswith("/api") or "{" in p or "GET" not in m:
-            continue
-        if p in BOS_DURUM_HARIC:
-            continue
-        yollar.append(p)
-    return sorted(set(yollar))
+    # BUG #217 fix: envanter OpenAPI'den (kapsam tabanı assert'li) — bkz. endpoint_envanteri.
+    return parametresiz_get_uclari(app, BOS_DURUM_HARIC)
 
 
 def test_yeni_kullanici_bos_durumda_hicbir_uc_cokmez(client, yeni_kullanici):

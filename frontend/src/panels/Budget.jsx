@@ -8,10 +8,18 @@ import Wishlist from '../components/Wishlist.jsx';
 /**
  * Bütçe Zarfları (FEAT-001) — kategori bazlı aylık bütçe. Her zarf: bütçe / bu-ay harcanan /
  * kalan + ilerleme çubuğu (aşıldıysa kırmızı). Ekle / sil.
+ *
+ * GUNCELLEMELER
+ *  - BUG #219 fix (P3.2): yukleme hatasi yalnizca toast'a dusuyor, `data` null kaliyordu;
+ *    render `data.envelopes.length` okudugu icin panel COKUYORDU (ErrorBoundary devreye
+ *    girer). Ayni dosyada `data?.durum` guard'liydi — tutarsizlik bug'in kendisiydi.
+ *    Artik hata state'te tutulur, ekranda kalici hata karti + "Tekrar dene" gosterilir
+ *    (yukleme basarisizken kullaniciya "zarfin yok" DENMEZ).
  */
 export default function Budget() {
   const toast = useToast();
   const [data, setData] = useState(null);      // {envelopes, durum}
+  const [hata, setHata] = useState(null);      // BUG #219: yükleme hatası ekranda kalır
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ category: '', monthly_amount: '' });
   const [saving, setSaving] = useState(false);
@@ -20,7 +28,12 @@ export default function Budget() {
     try {
       setLoading(true);
       setData(await envelopesApi.list());
+      setHata(null);  // BUG #219
     } catch (e) {
+      // BUG #219 fix: hata yalnız toast'a düşüyordu, `data` null kalıyordu ve aşağıda
+      // `data.envelopes` okunduğu için panel ÇÖKÜYORDU (toast 4 sn sonra kaybolur,
+      // geriye sebepsiz boş/kırık ekran kalırdı). Hata artık ekranda kalıcı + tekrar denenebilir.
+      setHata(e.message || 'Zarflar yüklenemedi');
       toast.error(e.message || 'Zarflar yüklenemedi');
     } finally {
       setLoading(false);
@@ -66,8 +79,20 @@ export default function Budget() {
     );
   }
 
+  // BUG #219: yükleme başarısızsa "zarfın yok" DEME — veriyi bilmiyoruz. Ayrı ekran.
+  if (hata) {
+    return (
+      <div className="card p-6 text-center space-y-3">
+        <p className="text-sm text-negative-600 dark:text-negative-400">Bütçe zarfları yüklenemedi.</p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">{hata}</p>
+        <button type="button" onClick={load} className="btn btn-secondary">Tekrar dene</button>
+      </div>
+    );
+  }
+
   const durum = data?.durum || { zarflar: [], toplam_butce: 0, toplam_harcanan: 0, toplam_kalan: 0 };
   const statusByCat = Object.fromEntries((durum.zarflar || []).map((z) => [z.category, z]));
+  const zarflar = data?.envelopes || [];  // BUG #219: `data` null olabilir (hata yolu)
 
   return (
     <div className="space-y-4">
@@ -114,13 +139,13 @@ export default function Budget() {
       </form>
 
       {/* Zarf listesi */}
-      {data.envelopes.length === 0 ? (
+      {zarflar.length === 0 ? (
         <p className="text-center text-sm text-zinc-500 py-8">
           Henüz bütçe zarfı yok. Bir kategoriye aylık bütçe ekle — harcaman otomatik düşülür.
         </p>
       ) : (
         <div className="space-y-2">
-          {data.envelopes.map((env) => {
+          {zarflar.map((env) => {
             const st = statusByCat[env.category] || { harcanan: 0, butce: parseFloat(env.monthly_amount), kalan: parseFloat(env.monthly_amount), yuzde: 0, asildi: false };
             const pct = Math.min(100, st.yuzde || 0);
             return (

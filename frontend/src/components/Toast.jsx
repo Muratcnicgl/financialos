@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { CheckCircle, AlertTriangle, Info, AlertCircle, X } from 'lucide-react';
 
 /**
@@ -17,6 +17,13 @@ import { CheckCircle, AlertTriangle, Info, AlertCircle, X } from 'lucide-react';
  *  - 4 saniye sonra otomatik kaybolur (manuel X ile de)
  *  - Slide-in / fade-out animasyon
  *  - Lucide ikon + tip rengi
+ *
+ * GUNCELLEMELER
+ *  - BUG #218 fix (P3.2): context degeri (`api`) her render'da yeniden yaratiliyordu.
+ *    Bir toast gosterilince provider re-render olur, `toast` kimligi degisir ve
+ *    `useCallback(..., [toast])` + ona bagli `useEffect` TEKRAR kosar. Istek hata verip
+ *    toast.error() cagiran panel boylece SONSUZ ISTEK DONGUSUNE giriyordu (olculdu:
+ *    Aile paneli 150 ms'de 54 istek). Deger artik useMemo ile sabit.
  */
 
 const ToastContext = createContext(null);
@@ -79,13 +86,18 @@ export function ToastProvider({ children }) {
     return id;
   }, [dismiss]);
 
-  const api = {
+  // BUG #218 fix: context degeri MEMOIZE edilmeli. Eskiden `api` her render'da yeniden
+  // yaratiliyordu; bir toast gosterilince provider re-render olur, `toast` kimligi degisir,
+  // `useCallback(..., [toast])` yenilenir ve ona bagli `useEffect` TEKRAR kosardi. Istek
+  // hata verip toast.error() cagiran her panel boylece sonsuz istek dongusune giriyordu
+  // (Workspace paneli olcum: 150 ms'de 54 istek, bitmiyor). show/dismiss zaten sabit.
+  const api = useMemo(() => ({
     success: (title, options) => show('success', title, options),
     error: (title, options) => show('error', title, options),
     info: (title, options) => show('info', title, options),
     warning: (title, options) => show('warning', title, options),
     dismiss,
-  };
+  }), [show, dismiss]);
 
   // Sadece son MAX_VISIBLE goster
   const visible = toasts.slice(-MAX_VISIBLE);

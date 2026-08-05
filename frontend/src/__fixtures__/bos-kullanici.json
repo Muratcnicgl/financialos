@@ -1,0 +1,1038 @@
+{
+  "/api/accounts": [],
+  "/api/actions/history": [],
+  "/api/actions/pending": [],
+  "/api/auth/me": {
+    "email": "bos.durum@example.com",
+    "id": 1,
+    "is_active": true,
+    "kvkk_consent_at": "2026-08-05T10:21:00.178173",
+    "name": "Boş Durum",
+    "oauth_provider": null
+  },
+  "/api/cashflow/forecast": {
+    "currency": "TRY",
+    "days": [
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-05",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-06",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-07",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-08",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-09",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-10",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-11",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-12",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-13",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-14",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-15",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-16",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-17",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-18",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-19",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-20",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-21",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-22",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-23",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-24",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-25",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-26",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-27",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-28",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-29",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-30",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-08-31",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-01",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-02",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-03",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-04",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-05",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-06",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-07",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-08",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-09",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-10",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-11",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-12",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-13",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-14",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-15",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-16",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-17",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-18",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-19",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-20",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-21",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-22",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-23",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-24",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-25",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-26",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-27",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-28",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-29",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-09-30",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-01",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-02",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-03",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      }
+    ],
+    "end_date": "2026-10-03",
+    "horizon_days": 60,
+    "sankey": {
+      "links": [],
+      "nodes": []
+    },
+    "start_date": "2026-08-05",
+    "summary": {
+      "crunch_count": 0,
+      "crunch_dates": [],
+      "lowest_balance": 0.0,
+      "lowest_date": "2026-08-05",
+      "net_flow": 0.0,
+      "opening_balance": 0.0,
+      "total_payable": 0.0,
+      "total_receivable": 0.0
+    }
+  },
+  "/api/checkpoints": [],
+  "/api/coach/history": [],
+  "/api/coach/usage": {
+    "block": false,
+    "daily_limit": 1500,
+    "percentage": 0.0,
+    "today_count": 0,
+    "user_daily_limit": 80,
+    "user_today_count": 0,
+    "warn": false
+  },
+  "/api/cockpit": {
+    "abonelik_yuku": {
+      "adet": 0,
+      "aylik": 0.0,
+      "yillik": 0.0
+    },
+    "accounts": [],
+    "alacak_yaslanma": null,
+    "alacaklar_toplami": 0,
+    "alerts": [
+      {
+        "baslik": "Nakit çok düşük",
+        "mesaj": "Kasada 0,00 TL. Acil durum tamponu yok.",
+        "seviye": "uyari"
+      }
+    ],
+    "asgari_tuzagi": null,
+    "atanmamis_nakit": 0.0,
+    "beklenen_gelir": 0.0,
+    "borc_ilerleme": null,
+    "borc_ozgurluk": null,
+    "borclar_toplami": 0,
+    "butce_dokum": {
+      "alacak_haric": 0,
+      "beklenen_gelir": 0.0,
+      "bu_ayki_taksit": 0,
+      "daily_limit": 0.0,
+      "days_remaining": 27,
+      "kart_borcu": 0.0,
+      "nakit": 0.0,
+      "reel_butce": 0.0
+    },
+    "carried_forward": 0.0,
+    "category_patterns": [],
+    "daily_limit": 0.0,
+    "date": "2026-08-05",
+    "days_remaining": 27,
+    "emanet_kasa": 0.0,
+    "faiz_sizintisi": {
+      "aylik_toplam": 0.0,
+      "gunluk": 0.0,
+      "kalemler": [],
+      "yillik_toplam": 0.0
+    },
+    "gizli_uyari_sayisi": 0,
+    "guvenli_borc_odemesi": {
+      "kart_borcu": 0.0,
+      "kredi_borcu": 0.0,
+      "sebep": "borc_yok",
+      "uygun": false
+    },
+    "guvenli_harcama": 0.0,
+    "investment_pnl": [],
+    "kart_borcu": 0.0,
+    "kart_kullanim": null,
+    "kart_stratejisi": [],
+    "konsolidasyon": null,
+    "kredi_borcu": 0.0,
+    "nakit_kasa": 0.0,
+    "nakit_runway_gun": 0,
+    "net_deger": 0.0,
+    "net_deger_tam": 0.0,
+    "price_freshness": {
+      "items": [],
+      "never_set_count": 0,
+      "stale_count": 0,
+      "total_investments": 0
+    },
+    "reel_butce": 0.0,
+    "saglik_skoru": {
+      "bilesenler": [
+        {
+          "ad": "Ödeme gücü",
+          "puan": 100
+        },
+        {
+          "ad": "Nakit tamponu",
+          "puan": 0
+        }
+      ],
+      "seviye": "orta",
+      "skor": 50
+    },
+    "son_islemler": [],
+    "sonraki_eylem": null,
+    "statu": "Ay sonuna 27 gün, günlük limit 0 TL. Sıkı dönem.",
+    "tarih_turkce": "5 Ağustos 2026 Çarşamba",
+    "today_target": 0.0,
+    "upcoming_payments": [],
+    "upcoming_receivables": [],
+    "upcoming_reminders": [],
+    "yarin_limit_harcamasiz": 0.0,
+    "yatirim_deger": 0.0,
+    "zarflar": {
+      "asan_adet": 0,
+      "toplam_butce": 0.0,
+      "toplam_harcanan": 0.0,
+      "toplam_kalan": 0.0,
+      "zarflar": []
+    }
+  },
+  "/api/debt-strategy/compare": {
+    "avalanche": null,
+    "comparison": {
+      "interest_saved_with_avalanche": 0.0,
+      "months_difference": 0,
+      "recommendation_note": "Aktif borc yok."
+    },
+    "debts": [],
+    "snowball": null
+  },
+  "/api/debts": [],
+  "/api/envelopes": {
+    "atanmamis_nakit": 0,
+    "durum": {
+      "asan_adet": 0,
+      "toplam_butce": 0.0,
+      "toplam_harcanan": 0.0,
+      "toplam_kalan": 0.0,
+      "zarflar": []
+    },
+    "envelopes": []
+  },
+  "/api/expenses/recurring": [],
+  "/api/feedback": [],
+  "/api/fund-price/freshness": {
+    "items": [],
+    "never_set_count": 0,
+    "stale_count": 0,
+    "total_investments": 0
+  },
+  "/api/goals": [],
+  "/api/health": {
+    "auth_enabled": true,
+    "build": "bilinmiyor",
+    "service": "FinancialOS",
+    "status": "ok",
+    "timestamp": "2026-08-05T10:21:03.175090+00:00",
+    "version": "0.2.0"
+  },
+  "/api/incomes": [],
+  "/api/legal": {
+    "documents": [
+      {
+        "slug": "kvkk",
+        "title": "KVKK Açık Rıza Metni",
+        "url": "/api/legal/kvkk"
+      },
+      {
+        "slug": "gizlilik",
+        "title": "Gizlilik ve Kişisel Veri Politikası",
+        "url": "/api/legal/gizlilik"
+      },
+      {
+        "slug": "kullanim-sartlari",
+        "title": "Kullanım Şartları",
+        "url": "/api/legal/kullanim-sartlari"
+      },
+      {
+        "slug": "veri-isleyenler",
+        "title": "Veri İşleyen Envanteri",
+        "url": "/api/legal/veri-isleyenler"
+      }
+    ]
+  },
+  "/api/meta": {
+    "build": "bilinmiyor",
+    "davet_kodu_gerekli": false,
+    "destek": "uygulama içi geri bildirim (Şikâyet/İstek/Öneri)",
+    "hukuki": {
+      "gizlilik": "/api/legal/gizlilik",
+      "kullanim-sartlari": "/api/legal/kullanim-sartlari",
+      "kvkk": "/api/legal/kvkk",
+      "veri-isleyenler": "/api/legal/veri-isleyenler"
+    },
+    "kayit_modu": "open",
+    "surum": "0.2.0",
+    "urun": "FinancialOS"
+  },
+  "/api/meta/durum": {
+    "api": true,
+    "saglikli": true,
+    "veritabani": true
+  },
+  "/api/onboarding/demo": {
+    "satir_sayisi": 0,
+    "yuklu": false
+  },
+  "/api/ops/scheduler": {
+    "hic_calisma_yok": true,
+    "isler": []
+  },
+  "/api/reports/category-breakdown": {
+    "days": 30,
+    "grand_total": 0.0,
+    "items": [],
+    "type": "expense"
+  },
+  "/api/reports/monthly-summary": {
+    "current": {
+      "expense_categories": [],
+      "net_change": 0.0,
+      "savings_rate": null,
+      "total_expense": 0.0,
+      "total_income": 0.0,
+      "transaction_count": 0
+    },
+    "period": {
+      "end": "2026-08-31",
+      "label": "Ağustos 2026",
+      "month": 8,
+      "start": "2026-08-01",
+      "year": 2026
+    },
+    "previous_period": {
+      "label": "Temmuz 2026",
+      "month": 7,
+      "year": 2026
+    },
+    "trend": {
+      "expense_delta_pct": null,
+      "income_delta_pct": null,
+      "net_change_delta": 0.0,
+      "prev_net_change": 0.0,
+      "prev_total_expense": 0.0,
+      "prev_total_income": 0.0
+    }
+  },
+  "/api/reports/net-worth-attribution": {
+    "available": false
+  },
+  "/api/reports/net-worth-trend": {
+    "days": 30,
+    "items": [
+      {
+        "date": "2026-08-05",
+        "investment_value": 0.0,
+        "net_worth_full": 0.0,
+        "net_worth_seen": 0.0
+      }
+    ]
+  },
+  "/api/reports/real-net-worth": {
+    "available": false
+  },
+  "/api/reports/upcoming-cashflow": {
+    "days": 30,
+    "items": [],
+    "summary": {
+      "items_count": 0,
+      "net_flow": 0,
+      "total_payable": 0,
+      "total_receivable": 0
+    },
+    "today": "2026-08-05"
+  },
+  "/api/subscriptions": {
+    "abonelikler": [],
+    "adet": 0,
+    "aylik_toplam": 0.0,
+    "yillik_toplam": 0.0
+  },
+  "/api/transactions": [],
+  "/api/user": {
+    "created_at": "2026-08-05T10:21:00.180173+00:00",
+    "currency": null,
+    "id": 1,
+    "locale": null,
+    "name": "Boş Durum",
+    "timezone": null
+  },
+  "/api/user/export": {
+    "accounts": [],
+    "action_history": [],
+    "api_call_log": [],
+    "coach_insights": [],
+    "coach_memory": [],
+    "decision_journal": [],
+    "demo_data_markers": [],
+    "envelopes": [],
+    "exported_at": "2026-08-05T10:21:03.317373Z",
+    "feedback": [],
+    "goal_allocations": [],
+    "goal_rules": [],
+    "goals": [],
+    "master_checkpoints": [],
+    "net_worth_snapshots": [
+      {
+        "card_debt": 0.0,
+        "cash": 0.0,
+        "created_at": "2026-08-05T10:21:03.087279",
+        "id": 1,
+        "investment_value": 0.0,
+        "loan_debt": 0.0,
+        "net_worth_full": 0.0,
+        "net_worth_seen": 0.0,
+        "receivables": 0.0,
+        "snapshot_date": "2026-08-05",
+        "user_id": 1,
+        "workspace_id": 1
+      }
+    ],
+    "pending_actions": [],
+    "personal_debts": [],
+    "reasoning_traces": [],
+    "recurring_expenses": [],
+    "recurring_incomes": [],
+    "schema": "financialos-export-v1",
+    "transactions": [],
+    "user": {
+      "created_at": "2026-08-05T10:21:00.180173",
+      "currency": null,
+      "email": "bos.durum@example.com",
+      "email_verified_at": null,
+      "id": 1,
+      "is_active": true,
+      "kvkk_consent_at": "2026-08-05T10:21:00.178173",
+      "kvkk_consent_version": "v2",
+      "locale": null,
+      "name": "Boş Durum",
+      "oauth_provider": null,
+      "oauth_sub": null,
+      "password_hash": "$2b$12$mHODd1K3x1pI1DRWmPSQG.H2Fg9CkUwTAsGPOr//kPXdBRkuc7.oO",
+      "timezone": null,
+      "token_version": 0
+    },
+    "wishlist_items": [],
+    "workspace_memberships": [
+      {
+        "id": 1,
+        "invited_by": null,
+        "joined_at": "2026-08-05T10:21:00.186171",
+        "role": "owner",
+        "user_id": 1,
+        "workspace_id": 1
+      }
+    ],
+    "workspaces": [
+      {
+        "created_at": "2026-08-05T10:21:00.184171",
+        "id": 1,
+        "is_personal": true,
+        "name": "Boş Durum (Kişisel)",
+        "owner_user_id": 1
+      }
+    ]
+  },
+  "/api/users/me/export": {
+    "accounts": [],
+    "action_history": [],
+    "api_calls": [],
+    "checkpoints": [],
+    "debts": [],
+    "decision_journal_entries": [],
+    "demo_markers": [],
+    "envelopes": [],
+    "expenses": [],
+    "exported_at": "2026-08-05T10:21:03.341241+00:00",
+    "feedback_items": [],
+    "goals": [],
+    "incomes": [],
+    "insights": [],
+    "memories": [],
+    "net_worth_snapshots": [
+      {
+        "card_debt": "0.0000",
+        "cash": "0.0000",
+        "created_at": "2026-08-05T10:21:03.087279+00:00",
+        "id": 1,
+        "investment_value": "0.0000",
+        "loan_debt": "0.0000",
+        "net_worth_full": "0.0000",
+        "net_worth_seen": "0.0000",
+        "receivables": "0.0000",
+        "snapshot_date": "2026-08-05",
+        "user_id": 1,
+        "workspace_id": 1
+      }
+    ],
+    "owned_workspaces": [
+      {
+        "created_at": "2026-08-05T10:21:00.184171+00:00",
+        "id": 1,
+        "is_personal": true,
+        "name": "Boş Durum (Kişisel)",
+        "owner_user_id": 1
+      }
+    ],
+    "pending_actions": [],
+    "reasoning_traces": [],
+    "transactions": [],
+    "user": {
+      "created_at": "2026-08-05T10:21:00.180173+00:00",
+      "currency": null,
+      "email": "bos.durum@example.com",
+      "email_verified_at": null,
+      "id": 1,
+      "is_active": true,
+      "kvkk_consent_at": "2026-08-05T10:21:00.178173+00:00",
+      "kvkk_consent_version": "v2",
+      "locale": null,
+      "name": "Boş Durum",
+      "oauth_provider": null,
+      "oauth_sub": null,
+      "password_hash": "$2b$12$mHODd1K3x1pI1DRWmPSQG.H2Fg9CkUwTAsGPOr//kPXdBRkuc7.oO",
+      "timezone": null,
+      "token_version": 0
+    },
+    "wishlist_items": [],
+    "workspace_memberships": [
+      {
+        "id": 1,
+        "invited_by": null,
+        "joined_at": "2026-08-05T10:21:00.186171+00:00",
+        "role": "owner",
+        "user_id": 1,
+        "workspace_id": 1
+      }
+    ]
+  },
+  "/api/wishlist": {
+    "bekleyen_adet": 0,
+    "items": [],
+    "review_adet": 0
+  },
+  "/api/workspaces": [
+    {
+      "created_at": "2026-08-05T10:21:00.184171+00:00",
+      "id": 1,
+      "is_personal": true,
+      "name": "Boş Durum (Kişisel)",
+      "owner_user_id": 1,
+      "role": "owner"
+    }
+  ],
+  "/api/workspaces/1": {
+    "created_at": "2026-08-05T10:21:00.184171+00:00",
+    "id": 1,
+    "is_personal": true,
+    "members": [
+      {
+        "email": "bos.durum@example.com",
+        "joined_at": "2026-08-05T10:21:00.186171+00:00",
+        "name": "Boş Durum",
+        "role": "owner",
+        "user_id": 1
+      }
+    ],
+    "name": "Boş Durum (Kişisel)",
+    "owner_user_id": 1,
+    "role": "owner"
+  }
+}

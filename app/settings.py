@@ -60,10 +60,10 @@ def secret_key_problems() -> list[str]:
 def auth_problems() -> list[str]:
     """BUG #171 (P2): production'da kimlik doğrulama KAPALI olamaz.
 
-    `AUTH_ENABLED` varsayılanı KAPALI (geriye-uyum, tek-kullanıcı yerel kurulum). Bu değişken
-    unutulursa `ENVIRONMENT=production` instance'ı TÜM API'yi kimliksiz "ilk kullanıcı"ya
-    açar (cockpit, hesaplar, KVKK export'u, hesap silme). Compose dosyası set ediyor ama
-    systemd/manuel `docker run`/PaaS yollarında hiçbir koruma yoktu → startup'ta fail-fast.
+    BUG #227 (D06) sonrası bu kapı İKİNCİ savunma hattıdır: `auth_enabled()` varsayılanı
+    artık AÇIK (fail-closed), yani "değişkeni unutmak" tek başına API'yi açmıyor. Buradaki
+    fail-fast, operatörün production'da AÇIKÇA `AUTH_ENABLED=false` yazdığı durumu yakalar
+    (kimliksiz erişim production'da hiçbir gerekçeyle kabul edilmez).
     """
     from app import auth as _auth
     if is_production() and not _auth.auth_enabled():

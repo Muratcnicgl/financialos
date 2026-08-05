@@ -11,6 +11,12 @@ Group=financialos
 WorkingDirectory=/opt/financialos
 Environment=DATABASE_URL=sqlite:///./data/financialos.db
 EnvironmentFile=/opt/financialos/.env
+# BUG #227 (D06): bu yolda compose YOK, yani `${ENVIRONMENT:-production}` varsayılanı da
+# yok. Unit kendini production ilan eder — aksi halde .env'deki (veya .env.example'dan
+# kopyalanmış) `ENVIRONMENT=development` prod sertleştirmelerini (SECRET_KEY/AUTH fail-fast,
+# /docs kapatma) sessizce devre dışı bırakıyordu. EnvironmentFile'dan SONRA gelmesi
+# bilinçli: eskimiş bir .env bunu ezemesin.
+Environment=ENVIRONMENT=production
 # Şema göçü, sonra daemon (reload YOK → cron tek-process düzgün çalışır)
 ExecStartPre=/opt/financialos/venv/bin/python -m alembic upgrade head
 ExecStart=/opt/financialos/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000

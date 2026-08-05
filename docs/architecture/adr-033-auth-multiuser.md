@@ -29,7 +29,13 @@
 2. **Token:** kısa-ömürlü **access token** (30 dk) + uzun-ömürlü **refresh token** (30 gün). Access `Authorization: Bearer`. Logout = refresh token blacklist (`RevokedToken` tablosu).
 3. **OAuth:** `authlib` ile Google + GitHub (**API_KEY_TALEP**). Apple → PLACEHOLDER (ücretli program).
 4. **KVKK:** register'da açık rıza (`kvkk_consent_at` + `kvkk_consent_version`, checkbox zorunlu). `DELETE /api/users/me` (cascade, zaten var). `GET /api/users/me/export` (JSON taşınabilirlik).
-5. **İzolasyon (W3-034):** `get_current_user` JWT'den user döner; endpoint'ler user.id filtreli (çoğu zaten). **Geriye-dönük uyum:** `AUTH_ENABLED` env False iken (default) get_current_user ilk-user fallback → mevcut 817 test kırılmaz; True iken JWT zorunlu. Kademeli rollout.
+5. **İzolasyon (W3-034):** `get_current_user` JWT'den user döner; endpoint'ler user.id filtreli (çoğu zaten). **Geriye-dönük uyum:** `AUTH_ENABLED` env False iken get_current_user ilk-user fallback → mevcut 817 test kırılmaz; True iken JWT zorunlu. Kademeli rollout.
+   > **DEĞİŞTİRİLDİ — BUG #227 / D06 (5 Ağu 2026): varsayılan artık AÇIK (fail-closed).**
+   > Kademeli rollout tamamlandı; "varsayılan kapalı" kararı bir dağıtım açığına dönüştü:
+   > belgelenen systemd yolu ne `ENVIRONMENT` ne `AUTH_ENABLED` set ediyordu ve dokümanı
+   > harfiyen izleyen operatör tüm finansal verisini kimliksiz açıyordu. Yeni kural:
+   > tanımsız/boş/anlamsız değer → kimlik doğrulama AÇIK; kapatmak için AÇIKÇA
+   > `AUTH_ENABLED=false` yazılır (production'da o da fail-fast ile reddedilir).
 6. **Prod-gate:** rate-limit auth endpoint'lerde (W3-041), HTTPS/security-header Caddy'de (ADR-035/W3-042), CORS env-driven (W3-040).
 7. **Depolama:** SQLite yeterli (multi-user az kullanıcı); PostgreSQL gerçek-DECIMAL + RLS → Wave-4 (ölçek gelince).
 8. **SMTP (şifre sıfırlama):** Brevo/Sendgrid free tier (**API_KEY_TALEP**). Token'lı reset akışı.

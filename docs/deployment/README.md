@@ -31,16 +31,23 @@ Gereksinim: Docker + Docker Compose (v2).
 
 ```bash
 git clone <repo-url> financialos && cd financialos
-cp .env.example .env
+cp .env.prod.example .env
 ```
+
+> ⚠️ **Canlı kurulumda `.env.prod.example` kopyala, `.env.example` değil (BUG #227 / D06).**
+> `.env.example` yerel geliştirme şablonudur (`ENVIRONMENT=development`). Sunucuya
+> kopyalanınca prod sertleştirmeleri (fail-fast, `/docs` kapalı, CSP) devre dışı kalır.
 
 `.env` düzenle (en az):
 ```ini
+ENVIRONMENT=production             # prod sertleştirmeleri + güvenlik fail-fast'i açar
+AUTH_ENABLED=true                  # kimlik doğrulama (varsayılan zaten açık — açıkça yaz)
 DOMAIN=financialos.example.com     # gerçek domain → otomatik HTTPS; test için localhost
 LLM_PROVIDER=fallback
 GEMINI_API_KEY=...                 # en az bir LLM sağlayıcı
 SECRET_KEY=<python -c "import secrets; print(secrets.token_urlsafe(48))">
 CORS_ORIGINS=https://financialos.example.com
+SUPPORT_EMAIL=destek@financialos.example.com   # prod'da zorunlu (BUG #210)
 ```
 
 Başlat:
@@ -71,7 +78,10 @@ sudo -u financialos git clone <repo-url> /opt/financialos
 cd /opt/financialos
 sudo -u financialos python3.11 -m venv venv
 sudo -u financialos ./venv/bin/pip install -r requirements.txt
-sudo -u financialos cp .env.example .env    # düzenle (yukarıdaki gibi)
+sudo -u financialos cp .env.prod.example .env    # düzenle (yukarıdaki gibi)
+# NOT: bu yolda compose YOK → ENVIRONMENT/AUTH_ENABLED varsayılanları compose'dan gelmez.
+# deploy/financialos.service unit'i ENVIRONMENT=production ilan eder (BUG #227), ama .env'de
+# de doğru değerler olmalı: SECRET_KEY, SUPPORT_EMAIL, CORS_ORIGINS.
 
 # Frontend'i derle (bir kez) — Caddy/nginx bunu sunar
 cd frontend && npm ci && npm run build && cd ..

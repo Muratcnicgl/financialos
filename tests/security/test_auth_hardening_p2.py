@@ -99,12 +99,25 @@ def test_dev_ortaminda_kolaylik_korunur(client, kayitli):
 # ── BUG #171: production'da AUTH_ENABLED zorunlu ─────────────────────────────
 
 def test_production_auth_kapaliysa_fail_fast(monkeypatch):
+    """BUG #227 (D06) sonrası: 'unutmak' artık kapatmıyor; AÇIKÇA kapatmak prod'da yasak."""
     from app.settings import validate_security_config
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("SECRET_KEY", "yeterince-uzun-ve-guclu-bir-secret-key-0123456789")
-    monkeypatch.delenv("AUTH_ENABLED", raising=False)
+    monkeypatch.setenv("AUTH_ENABLED", "false")
     with pytest.raises(RuntimeError, match="AUTH_ENABLED"):
         validate_security_config()
+
+
+def test_production_auth_degiskeni_unutulursa_acik_kalir(monkeypatch):
+    """BUG #227: değişken hiç yazılmamışsa kimlik doğrulama AÇIK sayılır (fail-closed)."""
+    from app.settings import validate_security_config
+    from app import auth as _auth
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("SECRET_KEY", "yeterince-uzun-ve-guclu-bir-secret-key-0123456789")
+    monkeypatch.setenv("SUPPORT_EMAIL", "destek@ornek-urun.com")
+    monkeypatch.delenv("AUTH_ENABLED", raising=False)
+    assert _auth.auth_enabled() is True
+    validate_security_config()  # açık sayıldığı için fail-fast tetiklenmez
 
 
 def test_production_auth_acikken_gecer(monkeypatch):
@@ -118,10 +131,12 @@ def test_production_auth_acikken_gecer(monkeypatch):
 
 
 def test_dev_ortaminda_auth_kapali_olabilir(monkeypatch):
-    """Regresyon: yerel/tek-kullanıcı kurulum AUTH'suz çalışmaya devam eder."""
+    """Regresyon: yerel/tek-kullanıcı kurulum AUTH'suz çalışmaya devam eder.
+
+    BUG #227: kapatma artık AÇIKÇA yapılır (`AUTH_ENABLED=false`) — dev'de hâlâ mümkün."""
     from app.settings import validate_security_config
     monkeypatch.delenv("ENVIRONMENT", raising=False)
-    monkeypatch.delenv("AUTH_ENABLED", raising=False)
+    monkeypatch.setenv("AUTH_ENABLED", "false")
     monkeypatch.setenv("SECRET_KEY", "yeterince-uzun-ve-guclu-bir-secret-key-0123456789")
     validate_security_config()
 

@@ -18,8 +18,12 @@ def _neutralize_dotenv_auth(monkeypatch):
     """M61: .env'de AUTH_ENABLED=true var (gerçek app login ister). Testler .env'e BAĞLI
     OLMAMALI — auth gerektiren testler kendi fixture'ında `monkeypatch.setenv` ile açar.
     Autouse (auth test fixture'larından ÖNCE koşar) → onların setenv'i kazanır; diğer ~900
-    test AUTH_ENABLED'sız (fallback) koşar. ENVIRONMENT de nötrlenir (settings fail-fast dev)."""
-    monkeypatch.delenv("AUTH_ENABLED", raising=False)
+    test fallback yolunda koşar. ENVIRONMENT de nötrlenir (settings fail-fast dev).
+
+    BUG #227 (D06): kimlik doğrulama varsayılanı artık AÇIK (fail-closed) — "değişkeni
+    silmek" onu kapatmıyor. Fallback yolunu isteyen testler için burada AÇIKÇA kapatılır;
+    bu, gerçek bir yerel kurulumun yapması gerekenle aynı hareket (`AUTH_ENABLED=false`)."""
+    monkeypatch.setenv("AUTH_ENABLED", "false")
     monkeypatch.delenv("ENVIRONMENT", raising=False)
 
 

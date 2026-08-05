@@ -24,9 +24,24 @@ REFRESH_TTL_DAYS = int(os.getenv("REFRESH_TTL_DAYS", "30"))
 BCRYPT_MAX_BYTES = 72  # bcrypt donanımsal sınırı
 
 
+_AUTH_KAPATMA_DEGERLERI = ("0", "false", "no", "off", "hayir", "kapali")
+
+
 def auth_enabled() -> bool:
-    """AUTH_ENABLED=1 → JWT zorunlu. Aksi (default) tek-kullanıcı fallback (geriye uyum)."""
-    return os.getenv("AUTH_ENABLED", "").strip().lower() in ("1", "true", "yes")
+    """JWT zorunlu mu? **Varsayılan AÇIK (fail-closed) — BUG #227 (D06).**
+
+    Eskiden varsayılan KAPALI'ydı ("geriye uyum, tek-kullanıcı yerel kurulum") ve tek
+    koruma `ENVIRONMENT=production` + `validate_security_config()` idi. Belgelenen
+    systemd dağıtım yolu (`docs/deployment/README.md` Yol 2) ise ne ENVIRONMENT ne
+    AUTH_ENABLED set ediyordu (`cp .env.example .env` → `ENVIRONMENT=development`,
+    `AUTH_ENABLED=` boş) → dokümanı harfiyen izleyen operatör, tüm finansal verisi
+    (cockpit, hesaplar, KVKK export'u, `DELETE /api/users/me`) kimliksiz erişime açık
+    bir sunucu koşuyordu. Güvenlik, unutulması en kolay değişkene bağlanamaz.
+
+    Yeni kural: kimlik doğrulama AÇIKÇA kapatılmadıkça AÇIKTIR. Tanımsız/boş/anlamsız
+    değer → AÇIK. Yerel tek-kullanıcı kurulumu `AUTH_ENABLED=false` yazarak kapatır.
+    """
+    return os.getenv("AUTH_ENABLED", "").strip().lower() not in _AUTH_KAPATMA_DEGERLERI
 
 
 def _secret() -> str:

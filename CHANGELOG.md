@@ -5,6 +5,31 @@ içindeki `APP_VERSION` ile **aynı** olmalıdır — `tests/test_version_releas
 
 Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-GG
 
+## [Yayınlanmamış]
+
+### ⚠️ Kırıcı değişiklik (self-host)
+- **`AUTH_ENABLED` varsayılanı AÇIK oldu (#227).** Eskiden değişken tanımsız/boşsa kimlik
+  doğrulama KAPALI sayılıyordu; belgelenen systemd dağıtım yolu bu değişkeni hiç set
+  etmediği için dokümanı izleyen operatör tüm finansal verisini (cockpit, hesaplar, KVKK
+  export'u, hesap silme) kimliksiz açıyordu. Artık kimlik doğrulama açıkça kapatılmadıkça
+  AÇIKTIR. **Kimliksiz yerel tek-kullanıcı kurulumu kullananlar `.env`'e `AUTH_ENABLED=false`
+  eklemelidir** (production'da bu da fail-fast ile reddedilir).
+
+### Güvenlik
+- Şifre sıfırlama bağlantısı, kullanıcı şifresini değiştirdikten sonra hâlâ geçerliydi;
+  saldırgan bağlantıyı bekletip hesabı kalıcı ele geçirebiliyordu — token artık oturum
+  sürümüne bağlı (#225).
+- OAuth kaydı kapalı-beta davet kapısını atlıyordu; alan adını bilen herkes Google/GitHub
+  ile hesap açabiliyordu — e-posta eşleşmeli davet kapısı (#226).
+- Belgelenen bir dağıtım yolu kimliksiz canlı sunucu üretiyordu — güvenlik varsayılanı
+  fail-closed'a çevrildi, systemd unit'i kendini production ilan ediyor (#227).
+
+### Düzeltmeler
+- Nakit-akış tahmini ve borç-stratejisi uçları workspace bağlamını kurmuyordu: aile
+  görünümünde kişisel borçlar üzerinden strateji hesaplanıyor, cockpit ile çelişen rakamlar
+  gösteriliyordu (#223).
+- Ön-ölüm (premortem) ve simülasyon uçları da aynı kör noktadaydı (#224).
+
 ## [0.2.0] — 2026-08-05 — "Kapalı betaya hazırlık" (Wave-9)
 
 Bu sürüm, uygulamayı **tek kişinin sistemi** olmaktan çıkarıp **yabancıların finansal

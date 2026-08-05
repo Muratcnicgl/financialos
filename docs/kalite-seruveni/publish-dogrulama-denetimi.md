@@ -330,7 +330,20 @@ GERCEK ZARAR: (a) kontrolsuz/izlenemeyen kayit — BetaInvite listesi gercekle u
 
 ### D06 · [yuksek] Kimliksiz canli sunucu uretebilen dagitim yolu: docs/deployment/README.md 'Yol 2' + .env.example -> ENVIRONMENT=development, AUTH_ENABLED bos; fail-fast tetiklenmez
 
-- **Boyut:** kimlik-oturum · **Yer:** `docs/deployment/README.md:78` · **Durum:** ⬜ AÇIK
+- **Boyut:** kimlik-oturum · **Yer:** `docs/deployment/README.md:78` · **Durum:** ✅ **KAPANDI — BUG #227** (5 Ağu).
+  Düzeltme dokümanla sınırlı tutulmadı (L8: belgelenen ≠ uygulanan) — **kök neden güvenlik
+  varsayılanının fail-OPEN olmasıydı**: `auth_enabled()` tanımsız/boş değeri "kapalı" sayıyor,
+  tek koruma da unutulması en kolay değişkene (`ENVIRONMENT=production`) bağlanıyordu.
+  Yeni kural: tanımsız/boş/anlamsız değer → kimlik doğrulama **AÇIK**; kapatmak için açıkça
+  `AUTH_ENABLED=false` (production'da o da fail-fast ile reddedilir). Ek katmanlar:
+  `deploy/financialos.service` kendini `ENVIRONMENT=production` ilan eder (EnvironmentFile'dan
+  SONRA — eskimiş bir `.env` ezemesin), deployment README her iki yolda `.env.prod.example`
+  gösterir, `.env.example` yeni varsayılanı yazar, ADR-033 §5 "varsayılan kapalı" kararı
+  DEĞİŞTİRİLDİ notuyla güncellendi. Kapı: `tests/security/test_kimliksiz_deploy_kapisi.py`
+  (20 test — varsayılan/anlamsız değer/açık kapatma, prod fail-fast, **README'nin gösterdiği
+  HER şablon gerçekten kimlikli sunucu üretiyor mu** [kapsam tabanı assert'li], systemd unit'i).
+  Düzeltme öncesi 9'u kırmızıydı. Tam süit 1677 passed — davranış çevrilmesine rağmen kırmızı yok
+  (test altyapısı artık gerçek bir yerel kurulumla aynı hareketi yapıyor: açıkça `AUTH_ENABLED=false`).
 - **Neden yayın engeli / etki:** Repo bir self-host urunu olarak yayinlaniyor ve iki dagitim yolunu da resmi olarak belgeliyor (ADR-035 'systemd (alternatif)'). Yol-2'yi harfiyen izleyen biri (Murat dahil, Docker'siz VM tercih ederse) internete acik, kimlik dogrulamasi TAMAMEN KAPALI bir instance calistirir: /api/cockpit, /api/accounts, /api/transactions, GET /api/users/me/export (tum finansal veri JSON) ve DELETE /api/users/me baglantiyi bilen herkese acik olur. BUG #171 tam olarak bu senaryo icin acilmis ve guvenlik review'unda 'kapatildi' denmisti; koruma ise unutulmasi en kolay degiskene (ENVIRONMENT) bagli oldugu icin bu yolda hic devreye girmiyor.
 
 <details><summary>Kanıt</summary>

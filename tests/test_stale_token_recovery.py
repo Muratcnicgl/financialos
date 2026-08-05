@@ -43,7 +43,7 @@ def client(db):
 
 def test_bozuk_token_auth_kapali_fallbacke_duser(client, monkeypatch):
     """BUG #158: AUTH_ENABLED kapalı + çürük token → 401 DEĞİL, fallback (ilk user) → 200."""
-    monkeypatch.delenv("AUTH_ENABLED", raising=False)  # kapalı (default)
+    monkeypatch.setenv("AUTH_ENABLED", "false")  # BUG #227: kapatma artık AÇIKÇA yapılır
     r = client.get("/api/cockpit", headers={"Authorization": f"Bearer {BAD_TOKEN}"})
     assert r.status_code == 200, f"çürük token uygulamayı kilitledi: {r.status_code}"
 
@@ -69,6 +69,6 @@ def test_tokensiz_auth_acik_401_auth_required(client, monkeypatch):
 
 def test_tokensiz_auth_kapali_fallback(client, monkeypatch):
     """AUTH_ENABLED kapalı + token yok → fallback → 200 (mevcut davranış korunur)."""
-    monkeypatch.delenv("AUTH_ENABLED", raising=False)
+    monkeypatch.setenv("AUTH_ENABLED", "false")  # BUG #227: kapatma artık AÇIKÇA yapılır
     r = client.get("/api/cockpit")
     assert r.status_code == 200

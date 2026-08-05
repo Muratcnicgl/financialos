@@ -76,12 +76,20 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
 
     Sadece Groq: 8B→70B fallback. Gemini/Anthropic quota korunur.
     Her hata sessiz fail — logger'a yazılır, kullanıcıya gösterilmez.
+
+    BUG #228 (D16): bu yol KOTASIZ ve KAYITSIZ bir LLM çağrısı yapıyordu — ADR-041
+    tavanı buradan sıfırlanıyor, üretim `ApiCallLog`'a hiç düşmediği için maliyet
+    metrikleri onu görmüyordu. Artık `app/llm_quota` üzerinden rezerve edilir; tavan
+    doluysa yansıma ATLANIR (arka plan görevi kullanıcıya hata gösteremez — doğru
+    davranış işi atlamaktır, sessizce kotasız çağırmak değil).
     """
     from app.database import SessionLocal
     from app.models import CoachInsight
     from app.coach import save_insight_action, SAVE_INSIGHT_SCHEMA, GroqProvider
+    from app import llm_quota as _kota
 
     db = None
+    rezervasyon = None
     try:
         db = SessionLocal()
         payload = json.loads(payload_str) if payload_str else {}
@@ -120,6 +128,14 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
             logger.warning("reflection: GROQ_API_KEY eksik, atlanıyor")
             return
 
+        # BUG #228 (D16): kota rezervasyonu — dolu ise yansıma atlanır (429 gösterilecek
+        # kullanıcı yok; kotasız çağırmak ADR-041 tavanını delerdi).
+        rezervasyon = _kota.rezerve_et(db, user_id, provider="groq", model="reflection",
+                                       hata_firlat=False)
+        if rezervasyon is None:
+            logger.info("reflection: kullanici kotasi dolu, yansima atlandi user_id=%s", user_id)
+            return
+
         last_exc = None
         for model in _REFLECTION_MODELS:
             try:
@@ -144,6 +160,9 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
                         logger.info(
                             f"reflection insight [{result.dedup_key}]: {result.content[:60]}"
                         )
+                _kota.tamamla(db, rezervasyon, provider="groq", success=True,
+                              tool_calls_count=len(response.tool_calls))
+                rezervasyon = None
                 return  # başarılı
             except Exception as e:
                 last_exc = e
@@ -151,12 +170,20 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
                 continue
 
         if last_exc:
+            # Çöken çağrı da sayılır (sağlayıcıya gitti) — koç yolundaki davranışla aynı.
+            _kota.tamamla(db, rezervasyon, provider="groq", success=False,
+                          error_message=str(last_exc))
+            rezervasyon = None
             logger.warning(f"reflection sessiz fail (tüm modeller denendi): {last_exc}")
 
     except Exception as e:
         logger.warning(f"reflection sessiz fail: {e}")
     finally:
         if db:
+            # BUG #228: LLM'e hiç ulaşılmadan çıkıldıysa (beklenmedik hata) rezervasyon
+            # asılı kalmasın — kullanıcı yapılmamış bir çağrı için kotasından olmaz.
+            if rezervasyon is not None:
+                _kota.iptal_et(db, rezervasyon)
             db.close()
 
 

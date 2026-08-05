@@ -391,7 +391,14 @@ ZARAR: Repo self-host ürünü olarak yayımlanıyor ve iki yolu da resmî belge
 
 ### D07 · [yuksek] Premortem ucu (POST /api/premortem/{id}) LLM kotasini tamamen atliyor — kota dolu kullanici sinirsiz LLM cagirtabiliyor
 
-- **Boyut:** kota-maliyet · **Yer:** `app/routers/premortem.py:111` · **Durum:** ⬜ AÇIK
+- **Boyut:** kota-maliyet · **Yer:** `app/routers/premortem.py:111` · **Durum:** ✅ **KAPANDI — BUG #228** (5 Ağu).
+  Kota muhasebesi router'dan sökülüp `app/llm_quota.py`'ye alındı (uca değil **LLM kullanımına**
+  bağlı). Premortem ucu önbellek dalından SONRA rezerve eder (cache LLM harcamaz → kullanıcı
+  yapılmamış çağrı için cezalanmaz), çöken çağrı sayılır, tavan doluysa 429. Kapı:
+  `tests/test_llm_kota_kapisi.py` (9 test; **statik kapı** dahil: `provider.chat`/`build_provider`
+  çağıran her `app/` dosyası ya `llm_quota`'dan geçer ya gerekçeli `# kota-exempt` taşır —
+  kapsam tabanı + bayat-muafiyet kontrolüyle, L11). Mutasyon kontrolü: rezervasyonlar
+  kaldırılınca 4 test kırmızıya döndü.
 - **Neden yayın engeli / etki:** PARA KAYBI + KULLANICI KAYBI. BUG #188/ADR-041'in tum amaci 'bir kullanici paylasilan API anahtarini/faturayi tek basina tuketemesin' idi; premortem ucu bu tavani sifirliyor. Kotasi dolmus (429 almis) bir kullanici bile /api/premortem'i dongude cagirarak sinirsiz LLM uretimi yaptirabiliyor (dogrulandi: 6/6 istek 200, hicbiri sayaca yazilmadi). Ucretsiz kademede paylasilan Gemini anahtari tukenir -> TUM beta kullanicilarinin kocu jenerik 'Koc cevap veremedi' hatasina duser; ucretli kademede dogrudan fatura riski. Ayrica ApiCallLog'a hic yazilmadigi icin scripts/beta_metrics.py maliyet/hata metrikleri bu trafigi HIC gormez — operator patlamayi olctuktan sonra bile nedenini bulamaz. docs/kalite-seruveni/guvenlik-review-publish.md 'Kabul edilen riskler' bolumunde bu YOK; ADR-041 dayatma noktasini yalnizca POST /api/coach/chat olarak tanimliyor ve bu ucu hic anmiyor.
 
 <details><summary>Kanıt</summary>
@@ -743,7 +750,11 @@ DISKTEN DOGRULANDI, curutulemedi. (1) Kod: app/routers/coach.py:457 -> _kota_rez
 
 ### D16 · [orta] Aksiyon onayi (POST /api/actions/{id}/approve) arka planda kotasiz + kayitsiz Groq LLM cagrisi yapiyor
 
-- **Boyut:** kota-maliyet · **Yer:** `app/routers/actions.py:127` · **Durum:** ⬜ AÇIK
+- **Boyut:** kota-maliyet · **Yer:** `app/routers/actions.py:127` · **Durum:** ✅ **KAPANDI — BUG #228** (5 Ağu, D07 ile aynı commit — aynı kök).
+  Arka plan yansıması artık `app/llm_quota` üzerinden rezerve eder; tavan doluysa **atlar**
+  (arka plan görevi kullanıcıya 429 gösteremez — doğru davranış işi atlamak, sessizce kotasız
+  çağırmak değil). Koşarsa `ApiCallLog`'a düşer → maliyet metrikleri artık bu trafiği görüyor.
+  Beklenmedik hatada rezervasyon iptal edilir (asılı kalan sayaç satırı yok).
 - **Neden yayın engeli / etki:** PARA KAYBI + KOR IZLEME. 100 TL ustu her harcama/satis/borc-odeme onayi 1-2 ek LLM cagrisi uretiyor; hicbiri kotaya sayilmiyor, hicbiri ApiCallLog'a yazilmiyor. Kullanici koc kotasi dolduktan SONRA da (dogrulandi) bu yolu tetikleyebiliyor. Beta'da islem girisi mesaj sayisindan cok daha ucuz ve siniri olmayan bir eylem oldugu icin gercek LLM harcamasinin onemli bir kismi olcum disi kaliyor: scripts/beta_metrics.py'nin raporladigi cagri/hata/gecikme rakamlari gercegin altinda kalir, operator maliyet ve saglayici-hata artisini goremez. ADR-041 dayatma noktasini yalnizca /api/coach/chat sayiyor; bu yol ne ADR'de ne guvenlik-review-publish.md kabul-edilen-riskler bolumunde geciyor.
 
 <details><summary>Kanıt</summary>

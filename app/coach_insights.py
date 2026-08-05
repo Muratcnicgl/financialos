@@ -26,6 +26,12 @@ Adaptasyon notu (mevcut model uyumu):
 - CoachInsight.sort_priority Integer (priority InsightPriority enum'u eski kod icin korunur)
 """
 
+# kota-exempt: cron (sistem-tetikli, kullanici basina gunde bir kez) — kullanici bu yolu
+#              donguye sokamaz. Kullanicinin sohbet hakkini sistem isi tuketmemeli.
+#              NOT: paylasilan saglayici kotasini yine de harcar; toplam maliyet gorunurlugu
+#              icin cron cagrilarinin ayri muhasebesi acik is (denetim D24 ailesi).
+
+
 from __future__ import annotations
 
 import json

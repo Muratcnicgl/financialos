@@ -50,6 +50,7 @@ from app.workspace_deps import active_workspace_id  # M43
 from app.rules_engine import workspace_scope  # M43
 from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus, PendingAction, ActionStatus, ReasoningTrace
 from app.coach import CoachEngine
+from app import llm_quota as _kota  # BUG #228: kota muhasebesinin tek kaynağı
 
 router = APIRouter(prefix="/api/coach", tags=["coach"])
 
@@ -220,27 +221,12 @@ def _today_call_count(db: Session, user_id: int, provider: str) -> int:
     )
 
 
-def coach_user_daily_limit() -> int:
-    """BUG #188 (P3): kullanici basina gunluk LLM cagri tavani (0 = kapali).
-
-    Koc mesaji basina 2 cagri yapilir (iki-gecis mimarisi) -> varsayilan 80 cagri
-    ~40 mesaj/gun. Cok-kullanicida hem MALIYET tavani hem ADALET guard'idir:
-    saglayici kotasi paylasildigi icin bir kullanici herkesi kilitleyemez.
-    """
-    try:
-        return max(0, int(os.getenv("COACH_DAILY_USER_LIMIT", "80")))
-    except ValueError:
-        return 80
-
-
-def _user_today_call_count(db: Session, user_id: int) -> int:
-    """Kullanicinin bugunku (UTC gunu) TUM saglayicilardaki cagri sayisi."""
-    today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
-    return (
-        db.query(func.count(ApiCallLog.id))
-        .filter(ApiCallLog.user_id == user_id, ApiCallLog.called_at >= today_start)
-        .scalar()
-    ) or 0
+# BUG #228 (D07/D16): kota muhasebesi bu router'dan SÖKÜLDÜ → `app/llm_quota.py`.
+# Kota uca değil LLM KULLANIMINA bağlıdır; premortem ve aksiyon-yansıması gibi diğer
+# yollar aynı kaynaktan geçer (aksi halde tavan o yollardan sıfırlanıyordu).
+# Buradaki isimler geriye-uyum sarmalayıcısıdır.
+coach_user_daily_limit = _kota.kullanici_gunluk_tavan
+_user_today_call_count = _kota.bugunku_cagri_sayisi
 
 
 def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
@@ -268,59 +254,18 @@ def _kota_rezerve_et(db: Session, user_id: int, provider: str, model: str,
                      kisisel_tavan: int) -> ApiCallLog:
     """BUG #212 (H17): çağrı ÖNCESİ sayaç satırı yaz — eşzamanlı istekler tavanı delmesin.
 
-    Eski akış "oku → LLM çağır (saniyeler) → yaz" idi. Sayaç ancak çağrı BİTİNCE arttığı
-    için aynı anda gelen N istek aynı eski sayıyı okuyup hepsi geçiyordu: hakkı 1 kalmış
-    bir kullanıcı 20 paralel istek atarak 20 LLM çağrısı yaptırabiliyordu. Bu, BUG #188'in
-    var oluş sebebini (maliyet tavanı + paylaşılan kotayı tek kişinin tüketememesi) fiilen
-    iptal ediyordu ve açık betada doğrudan fatura riskidir.
-
-    Rezervasyon deseni: satır önce yazılır, sonra "benden önce/benimle birlikte kaç satır
-    var" (id sırası) sayılır. Sıram tavanı aşıyorsa rezervasyon geri alınır ve 429 döner.
-    Yarışta sıralama id ile kesinleşir — ilk yazan geçer, sonrakiler reddedilir.
+    BUG #228 (D07/D16): gövde `app/llm_quota.rezerve_et`'e taşındı (tek kaynak); bu
+    sarmalayıcı çağıranları ve mevcut testleri kırmadan aynı sözleşmeyi sürdürür.
     """
-    log = ApiCallLog(
-        user_id=user_id, provider=(provider or "?").lower(), model=model,
-        status=ApiCallStatus.failed,   # çağrı bitince success'e çevrilir (çöken istek de sayılır)
-        tool_calls_count=0, duration_ms=0,
-    )
-    db.add(log)
-    db.commit()
-
-    if kisisel_tavan:
-        today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
-        sira = (
-            db.query(func.count(ApiCallLog.id))
-            .filter(ApiCallLog.user_id == user_id,
-                    ApiCallLog.called_at >= today_start,
-                    ApiCallLog.id <= log.id)
-            .scalar() or 0
-        )
-        if sira > kisisel_tavan:
-            db.delete(log)
-            db.commit()
-            raise HTTPException(
-                status_code=429,
-                detail="Bugunku koc kullanim hakkin doldu. Yarin yeniden sohbet edebilirsin — "
-                       "paneller ve hesaplamalar calismaya devam ediyor.",
-            )
-    return log
+    return _kota.rezerve_et(db, user_id, provider, model, tavan=kisisel_tavan)
 
 
 def _rezervasyonu_tamamla(db: Session, log: ApiCallLog, provider: str, success: bool,
                           duration_ms: int, tool_calls_count: int,
                           error_message: Optional[str]) -> None:
-    """Rezerve edilen satırı çağrı sonucuyla günceller (BUG #212)."""
-    try:
-        log.provider = (provider or log.provider or "?").lower()
-        log.status = ApiCallStatus.success if success else ApiCallStatus.failed
-        log.duration_ms = duration_ms
-        log.tool_calls_count = tool_calls_count
-        # SEC-009: ham sağlayıcı hatası 300 karakterle sınırlı (KVKK export'una girer).
-        log.error_message = error_message[:300] if error_message else None
-        db.commit()
-    except Exception as e:  # noqa: BLE001 — muhasebe güncellemesi sohbeti kirletmez
-        logger.warning(f"ApiCallLog guncellemesi basarisiz: {e}")
-        db.rollback()
+    """Rezerve edilen satırı çağrı sonucuyla günceller (BUG #212, gövde: app/llm_quota)."""
+    _kota.tamamla(db, log, provider=provider, success=success, duration_ms=duration_ms,
+                  tool_calls_count=tool_calls_count, error_message=error_message)
 
 
 def _log_api_call(

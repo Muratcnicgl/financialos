@@ -18,6 +18,10 @@ JUDGE LLM GEREKMEZ; tüm sinyaller chat() çıktısından + grounding'den türet
 
 Bu modül SAF ölçüm mantığıdır (rules_engine ruhu); DB'ye yazmaz.
 """
+
+# kota-exempt: degerlendirme kosum araci (scripts/eval_runner.py) — urun yuzeyi degil,
+#              kullanici tetikleyemez. Gercek saglayiciyla kosulursa maliyeti operator ustlenir.
+
 from __future__ import annotations
 
 import re

@@ -17,6 +17,11 @@ Mimari:
 Referanslar:
 - Klein, G. (2007) "Performing a Project Premortem", HBR
 """
+
+# kota-exempt: motor katmani — kota `app/routers/premortem.py` icinde `app/llm_quota` ile
+#              CAGRI ONCESI rezerve edilir (BUG #228/D07). Motor HTTP baglamini bilmez;
+#              burada ikinci sayac cift-sayim uretirdi.
+
 from __future__ import annotations
 
 import json

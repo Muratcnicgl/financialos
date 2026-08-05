@@ -89,6 +89,11 @@ GUNCELLEMELER:
   yazmamasi sart kosuldu.
 """
 
+# kota-exempt: motor katmani — kota `app/routers/coach.py` icinde `app/llm_quota` ile
+#              CAGRI ONCESI rezerve edilir (BUG #212/#228). Motorun kendisi HTTP baglamini
+#              bilmez; burada ikinci bir sayac tutmak cift-sayim uretirdi.
+
+
 import os
 import re
 import time

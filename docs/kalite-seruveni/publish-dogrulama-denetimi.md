@@ -179,7 +179,15 @@ BULGUNUN DÜZELTİLMESİ GEREKEN KISMI (şiddeti kritik'ten yüksek'e indiren): 
 
 ### D03b · [yuksek] D03'ün AYNI SINIFI: premortem ve simülasyon uçları da workspace bağlamı kurmuyor (D03 düzeltilirken ölçüldü)
 
-- **Boyut:** izolasyon · **Yer:** `app/routers/premortem.py:93`, `app/routers/simulation.py:81` · **Durum:** ⬜ AÇIK
+- **Boyut:** izolasyon · **Yer:** `app/routers/premortem.py:93`, `app/routers/simulation.py:81` · **Durum:** ✅ **KAPANDI — BUG #224** (5 Ağu).
+  İki uç `Depends(active_workspace_id)` + `with workspace_scope(ws_id):` deseniyle bağlandı
+  (üyelik doğrulaması da geldi: üye olunmayan ws → 403). Motor katmanı için köprü
+  `app/rules_engine.py`'den **yaprak modül `app/scope.py`'ye taşındı** — `simulation_engine`
+  tasarım gereği rules_engine'i import etmiyor, bu yüzden köprüye erişemiyordu; artık
+  katman ihlali olmadan aynı contextvar'ı paylaşıyorlar (rules_engine geriye-uyum re-export'u
+  yapar, mevcut ~20 import yeri değişmedi). `_load_world`'ün 3 sorgusu `scope_expr`'e geçti.
+  Kapı: `tests/test_premortem_simulation_workspace_scope.py` (7 test; **mutasyon kontrolü
+  yapıldı** — köprü ham `user_id`'ye çevrilince 3 test kırmızıya döndü).
 - **Nasıl bulundu:** D03 kapatılırken sınıf taraması yapıldı (L11 — "bir örnek bulunduysa sınıf taranmadan kapatılmaz"). `app/routers/*.py` üzerinde "kapsam-duyarlı motor çağırıyor mu / workspace bağlamı kuruyor mu" ölçümü: engine>0 ve ws=0 olan iki router kaldı.
 - **Neden yayın engeli / etki:** ADR-036 paylaşımlı workspace canlı. Aile bağlamındayken bir aksiyonun ön-ölüm (premortem) analizi ve 3-ufuklu simülasyonu **kişisel** finansal manzara üzerinde koşar → kullanıcı ekranda gördüğü aile rakamlarıyla çelişen bir risk/etki analizi okur ve ona göre karar verir. `simulation_engine` hiç workspace-farkında değil (3 sorgu da ham `Model.user_id == user_id`), yani bu bir uç-bağlama düzeltmesinden fazlası: motor katmanı da köprüye geçirilmeli.
 

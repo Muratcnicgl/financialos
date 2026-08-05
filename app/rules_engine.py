@@ -122,28 +122,15 @@ from app.money import D, ZERO, floatify  # ADR-030: iç aritmetik Decimal, publi
 # 955 test kırılmaz. FastAPI sync endpoint threadpool'da çalışır; anyio contextvar'ı
 # worker thread'e kopyalar, ama context manager'ı endpoint gövdesinde (aynı thread)
 # kullandığımız için sorun yok.
-import contextvars
-from contextlib import contextmanager
-
-_active_workspace: "contextvars.ContextVar[Optional[int]]" = contextvars.ContextVar(
-    "rules_active_workspace_id", default=None
+#
+# BUG #224 fix (D03b): tanım `app/scope.py` yaprak modülüne TAŞINDI — `simulation_engine`
+# (rules_engine'i tasarım gereği import etmez) aynı köprüyü katman ihlali olmadan
+# kullanabilsin diye. Buradaki isimler geriye-uyum re-export'udur; tek contextvar.
+from app.scope import (  # noqa: F401  (re-export — mevcut import yerleri değişmedi)
+    _active_workspace,
+    workspace_scope,
+    scope_expr as _scope,
 )
-
-
-@contextmanager
-def workspace_scope(workspace_id: Optional[int]):
-    """rules_engine çağrılarını aktif workspace'e kapsar. None → legacy user_id davranışı."""
-    token = _active_workspace.set(workspace_id)
-    try:
-        yield
-    finally:
-        _active_workspace.reset(token)
-
-
-def _scope(model, user_id: int):
-    """M43: aktif workspace varsa workspace_id, yoksa legacy user_id filtresi."""
-    ws = _active_workspace.get()
-    return (model.workspace_id == ws) if ws is not None else (model.user_id == user_id)
 
 
 # ============================================================

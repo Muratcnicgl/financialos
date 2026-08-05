@@ -13,8 +13,15 @@ Bu modul iki yerden cagrilir:
 
 Bagimsizlik: action_executor.py veya rules_engine.py'yi import etmez. Bu sayede
 gercek DB'ye sizinti riski yok. Mantigi burada bagimsiz ama tutarli sekilde yazilmistir.
+(Yalniz `app/scope.py` yaprak modulu import edilir — icinde bir contextvar + iki saf
+yardimci var, is mantigi yok; bagimsizlik ilkesi korunur.)
 
 GUNCELLEMELER:
+- BUG #224 fix (D03b): motor hic workspace-farkinda degildi (3 sorgu da ham
+  `Model.user_id == user_id`). Aile workspace'i seciliyken 3-ufuklu simulasyon
+  KISISEL manzara uzerinde kosuyor, kullanici ekrandaki aile rakamlariyla celisen
+  bir etki analizi okuyordu. Sorgular `scope_expr` koprusune gecirildi (kapsam
+  yoksa davranis aynen eskisi gibi).
 - BUG #084 fix (P0-7): Zincirleme ufuk projeksiyonunda sinir-gunu cift-sayimi.
   _project_forward pencereleri artik yari-acik (start, end]. Onceki inclusive
   [start, end] modelinde T+30 gibi tam sinir gunune dusen maas/kredi taksiti hem
@@ -33,6 +40,7 @@ from app.models import (
     Account, AccountType, RecurringIncome,
     PersonalDebt, DebtDirection,
 )
+from app.scope import scope_expr  # BUG #224: aktif workspace koprusu (yaprak modul)
 
 
 # ============================================================
@@ -131,7 +139,7 @@ class WorldSnap:
 
 def _load_world(db: Session, user_id: int, as_of: date) -> WorldSnap:
     """DB'den hicbir nesneye baglanmadan dataclass kopyasi cikar."""
-    accs_db = db.query(Account).filter(Account.user_id == user_id).all()
+    accs_db = db.query(Account).filter(scope_expr(Account, user_id)).all()  # BUG #224
     accounts = [
         AccountSnap(
             id=a.id,
@@ -159,7 +167,7 @@ def _load_world(db: Session, user_id: int, as_of: date) -> WorldSnap:
 
     incs_db = (
         db.query(RecurringIncome)
-        .filter(RecurringIncome.user_id == user_id)
+        .filter(scope_expr(RecurringIncome, user_id))  # BUG #224
         .all()
     )
     incomes = [
@@ -175,7 +183,7 @@ def _load_world(db: Session, user_id: int, as_of: date) -> WorldSnap:
 
     dbts_db = (
         db.query(PersonalDebt)
-        .filter(PersonalDebt.user_id == user_id)
+        .filter(scope_expr(PersonalDebt, user_id))  # BUG #224
         .all()
     )
     debts = [

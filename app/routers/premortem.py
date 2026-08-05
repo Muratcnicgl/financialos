@@ -3,10 +3,16 @@ POST /api/premortem/{action_id}
 
 Bekleyen bir aksiyon icin Klein (1989) premortem analizi uretir ve
 DecisionJournal'a kaydeder. LLM cagrisi senkron — kullanici UI'da bekler.
+
+GUNCELLEMELER:
+- BUG #224 fix (D03b): uc workspace baglamini hic kurmuyordu → `build_cockpit_snapshot`
+  (generate_cockpit) aile workspace'i seciliyken KISISEL manzarayi uretiyor, LLM'e
+  yanlis baglam gidiyordu. Uyelik dogrulamasi da yoktu.
 """
 
 import json
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
@@ -15,6 +21,8 @@ from sqlalchemy.orm import Session
 
 from app.cockpit_snapshot import build_cockpit_snapshot, compute_snapshot_hash
 from app.dependencies import get_db, get_current_user
+from app.scope import workspace_scope  # BUG #224: aktif workspace kapsami
+from app.workspace_deps import active_workspace_id  # BUG #224: uyelik dogrulama + ws cozumu
 from app.models import ActionStatus, PendingAction, User
 from app.premortem import (
     PremortemError,
@@ -44,11 +52,13 @@ def run_premortem(
     action_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # BUG #224
 ):
     """
     Bekleyen aksiyon icin 3-5 basarisizlik senaryosu uretir (Klein premortem).
     Sonuc DecisionJournal'a yazilir ve dogrudan doner.
     Sadece status=pending aksiyonlar kabul edilir.
+    Kapsam: aktif workspace (X-Workspace-Id; yoksa personal). BUG #224.
     """
     action = db.execute(
         select(PendingAction).where(
@@ -90,7 +100,8 @@ def run_premortem(
         "rationale": payload_dict.get("rationale") or payload_dict.get("reason"),
     }
 
-    snapshot = build_cockpit_snapshot(db, current_user.id)
+    with workspace_scope(ws_id):  # BUG #224: cockpit ile ayni kapsam kaynagi
+        snapshot = build_cockpit_snapshot(db, current_user.id)
     snapshot_hash = compute_snapshot_hash(snapshot)
 
     # BUG #137 (P1-22): aynı cockpit_snapshot_hash için önceden üretilmiş premortem varsa

@@ -9,6 +9,11 @@ Plan v3 H2G3: 'Bugun/3 ay/3 yil ufuk gorunumu' - 3 yil engine kapsam disi
 
 Felsefe: simulasyon karar VERMEZ, sadece 3 ufukta sonucu gosterir.
 Son karar her zaman kullanicinin (ADR-001: kullanici karar verir, AI aciklar).
+
+GUNCELLEMELER:
+- BUG #224 fix (D03b): uc workspace baglamini hic kurmuyordu → aile workspace'i
+  seciliyken simulasyon KISISEL manzara uzerinde kosuyordu (ekrandaki aile
+  rakamlariyla celisen etki analizi). Uyelik dogrulamasi da yoktu.
 """
 from __future__ import annotations
 
@@ -23,6 +28,8 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.models import ActionStatus, PendingAction, User
+from app.scope import workspace_scope  # BUG #224: aktif workspace kapsami
+from app.workspace_deps import active_workspace_id  # BUG #224: uyelik dogrulama + ws cozumu
 from app.simulation_engine import simulate_action
 
 logger = logging.getLogger(__name__)
@@ -82,12 +89,14 @@ def simulate_pending_action(
     action_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),  # BUG #224
 ) -> HorizonsResponse:
     """
     Bekleyen aksiyon icin T+0/T+30/T+90 simulasyonu.
 
     Status pending OLMALI (executed/approved/rejected/failed -> 409).
     Sahiplik kontrolu var (baska kullanicinin aksiyonu -> 404).
+    Kapsam: aktif workspace (X-Workspace-Id; yoksa personal). BUG #224.
     """
     action = db.execute(
         select(PendingAction).where(
@@ -116,13 +125,14 @@ def simulate_pending_action(
             logger.warning("simulate: payload parse fail action_id=%s", action_id)
 
     try:
-        result = simulate_action(
-            db=db,
-            user_id=current_user.id,
-            action_type=action.action_type,
-            payload=payload_dict,
-            horizons_days=(0, 30, 90),
-        )
+        with workspace_scope(ws_id):  # BUG #224: cockpit ile ayni kapsam kaynagi
+            result = simulate_action(
+                db=db,
+                user_id=current_user.id,
+                action_type=action.action_type,
+                payload=payload_dict,
+                horizons_days=(0, 30, 90),
+            )
     except Exception as e:
         logger.exception("simulate: engine fail action_id=%s", action_id)
         raise HTTPException(

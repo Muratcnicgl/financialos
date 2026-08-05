@@ -24,6 +24,13 @@ GUNCELLEMELER:
 - 4 May 2026 BUG #040 fix: _memory_to_history_item role='tool' satirlarini
   None donduruyor (frontend'e gonderilmez). role='assistant' + content bos +
   tool_calls_json dolu ise placeholder set ediliyor. get_history None filtreliyor.
+- 5 Agu 2026 BUG #212 fix (H17, eszamanlilik): kota sayaci artik cagri ONCESI
+  rezerve ediliyor (_kota_rezerve_et / _rezervasyonu_tamamla) — "oku -> cagir ->
+  yaz" akisinda paralel istekler ayni eski sayiyi okuyup tavani deliyordu.
+  Ayrica muhasebe etiketi FallbackProvider'in PAYLASILAN last_used_provider
+  alanindan degil yapilandirmadan turetiliyor (_muhasebe_saglayici_adi) — eski
+  etiket "fallback(gemini)" PROVIDER_DAILY_LIMITS'te olmadigi icin gunluk kota
+  korumasi sessizce oluyordu.
 """
 
 import os
@@ -177,6 +184,26 @@ def _daily_constrained_provider(provider: str) -> str:
     return "gemini" if provider in ("fallback", "gemini") else provider
 
 
+def _muhasebe_saglayici_adi(engine: CoachEngine) -> str:
+    """BUG #212 (H17): kota muhasebesi için KARARLI sağlayıcı adı.
+
+    Eskiden `engine.provider_name` kullanılıyordu; o property FallbackProvider'ın
+    **paylaşılan** `last_used_provider` alanını okur ve ilk başarılı çağrıdan sonra
+    "Fallback(Gemini)" döner → `fallback(gemini)` etiketi PROVIDER_DAILY_LIMITS'te
+    yoktur → `limit=None` → **günlük kota koruması sessizce ÖLÜR** (block hiç true
+    olmaz). Üstelik alan paylaşıldığı için etiket, eşzamanlı BAŞKA bir kullanıcının
+    çağrısına göre değişir: aynı istek bazen "fallback", bazen "fallback(gemini)"
+    muhasebeleşir. Etiket artık yapılandırmadan türetilir, çalışma-anı durumundan değil.
+    """
+    from app.coach import FallbackProvider
+    provider = getattr(engine, "provider", None)
+    if provider is None:   # test ikizleri / özel motorlar: eski yola düş
+        return str(getattr(engine, "provider_name", "?")).replace("Provider", "").lower()
+    if isinstance(provider, FallbackProvider):
+        return "fallback"
+    return str(getattr(provider, "NAME", type(provider).__name__)).replace("Provider", "").lower()
+
+
 def _today_call_count(db: Session, user_id: int, provider: str) -> int:
     # BUG #133 fix (P1-7): ApiCallLog.called_at naive UTC. date.today() SUNUCU YEREL tarihi →
     # TR (UTC+3) sunucuda sayaç yerel gece yarısında (21:00 UTC) sıfırlanıyor, 3 saat erken →
@@ -235,6 +262,65 @@ def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
         user_today_count=_user_today_call_count(db, user_id),
         user_daily_limit=coach_user_daily_limit(),
     )
+
+
+def _kota_rezerve_et(db: Session, user_id: int, provider: str, model: str,
+                     kisisel_tavan: int) -> ApiCallLog:
+    """BUG #212 (H17): çağrı ÖNCESİ sayaç satırı yaz — eşzamanlı istekler tavanı delmesin.
+
+    Eski akış "oku → LLM çağır (saniyeler) → yaz" idi. Sayaç ancak çağrı BİTİNCE arttığı
+    için aynı anda gelen N istek aynı eski sayıyı okuyup hepsi geçiyordu: hakkı 1 kalmış
+    bir kullanıcı 20 paralel istek atarak 20 LLM çağrısı yaptırabiliyordu. Bu, BUG #188'in
+    var oluş sebebini (maliyet tavanı + paylaşılan kotayı tek kişinin tüketememesi) fiilen
+    iptal ediyordu ve açık betada doğrudan fatura riskidir.
+
+    Rezervasyon deseni: satır önce yazılır, sonra "benden önce/benimle birlikte kaç satır
+    var" (id sırası) sayılır. Sıram tavanı aşıyorsa rezervasyon geri alınır ve 429 döner.
+    Yarışta sıralama id ile kesinleşir — ilk yazan geçer, sonrakiler reddedilir.
+    """
+    log = ApiCallLog(
+        user_id=user_id, provider=(provider or "?").lower(), model=model,
+        status=ApiCallStatus.failed,   # çağrı bitince success'e çevrilir (çöken istek de sayılır)
+        tool_calls_count=0, duration_ms=0,
+    )
+    db.add(log)
+    db.commit()
+
+    if kisisel_tavan:
+        today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+        sira = (
+            db.query(func.count(ApiCallLog.id))
+            .filter(ApiCallLog.user_id == user_id,
+                    ApiCallLog.called_at >= today_start,
+                    ApiCallLog.id <= log.id)
+            .scalar() or 0
+        )
+        if sira > kisisel_tavan:
+            db.delete(log)
+            db.commit()
+            raise HTTPException(
+                status_code=429,
+                detail="Bugunku koc kullanim hakkin doldu. Yarin yeniden sohbet edebilirsin — "
+                       "paneller ve hesaplamalar calismaya devam ediyor.",
+            )
+    return log
+
+
+def _rezervasyonu_tamamla(db: Session, log: ApiCallLog, provider: str, success: bool,
+                          duration_ms: int, tool_calls_count: int,
+                          error_message: Optional[str]) -> None:
+    """Rezerve edilen satırı çağrı sonucuyla günceller (BUG #212)."""
+    try:
+        log.provider = (provider or log.provider or "?").lower()
+        log.status = ApiCallStatus.success if success else ApiCallStatus.failed
+        log.duration_ms = duration_ms
+        log.tool_calls_count = tool_calls_count
+        # SEC-009: ham sağlayıcı hatası 300 karakterle sınırlı (KVKK export'una girer).
+        log.error_message = error_message[:300] if error_message else None
+        db.commit()
+    except Exception as e:  # noqa: BLE001 — muhasebe güncellemesi sohbeti kirletmez
+        logger.warning(f"ApiCallLog guncellemesi basarisiz: {e}")
+        db.rollback()
 
 
 def _log_api_call(
@@ -342,7 +428,9 @@ def chat(
     - usage: Gunluk Gemini limit kullanim orani (rate limit uyarisi icin)
     """
     engine = _get_engine()
-    provider_name = engine.provider_name.replace("Provider", "").lower()  # 'gemini' veya 'anthropic'
+    # BUG #212 (H17): muhasebe etiketi PAYLASILAN calisma-ani durumundan degil,
+    # yapilandirmadan turetilir (bkz. _muhasebe_saglayici_adi).
+    provider_name = _muhasebe_saglayici_adi(engine)
     model = engine.model
 
     # Pre-check: gunluk limit dolmussa cevap vermeden once uyar
@@ -364,6 +452,9 @@ def chat(
             detail="Koc su an yogun (gunluk kapasite doldu). Yarin yeniden dene — "
                    "paneller ve hesaplamalar calismaya devam ediyor.",
         )
+
+    # BUG #212 (H17): sayaci CAGRI ONCESI rezerve et — eszamanli istekler tavani delmesin.
+    rezervasyon = _kota_rezerve_et(db, user.id, provider_name, model, kisisel_tavan)
 
     # Asil cagri + sure olcumu
     t_start = time.time()
@@ -398,8 +489,8 @@ def chat(
     # günlük Gemini kotası doğru izlenir (aksi halde her çağrı "fallback" loglanıp gemini
     # sayacı hep 0 kalır, günlük-limit koruması ölür).
     logged_provider = (result.get("provider_used") or provider_name)
-    _log_api_call(
-        db, user.id, logged_provider, model,
+    _rezervasyonu_tamamla(
+        db, rezervasyon, logged_provider,
         success=success, duration_ms=duration_ms,
         tool_calls_count=tool_calls_count, error_message=error_msg,
     )

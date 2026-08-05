@@ -9,6 +9,10 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #211 fix (H16, bayat kur): _maybe_market_block artık iki dilli — sağlayıcı düştüğünde
+  fx_live son bilinen kuru `bayat=True` + `yas_dakika` ile döndürür; blok "SON BİLİNEN KUR
+  (BAYAT: X saat Y dakika önce)" der ve "ŞU ANKİ GÜNCEL KUR" ifadesini KULLANMAZ. Grounding
+  sayıları korunur (koç değeri yazabilsin), ama tazelik iddiası edilmez.
 - BUG #127 fix (STEP-E retry açığı): Zayıf sağlayıcı gerçekleşmiş eylemi düz metinle
   onaylayıp propose_action'ı unutabiliyordu (cevap ne boş ne sahte-niyet → eski koşul
   retry'ı kaçırıyordu; eval'de 2/8 action senaryosu böyle düşüyordu). Retry tetikleyicisine
@@ -823,6 +827,22 @@ def _maybe_market_block(user_message: str) -> Tuple[str, list]:
         return ("\n\n## CANLI PİYASA\n  - Canlı döviz verisi şu an alınamadı (ağ/servis). "
                 "Kur sorulursa UYDURMA; 'şu an canlı kuru çekemedim, güncel için bankana/döviz "
                 "sitesine bak' de.", [])
+    # BUG #211 (H16): sağlayıcı düştüğünde son bilinen kur BAYAT işaretiyle gelir.
+    # Bayat değeri "şu anki kur" diye sunmak, hiç sunmamaktan daha kötüdür — kullanıcı
+    # eski kura göre karar verir. Bu yüzden yaş açıkça yazılır ve dil değiştirilir.
+    if fx.get("bayat"):
+        yas = int(fx.get("yas_dakika") or 0)
+        yas_metni = f"{yas // 60} saat {yas % 60} dakika" if yas >= 60 else f"{yas} dakika"
+        block = (
+            f"\n\n## PİYASA — SON BİLİNEN KUR (BAYAT: {yas_metni} önce çekildi, "
+            f"canlı bağlantı şu an yok)\n"
+            f"  - USD/TRY: {_fmt(float(fx['usd_try']))} TL\n"
+            f"  - EUR/TRY: {_fmt(float(fx['eur_try']))} TL\n"
+            f"  (Kur sorulursa DEĞERİ VER ama 'şu anki/güncel' DEME. '{yas_metni} önceki "
+            f"kur' diye söyle ve canlıya şu an ulaşamadığını ekle.)"
+        )
+        return block, [float(fx['usd_try']), float(fx['eur_try'])]
+
     block = (
         f"\n\n## CANLI PİYASA — ŞU ANKİ GÜNCEL KUR (canlı çekildi: {fx['guncelleme']})\n"
         f"  - USD/TRY: {_fmt(float(fx['usd_try']))} TL\n"

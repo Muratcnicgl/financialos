@@ -595,6 +595,17 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 
 #### SIRADAKİ İŞLER (öncelik sırasıyla)
 
+0. 🔴 **KULLANICI BİLDİRİMİ — SIRADAKİ İLK İŞ (6 Ağu 2026, Murat).** *"Efe 5000 TL borç
+   ödendi işaretledim ama cockpit'te bakiyem artmadı."* Yani bir ALACAK tahsil edildi diye
+   işaretlendi, nakit tarafında karşılığı görünmedi. Şüphe yönü: tahsil işaretlemesi yalnız
+   alacağın kendi durumunu güncelliyor, karşı-kayıt (nakit hesap bakiyesi / işlem satırı)
+   üretilmiyor olabilir — yani **BUG #161 ailesinin (işaret konvansiyonu / `balance_delta`,
+   SBN-001) alacak-tahsili yolundaki kardeşi.** Kullanım-turu bulgusu: statik denetimin
+   bulamadığı sınıf (#232/#233 gibi). Ritim aynı: kanıtı davranış testine çevir (işaretle →
+   cockpit nakit ARTMALI) → düzelt → mutasyon → sınıf taraması (borç ödemesi, gelir tahsili,
+   abonelik, hedef katkısı aynı yoldan mı geçiyor) → tam süit → commit. **Denetimin ORTA
+   bulguları (D25…) bundan SONRA** — canlı kullanıcı verisiyle çelişen rakam her şeyden önce
+   gelir.
 1. **Denetimin ORTA bulguları (7 adet kaldı: D25…D30; D14/D15/D16/D17/D18/D19/D20/D21/
    D22/D23/D24 kapandı).** Öne çıkanlar:
    **D25** (fallback zincirindeki iki LLM sağlayıcısı KVKK envanterinde yok — *sıradaki iş*), **D26/D27/D28** (KVKK export'u şifre hash'i döküyor;

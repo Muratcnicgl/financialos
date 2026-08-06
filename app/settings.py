@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import lru_cache
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,54 @@ def safe_debt_buffer() -> float:
         return 2000.0
 
 
+# ============================================================
+# BUG #245 (D30) — PLACEHOLDER TESPİTİ: TEK KAYNAK
+# ============================================================
+# `.env.prod.example` git'te herkese açıktır; operatör onu kopyalayarak `.env.prod` üretir.
+# SECRET_KEY için placeholder reddi vardı ama SADECE onun için — aynı dosyadaki
+# `SUPPORT_EMAIL=destek@<alan-adin>` fail-fast'i de canlı kapıyı da YEŞİL geçiyordu.
+# Kök düzeltme desen eklemek değil kaynağı değiştirmek: placeholder'ın ne olduğunu ÖRNEK
+# DOSYANIN KENDİSİ söyler → yarın örneğe yeni bir anahtar eklenirse kapı onu da kapsar.
+ORNEK_ENV_YOLU = Path(__file__).resolve().parent.parent / ".env.prod.example"
+
+# NOT: "xxx" gibi genel diziler BİLİNÇLİ olarak listede değil — mevcut testlerin kullandığı
+# "x"*48 gibi geçerli (rastgele olmasa da güçlü) bir secret'ı yanlışlıkla reddediyordu.
+# Kapı ürünü kıramaz (L6): yalnız ÖRNEK DOSYADAN gelen ya da açıkça doldurma olan değerler.
+_PLACEHOLDER_IZLERI = ("replace", "changeme", "change_me", "<", ">", "example.com", "your-")
+
+
+@lru_cache(maxsize=1)
+def ornek_env_degerleri() -> dict[str, str]:
+    """`.env.prod.example` içindeki anahtar→değer (yorumlar ayıklanmış). Dosya yoksa boş."""
+    degerler: dict[str, str] = {}
+    try:
+        for satir in ORNEK_ENV_YOLU.read_text(encoding="utf-8").splitlines():
+            satir = satir.strip()
+            if not satir or satir.startswith("#") or "=" not in satir:
+                continue
+            anahtar, _, ham = satir.partition("=")
+            deger = ham.split("#")[0].strip().strip('"').strip("'")
+            if deger:
+                degerler[anahtar.strip()] = deger
+    except OSError:
+        pass        # imajda örnek dosya olmayabilir → desen kontrolü yine çalışır
+    return degerler
+
+
+def placeholder_mi(deger: str, anahtar: str | None = None) -> bool:
+    """Değer, örnek dosyadan kopyalanmış (gerçek olmayan) bir doldurma değeri mi?"""
+    if not deger:
+        return False
+    d = deger.strip()
+    ornekler = ornek_env_degerleri()
+    if anahtar and ornekler.get(anahtar, "").strip() == d:
+        return True
+    if d in ornekler.values():          # anahtar bilinmiyorsa da örnekteki değer placeholder'dır
+        return True
+    kucuk = d.lower()
+    return any(iz in kucuk for iz in _PLACEHOLDER_IZLERI)
+
+
 def secret_key_problems() -> list[str]:
     """SECRET_KEY ile ilgili güvenlik sorunlarını döndürür (boş liste = sorun yok)."""
     secret = os.getenv("SECRET_KEY", "").strip()
@@ -50,8 +100,8 @@ def secret_key_problems() -> list[str]:
         problems.append("SECRET_KEY 'dev-default' ile başlıyor (production'da yasak)")
     # MA3 (Wave-8): .env.prod.example placeholder'ı git'te herkese açık — operatör değiştirmezse
     # bilinen-secret'la deploy olur. "REPLACE" içeren placeholder'ı reddet (fail-fast).
-    elif "REPLACE" in secret:
-        problems.append("SECRET_KEY hâlâ .env.prod.example placeholder'ı (REPLACE_...) — gerçek değerle değiştir")
+    elif placeholder_mi(secret, "SECRET_KEY"):
+        problems.append("SECRET_KEY hâlâ .env.prod.example placeholder'ı — gerçek değerle değiştir")
     elif len(secret) < MIN_SECRET_ENTROPY:
         problems.append(f"SECRET_KEY yetersiz entropy (<{MIN_SECRET_ENTROPY} karakter)")
     return problems
@@ -86,6 +136,12 @@ def support_problems() -> list[str]:
         return ["SUPPORT_EMAIL tanımlı olmalı (giriş yapamayan kullanıcının tek kanalı)"]
     if "@" not in adres:
         return [f"SUPPORT_EMAIL geçerli bir e-posta değil: {adres!r}"]
+    # BUG #245 (D30): '@' içeriyor olmak yetmez — `destek@<alan-adin>` de içeriyordu ve
+    # hem fail-fast'i hem canlı kapıyı geçiyordu; teslim edilemeyen bir adres, adres YOKMUŞ
+    # gibi zarar verir (kullanıcı sessizce kaybedilir) ama iki kapı da "geçti" der.
+    if placeholder_mi(adres, "SUPPORT_EMAIL"):
+        return [f"SUPPORT_EMAIL hâlâ .env.prod.example placeholder'ı: {adres!r} — "
+                "gerçek, teslim edilebilir bir adres yaz"]
     return []
 
 

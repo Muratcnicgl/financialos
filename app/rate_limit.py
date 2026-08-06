@@ -40,6 +40,10 @@ _DEFAULTS = {
     "pwreset": (3, 3600),    # 3 / saat (e-posta bombing)
     "oauth": (10, 60),       # 10 / dakika
     "invite": (10, 3600),    # 10 / saat (davet spam'i — BUG #183)
+    # BUG #246 (D32): fiyat uçları DIŞ servise (TCMB EVDS) senkron çağrı yapar; kimlik
+    # artık zorunlu ama tek bir kullanıcı da operatörün dış kotasını yakabilir/threadpool'u
+    # doldurabilir. Panelin gerçek kullanımı (açılışta birkaç kur) bu tavanın çok altında.
+    "prices": (30, 60),      # 30 / dakika
 }
 
 _RATE: dict[str, deque] = defaultdict(deque)

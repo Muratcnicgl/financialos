@@ -5,15 +5,23 @@ R3 (14 Tem 2026): EVDS v3 geçişi (M19 regression fix) — evds2→evds3 canlı
 (USD alış 46.91 / satış 47.00, 14 Tem). Döviz kusursuz. Altın `TP.MK.F.BILESIK.TUM`
 TCMB **bileşik-fon endeksi** döner (gram-altın-TL değil; charter/PDF örnek serisi).
 
-Endpoint'ler PUBLIC (piyasa verisi, auth yok). Scheduler fx/gold hesaplarını
-`fetch_for_account` dispatch'i ile çeker (M12).
+BUG #246 fix (D32): uçlar artık PUBLIC DEĞİL. Piyasa verisi kullanıcı verisi taşımaz ama her
+istek TCMB EVDS'ye 30 sn timeout'lu SENKRON bir dış çağrı tetikliyordu; kimliksiz bir istemci
+bunu tekrarlayarak Starlette threadpool'unu doldurabilir (gerçek kullanıcı cockpit'e erişemez)
+ve operatörün EVDS kotasını yakabilirdi. Kimlik + hız sınırı: iki satırlık kapatma, karşılığı
+tüm uygulamanın erişilebilirliği. Scheduler fx/gold hesaplarını `fetch_for_account` dispatch'i
+ile çeker (M12) — o yol HTTP katmanından geçmez, etkilenmez.
 """
 from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
+from app.dependencies import get_current_user
+from app.models import User
+from app.rate_limit import rate_limit
 
 from app.price_providers.evds_client import fetch_currency_rate, fetch_gold_price
 
@@ -30,8 +38,14 @@ def _parse_date(d: Optional[str]) -> Optional[date]:
 
 
 @router.get("/currency/{currency_code}")
-def currency_price(currency_code: str, date_str: Optional[str] = Query(None, alias="date")) -> dict:
+def currency_price(
+    currency_code: str,
+    request: Request,
+    date_str: Optional[str] = Query(None, alias="date"),
+    user: User = Depends(get_current_user),   # BUG #246 (D32): kimliksiz dış çağrı yok
+) -> dict:
     """Döviz kuru alış+satış (TCMB EVDS v3). Örn: /api/prices/currency/USD."""
+    rate_limit(request, "prices")
     target = _parse_date(date_str)
     rate = fetch_currency_rate(currency_code, target)
     if not rate or (rate.get("buy") is None and rate.get("sell") is None):
@@ -50,11 +64,17 @@ def currency_price(currency_code: str, date_str: Optional[str] = Query(None, ali
 
 
 @router.get("/gold/{gold_type}")
-def gold_price(gold_type: str, date_str: Optional[str] = Query(None, alias="date")) -> dict:
+def gold_price(
+    gold_type: str,
+    request: Request,
+    date_str: Optional[str] = Query(None, alias="date"),
+    user: User = Depends(get_current_user),   # BUG #246 (D32)
+) -> dict:
     """Altın fiyatı (TCMB EVDS v3 bileşik-fon endeksi). Örn: /api/prices/gold/bilesik.
 
     NOT: TP.MK.F.BILESIK.TUM TCMB bileşik-fon endeksidir (gram-altın-TL değil).
     """
+    rate_limit(request, "prices")
     target = _parse_date(date_str)
     g = fetch_gold_price(gold_type, target)
     if not g:

@@ -122,8 +122,14 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
     kod, _b, kunye = _iste(f"{base}/api/meta")
     s.ekle("künye kimliksiz okunabiliyor", kod == 200, f"kod={kod}")
     destek = str(kunye.get("destek", ""))
+    # BUG #245 (D30): "@ var mı" yetmiyordu — `destek@<alan-adin>` placeholder'ı hem
+    # startup fail-fast'ini hem BU kapıyı yeşil geçiyordu. Teslim edilemeyen adres,
+    # adresin YOKLUĞU kadar zararlıdır; ölçüt tek kaynaktan gelir (app.settings).
+    from app.settings import placeholder_mi
     s.ekle("destek adresi tanımlı", "@" in destek,
            f"destek={destek!r} — SUPPORT_EMAIL set edilmemiş")
+    s.ekle("destek adresi placeholder değil", bool(destek) and not placeholder_mi(destek, "SUPPORT_EMAIL"),
+           f"destek={destek!r} — .env.prod.example placeholder'ı canlıda")
     s.ekle("destek adresi şahsi değil",
            not re.search(r"@(gmail|hotmail|outlook|yahoo|yandex)\.", destek),
            f"destek={destek!r} — ürün kimliğiyle konuşmalı", zorunlu=False)

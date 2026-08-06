@@ -9,6 +9,7 @@ Tek-kullanici MVP. Bu router multi-user'a hazir ama simdilik tek kayit kuralin.
 """
 
 import enum
+import re
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional
@@ -19,6 +20,11 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.data_subject import disa_aktar  # BUG #243: KVKK export TEK KAYNAK
+
+# BUG #246 (D33): ISO-4217 kodları — uygulamanın gerçekten sunabildiği kümeyle sınırlı
+# (hepsi TL tabanlı gösterilse de kullanıcının seçimi kayıt altına alınır ve dışa aktarılır).
+DESTEKLENEN_PARA_BIRIMLERI = {"TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AUD", "CAD"}
+_LOCALE_DESENI = re.compile(r"^[a-z]{2}(-[A-Z]{2})?$")
 from app.models import (
     User, Account, Transaction, RecurringIncome, RecurringExpense, PersonalDebt,
     Goal, Envelope, MasterCheckpoint, NetWorthSnapshot, CoachMemory, CoachInsight,
@@ -132,10 +138,22 @@ def update_user(
         except Exception:
             raise HTTPException(422, f"Gecersiz saat dilimi: {payload.timezone}")
         user.timezone = payload.timezone
+    # BUG #246 (D33): para birimi ve locale DOĞRULANMADAN saklanıyordu ('XYZ', '!!!', '   '
+    # hepsi 200 dönüyordu) — oysa aynı uçtaki timezone dalı geçersiz değeri reddediyor.
+    # Kullanıcı "ayarladım" sanar, arayüz sabit TL gösterir, tutarları YANLIŞ para biriminde
+    # okur; bozuk değer KVKK export'una da aynen girer.
     if payload.currency is not None:
-        user.currency = payload.currency.upper()
+        kod = payload.currency.strip().upper()
+        if kod not in DESTEKLENEN_PARA_BIRIMLERI:
+            raise HTTPException(
+                422, f"Gecersiz para birimi: {payload.currency!r}. "
+                     f"Desteklenenler: {', '.join(sorted(DESTEKLENEN_PARA_BIRIMLERI))}")
+        user.currency = kod
     if payload.locale is not None:
-        user.locale = payload.locale
+        yerel = payload.locale.strip()
+        if not _LOCALE_DESENI.match(yerel):
+            raise HTTPException(422, f"Gecersiz locale: {payload.locale!r} (or. 'tr-TR')")
+        user.locale = yerel
     db.commit()
     db.refresh(user)
     return user

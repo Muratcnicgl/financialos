@@ -157,6 +157,19 @@ docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d fi
 docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d financialos -c "SELECT count(*) FROM pg_stat_activity;"
 ```
 
+## Süit ↔ canlı veri izolasyonu (yılda bir / şüphelenince)
+
+Canlı DB'nin `error_logs` tablosunda test kalıntıları bulundu (tarihsel: BUG #078 + #235).
+"Artık dokunmuyor" bir İDDİA'dır; ölç:
+
+```sh
+.env\Scripts\python.exe -m scripts.suite_db_izolasyon_kontrolu
+```
+
+Canlı DB'nin KOPYASINI alır, süiti o kopyaya karşı koşturur, öncesi/sonrası tüm tabloların
+satır sayılarını karşılaştırır. Tek satır bile değişirse çıkış kodu 1 ve hangi tablo olduğu
+yazılır. (6 Ağu 2026 ölçümü: **TEMİZ** — 2040 test, 0 satır.)
+
 ## Beta işletimi (P7)
 
 > **BUG #249 (D40): bu komutlar konteyner İÇİNDE koşar.** Host kabuğunda `DATABASE_URL`

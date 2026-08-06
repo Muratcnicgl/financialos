@@ -2664,7 +2664,11 @@ class CoachEngine:
                                 dedup_key=inp.get("dedup_key", ""),
                                 expires_at=inp.get("expires_at"),
                             )
-                            logger.info(f"save_insight: [{result.dedup_key}] {result.content[:60]}")
+                            # BUG #244 (D29): içgörü METNİ kullanıcının finansal/kişisel
+                            # verisidir — log'a düşmez (BUG #180 ilkesi). Teşhis için
+                            # dedup anahtarı + uzunluk yeter.
+                            logger.info("save_insight: [%s] %d karakter",
+                                        result.dedup_key, len(result.content or ""))
                             s.observation = "Insight kaydedildi"
                         except Exception as e:
                             s.observation = f"Hata: {str(e)[:200]}"

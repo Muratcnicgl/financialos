@@ -37,7 +37,10 @@ if DATABASE_URL.startswith("sqlite:///"):
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
 # M49: dialect-aware engine kwargs
-_engine_kwargs = {"echo": False}
+# BUG #244 (D29): SQLAlchemy istisna metinleri bound parameter'ları (ad, e-posta, şifre
+# hash'i) taşıyordu ve bu metin traceback ile log'a/hata kaydına giriyordu. En sağlam
+# savunma KAYNAKTA: parametreler istisnaya hiç girmesin (maskeleme ikinci katman kalır).
+_engine_kwargs = {"echo": False, "hide_parameters": True}
 if IS_SQLITE:
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 elif IS_POSTGRES:

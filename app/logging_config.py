@@ -25,8 +25,11 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": record.getMessage(),
         }
-        if record.exc_info:
-            payload["exc"] = self.formatException(record.exc_info)
+        if record.exc_info or record.exc_text:
+            # BUG #244 (D29): `formatException(exc_info)` istisnayı HAM hâlinden yeniden
+            # üretir ve maskeleyicinin `exc_text`'e yazdığı temiz metni ATLAR. Maskelenmiş
+            # metin varsa O kullanılır — filtre ile formatter aynı gerçeği görmeli.
+            payload["exc"] = record.exc_text or self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
 
 
@@ -40,9 +43,15 @@ def setup_logging() -> Path | None:
     backups = int(os.getenv("LOG_ROTATION_BACKUP", "5"))
     formatter: logging.Formatter = JsonFormatter() if is_production() else logging.Formatter(_TEXT_FMT)
 
+    # BUG #244 (D29): PII/sır maskeleyicisi logging zincirine YAPISAL olarak bağlanır —
+    # tek tek çağrı yerlerine bırakılırsa unutulur (L24) ve dosyaya ham traceback düşer.
+    from app.error_tracking import LogMaskeleyici
+    maskeleyici = LogMaskeleyici()
+
     handlers: list[logging.Handler] = []
     console = logging.StreamHandler()
     console.setFormatter(formatter)
+    console.addFilter(maskeleyici)
     handlers.append(console)
 
     active_dir: Path | None = None
@@ -55,6 +64,7 @@ def setup_logging() -> Path | None:
             encoding="utf-8",
         )
         fh.setFormatter(formatter)
+        fh.addFilter(maskeleyici)
         handlers.append(fh)
         active_dir = log_dir
     except OSError as e:  # read-only/izin → console yeterli (fail-safe)

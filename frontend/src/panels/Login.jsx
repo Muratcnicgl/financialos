@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import SistemDurumu from '../components/SistemDurumu.jsx';
 import { LogIn, UserPlus, Loader2, AlertTriangle, KeyRound, MailCheck } from 'lucide-react';
 import { authApi, metaApi } from '../api.js';
 
@@ -20,6 +21,7 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
   // P8 (BUG #210): destek kanalı + kayıt modu. Giriş yapamayan kullanıcının
   // uygulama-içi geri bildirim widget'ına da erişimi yoktur; tek kanal budur.
   const [meta, setMeta] = useState(null);
+  const [durumAcik, setDurumAcik] = useState(false);  // BUG #253: kimliksiz sistem durumu
 
   useEffect(() => {
     let iptal = false;
@@ -218,6 +220,12 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
         {meta && (
           <div className="pt-4 mt-4 border-t border-zinc-700/60 text-center text-[11px] text-zinc-500 space-y-1">
             <div>
+              <button type="button" onClick={() => setDurumAcik(true)}
+                      className="text-zinc-400 hover:text-brand-400 underline">
+                Sistem durumunu kontrol et
+              </button>
+            </div>
+            <div>
               Sorun mu var?{' '}
               {meta.destek?.includes('@') ? (
                 <a href={`mailto:${meta.destek}`} className="text-zinc-400 hover:text-brand-400 underline">
@@ -238,6 +246,7 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
           </div>
         )}
       </div>
+      {durumAcik && <SistemDurumu onClose={() => setDurumAcik(false)} />}
     </div>
   );
 }

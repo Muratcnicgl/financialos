@@ -20,14 +20,26 @@ Iki tetikleme hatti:
 
 Multi-user destegi: gece batch tum aktif user'lari DB'den cekip her biri icin
 extractor'lari sirayla calistirir. Bir extractor cokerse digerleri etkilenmez.
+
+GUNCELLEMELER
+-------------
+BUG #240 fix (D24): planlanan 5 isten 3'u (k2_batch, nightly_trace_cleanup,
+weekly_smoke_test) hicbir SchedulerRun kaydi acmiyordu — cunku kayit cagrilari iki
+job'in GOVDESINE elle yazilmisti. `/api/ops/scheduler` is adlarini o tablodan
+turettigi icin bu uc is UCTA HIC GORUNMUYORDU: KVKK'da soz verilen 90-gun saklama
+isi haftalarca olu kalsa kimse fark etmezdi. Kayit artik yapisal — `PLANLI_ISLER`
+tek kaynagi + `_izlenen_is` sarmalayicisi; govdeye tek satir yazilmasa da her
+calisma kaydedilir ve planli-ama-hic-calismamis is uctan gorunur.
 """
 
 from __future__ import annotations
 
+import functools
 import logging
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Iterator
+from typing import Any, Awaitable, Callable, Iterator
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -211,38 +223,65 @@ def _kayit_bitir(kayit_id, ok: bool, detail: str = "") -> None:
         logger.exception("[scheduler] calisma kaydi kapatilamadi")
 
 
-async def nightly_batch_job():
+def _izlenen_is(job_name: str, *, yeniden_firlat: bool = False):
+    """BUG #240 (D24): planlanan işin çalışma kaydını YAPISAL olarak açar/kapatır.
+
+    Önce kayıt çağrıları job gövdelerine elle yazılıyordu; beş işten üçünde yazar bunu
+    unutmuştu ve unutulduğu hiçbir yerde ölçülmüyordu. Sarmalayıcı sayesinde `PLANLI_ISLER`'e
+    eklenen her iş — gövdesine tek satır bile yazılmadan — görünür olur.
+
+    İş bir özet string döndürürse kayda `detail` olarak düşer (KVKK saklama işinin sildiği
+    satır sayısı gibi doğrulanabilir kanıtlar burada yaşar). Hata: kayıt `ok=False` kapanır;
+    `yeniden_firlat=False` ise akış (APScheduler) düşmez.
+    """
+    def dekorator(fn: Callable[[], Awaitable[Any]]) -> Callable[[], Awaitable[Any]]:
+        @functools.wraps(fn)
+        async def sarmal(*args, **kwargs):
+            kayit_id = _kayit_basla(job_name)
+            try:
+                sonuc = await fn(*args, **kwargs)
+            except Exception as e:
+                logger.exception("[scheduler] %s basarisiz", job_name)
+                _kayit_bitir(kayit_id, False, type(e).__name__)
+                if yeniden_firlat:
+                    raise
+                return None
+            _kayit_bitir(kayit_id, True, sonuc if isinstance(sonuc, str) else "")
+            return sonuc
+
+        sarmal._izlenen_is_adi = job_name  # kapsam kapısı bunu okur (tests/test_scheduler_kayit_kapisi.py)
+        return sarmal
+    return dekorator
+
+
+@_izlenen_is("nightly_batch")
+async def nightly_batch_job() -> str:
     """APScheduler cron job - gece 03:00 calisir, tum user'lar icin batch."""
     logger.info(f"Nightly batch job started at {datetime.utcnow().isoformat()}")
-    _kayit = _kayit_basla("nightly_batch")   # BUG #203
-    try:
-        with _db_session() as db:
-            user_ids = _get_active_user_ids(db)
-            for uid in user_ids:
-                results = run_periodic_batch_for_user(db, uid)
-                logger.info(f"Nightly batch for user {uid}: {results}")
-        _kayit_bitir(_kayit, True, f"{len(user_ids)} kullanici")  # BUG #203
-    except Exception as e:
-        logger.exception(f"Nightly batch job failed globally: {e}")
-        _kayit_bitir(_kayit, False, type(e).__name__)
+    with _db_session() as db:
+        user_ids = _get_active_user_ids(db)
+        for uid in user_ids:
+            results = run_periodic_batch_for_user(db, uid)
+            logger.info(f"Nightly batch for user {uid}: {results}")
     logger.info(f"Nightly batch job completed at {datetime.utcnow().isoformat()}")
+    return f"{len(user_ids)} kullanici"
 
 
-async def k2_batch_job():
+@_izlenen_is("k2_batch")
+async def k2_batch_job() -> str:
     """APScheduler cron job - gece 03:30, K2 LLM consolidation."""
     logger.info(f"K2 batch job started at {datetime.utcnow().isoformat()}")
-    try:
-        with _db_session() as db:
-            user_ids = _get_active_user_ids(db)
-            for uid in user_ids:
-                results = run_k2_batch_for_user(db, uid)
-                logger.info(f"K2 batch for user {uid}: {results}")
-    except Exception as e:
-        logger.exception(f"K2 batch job failed globally: {e}")
+    with _db_session() as db:
+        user_ids = _get_active_user_ids(db)
+        for uid in user_ids:
+            results = run_k2_batch_for_user(db, uid)
+            logger.info(f"K2 batch for user {uid}: {results}")
     logger.info(f"K2 batch job completed at {datetime.utcnow().isoformat()}")
+    return f"{len(user_ids)} kullanici"
 
 
-async def nightly_trace_cleanup_job() -> None:
+@_izlenen_is("nightly_trace_cleanup", yeniden_firlat=True)
+async def nightly_trace_cleanup_job() -> str:
     """
     Reasoning trace retention job.
 
@@ -253,6 +292,9 @@ async def nightly_trace_cleanup_job() -> None:
     and debugging, short enough to keep the single-file SQLite
     database lean. Idempotent: re-running has no effect if the
     table is already trimmed.
+
+    BUG #240: silinen satır sayısı çalışma kaydına düşer — KVKK'da verilen 90-gün
+    saklama sözü ancak SAYIYLA doğrulanabilir (log okumak kanıt değildir).
     """
     db = SessionLocal()
     try:
@@ -268,6 +310,7 @@ async def nightly_trace_cleanup_job() -> None:
             deleted,
             cutoff.isoformat(),
         )
+        return f"{deleted} trace silindi (90 gun)"   # BUG #240
     except Exception:  # noqa: BLE001
         db.rollback()
         logger.exception("[trace_cleanup] failed; rolled back transaction")
@@ -276,7 +319,8 @@ async def nightly_trace_cleanup_job() -> None:
         db.close()
 
 
-async def fetch_investment_prices_job() -> None:
+@_izlenen_is("fetch_investment_prices")
+async def fetch_investment_prices_job() -> str:
     """
     Günlük yatırım fiyat çekimi (M4 / ADR-029). Tüm `investment` hesaplarının fiyatını
     çeker (fund_code → TEFAS/pytefas), `Account.current_price` + `PriceHistory` günceller.
@@ -285,7 +329,6 @@ async def fetch_investment_prices_job() -> None:
     """
     from app.price_providers import fetch_for_account, record_investment_price
     from app.models import Account, AccountType
-    _kayit = _kayit_basla("fetch_investment_prices")   # BUG #203
     db = SessionLocal()
     try:
         accounts = db.query(Account).filter(Account.account_type == AccountType.investment).all()  # scope-exempt: SİSTEM cron'u — piyasa fiyatı tüm kullanıcıların yatırım hesapları için tazelenir (kullanıcı verisi okunmaz/karışmaz)
@@ -305,16 +348,16 @@ async def fetch_investment_prices_job() -> None:
                 logger.warning("[price] %s (%s): fiyat çekilemedi (elle giriş gerekebilir)",
                                acc.name, acc.fund_code)
         logger.info("[price] %d/%d yatırım hesabı güncellendi", updated, len(accounts))
-        _kayit_bitir(_kayit, True, f"{updated}/{len(accounts)} hesap guncellendi")  # BUG #203
-    except Exception as e:
-        db.rollback()
-        logger.exception("[price] fetch_investment_prices_job başarısız")
-        _kayit_bitir(_kayit, False, type(e).__name__)  # BUG #203: sessiz olum YOK
+        return f"{updated}/{len(accounts)} hesap guncellendi"
+    except Exception:
+        db.rollback()   # BUG #240: kayıt sarmalayıcıya bırakıldı, oturum temizliği burada kalır
+        raise
     finally:
         db.close()
 
 
-async def weekly_smoke_test_job() -> None:
+@_izlenen_is("weekly_smoke_test")
+async def weekly_smoke_test_job() -> str:
     """
     M37 (Wave-4) — Haftalık dış API canlı smoke testi (pazartesi 05:00 Istanbul).
 
@@ -325,16 +368,60 @@ async def weekly_smoke_test_job() -> None:
     """
     from app.services.smoke_tests import run_all_smoke_tests, capture_smoke_failures
     logger.info("[smoke] haftalık smoke test başladı %s", datetime.utcnow().isoformat())
-    try:
-        results = run_all_smoke_tests()
-        for r in results:
-            level = logger.info if r["ok"] else logger.warning
-            level("[smoke] %s %s: %s", "OK" if r["ok"] else "FAIL", r["api"], r["detail"])
-        captured = capture_smoke_failures(results)
-        if captured:
-            logger.warning("[smoke] %d başarısızlık ledger'a yakalandı (SMOKE_FAIL)", captured)
-    except Exception:  # noqa: BLE001
-        logger.exception("[smoke] weekly_smoke_test_job başarısız")
+    results = run_all_smoke_tests()
+    for r in results:
+        level = logger.info if r["ok"] else logger.warning
+        level("[smoke] %s %s: %s", "OK" if r["ok"] else "FAIL", r["api"], r["detail"])
+    captured = capture_smoke_failures(results)
+    if captured:
+        logger.warning("[smoke] %d başarısızlık ledger'a yakalandı (SMOKE_FAIL)", captured)
+    return f"{len(results)} api, {captured} basarisiz"
+
+
+@dataclass(frozen=True)
+class PlanliIs:
+    """Zamanlanmış işin TEK kaynağı: hem APScheduler hem görünürlük ucu bunu okur.
+
+    `beklenen_periyot_saat` "bu iş ne sıklıkla koşmalı" sorusunun makine-okunur cevabı —
+    `/api/ops/scheduler` bayat kalmış işi (gecikti) bununla işaretler. Kayıt tek başına
+    yetmez: kimse bakmazsa haftalarca koşmamış iş yine sessizce ölür.
+    """
+    ad: str
+    fonksiyon: Callable[[], Awaitable[Any]]
+    cron: dict
+    beklenen_periyot_saat: float
+
+
+# BUG #240 (D24): planlı işlerin TEK KAYNAĞI. Yeni iş buraya eklenir; `add_job` doğrudan
+# çağrılmaz (kapsam kapısı: tests/test_scheduler_kayit_kapisi.py).
+PLANLI_ISLER: tuple[PlanliIs, ...] = (
+    PlanliIs("fetch_investment_prices", fetch_investment_prices_job,
+             {"hour": 2, "minute": 45}, 24),
+    PlanliIs("nightly_batch", nightly_batch_job, {"hour": 3, "minute": 0}, 24),
+    PlanliIs("k2_batch", k2_batch_job, {"hour": 3, "minute": 30}, 24),
+    PlanliIs("nightly_trace_cleanup", nightly_trace_cleanup_job, {"hour": 4, "minute": 0}, 24),
+    PlanliIs("weekly_smoke_test", weekly_smoke_test_job,
+             {"day_of_week": "mon", "hour": 5, "minute": 0}, 168),  # M37: haftalık dış API smoke
+)
+
+
+@dataclass(frozen=True)
+class DisPlanliIs:
+    """Uygulama SÜRECİ DIŞINDA koşan ama aynı uçtan izlenen iş (compose servisi / timer).
+
+    BUG #240 sınıf taraması: prod yedeği de yalnız konteyner log'una yazıyordu. Yedek,
+    beta verisinin tek kopyası — sessizce ölmesi cron'un ölmesinden ağırdır. Kaydı işin
+    kendisi yazar (`deploy/pg_backup.sh`), burada yalnız "beklenen" tarafı tanımlıdır:
+    kayıt hiç gelmiyorsa uç bunu `hic_calismadi`/`gecikti` olarak söyler.
+    """
+    ad: str
+    beklenen_periyot_saat: float
+    yazan: str
+
+
+DIS_PLANLI_ISLER: tuple[DisPlanliIs, ...] = (
+    DisPlanliIs("pg_backup", 24, "deploy/pg_backup.sh"),
+)
 
 
 def start_scheduler() -> AsyncIOScheduler:
@@ -345,41 +432,14 @@ def start_scheduler() -> AsyncIOScheduler:
 
     _scheduler = AsyncIOScheduler(timezone="Europe/Istanbul")
 
-    _scheduler.add_job(
-        fetch_investment_prices_job,
-        CronTrigger(hour=2, minute=45),
-        id="fetch_investment_prices",
-        replace_existing=True,
-        misfire_grace_time=3600,
-    )
-    _scheduler.add_job(
-        nightly_batch_job,
-        CronTrigger(hour=3, minute=0),
-        id="nightly_batch",
-        replace_existing=True,
-        misfire_grace_time=3600,  # 1 saat icinde gecikirse yine calistir
-    )
-    _scheduler.add_job(
-        k2_batch_job,
-        CronTrigger(hour=3, minute=30),
-        id="k2_batch",
-        replace_existing=True,
-        misfire_grace_time=3600,
-    )
-    _scheduler.add_job(
-        nightly_trace_cleanup_job,
-        CronTrigger(hour=4, minute=0),
-        id="nightly_trace_cleanup",
-        replace_existing=True,
-        misfire_grace_time=3600,
-    )
-    _scheduler.add_job(
-        weekly_smoke_test_job,
-        CronTrigger(day_of_week="mon", hour=5, minute=0),  # M37: haftalık dış API smoke
-        id="weekly_smoke_test",
-        replace_existing=True,
-        misfire_grace_time=3600,
-    )
+    for plan in PLANLI_ISLER:   # BUG #240: elle add_job YOK — liste tek kaynak
+        _scheduler.add_job(
+            plan.fonksiyon,
+            CronTrigger(**plan.cron),
+            id=plan.ad,
+            replace_existing=True,
+            misfire_grace_time=3600,   # 1 saat icinde gecikirse yine calistir
+        )
 
     _scheduler.start()
     logger.info("FinancialOS scheduler started: prices 02:45, nightly_batch 03:00, k2_batch 03:30, "

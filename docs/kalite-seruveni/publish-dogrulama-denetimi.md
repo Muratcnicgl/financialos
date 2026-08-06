@@ -1183,7 +1183,22 @@ DISKTEN DOGRULANDI, curutulemedi. (1) app/coach.py:891 satiri iddia edildigi gib
 
 ### D24 · [orta] 5 cron isinden 3'u hicbir kayit tutmuyor — KVKK 90-gun saklama isi dahil sessizce olebilir
 
-- **Boyut:** dayaniklilik · **Yer:** `app/scheduler.py:231` · **Durum:** ⬜ AÇIK
+- **Boyut:** dayaniklilik · **Yer:** `app/scheduler.py:231` · **Durum:** ✅ KAPANDI (BUG #240, 6 Ağu 2026)
+
+> **Kapanış (BUG #240).** Kayıt çağrıları iki job'ın GÖVDESİNE elle yazılmıştı; düzeltme
+> tek tek eksik çağrıları eklemek DEĞİL, kaydı yapısal kılmak oldu: `PLANLI_ISLER` (planlı
+> işlerin tek kaynağı — `start_scheduler` artık elle `add_job` çağırmıyor) + `_izlenen_is`
+> sarmalayıcısı; gövdeye tek satır yazılmadan her iş kayıt bırakır. `nightly_trace_cleanup`
+> **kaç satır sildiğini** kaydeder → KVKK 90-gün taahhüdü artık sayıyla doğrulanabilir.
+> İkinci yarısı ucun körlüğüydü: `/api/ops/scheduler` iş adlarını `SchedulerRun`'dan
+> türettiği için **hiç koşmamış (= tam da ölü olan) iş görünmüyordu**; adlar artık
+> `PLANLI_ISLER`'den gelir, `hic_calismadi`/`gecikti`/`sorunlu_isler` alanları eklendi.
+> **Sınıf taraması (L11):** (a) aynı sınıf compose yedeğinde de vardı — `pg_backup.sh`
+> çıkış kodu yalnız konteyner log'una düşüyordu; artık `scheduler_runs`'a yazıyor
+> (`DIS_PLANLI_ISLER`) ve aynı uçtan izleniyor. (b) Bu değişikliğin KENDİ yarattığı tuzak:
+> `scripts/live_gate.py` "cron çalıştı mı"yı `bool(isler)` ile ölçüyordu — liste artık hep
+> dolu olduğu için kapı sessizce hep-yeşile dönerdi; ölçüt `hic_calisma_yok`/`hic_calismadi`/
+> `gecikti`'ye taşındı. Kapılar: `tests/test_scheduler_kayit_kapisi.py` (14). Dersler: **L23, L24.**
 - **Neden yayın engeli / etki:** trace_cleanup patlarsa ReasoningTrace satirlari (kullanicinin finansal akil-yurutme icerigi) 90 gunu asarak birikmeye devam eder ve bunu KIMSE goremez — kullaniciya verilen KVKK saklama taahhudu sessizce ihlal edilir (hukuki risk). k2_batch olurse koc hafizasi bayatlar, kullanici bunu bilmez. 'Cron calisti mi?' sorusunun cevabi bu 3 is icin, ops ucu ve testler var olmasina ragmen, hala konteyner log'unu elle okumaktan ibaret.
 
 <details><summary>Kanıt</summary>

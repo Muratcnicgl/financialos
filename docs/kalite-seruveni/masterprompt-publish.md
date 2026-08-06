@@ -46,7 +46,7 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
   (Murat tüm işlemleri önceden onayladı) — **tek istisna §9 İNSAN-KAPISI**.
 - **GERİLEME YASAK.** Bu masterprompt yalnız ileri yönlü güncellenir (§12).
 
-### §1.3 DERS-KURALLARI L1-L22 (v2.0+ — YALNIZ EKLENİR)
+### §1.3 DERS-KURALLARI L1-L24 (v2.0+ — YALNIZ EKLENİR)
 
 > Not: `D1` §1'de **sektör referansı** kuralıdır; karışmasın diye ders-kuralları **L** ile numaralanır.
 
@@ -76,6 +76,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L19 | **Bir güvenlik katmanının "açık" olması, ONU ETKİSİZ KILAN bir yapılandırmayla birlikte yaşayabilir.** Migration doğru, policy doğru, test doğru olabilir — ve katman yine de sıfır iş yapıyor olabilir, çünkü ölçülmeyen bir ÖNKOŞUL (bağlanılan rol, çalışan kullanıcı, aktif profil) yanlıştır. Katmanın VARLIĞINI değil, **önkoşulunu** teste bağla; üstelik önkoşulu bozan tarif genelde dokümanda yazılıdır, yani operatör *dokümanı doğru uygulayarak* savunmayı kapatır. | #238 (12 tabloda ENABLE+FORCE RLS vardı; uygulama bootstrap SUPERUSER ile bağlanıyordu → her policy bypass; aynı yanlış tarif 4 belgede daha) |
 | L20 | **Bir gate'in "prod'u temsil ediyorum" diyen yorumu, doğrulanmamış bir köprüdür.** Kurgusunu kendi eliyle yaratan bir kapı (rol, kullanıcı, ortam) prod'un gerçeğini değil kendi kurgusunu ölçer ve yeşil kalır. Gate, prod'un **gerçek kurulum kodunu** çağırmalı. | #238 (`test_rls_postgres.py` rolü elde yaratıp "prod'daki app-rolünü temsil eder" diyordu; gate koşsaydı bile gerçek rolü ölçmeyecekti) |
 | L21 | **Bir sinyal "hesaplanıyor" olabilir ve yine de karar veren katmana HİÇ ulaşmayabilir.** Türetilmiş veriyi (tazelik, risk işareti, bayrak) yalnız bir sunum katmanında (router/panel) üretirsen, aynı kaynağı DOĞRUDAN tüketen diğer yollar (LLM bağlamı, motor, snapshot) onu asla görmez — ve "veri var" görüntüsü kimseyi kaynağa bakmaya sevk etmez. Sinyali üretildiği yere değil, **ona göre karar verilen sözleşmeye** koy; sonra kapsam tabanını assert et. | #239 (`is_stale`/`age_text` yalnız `routers/cockpit.py`'de ekleniyordu; koç/premortem/snapshot cockpit'i doğrudan çağırdığı için bayat fiyatı "güncel değer" diye sunuyorlardı) |
+| L23 | **Bir şeyin YOKLUĞUNU raporlaması gereken yüzey, envanterini o şeyin ÇIKTISINDAN türetemez.** "Hangi işler var" sorusunu çalışma kayıtlarından (ya da "hangi kullanıcı var"ı log'dan, "hangi entegrasyon var"ı başarılı isteklerden) türeten her uç, tam da bozuk olan öğeyi — hiç çıktı üretmeyeni — göremez ve **boş liste "her şey yolunda" gibi okunur.** Envanter, izlenenden BAĞIMSIZ bir kaynaktan (beyan edilmiş liste) gelmeli; ölçüm ona göre eşleştirilmeli. Yan tuzak: envanter beyandan gelmeye başlayınca liste hep dolu olur — "kaç kayıt var" ile "kaç iş tanımlı" ölçütünü karıştıran eski tüketici (canlı kapı) sessizce hep-yeşile döner, onu da aynı commit'te düzelt. | #240 (`/api/ops/scheduler` iş adlarını `SchedulerRun` tablosundan türetiyordu → hiç kaydı olmayan 3 iş uçta HİÇ yoktu; canlı kapı `bool(isler)` ile "cron çalıştı" sanıyordu) |
+| L24 | **İzleme çağrısı işin GÖVDESİNE yazılıyorsa, unutulması an meselesidir — kaydı planlama noktasına bağla.** "Her iş kaydını açar" bir konvansiyon değil, bir sözleşmedir: sarmalayıcı/kayıt noktası yapısal olarak uygularsa yeni iş ekleyen kişi unutamaz. Ve sözleşmeyi **iş listesinin kendisi üzerinden** assert et (her planlı iş için: koştur → kayıt var mı) — "beş işten üçü unutulmuş" ancak listeyi gezen bir kapıyla görülür. Aynı tarama işin *dışarıda* koşan kardeşlerini de kapsamalı (yedek/timer/compose döngüsü): en kritik iş çoğu zaman uygulama sürecinin dışındadır. | #240 (`_kayit_basla` iki job gövdesine elle yazılmıştı; KVKK 90-gün saklama işi dahil 3'ü kayıtsızdı — prod yedeği de yalnız konteyner log'una yazıyordu) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -432,20 +434,40 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 **Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. **Yerel `main`, `origin`'in 78
 commit önünde** — push Murat'ın kararı, sorulmadan yapılmadı.
-**Test tabanı:** `1847 passed, 9 skipped` (backend; skip'lerin 8'i Postgres gerektirir ve
+**Test tabanı:** `1861 passed, 9 skipped` (backend; skip'lerin 8'i Postgres gerektirir ve
 **artık CI'da gerçekten koşar**) + `139 passed` (vitest). Kırmızı yok.
 
-**Bu oturumda (6 Ağu) ORTA bulgu turu açıldı — 5 commit, 6 bulgu kapandı:** #234 (D14+D15
+**Bu oturumda (6 Ağu) ORTA bulgu turu açıldı — 7 bulgu kapandı:** #234 (D14+D15
 kota muhasebesi), #235 (D21 test kirliliği, kökten), #236 (D18 imajdaki kişisel veri),
 **#237 (D17 saat dilimi — koçun kaydettiği işlem kalıcı olarak yanlış güne yazılıyordu)**,
-**#238 (D22 — belgelenen RLS savunması prod'da fiilen yoktu)**.
+**#238 (D22 — belgelenen RLS savunması prod'da fiilen yoktu)**, #239 (D23 bayat fiyat
+"güncel" sunuluyordu), **#240 (D24 — 5 cron işinden 3'ü kayıt tutmuyordu, KVKK saklama işi
+dahil)**.
 Beşinde de aynı ritim: kanıtı davranış testine çevir → düzelt → **mutasyon kontrolü** →
 **sınıf taraması (L11)** → tam süit → ayrı commit + ledger + rapor satırı. Sınıf taraması
 bu turda da işe yaradı: #234'te iki ek LLM yolu, #236'da dört ek dosya, **#237'de denetimin
 listelediği 8 yerin ötesinde 12 yer daha**, #238'de self-host compose'un aynı superuser
 reçetesi + eksik placeholder fail-fast'i.
-**Sıradaki:** D24 (5 cron işinden 3'ü hiçbir kayıt tutmuyor — KVKK 90-gün saklama işi dahil
-sessizce ölebilir).
+**Sıradaki:** D25 (fallback zincirindeki iki LLM sağlayıcısı — Together AI, DeepInfra —
+KVKK veri-işleyen envanterinde hiç yok; "envanter kodla kilitlenir" diyen test 4 ismi sabit
+kodluyor, kod tarafını hiç okumuyor).
+
+> **6 Ağu 2026 — D24 kapandı (BUG #240) ve "envanterini izlediği şeyin çıktısından türeten
+> yüzey" sınıfı.** Planlanan beş cron işinden üçü (`k2_batch`, `nightly_trace_cleanup`,
+> `weekly_smoke_test`) hiçbir `SchedulerRun` satırı açmıyordu — çünkü kayıt çağrıları iki
+> job'ın **gövdesine elle** yazılmıştı. Kullanıcıya KVKK metninde verilen 90-gün saklama
+> sözünü uygulayan tek kod yolu haftalarca ölü kalsa kimse göremezdi. Fix tek tek eksik
+> çağrıları eklemek değil: `PLANLI_ISLER` tek kaynak + `_izlenen_is` sarmalayıcısı → yeni iş
+> ekleyen kişi kaydı **unutamaz** (**L24**); saklama işi kaç satır sildiğini kaydeder, yani
+> taahhüt log okumadan sayıyla doğrulanır. İkinci yarısı ucun körlüğüydü: `/api/ops/scheduler`
+> iş adlarını `SchedulerRun`'dan türetiyordu, yani **hiç koşmamış = tam da ölü olan** iş hiç
+> görünmüyor, boş liste "her şey yolunda" gibi okunuyordu (**L23**) → adlar beyan edilmiş
+> listeden gelir, `hic_calismadi`/`gecikti`/`sorunlu_isler` eklendi. **Sınıf taraması (L11)**
+> iki şey buldu: (a) aynı defekt compose **yedeğinde** de vardı — `pg_backup.sh` çıkış kodu
+> yalnız konteyner log'una düşüyordu, oysa yedek beta verisinin tek kopyası; artık iki yolda
+> da `scheduler_runs`'a yazıyor ve aynı uçtan izleniyor. (b) Değişikliğin kendi yarattığı
+> tuzak: `live_gate.py` "cron çalıştı mı"yı `bool(isler)` ile ölçüyordu — liste artık hep
+> dolu olacağı için kapı sessizce hep-yeşile dönerdi; ölçüt kayıt varlığına taşındı.
 
 > **6 Ağu 2026 — D23 kapandı (BUG #239) ve "veri var, tüketiciye ulaşmıyor" sınıfı.**
 > Koç, fiyat sağlayıcısı çöktüğünde 30 günlük fiyattan hesaplanmış *"yatırım değerin X TL,
@@ -545,6 +567,7 @@ ayrı commit + ledger + denetim raporu satırı. Sınıf taraması bu turda iki 
 | #237 | D17 | Koçun kaydettiği işlem KALICI olarak yanlış güne yazılıyordu ("bugün" = sunucunun günü). Kök sebep yapısaldı: `execute_pending_action` handler'lara User geçirmiyordu → hiçbiri `user_today`'e ulaşamıyordu; prompt de LLM'e "tarih EKLEME" dediği için en sık kullanılan yol bilerek bu dala giriyordu. ADR-042 bu zararı kendisi tarif edip "uygulandı" demişti — **kapatıldığı iddia edilen** bir doğruluk hatası |
 | #238 | D22 | Belgelenen "DB-katmanı 2. savunma" (RLS) prod'da FİİLEN YOKTU: compose uygulamayı `POSTGRES_USER` = bootstrap SUPERUSER ile bağlıyordu (yorumu "NON-superuser" diyordu) ve superuser FORCE'a rağmen her policy'yi bypass eder. Aynı yanlış tarif 4 yerde daha yazılıydı → operatör dokümanı izleyerek savunmayı kapatıyordu. İkinci yarısı: RLS/dual-dialect kapıları CI'da postgres olmadığı için her koşumda SKIP'ti; gate koşsa bile rolü ELDE yaratıp "prod'u temsil eder" dediği için prod'un gerçek rolünü ölçmeyecekti |
 | #236 | D18 | Kurucunun ve adı geçen üçüncü bir kişinin gerçek finansal verisi (tutarlar, 13 aylık borç takvimi, banka markaları) prod Docker imajına giriyordu; aynı dosya `drop_all` yaptığı için prod konteynerinde tek komut tüm beta verisini silebiliyordu. Kapsam artık imajın GERÇEK içeriğine bağlı (Dockerfile COPY + `.dockerignore` simülasyonu) |
+| #240 | D24 | Planlanan 5 cron işinden 3'ü hiçbir çalışma kaydı tutmuyordu (kayıt çağrıları iki job'ın GÖVDESİNE elle yazılmıştı) ve görünürlük ucu iş adlarını o tablodan türettiği için bu üçünü HİÇ listeleyemiyordu → KVKK'da söz verilen 90-gün saklama işi haftalarca ölü kalsa kimse göremezdi. Kayıt yapısal kılındı (tek kaynak liste + sarmalayıcı), uç beyan edilmiş listeden besleniyor (`hic_calismadi`/`gecikti`/`sorunlu_isler`), saklama işi silinen satır sayısını kaydediyor. Sınıf taraması: prod yedeği de yalnız log'a yazıyordu (kapandı) + canlı kapı dolu listeyi "çalıştı" sanacaktı (kapandı) |
 | #239 | D23 | Koç, sağlayıcı çöktüğünde haftalarca eski fiyatı "güncel" gibi sunuyordu: bayatlık verisi yalnız HTTP katmanında ekleniyordu, cockpit'i doğrudan çağıran koç/premortem/snapshot yolları onu HİÇ görmüyordu → 30 günlük fiyattan "%30 kârdasın". Tazelik kaynağa (cockpit sözleşmesi) taşındı + koç dili değişti ("şu anki DEME"); etiket/alarm eşikleri ayrıştı. Sınıf taraması: Hesaplar paneli fiyatı koşulsuz "Güncel fiyat" diye etiketliyordu — satış kararı tam o ekranda veriliyor |
 
 **Ders (L15 adayı):** bir sayaç için "neyi sayıyor" sorusu koddan okunmakla cevaplanamaz —
@@ -572,9 +595,9 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 
 #### SIRADAKİ İŞLER (öncelik sırasıyla)
 
-1. **Denetimin ORTA bulguları (8 adet kaldı: D24…D30 + D25; D14/D15/D16/D17/D18/D19/D20/D21/
-   D22/D23 kapandı).** Öne çıkanlar: **D24** (5 cron işinden 3'ü kayıt tutmuyor — *sıradaki iş*),
-   **D25** (fallback zincirindeki iki LLM sağlayıcısı KVKK envanterinde yok), **D26/D27/D28** (KVKK export'u şifre hash'i döküyor;
+1. **Denetimin ORTA bulguları (7 adet kaldı: D25…D30; D14/D15/D16/D17/D18/D19/D20/D21/
+   D22/D23/D24 kapandı).** Öne çıkanlar:
+   **D25** (fallback zincirindeki iki LLM sağlayıcısı KVKK envanterinde yok — *sıradaki iş*), **D26/D27/D28** (KVKK export'u şifre hash'i döküyor;
    silme sonrası e-posta `beta_invites`'ta kalıyor; export iki tabloyu atlıyor),
    **D29** (maskeleme TCKN/telefon/token kaçırıyor), **D30** (SUPPORT_EMAIL placeholder'ı
    fail-fast'i geçiyor).
@@ -618,6 +641,7 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 |---|---|---|---|
 | v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, ajan protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
 | v2.0 | 2026-08-05 | **§1.3 DERS-KURALLARI (L1-L10)** eklendi — 41 bug'dan çıkarılan, tekrar etmemesi gereken hata SINIFLARI. Faz kapıları KORUNDU, hiçbiri gevşetilmedi | Murat'ın 3. adımı: "masterprompt'u gerileme/duraksama yönü hariç, kaliteyi artırma amaçlı geliştir" |
+| v2.7 | 2026-08-06 | **§11.0: D24 kapandı (BUG #240, 14 kapı).** §1.3'e **L23** (bir şeyin YOKLUĞUNU raporlaması gereken yüzey, envanterini o şeyin ÇIKTISINDAN türetemez — boş liste "her şey yolunda" gibi okunur; yan tuzak: envanter beyandan gelince eski tüketici hep-yeşile döner) ve **L24** (izleme çağrısı işin GÖVDESİNE yazılıyorsa unutulur — kaydı planlama noktasına bağla, sözleşmeyi iş listesini gezerek assert et, dışarıda koşan kardeş işleri de kapsa) eklendi. Runbook cron-sağlığı bölümü yeni alanlarla güncellendi. Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin D24'ü: 5 cron işinden 3'ü kayıt tutmuyordu, KVKK 90-gün saklama işi dahil sessizce ölebilirdi. Sınıf taraması prod yedeğinde aynı defekti buldu ve fix'in canlı kapıda yarattığı hep-yeşil tuzağını kapattı |
 | v2.6 | 2026-08-06 | **§11.0: D23 kapandı (BUG #239, 18 backend + 4 vitest kapı).** §1.3'e **L21** (sinyal hesaplanıyor olabilir ama karar veren katmana hiç ulaşmayabilir — sinyali karar sözleşmesine koy) ve **L22** (etiket eşiği ile alarm eşiği ayrı olmalı; tek eşik ya gürültü ya sessizlik üretir) eklendi. Ayrıca önceki oturumun §11.0'da İLAN ETTİĞİ ama tabloya hiç yazmadığı **L19/L20** materyalize edildi (aynı sınıf: ilan ≠ materyalize, L17). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin D23'ü: koç bayat fiyattan "%30 kârdasın" diyordu; tazelik verisi vardı ama yalnız HTTP katmanındaydı. Sınıf taraması Hesaplar panelinin fiyatı koşulsuz "Güncel fiyat" diye etiketlediğini buldu — çelişme turunun "başka yüzeyde sinyal var" telafisini kısmen çürüttü |
 | v2.5 | 2026-08-06 | **§11.0: D17 kapandı (BUG #237, 49 yeni kapı).** §1.3'e **L17** (bir belgenin "uygulandı" iddiası kanıt değildir — benimseme oranını ölçen statik kapıya bağla; kapatıldığı İDDİA EDİLEN hata, açık borçtan daha tehlikelidir çünkü listeden düşer) ve **L18** (bağlam taşımayan imza unutulmuş çağrı değil, kapatılmış kapıdır — önce bağlamı erişilebilir kıl) eklendi. §5'teki P3.5 satırı H4 saat dilimi için artık teste bağlı. Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin D17'si: koçun kaydettiği işlem kalıcı olarak yanlış güne yazılıyordu; ADR-042'nin kendi iddiası diskte yanlıştı. Sınıf taraması denetimin listelediği 8 yerin ötesinde 12 yer daha buldu (motor katmanı + startup + onboarding) |
 | v2.4 | 2026-08-06 | **§11.0: ORTA bulgu turu açıldı** — D14+D15 kapandı (BUG #234, 18 yeni kapı). §1.3'e **L15** adayı yazıldı (bir sayacın BİRİMİNİ teste yazdır: "neyi sayıyor" sorusu koddan okunarak cevaplanamaz — iki defekt de sözleşme↔kod uyuşmazlığıydı). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin ORTA turu: paylaşılan kota ölçülmüyordu (ölü koruma + ölü UI), tavan mesaj sayıyordu (gerçek maliyet 2-3 kat). Sınıf taraması aynı defekti premortem + yansıma yollarında da buldu |

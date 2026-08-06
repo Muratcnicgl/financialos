@@ -168,8 +168,18 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
             s.ekle("scheduler görünürlük ucu", kod == 200, f"kod={kod}", zorunlu=False)
             if kod == 200:
                 isler = sc.get("isler", [])
+                # BUG #240: uç artık PLANLI işleri koşmasalar da listeler — bu yüzden
+                # `bool(isler)` ile "çalıştı mı" ölçülemez (liste hep dolu, kapı hep yeşil
+                # olurdu: kendini yeşile boyayan kapı). Ölçüt tabloda kayıt VAR MI.
                 s.ekle("cron en az bir kez çalıştı (24s sonra ZORUNLU)",
-                       bool(isler), f"is sayisi={len(isler)}", zorunlu=False)
+                       not sc.get("hic_calisma_yok", True),
+                       f"planli is={len(isler)}", zorunlu=False)
+                hic = [i["job_name"] for i in isler if i.get("hic_calismadi")]
+                s.ekle("planlı her iş en az bir kez koştu (24s sonra ZORUNLU)",
+                       not hic, f"hic calismayan={hic}", zorunlu=False)
+                gecikmis = [i["job_name"] for i in isler if i.get("gecikti")]
+                s.ekle("gecikmiş iş yok", not gecikmis,
+                       f"gecikmis={gecikmis}", zorunlu=False)
                 basarisiz = [i["job_name"] for i in isler if i.get("son_sonuc") is False]
                 s.ekle("son çalışmalarda hata yok", not basarisiz,
                        f"basarisiz={basarisiz}", zorunlu=False)

@@ -167,9 +167,17 @@ python -m scripts.beta_invite --list
 python -m scripts.beta_triage                      # acik geri bildirimler + son 7 gun hatalar
 python -m scripts.beta_triage --kapat <ID> --not "duzeltildi: BUG #NNN"
 
-# Cron sagligi (gece islerinin gercekten kostugu)
-curl -fsS -H "Authorization: Bearer <token>" https://$DOMAIN/api/ops/scheduler
+# Cron sagligi (gece islerinin gercekten kostugu) — TEK BAKILACAK ALAN: sorunlu_isler
+curl -fsS -H "Authorization: Bearer <token>" https://$DOMAIN/api/ops/scheduler \
+  | python -c "import json,sys; d=json.load(sys.stdin); print('SORUNLU:', d['sorunlu_isler'] or 'yok')"
 ```
+**BUG #240 (D24):** uc artik **planli her isi** listeler (koşmamiş olsa bile) — bes cron
+(`fetch_investment_prices`, `nightly_batch`, `k2_batch`, `nightly_trace_cleanup`,
+`weekly_smoke_test`) + compose yedegi (`pg_backup`). Alanlar: `hic_calismadi` (planli ama
+bir kez bile kosmamis = olu), `gecikti` (son kosum beklenen periyodun 1.5 katindan eski),
+`son_sonuc=false` (kostu, patladi). `sorunlu_isler` bu ucunun birlesimidir — **bos degilse
+mudahale et.** `nightly_trace_cleanup` detayinda silinen satir sayisi yazar: KVKK'da soz
+verilen 90-gun saklama boylece sayiyla dogrulanir (log okumak kanit degildir).
 Kullanici e-postalari triyaj ciktisinda MASKELIDIR (gizlilik); kimlik gerekiyorsa user_id ile bak.
 
 ⚠️ **Daveti HER ZAMAN `--email` ile ac (BUG #226 / D05).** Kapali betada iki kayit yolu var:

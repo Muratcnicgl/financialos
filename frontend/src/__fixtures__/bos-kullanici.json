@@ -7,7 +7,7 @@
     "has_password": true,
     "id": 1,
     "is_active": true,
-    "kvkk_consent_at": "2026-08-06T12:18:19.004368",
+    "kvkk_consent_at": "2026-08-06T13:25:11.750623",
     "name": "Boş Durum",
     "oauth_provider": null
   },
@@ -727,7 +727,7 @@
     "build": "bilinmiyor",
     "service": "FinancialOS",
     "status": "ok",
-    "timestamp": "2026-08-06T12:18:25.798271+00:00",
+    "timestamp": "2026-08-06T13:25:18.041011+00:00",
     "version": "0.2.0"
   },
   "/api/incomes": [],
@@ -780,7 +780,82 @@
   },
   "/api/ops/scheduler": {
     "hic_calisma_yok": true,
-    "isler": []
+    "isler": [
+      {
+        "detay": null,
+        "gecikti": false,
+        "hic_calismadi": true,
+        "job_name": "fetch_investment_prices",
+        "planli": true,
+        "saat_once": null,
+        "son_basarili": null,
+        "son_calisma": null,
+        "son_sonuc": null
+      },
+      {
+        "detay": null,
+        "gecikti": false,
+        "hic_calismadi": true,
+        "job_name": "nightly_batch",
+        "planli": true,
+        "saat_once": null,
+        "son_basarili": null,
+        "son_calisma": null,
+        "son_sonuc": null
+      },
+      {
+        "detay": null,
+        "gecikti": false,
+        "hic_calismadi": true,
+        "job_name": "k2_batch",
+        "planli": true,
+        "saat_once": null,
+        "son_basarili": null,
+        "son_calisma": null,
+        "son_sonuc": null
+      },
+      {
+        "detay": null,
+        "gecikti": false,
+        "hic_calismadi": true,
+        "job_name": "nightly_trace_cleanup",
+        "planli": true,
+        "saat_once": null,
+        "son_basarili": null,
+        "son_calisma": null,
+        "son_sonuc": null
+      },
+      {
+        "detay": null,
+        "gecikti": false,
+        "hic_calismadi": true,
+        "job_name": "weekly_smoke_test",
+        "planli": true,
+        "saat_once": null,
+        "son_basarili": null,
+        "son_calisma": null,
+        "son_sonuc": null
+      },
+      {
+        "detay": null,
+        "gecikti": false,
+        "hic_calismadi": true,
+        "job_name": "pg_backup",
+        "planli": true,
+        "saat_once": null,
+        "son_basarili": null,
+        "son_calisma": null,
+        "son_sonuc": null
+      }
+    ],
+    "sorunlu_isler": [
+      "fetch_investment_prices",
+      "nightly_batch",
+      "k2_batch",
+      "nightly_trace_cleanup",
+      "weekly_smoke_test",
+      "pg_backup"
+    ]
   },
   "/api/reports/category-breakdown": {
     "days": 30,
@@ -854,7 +929,7 @@
   },
   "/api/transactions": [],
   "/api/user": {
-    "created_at": "2026-08-06T12:18:19.007870+00:00",
+    "created_at": "2026-08-06T13:25:11.752623+00:00",
     "currency": null,
     "id": 1,
     "locale": null,
@@ -870,7 +945,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-06T12:18:26.135937Z",
+    "exported_at": "2026-08-06T13:25:18.468426Z",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -880,7 +955,7 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-06T12:18:25.568876",
+        "created_at": "2026-08-06T13:25:17.844797",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
@@ -900,19 +975,19 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-06T12:18:19.007870",
+      "created_at": "2026-08-06T13:25:11.752623",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-06T12:18:19.004368",
+      "kvkk_consent_at": "2026-08-06T13:25:11.750623",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
       "oauth_provider": null,
       "oauth_sub": null,
-      "password_hash": "$2b$12$J/TCBhy2P7jfqSV4BjtwNuxpMpuVCoiggUo1V1p36QzoP.1Ah8n22",
+      "password_hash": "$2b$12$JXbD.bSbDrJjPYkszb9IXeuIq7N53iiWQC7HQ.D4fhpu3yOBW./Fu",
       "timezone": null,
       "token_version": 0
     },
@@ -921,7 +996,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-06T12:18:19.142599",
+        "joined_at": "2026-08-06T13:25:11.878260",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -929,7 +1004,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-06T12:18:19.136039",
+        "created_at": "2026-08-06T13:25:11.873220",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -947,7 +1022,7 @@
     "demo_markers": [],
     "envelopes": [],
     "expenses": [],
-    "exported_at": "2026-08-06T12:18:26.211657+00:00",
+    "exported_at": "2026-08-06T13:25:18.532661+00:00",
     "feedback_items": [],
     "goals": [],
     "incomes": [],
@@ -957,7 +1032,7 @@
       {
         "card_debt": "0.0000",
         "cash": "0.0000",
-        "created_at": "2026-08-06T12:18:25.568876+00:00",
+        "created_at": "2026-08-06T13:25:17.844797+00:00",
         "id": 1,
         "investment_value": "0.0000",
         "loan_debt": "0.0000",
@@ -971,7 +1046,7 @@
     ],
     "owned_workspaces": [
       {
-        "created_at": "2026-08-06T12:18:19.136039+00:00",
+        "created_at": "2026-08-06T13:25:11.873220+00:00",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -982,19 +1057,19 @@
     "reasoning_traces": [],
     "transactions": [],
     "user": {
-      "created_at": "2026-08-06T12:18:19.007870+00:00",
+      "created_at": "2026-08-06T13:25:11.752623+00:00",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-06T12:18:19.004368+00:00",
+      "kvkk_consent_at": "2026-08-06T13:25:11.750623+00:00",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
       "oauth_provider": null,
       "oauth_sub": null,
-      "password_hash": "$2b$12$J/TCBhy2P7jfqSV4BjtwNuxpMpuVCoiggUo1V1p36QzoP.1Ah8n22",
+      "password_hash": "$2b$12$JXbD.bSbDrJjPYkszb9IXeuIq7N53iiWQC7HQ.D4fhpu3yOBW./Fu",
       "timezone": null,
       "token_version": 0
     },
@@ -1003,7 +1078,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-06T12:18:19.142599+00:00",
+        "joined_at": "2026-08-06T13:25:11.878260+00:00",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1024,7 +1099,7 @@
   },
   "/api/workspaces": [
     {
-      "created_at": "2026-08-06T12:18:19.136039+00:00",
+      "created_at": "2026-08-06T13:25:11.873220+00:00",
       "id": 1,
       "is_personal": true,
       "name": "Boş Durum (Kişisel)",
@@ -1033,13 +1108,13 @@
     }
   ],
   "/api/workspaces/1": {
-    "created_at": "2026-08-06T12:18:19.136039+00:00",
+    "created_at": "2026-08-06T13:25:11.873220+00:00",
     "id": 1,
     "is_personal": true,
     "members": [
       {
         "email": "bos.durum@example.com",
-        "joined_at": "2026-08-06T12:18:19.142599+00:00",
+        "joined_at": "2026-08-06T13:25:11.878260+00:00",
         "name": "Boş Durum",
         "role": "owner",
         "user_id": 1

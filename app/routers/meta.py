@@ -22,7 +22,7 @@ kararını etkileyen bilgi yayılır.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -34,6 +34,10 @@ from app.services.email import destek_adresi
 from app.version import APP_VERSION, build_commit
 
 router = APIRouter(prefix="/api/meta", tags=["meta"])
+
+# BUG #247 (D39): HAZIR OLMA ucu ayrı bir yolda (`/api/ready`) — HEALTHCHECK, deploy
+# rollback kapısı ve canlı kapı bunu okur. Prefix'siz router, `app/main.py`'de kaydedilir.
+hazir_router = APIRouter(tags=["health"])
 
 
 class UrunBilgisi(BaseModel):
@@ -82,3 +86,63 @@ def durum(db: Session = Depends(get_db)) -> Durum:
     except Exception:  # noqa: BLE001 — durum ucu asla patlamamalı, "sağlıksız" demeli
         db_ok = False
     return Durum(saglikli=db_ok, api=True, veritabani=db_ok)
+
+
+# ============================================================
+# HAZIR OLMA (BUG #247 / D39)
+# ============================================================
+#
+# `/api/health` CANLILIK ölçer: süreç ayakta mı (bağımlılık yok, her zaman 200). Ona
+# bakan bir rollback kapısı, DB çökmüşken ya da migration koşulmamışken de YEŞİL kalır —
+# konteyner "healthy" görünür, otomatik rollback tetiklenmez, operatör paneli yeşildir ve
+# kullanıcı bu sırada her ekranda 500 alır. HAZIR OLMA ayrı ölçülür ve başarısızlıkta
+# **503** döner (200 gövdesindeki `saglikli: false` hiçbir orkestratörü tetiklemez).
+
+
+def sema_durumu(db: Session) -> tuple[str, str | None]:
+    """(durum, beklenen_head): 'guncel' | 'uyumsuz' | 'atlandi' (test/create_all yolu)."""
+    from app.schema_guard import _kod_head, _db_surumu
+    beklenen = _kod_head()
+    if beklenen is None:
+        return "atlandi", None
+    try:
+        mevcut = _db_surumu(db.get_bind())
+    except Exception:  # noqa: BLE001
+        return "atlandi", beklenen
+    if mevcut is None:
+        return "atlandi", beklenen
+    return ("guncel" if mevcut == beklenen else "uyumsuz"), beklenen
+
+
+@hazir_router.get("/api/ready", tags=["health"])
+def hazir(db: Session = Depends(get_db)) -> dict:
+    """Trafik almaya HAZIR mıyız: DB yanıt veriyor + şema kodla aynı sürümde mi.
+
+    Sorun varsa 503 — Docker HEALTHCHECK, `scripts/deploy.sh` rollback kapısı ve
+    `scripts/live_gate.py` bu ucu okur.
+    """
+    sorunlar: list[dict] = []
+
+    db_ok = True
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:  # noqa: BLE001 — ayrıntı sızdırmadan sorunu bildir
+        db_ok = False
+        sorunlar.append({"ad": "db", "detay": type(e).__name__})
+
+    sema, beklenen = ("atlandi", None)
+    if db_ok:
+        sema, beklenen = sema_durumu(db)
+        if sema == "uyumsuz":
+            sorunlar.append({"ad": "sema", "detay": f"migration koşulmamış (kod={beklenen})"})
+
+    govde = {
+        "hazir": not sorunlar,
+        "db": "ok" if db_ok else "erisilemiyor",
+        "sema": sema,
+        "surum": APP_VERSION,
+    }
+    if sorunlar:
+        govde["sorunlar"] = sorunlar
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=govde)
+    return govde

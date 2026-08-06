@@ -152,7 +152,7 @@ def test_execute_action_triggers_resolution_hook(db_session, test_user, monkeypa
     pending = PendingAction(
         user_id=test_user.id,
         action_type="add_transaction",
-        payload='{"amount": 100, "category": "test"}',
+        payload='{"transaction_type": "expense", "amount": 100, "category": "test"}',
         summary="test execute",
         status=ActionStatus.pending,
     )
@@ -168,7 +168,10 @@ def test_execute_action_triggers_resolution_hook(db_session, test_user, monkeypa
 
     result = execute_pending_action(db_session, pending.id, test_user.id)
 
-    if result.get("success"):
-        assert len(call_log) >= 1, f"hook cagrilmadi. Log: {call_log}"
-    else:
-        pytest.skip(f"execute_pending_action setup uyumsuz: {result}")
+    # BUG #248 (D36): burada eskiden `if success: assert ... else: pytest.skip(...)` vardı.
+    # Payload geçersiz olduğu için dal HER ZAMAN skip'e düşüyordu — yani test yazıldığı
+    # günden beri ÖLÜYDÜ ve execute→hook yolu fiilen hiç doğrulanmıyordu. Kendi
+    # başarısızlığını "atlandı"ya çeviren test, olmayan testten daha zararlıdır: sayıya
+    # dahil olur, yeşil görünür, koruduğu sanılan şeyi korumaz.
+    assert result.get("success") is True, f"execute basarisiz: {result}"
+    assert len(call_log) >= 1, f"hook cagrilmadi. Log: {call_log}"

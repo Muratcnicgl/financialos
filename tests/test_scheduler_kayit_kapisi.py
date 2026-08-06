@@ -66,7 +66,10 @@ def _dis_dunyayi_sustur(monkeypatch, db):
     """İşlerin dış dünyaya uzanan tek tük çağrılarını sabitle (ağ/LLM yok)."""
     import app.price_providers as price_mod
     import app.services.smoke_tests as smoke_mod
-    monkeypatch.setattr(price_mod, "fetch_for_account", lambda acc: None)
+    # BUG #248 (D37): fiyat işi artık "hiçbir hesabı güncelleyemedim" durumunu BAŞARISIZ
+    # sayıyor. Bu yardımcı "dış dünya sussun, işler temiz koşsun" demek istediği için
+    # sağlayıcı GEÇERLİ bir fiyat döndürür (kesinti senaryosu kendi testinde ölçülür).
+    monkeypatch.setattr(price_mod, "fetch_for_account", lambda acc: (12.34, "test"))
     monkeypatch.setattr(smoke_mod, "run_all_smoke_tests",
                         lambda: [{"api": "evds", "ok": True, "detail": "200"}])
     monkeypatch.setattr(smoke_mod, "capture_smoke_failures", lambda results: 0)
@@ -228,3 +231,38 @@ def test_canli_kapi_dolu_listeyi_calisma_sanmaz():
     assert "hic_calisma_yok" in src, "canlı kapı çalışma varlığını dolu listeden çıkarıyor"
     assert "hic_calismadi" in src and "gecikti" in src, (
         "canlı kapı hiç koşmayan/geciken işi raporlamıyor")
+
+
+# ---------------------------------------------------------------- 5. BAŞARI SEMANTİĞİ (BUG #248 / D37)
+
+def test_fiyat_isi_hicbir_hesabi_guncelleyemediginde_basarisiz_kaydeder(db, monkeypatch):
+    """"İş çökmedi" ile "iş işini yaptı" aynı şey değildir.
+
+    Sağlayıcıların HEPSİ çöktüğünde iş eskiden `ok=True` kaydediyordu → `/api/ops/scheduler`
+    "son başarılı: bu sabah" der, `sorunlu_isler`'e düşmez; kesinti operatörden haftalarca
+    gizlenir ve koç bayat fiyatla konuşur (BUG #239'un tam olarak beslendiği durum)."""
+    import asyncio
+    from app.models import Account, AccountType
+
+    db.add(Account(user_id=1, name="TLY Fonu", account_type=AccountType.investment,
+                   balance=1000, fund_code="TLY"))
+    db.commit()
+
+    monkeypatch.setattr("app.price_providers.fetch_for_account", lambda acc: None)  # sağlayıcı çökük
+
+    asyncio.run(sched.fetch_investment_prices_job())   # sarmalayıcı yutar, KAYDA yazar
+
+    kayit = (db.query(SchedulerRun).filter(SchedulerRun.job_name == "fetch_investment_prices")
+             .order_by(SchedulerRun.id.desc()).first())
+    assert kayit is not None and kayit.ok is False, (
+        "Hiçbir hesabı güncelleyemeyen fiyat işi kendini BAŞARILI kaydediyor — "
+        "kesinti operatörden gizlenir"
+    )
+    assert "0/1" in (kayit.detail or ""), f"kayıt detayı ölçüyü taşımıyor: {kayit.detail!r}"
+
+
+def test_fiyat_isi_hic_hesap_yoksa_basarilidir(db, monkeypatch):
+    """L6: kapı ürünü kıramaz — yatırım hesabı olmayan kullanıcıda 0/0 meşru başarıdır."""
+    import asyncio
+    sonuc = asyncio.run(sched.fetch_investment_prices_job())
+    assert "0/0" in sonuc

@@ -76,6 +76,12 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
     print("\n== 1. ERİŞİM + SAĞLIK ==")
     kod, basliklar, govde = _iste(f"{base}/api/health")
     s.ekle("sağlık ucu 200", kod == 200, f"kod={kod} {govde.get('_error','')}")
+    # BUG #247 (D39): canlılık (süreç ayakta) HAZIR OLMA demek değildir. DB çökmüşken ya da
+    # migration koşulmamışken /api/health yine 200 döner ve bu kapı yeşil kalırdı — oysa
+    # kullanıcı o sırada her ekranda 500 alıyor. Hazır-olma ucu DB'ye dokunur, sorunluysa 503.
+    hkod, _hb, hgovde = _iste(f"{base}/api/ready")
+    s.ekle("hazır olma ucu 200 (DB + şema)", hkod == 200,
+           f"kod={hkod} sorunlar={hgovde.get('detail', hgovde).get('sorunlar', hgovde.get('_error',''))}")
 
     # TLS katmanını nginx/Caddy sağlar. Docker'sız YEREL PROVADA (scripts/prod_rehearsal.py)
     # o katman yoktur → kapılar anlamsızca düşer ve prova hiçbir zaman "geçti" diyemez.

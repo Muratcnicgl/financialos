@@ -23,18 +23,31 @@ from sqlalchemy import create_engine, text
 
 _ROOT = Path(__file__).resolve().parent.parent
 
-# Wave-9'da (bu turda) eklenen migration'lar — geri alınabilir OLMALI.
-WAVE9_REVIZYONLAR = {
-    "b2c3d4e5f6a7",  # users.token_version
-    "c3d4e5f6a7b8",  # rate_limit_hits
-    "e5f6a7b8c9d0",  # user-defined rules
-    "f6a7b8c9d0e1",  # demo_data_markers
-    "a7b8c9d0e1f2",  # error_logs
-    "b8c9d0e1f2a3",  # user preferences
-    "c9d0e1f2a3b4",  # beta_invites
-    "d0e1f2a3b4c5",  # email verification
-    "e1f2a3b4c5d6",  # scheduler_runs
+# BUG #248 (D38): kapı eskiden ELLE yazılmış bir revizyon kümesine bakıyordu — yani listeye
+# eklenmeyen HER YENİ migration denetlenmiyordu ve `def downgrade(): pass` yazan biri kapıdan
+# sessizce geçiyordu (o migration'da `alembic downgrade` BAŞARIYLA döner, şema geride kalır,
+# alembic_version geriye yazılır → "geri alabiliriz" iddiası canlıda yalan olur). Artık liste
+# ŞEMADAN türetilir: `alembic/versions` altındaki her revizyon denetlenir; yalnız aşağıdaki
+# BİLİNEN-ESKİ sürümler gerekçeyle muaftır (baseline/veri-taşıma; geri alınacak DDL'leri yok).
+ESKI_ISTISNALAR = {
+    "fa46373f4ca8": "baseline (mevcut şemanın fotoğrafı — geri alınacak DDL yok)",
+    "62136ecd252e": "erken şema düzeltmesi (Wave-2 öncesi)",
+    "12b80d6485bf": "erken şema düzeltmesi (Wave-2 öncesi)",
+    "9558e190f209": "erken şema düzeltmesi (Wave-2 öncesi)",
+    "0db7cfbb706f": "erken şema düzeltmesi (Wave-2 öncesi)",
+    "53a3257f906c": "erken şema düzeltmesi (Wave-2 öncesi)",
+    "fb38814500bf": "goal engine (Wave-3, veri taşıma ağırlıklı)",
+    "f3dda4d3996d": "goal engine baseline (Wave-3)",
+    "fec73e5343e5": "envelope/wishlist (Wave-3)",
+    "c1d2e3f4a5b6": "yetim tmp_users temizliği (veri taşıma — geri alınacak şey yok)",
 }
+
+
+def _tum_revizyonlar() -> list[str]:
+    script = ScriptDirectory.from_config(_cfg("sqlite:///:memory:"))
+    return sorted(r.revision for r in script.walk_revisions())
+
+
 
 
 def _cfg(db_url: str) -> Config:
@@ -97,9 +110,20 @@ def test_uc_surum_geri_alinabilir(head_db):
     assert satir[0] == "Maas Hesabim"
 
 
-@pytest.mark.parametrize("revizyon", sorted(WAVE9_REVIZYONLAR))
+def test_kapsam_tabani_revizyonlar_bulunuyor():
+    """L23: tarama boş dönerse alttaki kapı sessizce 'her şey yolunda' der."""
+    hepsi = _tum_revizyonlar()
+    assert len(hepsi) >= 15, f"Yalnız {len(hepsi)} revizyon bulundu — tarama bozuk"
+    assert set(ESKI_ISTISNALAR) <= set(hepsi), (
+        f"İstisna listesinde artık var olmayan revizyon: {sorted(set(ESKI_ISTISNALAR) - set(hepsi))}"
+    )
+
+
+@pytest.mark.parametrize("revizyon", [r for r in _tum_revizyonlar()])
 def test_yeni_migrationlar_gercek_downgrade_tasir(revizyon):
     """İleriye dönük kapı: downgrade'i `pass` olan sürüm GERİ ALINAMAZ."""
+    if revizyon in ESKI_ISTISNALAR:
+        pytest.skip(f"bilinen-eski istisna: {ESKI_ISTISNALAR[revizyon]}")
     script = ScriptDirectory.from_config(_cfg("sqlite:///:memory:"))
     rev = script.get_revision(revizyon)
     kaynak = Path(rev.path).read_text(encoding="utf-8")

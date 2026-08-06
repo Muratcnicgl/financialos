@@ -242,7 +242,12 @@ def _izlenen_is(job_name: str, *, yeniden_firlat: bool = False):
                 sonuc = await fn(*args, **kwargs)
             except Exception as e:
                 logger.exception("[scheduler] %s basarisiz", job_name)
-                _kayit_bitir(kayit_id, False, type(e).__name__)
+                # BUG #248 (D37): kayda YALNIZ istisna TİPİ yazılıyordu ("RuntimeError") —
+                # operatör uçtan bakınca ne olduğunu anlayamıyor, log dosyasına inmek zorunda
+                # kalıyordu. Mesaj da yazılır; PII/sır maskesinden geçirilerek (BUG #244).
+                from app.error_tracking import temizle
+                _kayit_bitir(kayit_id, False,
+                             temizle(f"{type(e).__name__}: {e}", max_uzunluk=280))
                 if yeniden_firlat:
                     raise
                 return None
@@ -348,6 +353,15 @@ async def fetch_investment_prices_job() -> str:
                 logger.warning("[price] %s (%s): fiyat çekilemedi (elle giriş gerekebilir)",
                                acc.name, acc.fund_code)
         logger.info("[price] %d/%d yatırım hesabı güncellendi", updated, len(accounts))
+        # BUG #248 fix (D37): "iş çökmedi" ile "iş işini yaptı" AYNI ŞEY DEĞİL. Eskiden
+        # sağlayıcıların HEPSİ çökse bile (0/N) iş `ok=True` kaydediyordu → /api/ops/scheduler
+        # "son başarılı: bu sabah" der, `sorunlu_isler`'e düşmez ve kesinti operatörden
+        # haftalarca gizlenir (fiyatlar bayatlar, koç bayat değerle konuşur — BUG #239).
+        # Hesap YOKSA (0/0) başarı meşrudur: yapılacak iş yoktu.
+        if accounts and updated == 0:
+            raise RuntimeError(
+                f"0/{len(accounts)} hesap güncellendi — fiyat sağlayıcılarının hiçbiri "
+                "yanıt vermedi (TEFAS/İş Yatırım/EVDS kesintisi ya da kod/ağ sorunu)")
         return f"{updated}/{len(accounts)} hesap guncellendi"
     except Exception:
         db.rollback()   # BUG #240: kayıt sarmalayıcıya bırakıldı, oturum temizliği burada kalır

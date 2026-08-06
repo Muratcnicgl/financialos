@@ -27,9 +27,9 @@ git pull --ff-only origin main || { echo "HATA: git pull (temiz çalışma dizin
 echo "[deploy] 3) imajları build + up (backend entrypoint alembic upgrade head eder)…"
 if ! $COMPOSE up -d --build; then rollback; fi
 
-echo "[deploy] 4) healthcheck (backend /api/health, 60s içinde 200)…"
+echo "[deploy] 4) healthcheck (backend /api/ready (DB + sema), 60s içinde 200)…"
 i=0
-until $COMPOSE exec -T backend curl -fsS http://localhost:8000/api/health >/dev/null 2>&1; do
+until $COMPOSE exec -T backend curl -fsS http://localhost:8000/api/ready >/dev/null 2>&1; do
     i=$((i+1))
     [ "$i" -ge 30 ] && { echo "[deploy] healthcheck 60s'de geçmedi"; rollback; }
     sleep 2

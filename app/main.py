@@ -259,6 +259,8 @@ from app.routers import onboarding as onboarding_router  # P3.5/H5: opsiyonel de
 from app.routers import ops as ops_router  # P5.3: cron gorunurlugu
 app.include_router(ops_router.router)
 app.include_router(meta_router.router)   # /api/meta (kimliksiz)
+# BUG #247 (D39): HAZIR OLMA ucu — DB + şema sürümü; sorun varsa 503 (rollback tetiklenir).
+app.include_router(meta_router.hazir_router)   # /api/ready (kimliksiz)
 app.include_router(onboarding_router.router)
 app.include_router(user_router.router)
 app.include_router(accounts_router.router)

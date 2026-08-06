@@ -7,7 +7,7 @@
     "has_password": true,
     "id": 1,
     "is_active": true,
-    "kvkk_consent_at": "2026-08-06T15:32:18.900600",
+    "kvkk_consent_at": "2026-08-06T16:13:07.166163",
     "name": "Boş Durum",
     "oauth_provider": null
   },
@@ -727,7 +727,7 @@
     "build": "bilinmiyor",
     "service": "FinancialOS",
     "status": "ok",
-    "timestamp": "2026-08-06T15:32:21.845473+00:00",
+    "timestamp": "2026-08-06T16:13:10.118535+00:00",
     "version": "0.2.0"
   },
   "/api/incomes": [],
@@ -857,6 +857,12 @@
       "pg_backup"
     ]
   },
+  "/api/ready": {
+    "db": "ok",
+    "hazir": true,
+    "sema": "atlandi",
+    "surum": "0.2.0"
+  },
   "/api/reports/category-breakdown": {
     "days": 30,
     "grand_total": 0.0,
@@ -929,7 +935,7 @@
   },
   "/api/transactions": [],
   "/api/user": {
-    "created_at": "2026-08-06T15:32:18.901603+00:00",
+    "created_at": "2026-08-06T16:13:07.168166+00:00",
     "currency": null,
     "id": 1,
     "locale": null,
@@ -945,7 +951,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-06T15:32:22.049413+00:00",
+    "exported_at": "2026-08-06T16:13:10.450432+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -955,7 +961,7 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-06T15:32:21.775531",
+        "created_at": "2026-08-06T16:13:10.045962",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
@@ -975,13 +981,13 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-06T15:32:18.901603",
+      "created_at": "2026-08-06T16:13:07.168166",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-06T15:32:18.900600",
+      "kvkk_consent_at": "2026-08-06T16:13:07.166163",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
@@ -993,7 +999,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-06T15:32:18.906712",
+        "joined_at": "2026-08-06T16:13:07.172167",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1001,7 +1007,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-06T15:32:18.904603",
+        "created_at": "2026-08-06T16:13:07.170167",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1018,7 +1024,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-06T15:32:22.068411+00:00",
+    "exported_at": "2026-08-06T16:13:10.479822+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -1028,7 +1034,7 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-06T15:32:21.775531",
+        "created_at": "2026-08-06T16:13:10.045962",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
@@ -1048,13 +1054,13 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-06T15:32:18.901603",
+      "created_at": "2026-08-06T16:13:07.168166",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-06T15:32:18.900600",
+      "kvkk_consent_at": "2026-08-06T16:13:07.166163",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
@@ -1066,7 +1072,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-06T15:32:18.906712",
+        "joined_at": "2026-08-06T16:13:07.172167",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1074,7 +1080,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-06T15:32:18.904603",
+        "created_at": "2026-08-06T16:13:07.170167",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1096,7 +1102,7 @@
   },
   "/api/workspaces": [
     {
-      "created_at": "2026-08-06T15:32:18.904603+00:00",
+      "created_at": "2026-08-06T16:13:07.170167+00:00",
       "id": 1,
       "is_personal": true,
       "name": "Boş Durum (Kişisel)",
@@ -1105,13 +1111,13 @@
     }
   ],
   "/api/workspaces/1": {
-    "created_at": "2026-08-06T15:32:18.904603+00:00",
+    "created_at": "2026-08-06T16:13:07.170167+00:00",
     "id": 1,
     "is_personal": true,
     "members": [
       {
         "email": "bos.durum@example.com",
-        "joined_at": "2026-08-06T15:32:18.906712+00:00",
+        "joined_at": "2026-08-06T16:13:07.172167+00:00",
         "name": "Boş Durum",
         "role": "owner",
         "user_id": 1

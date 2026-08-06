@@ -80,19 +80,24 @@ def test_export_eylem_karar_hedef_kayitlari_dahil(client):
 def test_export_tamlik_invariant():
     """
     TAMLIK INVARIANT: user_id'li (veya goal_id ile kullanıcıya bağlı) HER tablo export'ta
-    temsil edilmeli. Biri yeni user-data tablosu ekleyip export'a koymayı unutursa yakalar
-    (KVKK/egemenlik regresyon ağı). price_history market verisi (user-data değil) → muaf.
+    temsil edilmeli. Biri yeni user-data tablosu ekleyip export'a koymayı unutursa yakalar.
+
+    BUG #243 (D28): eskiden bu test `/api/user/export` fonksiyonunun KAYNAK METNİNDE model
+    adını arıyordu — yani export'un TEK bir uygulaması varmış gibi. Gerçekte iki uygulama
+    vardı ve UI'nin kullandığı öteki uç iki tabloyu atlıyordu: yeşil test yanlış fonksiyonu
+    doğruluyordu (kapsam yanılsaması). Export tek kaynağa (`app/data_subject`) taşındı;
+    invariant artık o KAYIT üzerinden ölçülür — uygulama nerede yaşarsa yaşasın geçerli.
     """
     from app.models import Base
-    from app.routers.user import export_data as _fn
-    import inspect
-    src = inspect.getsource(_fn)
-    MARKET_OR_JOIN = {"price_history"}  # user-data değil / özel ele alınır
+    from app.data_subject import KAYIT
     for cls in Base.__subclasses__():
         cols = {c.name for c in cls.__table__.columns}
         tn = cls.__tablename__
-        if tn == "users" or tn in MARKET_OR_JOIN:
+        if tn == "users":
             continue
         if "user_id" in cols or "goal_id" in cols:
-            # export fonksiyonunun gövdesinde bu model dump ediliyor mu (isim geçiyor mu)?
-            assert cls.__name__ in src, f"{tn} ({cls.__name__}) export'ta yok — KVKK tamlık ihlali"
+            kayit = KAYIT.get(tn)
+            assert kayit is not None, f"{tn} KVKK kaydında sınıflandırılmamış"
+            assert kayit.disa_aktarilir, (
+                f"{tn} ({cls.__name__}) export'ta yok — KVKK tamlık ihlali"
+            )

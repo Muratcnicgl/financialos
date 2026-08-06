@@ -85,7 +85,30 @@ def purge_user_data(db: Session, user_id: int, delete_user_row: bool = True) -> 
         r = db.execute(delete(Workspace.__table__).where(Workspace.id.in_(ws_ids)))
         silinen["workspaces"] = r.rowcount
 
-    # 3) Kullanıcı satırı (varsayılan). ORM yolu için çağıran False geçer.
+    # 3) BUG #243 fix (D27): SİLİNMEYEN ama kişisel iz TAŞIYAN kayıtları anonimleştir.
+    #
+    # Eski hâli yalnız `user_id` kolonu olan tablolara bakıyordu; `beta_invites`'ın kolonu
+    # `used_by_user_id` olduğu için kullanıcının E-POSTASI ve operatörün o kişi hakkında
+    # yazdığı SERBEST NOT ("tanıdık — iş arkadaşı") silme sonrası veritabanında süresiz
+    # kalıyordu → "tüm veriniz kalıcı olarak silinir" taahhüdü fiilen yanlıştı (KVKK m.7).
+    # Satırın kendisi silinmez (davet KODU tekrar kullanılamamalı — işletme kaydı); yalnız
+    # kişisel alanlar NULL'lanır. Hangi tablo/alan olduğu tek kaynakta: app/data_subject.KAYIT.
+    from app.data_subject import anonimlestirilecekler
+    from sqlalchemy import update
+    for kayit in anonimlestirilecekler():
+        tablo = kayit.model.__table__
+        atif = "used_by_user_id" if "used_by_user_id" in tablo.c else (
+            "last_user_id" if "last_user_id" in tablo.c else "user_id")
+        if atif not in tablo.c:
+            continue
+        r = db.execute(
+            update(tablo).where(tablo.c[atif] == user_id)
+            .values({alan: None for alan in kayit.anonim_alanlar if alan in tablo.c})
+        )
+        if r.rowcount:
+            silinen[f"{tablo.name}_anonimlestirildi"] = r.rowcount
+
+    # 4) Kullanıcı satırı (varsayılan). ORM yolu için çağıran False geçer.
     if delete_user_row:
         r = db.execute(delete(User.__table__).where(User.id == user_id))
         silinen["users"] = r.rowcount

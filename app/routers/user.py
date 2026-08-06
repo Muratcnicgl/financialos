@@ -18,6 +18,7 @@ from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.data_subject import disa_aktar  # BUG #243: KVKK export TEK KAYNAK
 from app.models import (
     User, Account, Transaction, RecurringIncome, RecurringExpense, PersonalDebt,
     Goal, Envelope, MasterCheckpoint, NetWorthSnapshot, CoachMemory, CoachInsight,
@@ -148,51 +149,12 @@ def export_data(
     """
     Kullanıcının TÜM verisini tek JSON olarak döner — VERİ EGEMENLİĞİ ("Sovereign OS" kök
     vizyonu) + KVKK veri taşınabilirlik hakkı. Salt okuma; kullanıcı verisini istediği an
-    dışa aktarabilir, kilitlenmez. Enum/tarih/Decimal JSON-güvenli serialize edilir.
+    dışa aktarabilir, kilitlenmez.
+
+    BUG #243 fix (D26/D28): gövde artık burada DEĞİL — export'un tek uygulaması
+    `app/data_subject.disa_aktar`. Eskiden iki ayrı uygulama vardı (bu uç elle bakılan bir
+    liste, `/api/users/me/export` ise ilişki-türetmeli) ve ayrışmışlardı: UI'nin kullandığı
+    uç `goal_allocations`/`goal_rules`'u hiç dökmüyor, ikisi de kullanıcının bcrypt şifre
+    hash'ini ve OAuth kimliğini dosyaya yazıyordu.
     """
-    def dump(model):
-        return [_row_to_dict(r) for r in db.query(model).filter(model.user_id == user.id).all()]
-
-    # GoalAllocation/GoalRule'da user_id YOK (DATA-011) → kullanıcının hedefleri üzerinden join.
-    goal_ids = [g.id for g in db.query(Goal).filter(Goal.user_id == user.id).all()]  # scope-exempt: KVKK export = kullanicinin TUM verisi, per-user
-
-    def dump_by_goal(model):
-        if not goal_ids:
-            return []
-        return [_row_to_dict(r) for r in db.query(model).filter(model.goal_id.in_(goal_ids)).all()]
-
-    return {
-        "exported_at": datetime.utcnow().isoformat() + "Z",
-        "schema": "financialos-export-v1",
-        "user": _row_to_dict(user),
-        "accounts": dump(Account),
-        "transactions": dump(Transaction),
-        "recurring_incomes": dump(RecurringIncome),
-        "recurring_expenses": dump(RecurringExpense),
-        "personal_debts": dump(PersonalDebt),
-        "goals": dump(Goal),
-        "goal_allocations": dump_by_goal(GoalAllocation),  # KVKK: hedef katkı/çekim kayıtları
-        "goal_rules": dump_by_goal(GoalRule),
-        "envelopes": dump(Envelope),
-        "wishlist_items": dump(WishlistItem),  # FEAT-032: istek listesi
-        "feedback": dump(Feedback),  # FEAT-033: kullanıcının gönderdiği geri bildirimler
-        # BUG #194 (P3.5/H5): demo veri isaretleyicileri de kullaniciya ait kayittir —
-        # KVKK tamlik invariant'i (tests/test_data_export.py) bunu zorunlu kilar.
-        "demo_data_markers": dump(DemoDataMarker),
-
-        "master_checkpoints": dump(MasterCheckpoint),
-        "net_worth_snapshots": dump(NetWorthSnapshot),
-        "coach_memory": dump(CoachMemory),
-        "coach_insights": dump(CoachInsight),
-        # kullanıcının eylem/karar kayıtları (finansal geçmişin tam parçası)
-        "pending_actions": dump(PendingAction),
-        "action_history": dump(ActionHistory),
-        "decision_journal": dump(DecisionJournal),
-        # koç şeffaflığı (Sovereign OS: koçun para hakkındaki muhakemesi de kullanıcınındır)
-        "reasoning_traces": dump(ReasoningTrace),
-        "api_call_log": dump(ApiCallLog),
-        # M40 (ADR-036) — workspace üyelikleri + sahip olunan workspace'ler (owner_user_id)
-        "workspace_memberships": dump(WorkspaceMembership),
-        "workspaces": [_row_to_dict(r) for r in
-                       db.query(Workspace).filter(Workspace.owner_user_id == user.id).all()],
-    }
+    return disa_aktar(db, user)

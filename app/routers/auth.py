@@ -772,9 +772,13 @@ def delete_me(user: User = Depends(get_current_user), db: Session = Depends(get_
 
 @users_router.get("/me/export")
 def export_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    """KVKK taşınabilirlik: kullanıcının tüm verisi JSON (makine-okur)."""
-    from app.serializers import export_user_data  # geç import (döngü önle)
-    return export_user_data(user, db)
+    """KVKK taşınabilirlik: kullanıcının tüm verisi JSON (makine-okur).
+
+    BUG #243 (D28): bu uç ile `/api/user/export` AYRI uygulamalardı ve ayrışmışlardı —
+    UI'nin kullandığı bu uç `goal_allocations`/`goal_rules`'u hiç dökmüyordu. İkisi de artık
+    `app/data_subject.disa_aktar` döner (tek sözleşme, `financialos-export-v1`)."""
+    from app.data_subject import disa_aktar  # geç import (döngü önle)
+    return disa_aktar(db, user)
 
 
 # --- Yardımcılar ---

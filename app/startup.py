@@ -14,6 +14,7 @@ from sqlalchemy import func
 
 from app.database import SessionLocal
 from app.models import NetWorthSnapshot, User
+from app.user_prefs import user_today  # BUG #237 (D17)
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,11 @@ def catch_up_snapshots() -> None:
             logger.info("Catch-up: Kullanici yok, atlandi")
             return
 
-        today = date.today()
         for user in users:  # BUG #163: tüm kullanıcılar
+            # BUG #237 fix (D17): boşluk aralığı KULLANICININ gününe kadar doldurulur —
+            # sunucu günü kullanılırsa yurt dışı kullanıcıda son gün ya eksik kalır ya da
+            # kullanıcının henüz yaşamadığı bir gün için snapshot yazılır.
+            today = user_today(user)
             last_date = (
                 db.query(func.max(NetWorthSnapshot.snapshot_date))
                 .filter(NetWorthSnapshot.user_id == user.id)

@@ -40,6 +40,7 @@ def get_fund_price(fund_code: str, target_date: Optional[date] = None) -> Option
     """Fon fiyatı (pytefas/TEFAS). (Decimal, 'tefas') veya None. Cache'li."""
     if not fund_code:
         return None
+    # tz-exempt: fiyat önbelleği anahtarı — piyasa günü (kullanıcı başına ayrışmaz).
     key = (fund_code, (target_date or date.today()).isoformat())
     cached = _cache_get(key)
     if cached:
@@ -114,7 +115,7 @@ def record_investment_price(db: Session, account: Account, price: Decimal, sourc
     verebiliyordu.
     """
     from datetime import datetime
-    today = date.today()
+    today = date.today()  # tz-exempt: fiyat tazeleme cron'u — sistem/piyasa günü, kullanıcı yok
     exists = db.query(PriceHistory).filter(
         PriceHistory.fund_code == account.fund_code,
         PriceHistory.price_date == today,

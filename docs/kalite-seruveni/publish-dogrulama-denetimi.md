@@ -868,7 +868,16 @@ SIDDET GEREKCESI: orta — veri sizintisi/hesap ele gecirme yok, hata sessiz yut
 
 ### D17 · [orta] Saat dilimi kişiselleştirmesi YARIM: kullanıcı-bağlamlı tarih yollarının çoğu hâlâ sunucu tarihini kullanıyor (ADR-042'nin kendi iddiası diskte yanlış)
 
-- **Boyut:** urunlesme · **Yer:** `app/action_executor.py:600` · **Durum:** ⬜ AÇIK
+- **Boyut:** urunlesme · **Yer:** `app/action_executor.py:600` · **Durum:** ✅ **KAPANDI — BUG #237**
+  (6 Ağu). Kök sebep denetimin çelişme turunda işaret ettiği **yapısal boşluktu**: handler'lara
+  User geçmiyordu. `app/user_prefs.user_today_by_id(db, user_id)` ile imza değiştirmeden kapatıldı;
+  **sınıf taraması (L11)** denetimin listelediği 8 yerin ötesinde 12 yer daha buldu (koç bağlamı,
+  premortem snapshot'ı, nakit-akış projeksiyonu, simülasyon, hedef tamamlanma, borç payoff tarihi,
+  recurring dedup anahtarı, startup catch-up, onboarding demo verisi). Kapı artık **statik**:
+  `tests/test_saat_dilimi_kapisi.py` her `date.today()` çağrısını gerekçe zorunluluğuna bağlar
+  (AST, kapsam tabanı + kendi mutasyon testi + 13 modül için adoption kilidi); davranış tarafı
+  `tests/test_saat_dilimi_kullanici_gunu.py` (UTC+14/UTC-11 uçlarında parametrik, 32 test).
+  ADR-042'nin yanlış çıkan iddiasına düzeltme notu yazıldı.
 - **Neden yayın engeli / etki:** Kapalı beta hedefi "yabancı bir kullanıcı kendi hayatını kurabilmeli". Sunucu TR'de (UTC+3); farklı saat dilimindeki bir beta kullanıcısı için: (1) koça "bugün 300 TL market harcadım" dediğinde işlem YANLIŞ GÜNE kalıcı yazılır — kullanıcının kendi girdiği veri sessizce bozulur ve geri alması için elle düzeltmesi gerekir; (2) ay sınırında gider bir önceki/sonraki aya düşer, bu da aylık özet, kategori bütçesi ve günlük harcama limitini yanlış hesaplar — kullanıcı yanlış sayıya bakarak PARA KARARI verir; (3) monthly-summary parametresiz çağrıldığında yanlış ayı açar; (4) net-değer snapshot'ı sunucu günüyle damgalandığı için trend grafiği kullanıcının gördüğü günle hizasız kalır. ADR-042 bu zararı KENDİSİ tarif edip "uygulandı" demiş; belge doğru, kod yarım. Bu kabul edilmiş bir risk DEĞİL — tam tersine kapatıldığı iddia edilmiş bir doğruluk hatası, dolayısıyla kimse tekrar bakmayacak.
 
 <details><summary>Kanıt</summary>

@@ -28,6 +28,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from app.user_prefs import user_today_by_id  # BUG #237 (D17)
 
 from app.models import Account, AccountType
 from app.rules_engine import _scope  # M72: aktif workspace kapsamı (köprü; contextvar yoksa user_id)
@@ -250,6 +251,8 @@ def _simulate(
 
     # RULE-010: gerçek takvim ay. RULE-011: MAX_MONTHS'a ulaşıldıysa borç min ödemeyle ASLA
     # bitmiyor → sahte "50 yıl sonra" tarihi yerine payoff_date=None (çağıran yanılmasın).
+    # tz-exempt: saf hesap yardımcısı — `today` enjekte edilir; kullanıcının gününü
+    # kompozisyon sınırı (compare_strategies/simulate_consolidation) geçirir.
     payoff = None if month >= MAX_MONTHS else _add_months(today or date.today(), month)
 
     return StrategyResult(
@@ -314,8 +317,10 @@ def compare_strategies(
             }
         }
 
-    snowball = calc_snowball(debts, extra_monthly)
-    avalanche = calc_avalanche(debts, extra_monthly)
+    # BUG #237 fix (D17): payoff_date kullanıcının gününden türer (sunucununki değil).
+    bugun = user_today_by_id(db, user_id)
+    snowball = calc_snowball(debts, extra_monthly, today=bugun)
+    avalanche = calc_avalanche(debts, extra_monthly, today=bugun)
 
     saved = snowball.total_interest_paid - avalanche.total_interest_paid
     months_diff = snowball.months_to_freedom - avalanche.months_to_freedom

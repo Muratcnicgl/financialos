@@ -104,6 +104,7 @@ def _last(points: list) -> Optional[tuple]:
 
 
 def _window(target_date: Optional[date]) -> tuple[date, date]:
+    # tz-exempt: TCMB/EVDS yayın takvimi — kullanıcının değil veri kaynağının günü.
     end = target_date or date.today()
     return end - timedelta(days=7), end  # hafta sonu/tatil için 7 gün geriye bak
 

@@ -26,6 +26,20 @@ kendi hayatını kurabilmeli" hedefi üç kişiselleştirme ekseni doğuruyor: *
    yollar `app/user_prefs.user_today(user)` kullanır. TZ boşsa sunucu yereline düşer
    (mevcut kurulumların davranışı **değişmez**). Geçersiz TZ **sessizce kabul edilmez**:
    API 422 döner, çalışma zamanında güvenli varsayılana düşülür + log.
+
+   > ⚠️ **DÜZELTME (6 Ağu 2026, denetim D17 / BUG #237).** Yukarıdaki "TÜM kullanıcı-bağlamlı
+   > yollar" iddiası **yazıldığı anda diskte YANLIŞTI**: yalnız 7 router benimsemişti.
+   > `action_executor` (koçun yazdığı işlem/ödeme tarihi), `reports` (6 uç), `subscriptions`,
+   > cockpit'in snapshot damgası, `coach` bağlamı, `cashflow`/`simulation`/`goal_engine`/
+   > `debt_strategy` motorları ve startup catch-up sunucu gününü kullanıyordu. Kök sebep
+   > yapısaldı, atlanmış çağrı değil: `execute_pending_action` handler'ları
+   > `handler(db, user_id, payload)` ile çağırıyordu — User nesnesi hiç geçmediği için
+   > handler `user_today`'e **ulaşamıyordu**. Kapatıldı: `user_prefs.user_today_by_id(db, user_id)`
+   > + tüm yolların dönüştürülmesi. İddia artık **teste bağlı** (belge tek başına delil değil):
+   > `tests/test_saat_dilimi_kapisi.py` her `date.today()` çağrısını gerekçe zorunluluğuna
+   > bağlar, `tests/test_saat_dilimi_kullanici_gunu.py` davranışı UTC+14/UTC-11 uçlarında ölçer.
+   > Muafiyet (piyasa takvimi: TEFAS/BIST/EVDS + saf hesap yardımcılarının varsayılanı)
+   > `# tz-exempt: <neden>` işaretiyle sayılıdır.
 2. **Şimdi (alan olarak):** `User.currency` / `User.locale` saklanır ve API'den okunur/yazılır;
    varsayılanlar `TRY` / `tr-TR`. Böylece kayıt akışı ve dışa aktarım ileriye dönük uyumlu olur.
 3. **Sonra (ayrı iş, P8 öncesi):** görüntüleme para birimi → tek bir biçimlendirme helper'ına

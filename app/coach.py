@@ -118,6 +118,7 @@ from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
 from app.grounding import check_grounding  # LLM-003: cikti dogrulama (grounding)
+from app.user_prefs import user_today_by_id  # BUG #237 (D17): 'bugün' kullanıcının saat diliminde
 # kota-exempt: motor rezervasyon yapmaz (uç yapar); buradan yalnız GERÇEK istek SAYIMI
 # kancası kullanılır — BUG #234 (D15).
 from app import llm_quota as _kota
@@ -867,7 +868,9 @@ def _maybe_market_block(user_message: str) -> Tuple[str, list]:
 
 
 def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int] = None) -> Tuple[str, Dict]:
-    today = date.today()
+    # BUG #237 fix (D17): koçun gördüğü cockpit YANLIŞ günden üretilirse verdiği tavsiye de
+    # yanlış güne aittir (bugünün limiti, kalan gün sayısı, vadesi gelenler).
+    today = user_today_by_id(db, user_id)
     with workspace_scope(workspace_id):
         cockpit = generate_cockpit(user_id, today, db)
 
@@ -1132,7 +1135,8 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         from app.debt_strategy import collect_debts, calc_avalanche, MAX_MONTHS
         _debts = collect_debts(db, user_id)
         if _debts:
-            av = calc_avalanche(_debts, extra_monthly=0.0)
+            av = calc_avalanche(_debts, extra_monthly=0.0,
+                                today=user_today_by_id(db, user_id))  # BUG #237 (D17)
             name_by_id = {d.account_id: d.name for d in _debts}
             order_names = " → ".join(name_by_id.get(aid, str(aid)) for aid in av.order[:6])
             if av.months_to_freedom >= MAX_MONTHS:

@@ -30,6 +30,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from app.user_prefs import user_today_by_id  # BUG #237 (D17)
 
 from app.models import (
     Account, AccountType,
@@ -279,7 +280,9 @@ def generate_forecast(
     if include is None:
         include = VALID_INCLUDE.copy()
 
-    today = today or date.today()
+    # BUG #237 fix (D17): enjekte edilmediyse KULLANICININ günü (sunucununki değil) —
+    # projeksiyonun ilk günü kayarsa 'en düşük bakiye günü' ve crunch uyarıları da kayar.
+    today = today or user_today_by_id(db, user_id)
     end = today + timedelta(days=horizon_days - 1)
 
     # --- Başlangıç bakiyesi: nakit hesaplar ---

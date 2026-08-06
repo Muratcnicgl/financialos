@@ -43,6 +43,28 @@ def user_today(user) -> date:
     return datetime.now(tz).date() if tz else date.today()
 
 
+def user_today_by_id(db, user_id) -> date:
+    """
+    BUG #237 fix (D17): User NESNESİ taşınmayan yollar için kullanıcının bugünü.
+
+    Yapısal boşluk: `execute_pending_action` handler'ları `handler(db, user_id, payload)` ile
+    çağırıyordu — User hiç geçmiyordu, dolayısıyla hiçbir handler `user_today`'e ULAŞAMIYORDU
+    (atlanmış bir çağrı değil, tasarım boşluğuydu). Aynı durum motor katmanında da vardı
+    (cashflow/simulation/goal_engine/debt_strategy yalnız user_id alır). Bu yardımcı o boşluğu
+    imza değiştirmeden kapatır: kullanıcı bulunamazsa sunucu gününe düşer (geriye uyum).
+    """
+    if db is None or user_id is None:
+        return date.today()
+    try:
+        from app.models import User
+        user = db.get(User, user_id)
+    except Exception:  # DB erişilemiyorsa tarih üretimi çökmemeli (salt okuma, güvenli varsayılan)
+        logger.warning("[user_prefs] kullanıcı okunamadı (user=%s) → sunucu yereli", user_id,
+                       exc_info=True)
+        return date.today()
+    return user_today(user) if user is not None else date.today()
+
+
 def user_currency(user) -> str:
     return (getattr(user, "currency", None) or VARSAYILAN_PARA_BIRIMI).upper()
 

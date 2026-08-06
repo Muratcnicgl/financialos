@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.cashflow import generate_forecast
 from app.rules_engine import generate_cockpit
+from app.user_prefs import user_today_by_id  # BUG #237 (D17)
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def build_cockpit_snapshot(db: Session, user_id: int) -> CockpitSnapshot:
     Hata durumunda partial snapshot doner (generate_cockpit/generate_forecast
     cagri basina try/except), kritik alanlar 0.0 olur.
     """
-    today = date.today()
+    today = user_today_by_id(db, user_id)  # BUG #237 (D17): premortem kullanıcının gününden
 
     try:
         cockpit = generate_cockpit(user_id, today, db)

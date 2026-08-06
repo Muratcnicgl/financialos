@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.models import Account, AccountType, GoalAllocation, PersonalDebt
 from app.rules_engine import _scope, workspace_scope  # M72: debt_freedom workspace izolasyonu (köprü)
+from app.user_prefs import user_today_by_id  # BUG #237 (D17)
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,8 @@ def _project_debt_freedom(goal: models.Goal, db: Session) -> Optional[date]:
         # 'months_to_freedom'); attribute erişimi (snowball.months_to_freedom) AttributeError
         # atıp bare-except tarafından yutuluyordu → projected_completion_date HER ZAMAN None idi.
         if snowball and snowball["months_to_freedom"] < 600:
-            return date.today() + timedelta(days=int(snowball["months_to_freedom"] * 30))
+            return (user_today_by_id(db, goal.user_id)  # BUG #237 (D17)
+                    + timedelta(days=int(snowball["months_to_freedom"] * 30)))
     except Exception:
         # BE-010: sessiz yutma → loglama. Tam bu except #066'da bir AttributeError'ı
         # gizleyip projected_completion_date'i sessizce None yapıyordu; log olsaydı erken yakalanırdı.
@@ -205,7 +207,7 @@ def _project_cash_completion(
     if days_needed > 365 * 10:
         return None
 
-    return date.today() + timedelta(days=days_needed)
+    return user_today_by_id(db, goal.user_id) + timedelta(days=days_needed)  # BUG #237 (D17)
 
 
 def sinking_fund_plan(target_amount, target_date, current_amount, today: Optional[date] = None) -> Optional[dict]:
@@ -220,6 +222,8 @@ def sinking_fund_plan(target_amount, target_date, current_amount, today: Optiona
     if target_date is None:
         return None
     if today is None:
+        # tz-exempt: saf hesap (db/user almaz, Pydantic gösterim katmanından da çağrılır);
+        # kullanıcı bağlamı olan çağıran `today` geçirir.
         today = date.today()
 
     target = _money(target_amount)

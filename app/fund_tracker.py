@@ -230,6 +230,7 @@ def try_auto_fetch_fund_price(fund_code: str) -> Optional[Decimal]:
         import time
 
         crawler = Crawler()
+        # tz-exempt: TEFAS fiyat takvimi — kullanıcının değil PİYASANIN günü (TR seansı).
         today = date.today()
 
         for offset in range(0, 5):
@@ -289,6 +290,7 @@ def try_auto_fetch_stock_price(ticker: str) -> Optional[Dict]:
     from datetime import date, timedelta
 
     kod = ticker.upper().removesuffix(".IS")
+    # tz-exempt: BIST seans takvimi — kullanıcının değil piyasanın günü.
     end = date.today()
     start = end - timedelta(days=10)  # hafta sonu/tatil için pencere
     url = (

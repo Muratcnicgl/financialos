@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.rules_engine import detect_subscriptions, workspace_scope  # M70
 from app.dependencies import get_db, get_current_user
+from app.user_prefs import user_today  # BUG #237 (D17): tespit penceresi kullanıcının gününden
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M70 + BUG #173
 from app.models import User, RecurringExpense, Account
 
@@ -49,7 +50,8 @@ def list_subscriptions(
 ) -> SubscriptionsResponse:
     """İşlem geçmişinden tekrarlayan abonelikleri tespit eder (salt okuma)."""
     with workspace_scope(ws_id):  # M70: abonelik tespiti aktif workspace işlemlerinden
-        return detect_subscriptions(user.id, date.today(), db, lookback_days=lookback_days)
+        return detect_subscriptions(user.id, user_today(user), db,  # BUG #237 (D17)
+                                    lookback_days=lookback_days)
 
 
 class ToRecurringRequest(BaseModel):

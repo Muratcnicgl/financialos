@@ -35,6 +35,7 @@ from datetime import date, timedelta
 from calendar import monthrange
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
+from app.user_prefs import user_today_by_id  # BUG #237 (D17)
 
 from app.models import (
     Account, AccountType, RecurringIncome,
@@ -578,7 +579,7 @@ def simulate_action(
           }
         }
     """
-    today = base_date or date.today()
+    today = base_date or user_today_by_id(db, user_id)  # BUG #237 (D17)
 
     # 1. AKSIYONSUZ (baseline) projeksiyon — referans icin
     baseline_world = _load_world(db, user_id, today)

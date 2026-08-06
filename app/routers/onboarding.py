@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.user_prefs import user_today  # BUG #237 (D17)
 from app.workspace_deps import active_workspace_id, scope_filter, require_write
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType, RecurringIncome,
@@ -71,7 +72,7 @@ def demo_yukle(
     if db.query(DemoDataMarker).filter(DemoDataMarker.user_id == user.id).count() > 0:
         raise HTTPException(409, "Demo veri zaten yüklü. Önce kaldırabilirsin.")
 
-    bugun = date.today()
+    bugun = user_today(user)  # BUG #237 (D17): demo veri kullanıcının gününe göre kurulur
 
     kasa = Account(user_id=user.id, workspace_id=ws_id, name="Örnek Vadesiz Hesap",
                    account_type=AccountType.cash, balance=15000.0,

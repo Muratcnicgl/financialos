@@ -2180,7 +2180,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     try:
         from app.debt_strategy import calc_avalanche, MAX_MONTHS
         if _dbts:
-            _av = calc_avalanche(_dbts, extra_monthly=0.0)
+            _av = calc_avalanche(_dbts, extra_monthly=0.0, today=today)  # BUG #237 (D17)
             borc_ozgurluk = {
                 "kalan_ay": _av.months_to_freedom,
                 "borcsuz_tarih": _av.payoff_date.isoformat() if _av.payoff_date else None,

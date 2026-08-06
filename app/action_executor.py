@@ -30,6 +30,10 @@ GÜNCELLEMELER:
   (eskiden net_eline_gecen hiçbir hesaba yatmadan lot düşüp success dönüyordu → para kaybı).
 - 6 Tem 2026 BUG #069 fix (AE-001/P0-1): execute_pending_action post-commit trigger'ı ayrı try'a
   alındı — trigger hatası zaten 'executed' aksiyonu 'failed' işaretleyip çift-sayıma yol açmasın.
+- 6 Agu 2026 BUG #237 fix (D17): tarih verilmeyen aksiyonlar SUNUCU gününe yazılıyordu — farklı
+  saat dilimindeki kullanıcının kendi bildirdiği işlem KALICI olarak yanlış güne düşüyordu
+  (ay sınırında aylık özet/kategori bütçesi/günlük limit de kayıyordu). Artık işlem tarihi,
+  ödeme tarihi ve recurring dedup anahtarı kullanıcının gününden (`user_today_by_id`) türer.
 """
 
 import json
@@ -38,6 +42,8 @@ import math
 from datetime import datetime, date
 from typing import Dict, Optional
 from sqlalchemy.orm import Session
+
+from app.user_prefs import user_today_by_id  # BUG #237 (D17): "bugün" kullanıcının saat diliminde
 
 logger = logging.getLogger(__name__)
 
@@ -401,7 +407,10 @@ def _mark_recurring_triggered(db: Session, pending: PendingAction, payload: Dict
     # kullanır → tutarlı, ay-sınırında çift-tetik YOK. Fallback (transaction_date yoksa) da yerel
     # date.today() olmalı (utcnow DEĞİL) — TR (UTC+3) ay sınırında UTC/yerel ay farkı doğurmasın.
     td = payload.get("transaction_date")
-    _local = date.today()
+    # BUG #237 fix (D17): fallback da KULLANICININ günü olmalı — trigger_due zaten
+    # user_today(user) ile üretiyor; buradaki taraf sunucu gününde kalırsa ay sınırında
+    # dedup anahtarı iki yakada iki ay gösterip çift tetiklemeye kapı açar.
+    _local = user_today_by_id(db, pending.user_id)
     ym = td[:7] if isinstance(td, str) and len(td) >= 7 else \
         f"{_local.year}-{_local.month:02d}"
     # P1 (Wave-9) sertleştirme: recurring kaydı SAHİBİNE kapsanır. source_recurring_id bugün
@@ -632,7 +641,10 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
     if txn_date:
         txn_date = date.fromisoformat(txn_date) if isinstance(txn_date, str) else txn_date
     else:
-        txn_date = date.today()
+        # BUG #237 fix (D17): koç payload'a transaction_date EKLEMEZ (V3_GOD_MODE_PROMPT bilerek
+        # yasaklıyor) → en sık kullanılan yol burasıdır. Sunucu günü yazmak, kullanıcının
+        # "bugün harcadım" dediği işlemi kalıcı olarak yanlış güne koyuyordu.
+        txn_date = user_today_by_id(db, user_id)
 
     account_id = payload.get("account_id")
     account_name = None  # BUG #031 fix
@@ -722,8 +734,8 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
         return {"success": False, "message": "Bu borc zaten odenmiş olarak isaretli."}
 
     paid_date_str = payload.get("paid_date")
-    debt.paid_date = (
-        date.fromisoformat(paid_date_str) if paid_date_str else date.today()
+    debt.paid_date = (  # BUG #237 fix (D17): tarih verilmediyse KULLANICININ günü
+        date.fromisoformat(paid_date_str) if paid_date_str else user_today_by_id(db, user_id)
     )
     debt.is_paid = True
 

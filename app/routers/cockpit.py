@@ -36,9 +36,13 @@ router = APIRouter(prefix="/api/cockpit", tags=["cockpit"])
 
 
 def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict,
-                           workspace_id: Optional[int] = None) -> None:
+                           workspace_id: Optional[int] = None,
+                           today: Optional[date] = None) -> None:
     """Bugünkü net değer snapshot'ını yaz (idempotent — workspace başına günde bir kez)."""
-    today = date.today()
+    # BUG #237 fix (D17): snapshot SUNUCU gününü damgalıyordu; aynı istekte cockpit ise
+    # kullanıcının gününü kullanıyordu (istek kendi içinde tutarsız) → trend grafiği
+    # kullanıcının gördüğü günle hizasız kalıyordu. Gün artık çağırandan gelir.
+    today = today or date.today()  # tz-exempt: çağıran kullanıcının gününü geçirir (aşağıdaki uç)
     # M43: workspace varsa o workspace'in snapshot'ı, yoksa legacy user snapshot'ı
     q = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.snapshot_date == today)
     q = q.filter(NetWorthSnapshot.workspace_id == workspace_id) if workspace_id is not None \
@@ -108,7 +112,7 @@ def get_cockpit(
 
     # B2: bugünkü snapshot'ı kaydet (idempotent)
     try:
-        _ensure_today_snapshot(db, user.id, cockpit, ws_id)
+        _ensure_today_snapshot(db, user.id, cockpit, ws_id, today=today)  # BUG #237 (D17)
     except Exception:
         # BE-010: snapshot best-effort (cockpit'i durdurmaz) AMA sürekli başarısızsa görünür
         # olmalı (net-worth trendi sessizce boş kalmasın).

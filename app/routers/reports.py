@@ -21,6 +21,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.user_prefs import user_today  # BUG #237 (D17): pencere/ay kullanıcının gününden ölçülür
 from app.rules_engine import (
     generate_monthly_summary, calculate_networth_attribution, calculate_real_networth,
     workspace_scope,  # M43
@@ -57,7 +58,7 @@ def category_breakdown(
     current_user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
-    since = date.today() - timedelta(days=days)
+    since = user_today(current_user) - timedelta(days=days)  # BUG #237 (D17)
 
     # BUG #073 fix (P0-11/RRE-001): transaction_type de select+group_by'a eklendi. "both"
     # modunda aynı kategori adlı gelir + gider tek 'total'da toplanıp yön bilgisini yok
@@ -131,7 +132,7 @@ def net_worth_trend(
     NetWorthSnapshot tablosundan, cockpit her açıldığında yazılan veriler.
     Geçmiş veriler scripts/backfill_net_worth.py ile doldurulur.
     """
-    since = date.today() - timedelta(days=days)
+    since = user_today(current_user) - timedelta(days=days)  # BUG #237 (D17)
     rows = (
         db.query(NetWorthSnapshot)
         .filter(
@@ -164,7 +165,7 @@ def net_worth_attribution(
     yatırım, alacak). Yeterli snapshot geçmişi yoksa {available: false}.
     """
     with workspace_scope(ws_id):  # M43
-        r = calculate_networth_attribution(current_user.id, date.today(), db)
+        r = calculate_networth_attribution(current_user.id, user_today(current_user), db)  # BUG #237
     if r is None:
         return {"available": False}
     return {"available": True, **r}
@@ -181,7 +182,7 @@ def real_net_worth(
     Türkiye'de servetin gerçek yönünü gösterir. Yeterli snapshot geçmişi yoksa {available: false}.
     """
     with workspace_scope(ws_id):  # M43
-        r = calculate_real_networth(current_user.id, date.today(), db)
+        r = calculate_real_networth(current_user.id, user_today(current_user), db)  # BUG #237
     if r is None:
         return {"available": False}
     return {"available": True, **r}
@@ -215,7 +216,7 @@ def upcoming_cashflow(
     Gelecek N günde vadesi gelen alacak, borç, kredi taksiti ve
     tekrarlayan gelir/gider kalemlerini döner.
     """
-    today = date.today()
+    today = user_today(current_user)  # BUG #237 (D17): ufuk kullanıcının gününden başlar
     horizon = today + timedelta(days=days)
     items = []
 
@@ -323,7 +324,7 @@ def monthly_summary(
     önceki aya göre trend. year/month verilmezse içinde bulunulan ay.
     Hesap rules_engine'de (mimari kural); router yalnız parametre + delege eder.
     """
-    today = date.today()
+    today = user_today(current_user)  # BUG #237 (D17): parametresizse KULLANICININ ayı
     y = year or today.year
     m = month or today.month
     with workspace_scope(ws_id):  # M43

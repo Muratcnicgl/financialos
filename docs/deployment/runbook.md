@@ -34,7 +34,10 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ## Doğrulama (canlı-gate)
 ```sh
 docker compose -f docker-compose.prod.yml ps          # db/backend/scheduler/web/certbot = Up
-curl -fsS https://$DOMAIN/api/health                    # {"status":"ok"}
+curl -fsS https://$DOMAIN/api/ready                     # {"hazir":true,"db":"ok","sema":"guncel"}
+# NOT (BUG #247): /api/health CANLILIK olcer (surec ayakta mi) ve DB cokmusken de 200 doner.
+# Dogrulamada /api/ready kullan: DB'ye SELECT 1 atar + sema surumunu kod ile karsilastirir,
+# sorunluysa 503. HEALTHCHECK ve deploy.sh rollback kapisi da bu ucu okur.
 # Tarayıcı: https://$DOMAIN → login → gerçek işlem gir → cockpit güncellendi (KULLANIM-GATE)
 ```
 - **Scheduler (cron 7/24):** `scheduler` servisi sürekli çalışır → fiyat cron 02:45, batch 03:00 vb. **PC-kapalı sorunu ÇÖZÜLDÜ**
@@ -116,7 +119,7 @@ cat backup-YYYY-MM-DD.sql | docker compose -f docker-compose.prod.yml \
 
 # 4) Servisleri başlat + DOĞRULA (sessiz başarı sayılmaz)
 docker compose -f docker-compose.prod.yml start backend scheduler
-curl -fsS https://$DOMAIN/api/health
+curl -fsS https://$DOMAIN/api/ready       # 503 ise sema/DB sorunu var (BUG #247)
 docker compose -f docker-compose.prod.yml exec -T db \
   psql -U financialos -d financialos -c 'SELECT COUNT(*) FROM users;'
 docker compose -f docker-compose.prod.yml exec -T db \
@@ -256,6 +259,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 # 4) DOGRULA (sessiz basari sayilmaz)
 curl -fsS https://$DOMAIN/api/health      # "version" alani eski surume donmus olmali
+curl -fsS https://$DOMAIN/api/ready       # geri alma sonrasi sema da uyumlu mu (503 = migration/DB sorunu)
 python scripts/live_gate.py https://$DOMAIN
 docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d financialos -c 'SELECT COUNT(*) FROM users;'
 ```

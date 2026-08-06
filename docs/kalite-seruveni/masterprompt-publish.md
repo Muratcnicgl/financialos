@@ -436,6 +436,21 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
 
+> **7 AĞUSTOS 2026 — H4 ve H9 KAPANDI (§11 açık listesinin 5. ve 6. maddeleri).**
+> - **BUG #256 / ADR-044 — para birimi tek kaynak.** Biçimlendirme yedi ayrı yerde kodluydu;
+>   167 backend + 91 frontend ham "TL" sabiti kalktı. **Asıl bulgu:** `grounding` deseni "TL"
+>   literaline gömülüydü → para birimi değişse doğrulama `{"ok": True}` ile sessiz-yeşile
+>   düşerdi; ayrıca koç bağlamının yatırım K/Z ve kart borcu satırları **etiketsiz** tutar
+>   yazıyordu (hiç denetlenmiyorlardı). TRY kilidi bilinçli olarak KALDI.
+> - **BUG #257 / ADR-045 — prompt enjeksiyonu yapı savunması.** Kullanıcı, hesap adı gibi bir
+>   alanla koç bağlamında **kendi `## SİSTEM` bölümünü** açabiliyordu; paylaşılan workspace'te
+>   bu, başka bir üyenin koçunu etkiler. Sınıf taraması kalıcı yolu da buldu (insight → prompt
+>   → insight). `app/prompt_safety.guvenli_metin` yapı taşıyan işaretleri nötrler, içeriği
+>   sansürlemez.
+> - **Taban:** 2105 passed / 18 skipped + 159 vitest (8'i yeni) + `npm run build` yeşil.
+> - **Kalan açık iş:** onboarding rehberi (P3), kapasite sınırları (P5), H11 canlı SMTP
+>   (insan-kapısı), backlog'un 272 açık maddesi ve P6-P9 insan-kapısı.
+>
 > **📌 7 AĞUSTOS 2026 — DEVİR BELGESİ + ÜÇ YAZILI KARAR (önce bunları oku)**
 >
 > **(0) Tam devir belgesi:** `docs/kalite-seruveni/master-durum-raporu-2026-08-06.md` — 31.668 satır,

@@ -422,9 +422,19 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 16:45)
 
-**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. Son commit `dd4641e`.
-**Test tabanı:** `1717 passed, 6 skipped` (backend) + `125 passed` (vitest) + `npm run build`
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li.
+**Test tabanı:** `1721 passed, 6 skipped` (backend) + `129 passed` (vitest) + `npm run build`
 yeşil. Kırmızı yok.
+
+> **6 Ağu 2026 — KULLANICI BİLDİRİMİ kapandı (BUG #232, denetim dışı).** "Pasifleştir" basılan
+> kural Aktif/Pasif/**Hepsi** hiçbir sekmede görünmüyordu: `GET /api/checkpoints`
+> `active_only=True` default'lu, `RedLines.jsx` parametresiz çağırıyordu → pasif kayıt istemciye
+> hiç ulaşmıyor, panelin istemci-taraflı filtresi ve sayacı boş veri üzerinde çalışıyordu.
+> Soft-delete edilen kural da aynı sebeple "buharlaşıyordu" (router'ın *tarihçe kalır* iddiası
+> kullanıcı için fiilen yalandı). İki kapı: `redlines-pasif.test.jsx` (4) + backend sözleşmesi
+> `tests/test_checkpoint_pasif_gorunurluk.py` (4). **Ders:** denetim ajanları bu sınıfı
+> göremedi — sunucu ve istemci ayrı ayrı doğruydu, uyuşmazlık ARADAYDI. Gerçek kullanım hâlâ
+> statik denetimin bulamadığı defekt üretiyor.
 
 ---
 

@@ -16,6 +16,10 @@ import { checkpointsApi, accountsApi, parseTRNumber } from '../api.js';  // H21:
  *  - Aktif/pasif toggle (tek tikla)
  *  - Tipe gore filtre + aktif/pasif filtre
  *  - 'Yeni MC' modal (tip + oncelik + baslik + aciklama)
+ *
+ * GUNCELLEMELER:
+ *  - BUG #232 fix: liste `active_only=false` ile cekilir. Backend default'u active_only=True
+ *    oldugundan pasiflestirilen (ve soft-delete edilen) kural hicbir sekmede gorunmuyordu.
  */
 
 const TYPE_META = {
@@ -67,7 +71,12 @@ export default function RedLines() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const data = await checkpointsApi.list();
+      // BUG #232 fix: backend GET /api/checkpoints `active_only=True` DEFAULT'ludur.
+      // Parametresiz çağırıldığında pasif kurallar istemciye HİÇ ulaşmıyordu — bu panelin
+      // Aktif/Pasif/Hepsi filtresi istemci-taraflı olduğu için "Pasifleştir" basılan kural
+      // her sekmeden kayboluyor, "N pasif" sayacı hep 0 kalıyordu. Pasifleştirme = tarihçeyi
+      // koruyarak devre dışı bırakma; kullanıcı kuralı geri açabilmek için GÖREBİLMELİ.
+      const data = await checkpointsApi.list({ active_only: false });
       setCheckpoints(data || []);
     } catch (e) {
       setError(e.message || 'Kırmızı çizgiler yüklenemedi');

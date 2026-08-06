@@ -6,7 +6,7 @@ Bu script o kapıları **elle tıklamadan** koşar ve PASS/FAIL tablosu basar. A
 ayağa kalktığında "çalışıyor gibi görünüyor" demek yerine ÖLÇMEK (masterprompt §6: kanıt =
 komut + gerçek çıktı).
 
-Kullanım (Murat, VM hazır olduğunda):
+Kullanım (operatör, VM hazır olduğunda):
     python scripts/live_gate.py https://<alan-adi>
     python scripts/live_gate.py https://<alan-adi> --email <e-posta> --password <parola>
 

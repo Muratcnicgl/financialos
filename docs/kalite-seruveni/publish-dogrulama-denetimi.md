@@ -926,7 +926,15 @@ Bulgu diskten dogrulandi, curutulemedi. (1) app/action_executor.py:596-600 gerce
 
 ### D18 · [orta] Kurucunun ve adı geçen üçüncü bir kişinin gerçek finansal verisi (tutarlar, borç takvimi, banka markaları) production Docker imajına giriyor
 
-- **Boyut:** urunlesme · **Yer:** `scripts/setup_data.py:1` · **Durum:** ⬜ AÇIK
+- **Boyut:** urunlesme · **Yer:** `scripts/setup_data.py:1` · **Durum:** ✅ **KAPANDI — BUG #236**
+  (6 Ağu). `.dockerignore` artık kişisel-veri/yıkıcı/geliştirici script'lerini eliyor (her satır
+  gerekçeli). **Sınıf taraması (L11) dört ek dosya buldu** — denetim yalnız `setup_data.py`'yi
+  görmüştü: `eval_runner.py` + `apply_w3_039_is_system.py` (kişiye özel iz, imajdan çıkarıldı),
+  `live_gate.py` + `cleanup_orphan_traces.py` (operasyonda GEREKLİ → izleri jenerikleştirildi).
+  Yeni kapı `tests/test_imaj_kisisel_veri.py` kapsamı **imajın gerçek içeriğine** bağlıyor:
+  Dockerfile'ın `COPY`'leri + `.dockerignore` simüle edilir, kalan dosyalar hem kişisel iz hem
+  `drop_all` için taranır; ters yön de kilitli (çalışma-zamanı ve operasyon araçları elenirse
+  kapı kırılır — eleme fazla genişleyip ürünü kıramaz).
 - **Neden yayın engeli / etki:** KVKK/hukuki: "Efe" gerçek bir üçüncü kişidir ve borç tutarları + 13 aylık ödeme takvimi onun finansal verisidir; bu veri, o kişinin rızası olmadan dağıtılan bir yapıya (Docker imajı) gömülü halde taşınıyor. İmaj bir registry'ye push edilir, bir sunucu ele geçirilir veya destek amacıyla paylaşılırsa kurucunun VE adı geçen kişinin gerçek bakiyeleri, kredileri, banka ilişkileri ve aile içi para düzenlemeleri ifşa olur — bunlar KVKK m.6 anlamında olmasa da açıkça özel nitelikli-benzeri hassasiyette finansal kişisel veridir. Buna ek olarak drop_all yolu prod konteynerinde erişilebilir kalıyor: tek yanlış komut tüm beta kullanıcılarının verisini kalıcı siler (yedekten dönüş dışında telafisi yok). Çözüm ucuz ve yan etkisiz: .dockerignore'a scripts/setup_data.py eklemek (veya scripts/ altında yalnız gerekli olanları COPY etmek) — kod değişikliği gerekmiyor.
 
 <details><summary>Kanıt</summary>

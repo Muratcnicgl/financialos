@@ -1,8 +1,8 @@
 """
 Yetim / test-kullanıcı verisi temizliği (charter M3.1).
 
-TARİHÇE (M3.1, Wave-2): Tek-kullanıcı MVP'sinde canlı DB'de üç user_id vardı — 1 "Murat"
-(gerçek), 2 "test_user_decision_rhythm" (test), 3 (users tablosunda YOK, dangling-orphan).
+TARİHÇE (M3.1, Wave-2): Tek-kullanıcı MVP'sinde canlı DB'de üç user_id vardı — 1 (gerçek
+kullanıcı), 2 "test_user_decision_rhythm" (test), 3 (users tablosunda YOK, dangling-orphan).
 Script bir kereliğine koşturuldu, 82 satır silindi (bkz. uygulanan-fixler.md M3.1).
 
 GUNCELLEMELER:

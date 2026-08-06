@@ -18,3 +18,20 @@ tests/
 .env
 .pytest_cache/
 .vitest/
+
+# BUG #236 (D18): imaja GİRMEMESİ gereken script'ler. Gerekçe her satırda — bu liste
+# `tests/test_imaj_kisisel_veri.py` ile dayatılır (yeni bir COPY veya yeni bir kişisel-veri
+# dosyası eklenirse kapı kırılır).
+# (a) Kişisel/üçüncü-kişi finansal verisi: imaj dağıtılan bir yapıdır (registry, destek
+#     paylaşımı). Ayrıca `drop_all` yapar → prod konteynerinde tek komut tüm beta verisini
+#     siler (SETUP_DATA_FORCE=1 elle onayı atlar).
+scripts/setup_data.py
+# (b) Geliştirici/tarihsel araçlar: prod'da işlevi yok, kişiye özel iz taşıyorlar.
+scripts/eval_runner.py
+scripts/apply_w3_039_is_system.py
+scripts/mcp_sync_report.py
+scripts/install-hooks.sh
+# (c) Test/prova araçları: şema yaratır/düşürür, prod imajında gereksiz yüzey.
+scripts/test_fresh_db_migration.py
+scripts/pg_gate_run.py
+scripts/prod_rehearsal.py

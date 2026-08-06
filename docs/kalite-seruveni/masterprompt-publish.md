@@ -422,11 +422,18 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
-### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 16:45)
+### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026)
 
-**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li.
-**Test tabanı:** `1732 passed, 6 skipped` (backend) + `135 passed` (vitest) + `npm run build`
-yeşil. Kırmızı yok.
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. **Yerel `main`, `origin`'in 73
+commit önünde** — push Murat'ın kararı, sorulmadan yapılmadı.
+**Test tabanı:** `1761 passed, 6 skipped` (backend) + `135 passed` (vitest). Kırmızı yok.
+
+**Bu oturumda (6 Ağu) ORTA bulgu turu açıldı — 3 commit, 4 bulgu kapandı:** #234 (D14+D15
+kota muhasebesi), #235 (D21 test kirliliği, kökten), #236 (D18 imajdaki kişisel veri).
+Üçünde de aynı ritim: kanıtı davranış testine çevir → düzelt → **mutasyon kontrolü** →
+**sınıf taraması (L11)** → tam süit → ayrı commit + ledger + rapor satırı. Sınıf taraması
+bu turda da işe yaradı: #234'te iki ek LLM yolu, #236'da dört ek dosya buldu.
+**Sıradaki:** D17 (saat dilimi — `action_executor` kullanıcının işlemini yanlış güne yazıyor).
 
 > **6 Ağu 2026 — KULLANICI BİLDİRİMİ kapandı (BUG #232, denetim dışı).** "Pasifleştir" basılan
 > kural Aktif/Pasif/**Hepsi** hiçbir sekmede görünmüyordu: `GET /api/checkpoints`
@@ -488,6 +495,7 @@ ayrı commit + ledger + denetim raporu satırı. Sınıf taraması bu turda iki 
 |---|---|---|
 | #234 | D14+D15 | LLM kota sayacı paylaşılan havuzu hiç ölçmüyordu (kullanıcı-filtreli sorgu → %80/%100 dalları matematiksel olarak ölü) ve tavan ÇAĞRI değil MESAJ sayıyordu (bir mesaj = 1-4 gerçek istek) → ilan edilen maliyet tavanı gerçeğin 2-3 katına izin veriyordu |
 | #235 | D21 | Bir test dosyası üretim `app`'ine kalıcı çöken uç ekliyordu; kapsam kilitleri görmeye başlayınca süit kalıcı kırmızıya düştü → commit kapısı fiilen ölmüştü. Önceki tur bunu ENVANTER tarafında elemişti (tüketici çözümü); kaynak düzeltildi + kirlilik AST kapısına bağlandı |
+| #236 | D18 | Kurucunun ve adı geçen üçüncü bir kişinin gerçek finansal verisi (tutarlar, 13 aylık borç takvimi, banka markaları) prod Docker imajına giriyordu; aynı dosya `drop_all` yaptığı için prod konteynerinde tek komut tüm beta verisini silebiliyordu. Kapsam artık imajın GERÇEK içeriğine bağlı (Dockerfile COPY + `.dockerignore` simülasyonu) |
 
 **Ders (L15 adayı):** bir sayaç için "neyi sayıyor" sorusu koddan okunmakla cevaplanamaz —
 **birimini teste yazdır.** Buradaki iki defekt de sözleşme-kod uyuşmazlığıydı: yorum "PAYLAŞILAN"
@@ -514,10 +522,11 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 
 #### SIRADAKİ İŞLER (öncelik sırasıyla)
 
-1. **Denetimin ORTA bulguları (14 adet kaldı: D17…D30; D14/D15/D16 kapandı).** Öne çıkanlar:
-   **D17** (saat dilimi
-   kişiselleştirmesi yarım — ADR-042'nin kendi iddiası diskte yanlış), **D18** (kurucunun
-   gerçek finansal verisi prod imajına giriyor), **D22** (Postgres RLS kapıları ne yerelde ne
+1. **Denetimin ORTA bulguları (11 adet kaldı: D17, D22…D30; D14/D15/D16/D18/D19/D20/D21
+   kapandı).** Öne çıkanlar: **D17** (saat dilimi
+   kişiselleştirmesi yarım — ADR-042'nin kendi iddiası diskte yanlış; `action_executor`
+   kullanıcının işlemini YANLIŞ GÜNE kalıcı yazıyor — sıradaki iş), **D22** (Postgres RLS
+   kapıları ne yerelde ne
    CI'da koşuyor — 6 skip'in 5'i), **D23** (yatırımda bayat fiyat işareti yok), **D24** (5
    cron işinden 3'ü kayıt tutmuyor), **D26/D27/D28** (KVKK export'u şifre hash'i döküyor;
    silme sonrası e-posta `beta_invites`'ta kalıyor; export iki tabloyu atlıyor),

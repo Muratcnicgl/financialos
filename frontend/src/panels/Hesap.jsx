@@ -8,6 +8,11 @@
  *  - tek "Verimi indir" bağlantısı düz <a href> idi; Authorization başlığı taşımadığı
  *    için giriş açıkken 401 indiriyordu (BUG #216).
  * L8 dersi: belgelenen ≠ ulaşılabilir. Bu panel üç hakkı da fiilen kullanılabilir yapar.
+ *
+ * GUNCELLEMELER:
+ *  - BUG #233 fix: panel her hesabın şifresi olduğunu VARSAYIYORDU. Google ile açılmış
+ *    hesapta "Mevcut şifren" alanı zorunluydu — kullanıcının dolduramayacağı bir form
+ *    (çıkmaz sokak). Artık `has_password` ile dallanır: şifresi yoksa "Şifre belirle".
  */
 import { useState, useEffect } from 'react';
 import { KeyRound, Mail, Download, Trash2, ShieldCheck } from 'lucide-react';
@@ -71,6 +76,21 @@ export default function Hesap() {
       await authApi.changePassword(mevcutSifre, yeniSifre);
       setDurum({ tip: 'ok', mesaj: 'Şifren güncellendi. Diğer cihazlardaki oturumlar kapatıldı.' });
       setMevcutSifre(''); setYeniSifre('');
+    });
+  };
+
+  // BUG #233: sosyal girişle açılmış hesabın İLK şifresi — mevcut şifre YOK.
+  const sifreBelirle = (e) => {
+    e.preventDefault();
+    calistir(async () => {
+      await authApi.setPassword(yeniSifre);
+      setProfil((p) => (p ? { ...p, has_password: true } : p));
+      setDurum({
+        tip: 'ok',
+        mesaj: 'Şifren belirlendi. Artık e-posta + şifre ile de girebilirsin. '
+             + 'Diğer cihazlardaki oturumlar kapatıldı.',
+      });
+      setYeniSifre('');
     });
   };
 
@@ -139,37 +159,68 @@ export default function Hesap() {
             placeholder="yeni@adres.com" aria-label="Yeni e-posta"
             className="input w-full"
           />
-          <input
-            type="password" value={epostaSifre} onChange={(e) => setEpostaSifre(e.target.value)}
-            placeholder="Mevcut şifren" aria-label="Mevcut şifre (e-posta)"
-            className="input w-full"
-          />
+          {/* BUG #233: şifresi olmayan hesapta backend zaten şifre doğrulamaz —
+              alanı göstermek yalnız kafa karıştırır (aynı çıkmaz sokağın ikinci kolu). */}
+          {profil?.has_password !== false && (
+            <input
+              type="password" value={epostaSifre} onChange={(e) => setEpostaSifre(e.target.value)}
+              placeholder="Mevcut şifren" aria-label="Mevcut şifre (e-posta)"
+              className="input w-full"
+            />
+          )}
           <button type="submit" disabled={mesgul} className="btn btn-primary min-h-[44px]">
             Doğrulama bağlantısı gönder
           </button>
         </form>
       </Bolum>
 
-      <Bolum
-        ikon={KeyRound}
-        baslik="Şifreni değiştir"
-        aciklama="Değiştirdiğinde diğer cihazlardaki oturumlar kapanır."
-      >
-        <form onSubmit={sifreDegistir} className="space-y-2">
-          <input
-            type="password" required value={mevcutSifre} onChange={(e) => setMevcutSifre(e.target.value)}
-            placeholder="Mevcut şifren" aria-label="Mevcut şifre" className="input w-full"
-          />
-          <input
-            type="password" required minLength={8} value={yeniSifre}
-            onChange={(e) => setYeniSifre(e.target.value)}
-            placeholder="Yeni şifren (en az 8 karakter)" aria-label="Yeni şifre" className="input w-full"
-          />
-          <button type="submit" disabled={mesgul} className="btn btn-primary min-h-[44px]">
-            Şifreyi değiştir
-          </button>
-        </form>
-      </Bolum>
+      {/* BUG #233: hesabın şifresi yoksa (Google/GitHub ile açılmış) "mevcut şifre"
+          istenemez — kullanıcının dolduramayacağı bir form çıkmaz sokaktır. */}
+      {profil?.has_password === false ? (
+        <Bolum
+          ikon={KeyRound}
+          baslik="Şifre belirle"
+          aciklama={`${profil.oauth_provider === 'github' ? 'GitHub' : 'Google'} ile giriş yapıyorsun, `
+            + 'hesabında henüz şifre yok. Şifre belirlersen e-posta + şifre ile de girebilirsin — '
+            + 'sosyal hesabına erişemediğin gün kilitli kalmazsın.'}
+        >
+          <form onSubmit={sifreBelirle} className="space-y-2">
+            <input
+              type="password" required minLength={8} value={yeniSifre}
+              onChange={(e) => setYeniSifre(e.target.value)}
+              placeholder="Yeni şifren (en az 8 karakter)" aria-label="Yeni şifre" className="input w-full"
+            />
+            <button type="submit" disabled={mesgul} className="btn btn-primary min-h-[44px]">
+              Şifre belirle
+            </button>
+            <p className="text-xs text-zinc-500">
+              {profil.oauth_provider === 'github' ? 'GitHub' : 'Google'} ile giriş yapmaya devam
+              edebilirsin — bu onun yerine geçmez, yanına eklenir.
+            </p>
+          </form>
+        </Bolum>
+      ) : (
+        <Bolum
+          ikon={KeyRound}
+          baslik="Şifreni değiştir"
+          aciklama="Değiştirdiğinde diğer cihazlardaki oturumlar kapanır."
+        >
+          <form onSubmit={sifreDegistir} className="space-y-2">
+            <input
+              type="password" required value={mevcutSifre} onChange={(e) => setMevcutSifre(e.target.value)}
+              placeholder="Mevcut şifren" aria-label="Mevcut şifre" className="input w-full"
+            />
+            <input
+              type="password" required minLength={8} value={yeniSifre}
+              onChange={(e) => setYeniSifre(e.target.value)}
+              placeholder="Yeni şifren (en az 8 karakter)" aria-label="Yeni şifre" className="input w-full"
+            />
+            <button type="submit" disabled={mesgul} className="btn btn-primary min-h-[44px]">
+              Şifreyi değiştir
+            </button>
+          </form>
+        </Bolum>
+      )}
 
       <Bolum
         ikon={Download}

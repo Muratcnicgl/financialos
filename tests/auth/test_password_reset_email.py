@@ -126,9 +126,12 @@ def _register(client, email="murat@x.com"):
 def test_reset_request_smtp_ile_gonderir_dev_token_yok(client, db_session, monkeypatch):
     _register(client)
     sent = {}
-    def _fake_send(to, link):
+    # BUG #233: imza `ilk_kez` bayragi aldi (sifresi hic olmamis hesaba "sifirlama" degil
+    # "belirleme" yazilir). Sifreli hesapta bayrak False kalmali.
+    def _fake_send(to, link, ilk_kez=False):
         sent["to"] = to
         sent["link"] = link
+        sent["ilk_kez"] = ilk_kez
         return True
     monkeypatch.setattr(auth_mod, "send_password_reset_email", _fake_send)
     r = client.post("/api/auth/password-reset-request", json={"email": "murat@x.com"})
@@ -137,6 +140,7 @@ def test_reset_request_smtp_ile_gonderir_dev_token_yok(client, db_session, monke
     # BackgroundTask TestClient'ta yanıt sonrası koşar
     assert sent["to"] == "murat@x.com"
     assert "/auth/reset?token=" in sent["link"]
+    assert sent["ilk_kez"] is False   # BUG #233: sifresi olan hesap "sifirlama" metnini alir
 
 
 def test_reset_request_olmayan_email_generic(client, monkeypatch):

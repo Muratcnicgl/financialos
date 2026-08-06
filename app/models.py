@@ -195,6 +195,16 @@ class User(Base):
     demo_markers = relationship("DemoDataMarker", cascade="all, delete-orphan")
     reasoning_traces = relationship("ReasoningTrace", cascade="all, delete-orphan")
 
+    @property
+    def has_password(self) -> bool:
+        """BUG #233: hesabin kendi sifresi VAR MI (hash'in kendisi asla disari cikmadan).
+
+        Arayuz dogru formu bunun uzerinden secer. `oauth_provider` bu soruya CEVAP DEGILDIR:
+        e-posta+sifre ile acilmis bir hesap sonradan Google ile giris yapinca o alan dolar
+        ama sifresi durur; tersine sifresiz bir hesabin saglayicisi bosaltilabilir.
+        """
+        return bool(self.password_hash)
+
 
 class Account(Base):
     __tablename__ = "accounts"

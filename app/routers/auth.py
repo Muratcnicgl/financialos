@@ -89,6 +89,9 @@ class UserOut(BaseModel):
     oauth_provider: Optional[str]
     kvkk_consent_at: Optional[datetime]
     is_active: bool
+    # BUG #233: arayuz "sifreni degistir" mi "sifre belirle" mi cizecegini bilmeli.
+    # Turetilmis bayrak (User.has_password) — hash asla disari cikmaz.
+    has_password: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -100,6 +103,15 @@ class PasswordResetRequestIn(BaseModel):
 class PasswordChangeIn(BaseModel):
     """BUG #190 (P3): giris yapmis kullanicinin sifre degistirmesi."""
     current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
+
+
+class PasswordSetIn(BaseModel):
+    """BUG #233: sifresi OLMAYAN (OAuth) hesabin ILK sifresini belirlemesi.
+
+    `current_password` YOKTUR cunku dogrulanacak bir sifre yoktur — uydurma bir alan
+    istemek kullaniciyi cikmaz sokaga sokardi (kullanicinin bildirdigi bug).
+    """
     new_password: str = Field(min_length=8, max_length=72)
 
 
@@ -310,7 +322,12 @@ def change_password(
     """
     _rate_limit(request, "login", db=db)  # brute-force: mevcut sifre denemesi
     if not user.password_hash:
-        raise HTTPException(400, "Bu hesap sosyal giris (OAuth) ile acilmis — sifresi yok.")
+        # BUG #233: artik cikmaz sokak degil — dogru yol adiyla soylenir.
+        raise HTTPException(
+            400,
+            "Bu hesap sosyal giris (OAuth) ile acilmis — henuz sifresi yok. "
+            "Once /api/auth/set-password ile bir sifre belirle.",
+        )
     if not _auth.verify_password(body.current_password, user.password_hash):
         raise HTTPException(401, "Mevcut sifre hatali.")
     _sifre_dogrula(body.new_password)
@@ -318,6 +335,48 @@ def change_password(
     user.token_version = int(getattr(user, "token_version", 0) or 0) + 1  # diger oturumlar duser
     db.commit()
     db.refresh(user)
+    return _issue_tokens(user)
+
+
+@router.post("/set-password", response_model=TokenOut)
+def set_password(
+    body: PasswordSetIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TokenOut:
+    """BUG #233: sifresi OLMAYAN (Google/GitHub ile acilmis) hesap ILK sifresini belirler.
+
+    Kullanicinin bildirdigi cikmaz sokak: Hesap paneli "eski sifreni gir, yeni sifre belirle"
+    formunu ciziyordu; OAuth kullanicisinin eski sifresi YOK. `change-password` hakli olarak
+    400 donuyordu ama ALTERNATIF sunulmuyordu ve `password-reset-request` de bu hesap sinifina
+    hic posta gondermiyordu → hesabin sifre alma yolu HIC yoktu. Sonuc: hesap tek bir dis
+    saglayiciya bagli kaliyor; Google erisimi kaybolursa (hesap kapanmasi, OAuth istemcisinin
+    iptali) tum finansal veri kalici olarak erisilemez hale geliyordu.
+
+    NEDEN mevcut sifre sorulmuyor: dogrulanacak bir sifre YOK. Cagiran zaten gecerli bir
+    oturum tasiyor ve bu uygulamada oturum tam-yetki kimlik kanitidir — ayni oturumla
+    `GET /api/users/me/export` tum finansal veriyi doker, `DELETE /api/users/me` hesabi
+    geri donulmez sekilde siler; ikisi de sifre sormaz.
+
+    KRITIK KAPI: hesabin sifresi VARSA bu uc reddeder. Aksi halde calinmis bir oturum
+    `change-password`'un mevcut-sifre dogrulamasini buradan atlatirdi.
+
+    Diger oturumlar dusurulur (token_version), cagirana taze token cifti verilir.
+    """
+    _rate_limit(request, "login", db=db)
+    if user.password_hash:
+        raise HTTPException(
+            400,
+            "Bu hesabin zaten bir sifresi var. Degistirmek icin mevcut sifrenle "
+            "/api/auth/change-password kullan.",
+        )
+    _sifre_dogrula(body.new_password)  # BUG #187: ayni politika, yeni yol zayif sifre kapisi acmaz
+    user.password_hash = _auth.hash_password(body.new_password)
+    user.token_version = int(getattr(user, "token_version", 0) or 0) + 1
+    db.commit()
+    db.refresh(user)
+    logger.info("[auth] ilk sifre belirlendi user_id=%s (oauth=%s)", user.id, user.oauth_provider)
     return _issue_tokens(user)
 
 
@@ -438,8 +497,15 @@ def password_reset_request(
     user = db.query(User).filter(User.email == email).first()
     # Kullanıcı enumeration önle: her durumda aynı cevap
     generic = {"message": "E-posta kayıtlıysa sıfırlama bağlantısı gönderildi."}
-    if not user or not user.password_hash:
+    # BUG #233: eskiden şifresi OLMAYAN (OAuth) hesap da burada sessizce eleniyordu —
+    # kullanıcı "bağlantı gönderildi" mesajını okuyup hiç gelmeyecek postayı bekliyordu.
+    # O hesaplar için bu, uygulamanın TEK kurtarma yoluydu: Google erişimi kaybolduğunda
+    # (hesap kapanması, OAuth istemcisinin iptali) tüm finansal veri erişilemez kalıyordu.
+    # Bağlantı artık şifre BELİRLEME olarak da çalışır; yanıt gövdesi aynı kaldığı için
+    # kullanıcı-enumerasyonu (BUG #202) açılmaz.
+    if not user:
         return generic
+    ilk_kez = not user.password_hash
     # BUG #225 (D04): token kullanıcının GÜNCEL token_version'ını taşır → şifre
     # değişince (sayaç artınca) bekleyen bağlantı ölür.
     token = _auth.create_password_reset_token(user.id, int(getattr(user, "token_version", 0) or 0))
@@ -447,7 +513,8 @@ def password_reset_request(
     reset_link = f"{frontend}/auth/reset?token={token}"
     # SMTP yapılandırılmışsa GERÇEK gönderim (BackgroundTasks — istek bloklanmaz).
     if smtp_configured():
-        background_tasks.add_task(send_password_reset_email, email, reset_link)
+        # ilk_kez: "sıfırlama" demek şifresi hiç olmamış kullanıcıyı şaşırtır (BUG #233).
+        background_tasks.add_task(send_password_reset_email, email, reset_link, ilk_kez)
         return generic
     # BUG #170 fix (P2): koşul YALNIZ smtp_configured() idi — production'da SMTP eksik/bozuksa
     # geçerli sıfırlama token'ı HTTP yanıtında düz metin dönüyordu. Herhangi biri, herhangi bir

@@ -423,7 +423,7 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 5 Ağustos 2026, 16:45)
 
 **Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li.
-**Test tabanı:** `1721 passed, 6 skipped` (backend) + `129 passed` (vitest) + `npm run build`
+**Test tabanı:** `1732 passed, 6 skipped` (backend) + `135 passed` (vitest) + `npm run build`
 yeşil. Kırmızı yok.
 
 > **6 Ağu 2026 — KULLANICI BİLDİRİMİ kapandı (BUG #232, denetim dışı).** "Pasifleştir" basılan
@@ -435,6 +435,18 @@ yeşil. Kırmızı yok.
 > `tests/test_checkpoint_pasif_gorunurluk.py` (4). **Ders:** denetim ajanları bu sınıfı
 > göremedi — sunucu ve istemci ayrı ayrı doğruydu, uyuşmazlık ARADAYDI. Gerçek kullanım hâlâ
 > statik denetimin bulamadığı defekt üretiyor.
+>
+> **6 Ağu 2026 — ikinci KULLANICI BİLDİRİMİ kapandı (BUG #233).** Google ile açılmış hesabın şifre
+> almasının hiçbir yolu yoktu: panel "Mevcut şifren"i zorunlu çiziyordu (çıkmaz sokak),
+> `change-password` alternatifsiz 400 dönüyordu, `password-reset-request` ise şifresizleri sessizce
+> eliyordu — yani "bağlantı gönderildi" denip **hiç gönderilmiyordu**. Hesap tek bir dış sağlayıcıya
+> çivilenmişti; Google erişimi kaybolursa tüm finansal veri kalıcı erişilemez olacaktı. Fix:
+> `POST /auth/set-password` (yalnız şifresizler; şifresi olanda 400 → `change-password` doğrulaması
+> atlatılamaz) + sıfırlama yolu şifresizlere de açıldı (yanıt aynı → enumerasyon açılmadı) +
+> `/auth/me` içinde türetilmiş `has_password` + panelin dallanması. 17 yeni test (11 backend + 6 vitest).
+> **Ders:** aynı sınıf — "her hesabın şifresi vardır" varsayımı hem panelde hem uçta ayrı ayrı
+> tutarlıydı; kırılan şey ARADAKİ sözleşmeydi. Kullanım-turu bulguları statik denetimden farklı bir
+> madenden geliyor; publish öncesi gerçek kullanım turu ayrı bir kapı olarak tutulmalı.
 
 ---
 

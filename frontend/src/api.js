@@ -545,6 +545,13 @@ export const authApi = {
   // beyanı karşılıksızdı (L8: belgelenen ≠ ulaşılabilir).
   changePassword: (current_password, new_password) =>
     request('/api/auth/change-password', { method: 'POST', body: { current_password, new_password } }),
+  // BUG #233: sosyal girişle açılmış hesabın İLK şifresi — "mevcut şifre" yoktur.
+  // Şifresi olan hesapta backend reddeder (change-password doğrulaması atlatılamaz).
+  setPassword: async (new_password) => {
+    const t = await request('/api/auth/set-password', { method: 'POST', body: { new_password } });
+    setTokens(t);   // token_version arttı: eski token'lar öldü, çağıran atılmamalı
+    return t;
+  },
   changeEmail: (new_email, current_password) =>
     request('/api/auth/change-email', { method: 'POST', body: { new_email, current_password } }),
   changeEmailConfirm: (token) =>

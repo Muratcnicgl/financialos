@@ -97,13 +97,21 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str) -> b
         return False
 
 
-def send_password_reset_email(to_email: str, reset_link: str) -> bool:
-    """Şifre sıfırlama e-postası (Türkçe, KVKK-uyumlu, HTML + text alternatifli)."""
-    subject = "FinancialOS — Şifre Sıfırlama"
+def send_password_reset_email(to_email: str, reset_link: str, ilk_kez: bool = False) -> bool:
+    """Şifre sıfırlama e-postası (Türkçe, KVKK-uyumlu, HTML + text alternatifli).
+
+    BUG #233: `ilk_kez=True` → hesabın hiç şifresi olmamış (Google/GitHub ile açılmış).
+    Ona "şifre SIFIRLAMA" demek şaşırtır ("benim şifrem yoktu ki") ve postayı sahte
+    sandırıp göz ardı ettirir; metin "şifre BELİRLEME" olur.
+    """
+    eylem = "Şifre Belirleme" if ilk_kez else "Şifre Sıfırlama"
+    talep = "şifre belirleme" if ilk_kez else "şifre sıfırlama"
+    buton = "Şifremi Belirle" if ilk_kez else "Şifremi Sıfırla"
+    subject = f"FinancialOS — {eylem}"
     destek = destek_adresi()   # BUG #205: kişisel adres şablona GÖMÜLMEZ
     text_body = (
         "Merhaba,\n\n"
-        "FinancialOS hesabınız için şifre sıfırlama talebinde bulunuldu.\n"
+        f"FinancialOS hesabınız için {talep} talebinde bulunuldu.\n"
         "Yeni şifrenizi belirlemek için aşağıdaki bağlantıya tıklayın "
         "(bağlantı 30 dakika geçerlidir):\n\n"
         f"{reset_link}\n\n"
@@ -119,12 +127,12 @@ def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     <h1 style="font-size:20px;margin:0 0 8px">FinancialOS</h1>
     <p style="font-size:14px;line-height:1.6;color:#3f3f46">Merhaba,</p>
     <p style="font-size:14px;line-height:1.6;color:#3f3f46">
-      Hesabınız için <b>şifre sıfırlama</b> talebinde bulunuldu. Yeni şifrenizi belirlemek için
+      Hesabınız için <b>{talep}</b> talebinde bulunuldu. Yeni şifrenizi belirlemek için
       aşağıdaki butona tıklayın. Bağlantı <b>30 dakika</b> geçerlidir.
     </p>
     <p style="text-align:center;margin:24px 0">
       <a href="{reset_link}" style="background:#4f46e5;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;display:inline-block">
-        Şifremi Sıfırla
+        {buton}
       </a>
     </p>
     <p style="font-size:12px;line-height:1.6;color:#71717a">

@@ -159,6 +159,28 @@ def test_live_gate_deseni_settings_ile_ayni():
     )
 
 
+def test_ornek_dosya_IMAJDA_YOKKEN_de_placeholder_yakalanir(monkeypatch, prod):
+    """Prod imajında `.env.prod.example` BULUNMAYABİLİR (.dockerignore).
+
+    Kapı yalnız "örnek dosyadaki değere eşit mi" diye baksaydı, tam da korumanın gerektiği
+    yerde (canlı imaj) sessizce devre dışı kalırdı — bir kapının dev'de çalışıp prod'da
+    çalışmaması, hiç olmamasından daha kötüdür (yanlış güven). Desen kontrolü bu yüzden
+    örnek dosyadan BAĞIMSIZ da çalışır."""
+    import app.settings as st
+    gercek = st.ORNEK_ENV_YOLU
+    monkeypatch.setattr(st, "ORNEK_ENV_YOLU", gercek.parent / "olmayan-dosya.example")
+    st.ornek_env_degerleri.cache_clear()
+    try:
+        assert st.ornek_env_degerleri() == {}, "Dosya yokken sözlük boş olmalı"
+        assert st.placeholder_mi("destek@<alan-adin>", "SUPPORT_EMAIL") is True
+        assert st.placeholder_mi("destek@financialos.com.tr", "SUPPORT_EMAIL") is False
+        monkeypatch.setenv("SUPPORT_EMAIL", "destek@<alan-adin>")
+        with pytest.raises(RuntimeError, match="(?i)placeholder"):
+            st.validate_security_config()
+    finally:
+        st.ornek_env_degerleri.cache_clear()
+
+
 def test_ornek_dosyadaki_her_zorunlu_anahtar_kapiya_bagli():
     """Kapsam kilidi: örnek dosyada 'ZORUNLU' diye işaretlenen her anahtar için
     fail-fast'te bir kontrol olmalı — aksi halde yeni bir zorunlu anahtar sessizce

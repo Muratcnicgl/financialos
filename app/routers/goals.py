@@ -227,6 +227,9 @@ def create_allocation(
     # Bu tx'e TÜM hedeflerdeki mevcut allocation'lar + yeni istek, tx tutarını aşamaz.
     from sqlalchemy import func as _func
     from decimal import Decimal as _Dec
+    # scope-exempt: sahiplik `tx` üzerinden doğrulandı (yukarıda kapsamlı çekilir); toplam
+    # BİLİNÇLİ olarak hedef-üstüdür — aynı işlem başka hedeflere de bağlanmış olabilir ve
+    # çift-sayım kapısı tam olarak onu görmek zorundadır (BUG #072).
     existing_sum = db.query(
         _func.coalesce(_func.sum(_func.abs(models.GoalAllocation.amount)), 0)
     ).filter(models.GoalAllocation.transaction_id == payload.transaction_id).scalar()

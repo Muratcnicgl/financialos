@@ -89,6 +89,9 @@ def senkronize_nakit(
     # (NULL) ayak hiç uygulanmamıştır → geri sarılacak bir şey de yoktur (hayalet para yok).
     # Varsayılan hesap çözümlemesine DÜŞÜLMEZ: iz, "nereye" sorusunun tek cevabıdır.
     eski_hesap: Optional[Account] = (
+        # scope-exempt: id İSTEMCİDEN GELMEZ — kaydın kendi `settlement_account_id` izidir ve
+        # o iz kapsamlı bir çözümleyiciyle (account_rules) yazılmıştır. Kullanıcı bu alanı
+        # set edemez (DebtUpdate şemasında yok), dolayısıyla başka kapsama işaret edemez.
         db.get(Account, onceki.settlement_account_id)
         if (onceki.is_paid and onceki.settlement_account_id is not None)
         else None
@@ -101,6 +104,8 @@ def senkronize_nakit(
     if yeni_etki != ZERO:
         # Ayak zaten uygulanmışsa AYNI hesaba yaz (hesap listesi değişse bile simetri korunur).
         if onceki.settlement_account_id is not None:
+            # scope-exempt: id kaydın kendi izinden gelir (istemci set edemez) — yukarıdaki
+            # geri-sarma gerekçesiyle aynı; aynı hesaba yazmak simetrinin ta kendisidir.
             hedef = db.get(Account, onceki.settlement_account_id)
         if hedef is None:
             hedef = varsayilan_nakit_hesap(db, user_id, workspace_id)

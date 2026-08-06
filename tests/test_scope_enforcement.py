@@ -24,6 +24,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 # ADR-036 workspace-scoped modeller (workspace_id taşıyan) — bunların user_id filtresi scope'lanmalı
 SCOPED_MODELS = {
     "Account", "Transaction", "PersonalDebt", "RecurringIncome", "RecurringExpense",
@@ -37,6 +39,10 @@ _TARGETS = list((_ROOT / "app" / "routers").glob("*.py")) + [
     _ROOT / "app" / "goal_engine.py",     # M72: debt_freedom Account kaçağı buradaydı
     _ROOT / "app" / "debt_strategy.py",   # M72: collect_debts kaçağı buradaydı
     _ROOT / "app" / "coach_insights.py",  # M73: nightly batch extractor'ları scoped model okur
+    # BUG #250 (D31): koçun TEK yazma yolu kapının kapsamı DIŞINDAYDI — 11 ham
+    # `Model.user_id == user_id` filtresi hiç denetlenmiyordu. LLM'in DB'ye dokunduğu
+    # tek dosya, kapsam kuralının en çok gerektiği yerdir.
+    _ROOT / "app" / "action_executor.py",
 ]
 
 # `<Model>.user_id ==` (models. öneki opsiyonel)
@@ -104,16 +110,36 @@ _SKIP_FILES = {"models.py"}
 
 
 def _owned_model_arg(node: ast.Call) -> str | None:
-    """`db.query(M)` / `select(M)` çağrısındaki M sahipli model mi?"""
+    """Sorgu çağrısında sahipli bir model geçiyor mu — hangi ŞEKİLDE yazılırsa yazılsın.
+
+    BUG #250 fix (D31): eski hâli YALNIZ `db.query(Model)` / `select(Model)` çıplak
+    şeklini görüyordu. Paralel triyaj koşturarak ölçtü — bu dört yaygın şekil kapının
+    DIŞINDAYDI (hepsi aynı satırları okur/yazar):
+
+        db.get(Model, id)                     → yakalanmıyordu
+        db.query(Model.kolon)                 → yakalanmıyordu
+        db.query(func.sum(Model.kolon))       → yakalanmıyordu
+        select(Model.kolon)                   → yakalanmıyordu
+
+    Kapının kendisi kör noktalıysa "yeşil" hiçbir şey söylemez (L27). Artık çağrının ilk
+    argümanı AST olarak GEZİLİR: içinde sahipli bir model adı geçiyorsa sorgu denetlenir.
+    """
     f = node.func
-    is_query = (isinstance(f, ast.Attribute) and f.attr == "query") or (
+    is_query = (isinstance(f, ast.Attribute) and f.attr in ("query", "get")) or (
         isinstance(f, ast.Name) and f.id == "select"
     )
     if not (is_query and node.args):
         return None
-    arg = node.args[0]
-    name = arg.id if isinstance(arg, ast.Name) else (arg.attr if isinstance(arg, ast.Attribute) else None)
-    return name if name in OWNED_MODELS else None
+    for alt in ast.walk(node.args[0]):
+        ad = None
+        if isinstance(alt, ast.Name):
+            ad = alt.id
+        elif isinstance(alt, ast.Attribute):
+            # `Model.kolon` → değer tarafı model adı; `models.Model` → attr tarafı
+            ad = alt.value.id if isinstance(alt.value, ast.Name) and alt.value.id in OWNED_MODELS                 else alt.attr
+        if ad in OWNED_MODELS:
+            return ad
+    return None
 
 
 def _scan_source(src: str, label: str) -> list[str]:
@@ -164,7 +190,14 @@ def _scan_source(src: str, label: str) -> list[str]:
             chunk += block[i + 1:i + 4]
         start = min(s.lineno for s in chunk)
         end = max(getattr(s, "end_lineno", s.lineno) or s.lineno for s in chunk)
-        return "\n".join(lines[start - 1:end])
+        # BUG #250 (D31): gerekçe yazmanın DOĞAL yeri sorgunun ÜSTÜDÜR. Pencere yalnız
+        # ifadeden aşağı bakarsa yazar `# scope-exempt:` notunu üste koyar, kapı görmez ve
+        # gerekçe yazılmış olmasına rağmen kırmızı kalır (yazarı satır-sonu yorumuna
+        # zorlamak uzun gerekçeyi imkânsız kılar). Üstteki bitişik yorum satırları dahil.
+        ust = start - 1
+        while ust > 0 and lines[ust - 1].strip().startswith("#"):
+            ust -= 1
+        return "\n".join(lines[ust:end])
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -241,3 +274,60 @@ def test_meta_kapi_satir_sonu_exempt_yorumunu_gorur():
     assert not _scan_source(exempt, "sentetik.py")
     ciplak = "acc = db.query(Account).filter(Account.id == tx.account_id).first()\n"
     assert _scan_source(ciplak, "sentetik.py")
+
+
+# ── BUG #250 (D31) meta-testleri: tarayıcının KÖR NOKTALARI kapandı mı ──
+#
+# Denetimin D31 bulgusu, kapının kendisini ölçerek çıktı: `db.query(Model)` dışındaki dört
+# yaygın şekil hiç görülmüyordu. "Yeşil kapı, çalışan kapı demek değildir" — bu yüzden her
+# şekil için SENTETİK bir örnek besleyip yakalandığını ispatlıyoruz (L27).
+
+_KOR_NOKTA_ORNEKLERI = {
+    "db.get": "acc = db.get(Account, payload['account_id'])\n",
+    "kolon-sorgusu": "adlar = db.query(Account.name).all()\n",
+    "aggregate": "from sqlalchemy import func\ntoplam = db.query(func.sum(Transaction.amount)).scalar()\n",
+    "select-kolon": "satirlar = db.execute(select(Transaction.amount)).all()\n",
+}
+
+
+@pytest.mark.parametrize("ad", sorted(_KOR_NOKTA_ORNEKLERI))
+def test_meta_kapi_eski_kor_noktalari_gorur(ad):
+    bulgular = _scan_source(_KOR_NOKTA_ORNEKLERI[ad], "sentetik.py")
+    assert bulgular, f"Tarayıcı '{ad}' şeklini hâlâ görmüyor (D31 kör noktası açık)"
+
+
+@pytest.mark.parametrize("ad", sorted(_KOR_NOKTA_ORNEKLERI))
+def test_meta_kapsamli_yazim_yanlis_alarm_uretmez(ad):
+    """L6: kapı ürünü kıramaz — sahiplik filtresi VARSA sessiz kalmalı."""
+    kapsamli = _KOR_NOKTA_ORNEKLERI[ad].replace(
+        ".all()", ".filter(Account.user_id == user_id).all()"
+    ).replace(".scalar()", ".filter(Transaction.user_id == user_id).scalar()"
+    ).replace("db.get(Account, payload['account_id'])",
+              "db.get(Account, payload['account_id'])  # scope-exempt: sahiplik çağıranda doğrulandı")
+    assert not _scan_source(kapsamli, "sentetik.py"), (
+        f"'{ad}' kapsamlı yazımında yanlış alarm üretiliyor"
+    )
+
+
+def test_meta_gerekce_sorgunun_USTUNE_yazilabilir():
+    """Gerekçenin doğal yeri sorgunun üstüdür; kapı oraya bakmazsa yazar cezalandırılır."""
+    kod = (
+        "# scope-exempt: sahiplik ebeveyn üzerinden doğrulandı (uzun gerekçe buraya yazılır)\n"
+        "toplam = db.query(func.sum(GoalAllocation.amount)).filter(\n"
+        "    GoalAllocation.goal_id == goal.id\n"
+        ").scalar()\n"
+    )
+    assert not _scan_source(kod, "sentetik.py"), "Üstteki gerekçe yorumu görülmüyor"
+
+
+def test_koc_yazma_yolu_kapi_kapsaminda():
+    """D31'in ikinci yarısı: LLM'in TEK yazma yolu kapının dosya kapsamındaydı mı."""
+    hedefler = {f.name for f in _TARGETS}
+    assert "action_executor.py" in hedefler, (
+        "Koçun yazma yolu kapsam kapısının dışında — kural en çok orada gerekli"
+    )
+
+
+def test_kapsam_tabani_taranan_dosya_sayisi():
+    """L23: hedef listesi daralırsa kapı sessizce küçülür."""
+    assert len(_TARGETS) >= 20, f"Yalnız {len(_TARGETS)} dosya taranıyor — kapsam düşmüş"

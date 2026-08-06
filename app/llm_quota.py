@@ -90,6 +90,8 @@ def paylasilan_cagri_sayisi(db: Session, provider: str) -> int:
     scope-exempt: kasten çapraz-kullanıcı — ölçülen şey kullanıcı verisi değil, paylaşılan
     dış kaynağın (API anahtarı) tüketimi. Kişi-bazlı hiçbir alan okunmaz/dönmez.
     """
+    # scope-exempt: KASTEN çapraz-kullanıcı — ölçülen şey kullanıcı verisi değil, paylaşılan
+    # dış kaynağın (API anahtarı/kota) tüketimi (BUG #234). Kişi-bazlı alan okunmaz/dönmez.
     return (
         db.query(func.count(ApiCallLog.id))
         .filter(ApiCallLog.provider == (provider or "?").lower(),

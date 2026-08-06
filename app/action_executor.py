@@ -72,6 +72,9 @@ from app.money import D, ZERO  # ADR-030: para Decimal (DB Numeric kolonlarına 
 # BUG #241: borç/alacak kapanışının nakit ayağı TEK KAYNAK (panel yolu ile ortak).
 from app.services.debt_settlement import KapanisDurumu, senkronize_nakit
 from app.account_rules import varsayilan_hesap, varsayilan_nakit_hesap  # BUG #241 (MC1 emanet)
+# BUG #250 (D31): koçun TEK yazma yolu kapsam kapısının dışındaydı; hesap/borç aramaları
+# artık aktif workspace'i de gözetir (aile görünümünde kişisel kayda yazmak = BUG #223 sınıfı).
+from app.workspace_deps import scope_filter
 
 
 # ============================================================
@@ -198,7 +201,7 @@ def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> 
     if explicit_account_id is not None:
         explicit_account = db.query(Account).filter(
             Account.id == explicit_account_id,
-            Account.user_id == user_id,
+            scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
         ).first()
         if explicit_account and explicit_account.account_type != AccountType.credit_card:
             logger.info(
@@ -305,7 +308,7 @@ def propose_action(
         if payload.get("is_card_expense") and payload.get("account_id"):
             card = db.query(Account).filter(
                 Account.id == payload["account_id"],
-                Account.user_id == user_id,
+                scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
             ).first()
             if card and card.credit_limit is not None:  # BUG #153 (P2-8/AE-007): 0 falsy'di, atlaniyordu
                 amount = D(payload.get("amount", 0))
@@ -453,7 +456,11 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
         db.query(PendingAction)
         .filter(
             PendingAction.id == action_id,
-            PendingAction.user_id == user_id,
+            # scope-exempt: aksiyonun KENDİ kaydı; workspace bağlamı satırdaki
+            # `workspace_id`'den okunur (`workspace_scope(pending.workspace_id)`), yani
+            # kapsam burada FİLTRE değil SONUÇ — kapsamla filtrelemek, başka kapsamda
+            # oluşturulmuş bekleyen aksiyonu onaylanamaz kılardı.
+            PendingAction.user_id == user_id,  # scope-exempt: aksiyonun kendi kaydı (bkz. üstteki gerekçe)
         )
         .first()
     )
@@ -545,7 +552,11 @@ def reject_pending_action(db: Session, action_id: int, user_id: int, reason: Opt
         db.query(PendingAction)
         .filter(
             PendingAction.id == action_id,
-            PendingAction.user_id == user_id,
+            # scope-exempt: aksiyonun KENDİ kaydı; workspace bağlamı satırdaki
+            # `workspace_id`'den okunur (`workspace_scope(pending.workspace_id)`), yani
+            # kapsam burada FİLTRE değil SONUÇ — kapsamla filtrelemek, başka kapsamda
+            # oluşturulmuş bekleyen aksiyonu onaylanamaz kılardı.
+            PendingAction.user_id == user_id,  # scope-exempt: aksiyonun kendi kaydı (bkz. üstteki gerekçe)
         )
         .first()
     )
@@ -589,7 +600,7 @@ def _execute_update_account_balance(db: Session, user_id: int, payload: Dict) ->
 
     account = db.query(Account).filter(
         Account.id == account_id,
-        Account.user_id == user_id,
+        scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
     ).first()
     if not account:
         return {"success": False, "message": f"Hesap bulunamadi: id={account_id}"}
@@ -655,7 +666,7 @@ def _execute_add_transaction(db: Session, user_id: int, payload: Dict) -> Dict:
     if account_id:
         account = db.query(Account).filter(
             Account.id == account_id,
-            Account.user_id == user_id,
+            scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
         ).first()
         if not account:
             return {"success": False, "message": f"Hesap bulunamadi: id={account_id}"}
@@ -729,7 +740,7 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
 
     debt = db.query(PersonalDebt).filter(
         PersonalDebt.id == debt_id,
-        PersonalDebt.user_id == user_id,
+        scope_filter(PersonalDebt, user_id, _yazma_workspace_id(db, user_id)),
     ).first()
     if not debt:
         return {"success": False, "message": f"Borc kaydi bulunamadi: id={debt_id}"}
@@ -791,7 +802,8 @@ def _execute_pay_credit_card(db: Session, user_id: int, payload: Dict) -> Dict:
         return {"success": False, "message": "Ödeme tutarı pozitif olmalı."}
 
     card = db.query(Account).filter(
-        Account.id == card_id, Account.user_id == user_id,
+        Account.id == card_id,
+        scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
         Account.account_type == AccountType.credit_card,
     ).first()
     if not card:
@@ -800,7 +812,8 @@ def _execute_pay_credit_card(db: Session, user_id: int, payload: Dict) -> Dict:
     src_id = payload.get("source_account_id")
     if src_id is not None:
         source = db.query(Account).filter(
-            Account.id == src_id, Account.user_id == user_id).first()
+            Account.id == src_id,
+            scope_filter(Account, user_id, _yazma_workspace_id(db, user_id))).first()
     else:
         # BUG #241 sınıf taraması: varsayılan hesap seçimi TEK KAYNAK (emanet dışlanır — MC1 —
         # ve kapsam-farkında). Eskiden buradaki sorgu emanet nakit hesabı seçebiliyordu.
@@ -849,7 +862,7 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
 
     inv = db.query(Account).filter(
         Account.id == inv_id,
-        Account.user_id == user_id,
+        scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
     ).first()
     if not inv:
         return {"success": False, "message": f"Yatirim bulunamadi: id={inv_id}"}
@@ -903,7 +916,7 @@ def _execute_sell_investment(db: Session, user_id: int, payload: Dict) -> Dict:
         return {"success": False, "message": "Satış geliri için hedef nakit hesap (credit_to_account_id) belirtilmeli — aksi halde para kaybolur. Satış yapılmadı."}
     credit_account = db.query(Account).filter(
         Account.id == credit_account_id,
-        Account.user_id == user_id,
+        scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
     ).first()
     if credit_account is None:
         return {"success": False, "message": f"Nakit aktarılacak hesap bulunamadı: id={credit_account_id}. Satış yapılmadı."}

@@ -137,6 +137,8 @@ def _compute_cash_target(goal: models.Goal, db: Session) -> dict:
     amount > 0: katkı (contribution)
     amount < 0: çekim (withdrawal)
     """
+    # scope-exempt: sahiplik EBEVEYN üzerinden — `goal` çağırana kapsamlı sorgudan geldi;
+    # allocation'lar yalnız o goal'in id'siyle toplanır (başka kullanıcının satırı giremez).
     alloc_sum = db.query(
         func.coalesce(func.sum(GoalAllocation.amount), 0)
     ).filter(GoalAllocation.goal_id == goal.id).scalar()
@@ -168,6 +170,7 @@ def _project_cash_completion(
         return None
 
     cutoff = datetime.utcnow() - timedelta(days=90)
+    # scope-exempt: sahiplik EBEVEYN goal üzerinden (yukarıdaki gerekçeyle aynı)
     recent_sum = db.query(
         func.coalesce(func.sum(GoalAllocation.amount), 0)
     ).filter(
@@ -185,6 +188,7 @@ def _project_cash_completion(
     # (örn. 10 gün önce açılmış, 3000 birikmiş) sabit 90'a bölmek hızı ~9x düşük gösterip
     # tamamlanmayı çok uzağa atıyordu. Penceredeki ilk allocation'dan bugüne olan span kullanılır
     # (en az 1, en çok 90 gün).
+    # scope-exempt: sahiplik EBEVEYN goal üzerinden (yukarıdaki gerekçeyle aynı)
     first_alloc = db.query(func.min(GoalAllocation.created_at)).filter(
         and_(
             GoalAllocation.goal_id == goal.id,

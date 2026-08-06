@@ -46,7 +46,7 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
   (Murat tüm işlemleri önceden onayladı) — **tek istisna §9 İNSAN-KAPISI**.
 - **GERİLEME YASAK.** Bu masterprompt yalnız ileri yönlü güncellenir (§12).
 
-### §1.3 DERS-KURALLARI L1-L26 (v2.0+ — YALNIZ EKLENİR)
+### §1.3 DERS-KURALLARI L1-L28 (v2.0+ — YALNIZ EKLENİR)
 
 > Not: `D1` §1'de **sektör referansı** kuralıdır; karışmasın diye ders-kuralları **L** ile numaralanır.
 
@@ -80,6 +80,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L24 | **İzleme çağrısı işin GÖVDESİNE yazılıyorsa, unutulması an meselesidir — kaydı planlama noktasına bağla.** "Her iş kaydını açar" bir konvansiyon değil, bir sözleşmedir: sarmalayıcı/kayıt noktası yapısal olarak uygularsa yeni iş ekleyen kişi unutamaz. Ve sözleşmeyi **iş listesinin kendisi üzerinden** assert et (her planlı iş için: koştur → kayıt var mı) — "beş işten üçü unutulmuş" ancak listeyi gezen bir kapıyla görülür. Aynı tarama işin *dışarıda* koşan kardeşlerini de kapsamalı (yedek/timer/compose döngüsü): en kritik iş çoğu zaman uygulama sürecinin dışındadır. | #240 (`_kayit_basla` iki job gövdesine elle yazılmıştı; KVKK 90-gün saklama işi dahil 3'ü kayıtsızdı — prod yedeği de yalnız konteyner log'una yazıyordu) |
 | L25 | **Aynı gerçek-dünya olayının birden çok girişi varsa, sözleşme YOLA değil OLAYA yazılır.** Bir olayın (tahsilat, ödeme, iptal) etkisi bir yolun içine kodlanırsa, o yol düzeltildiğinde kardeş yol sessizce eski kalır — ve düzeltmenin kendisi "bu iş bitti" hissi yarattığı için kimse ikinciye bakmaz. Etkiyi tek bir servis/modüle çıkar, HER giriş oradan geçsin, pariteyi **iki yolu yan yana koşturan** bir testle kilitle. Fark testi tek yolu doğrulayan testten daha değerlidir: tek yol testi ayrışmayı göremez. | #241 (BUG #113 koç yolunun nakit ayağını eklemişti; panel yolu — kullanıcının fiilen kullandığı "Ödendi" butonu — bayrağı çevirip nakdi hiç hareket ettirmiyordu, alacak tahsilinde Tam Net Değer eriyordu) |
 | L26 | **Bir yasağın (dokunulmaz hesap, salt-okunur kayıt, korumalı kaynak) gücü, onu uygulayan guard'ın değil KAYNAĞI SEÇEN kodun sayısı kadardır.** Guard tek yerde olabilir ve doğru çalışabilir; ama korunan kaynağı "varsayılan" olarak seçen beş ayrı sorgu varsa yasak ya delinir ya da her onayda patlayan sessiz çıkmaz sokaklar üretir. Seçimi tek kaynağa topla ve "kendi seçim sorgusunu yazan var mı" diye **statik** kapı koy. | #241 sınıf taraması (5 ayrı "varsayılan nakit/kart hesabı" sorgusu; hiçbiri `is_emanet` dışlamıyordu, üçü sırasızdı → `app/account_rules.py` + `test_varsayilan_hesap_kapisi.py`) |
+| L27 | **Bir kapı, ölçtüğünü iddia ettiği listeyi ELLE taşıyorsa ölçmüyordur — listeyi kaynaktan türet.** Bu oturumda AYNI defekt dört ayrı yerde çıktı: veri-işleyen envanteri 4 sağlayıcı adını sabit kodluyordu (yeni ikisi üç hafta beyansız kaldı), export tamlık testi model adlarını fonksiyon KAYNAK METNİNDE arıyordu (yanlış fonksiyonu doğruluyordu), silme yalnız `user_id` kolonlu tabloları geziyordu (farklı isimli kolon = ıskalanan kişisel veri), migration geri-alınabilirlik kapısı elle yazılmış 9 revizyona bakıyordu. Ölçüt: kapı **şemayı / sınıf ağacını / dosya sistemini** gezmeli ve kapsam tabanını assert etmeli; elle liste ancak GEREKÇELİ İSTİSNA olarak, bayatlığı ayrıca ölçülerek kalabilir. | #242 (envanter), #243 (export+silme), #248 (migration) |
+| L28 | **"Çökmedim" başarı değildir; "atlandı" da geçti değildir.** Kendi başarısızlığını `skip`'e çeviren test ve tek bir iş bile yapamadığı hâlde `ok=True` kaydeden cron, koruma YOKLUĞUNDAN daha kötüdür: sayıya dahil olurlar, panelde yeşil görünürler, kimse bakmaz. Aynı aile: bağımlılığına hiç dokunmayan sağlık ucu (DB ölüyken 200 döner → otomatik rollback tetiklenmez). Başarı ölçütünü **işin amacına** bağla (kaç hesap güncellendi, hook çağrıldı mı, DB yanıt veriyor mu) ve başarısızlığı görünür kıl (kayıt detayına mesajı yaz, 503 dön). | #248 (D36 ölü test + D37 hep-başarılı cron), #247 (D39 kör sağlık ucu) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -432,29 +434,47 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
-### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026)
+### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
 
-**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. **Yerel `main`, `origin`'in 78
-commit önünde** — push Murat'ın kararı, sorulmadan yapılmadı.
-**Test tabanı:** `1861 passed, 9 skipped` (backend; skip'lerin 8'i Postgres gerektirir ve
-**artık CI'da gerçekten koşar**) + `139 passed` (vitest). Kırmızı yok.
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li ve **origin'e push'lu**.
+**Test tabanı:** `1993 passed, 18 skipped` (backend) + `145 passed` (vitest). Kırmızı yok.
+Skip artışı bilinçli: D38 kapısı artık TÜM migration'ları geziyor, 10 bilinen-eski sürüm
+gerekçeli istisna olarak skip'liyor.
 
-**Bu oturumda (6 Ağu) ORTA bulgu turu açıldı — 7 bulgu kapandı:** #234 (D14+D15
-kota muhasebesi), #235 (D21 test kirliliği, kökten), #236 (D18 imajdaki kişisel veri),
-**#237 (D17 saat dilimi — koçun kaydettiği işlem kalıcı olarak yanlış güne yazılıyordu)**,
-**#238 (D22 — belgelenen RLS savunması prod'da fiilen yoktu)**, #239 (D23 bayat fiyat
-"güncel" sunuluyordu), **#240 (D24 — 5 cron işinden 3'ü kayıt tutmuyordu, KVKK saklama işi
-dahil)**.
-Beşinde de aynı ritim: kanıtı davranış testine çevir → düzelt → **mutasyon kontrolü** →
-**sınıf taraması (L11)** → tam süit → ayrı commit + ledger + rapor satırı. Sınıf taraması
-bu turda da işe yaradı: #234'te iki ek LLM yolu, #236'da dört ek dosya, **#237'de denetimin
-listelediği 8 yerin ötesinde 12 yer daha**, #238'de self-host compose'un aynı superuser
-reçetesi + eksik placeholder fail-fast'i.
-**Ardından KULLANICI BİLDİRİMİ kapandı: #241** (panelden "ödendi" işaretlenen alacak nakde
-hiç geçmiyordu — canlı veride 5.000 TL eksikti, onarıldı).
-**Sıradaki:** D25 (fallback zincirindeki iki LLM sağlayıcısı — Together AI, DeepInfra —
-KVKK veri-işleyen envanterinde hiç yok; "envanter kodla kilitlenir" diyen test 4 ismi sabit
-kodluyor, kod tarafını hiç okumuyor).
+**Bu oturumda (6 Ağu, akşam) 9 bulgu kapandı — biri canlı kullanıcı bildirimi, sekizi denetim:**
+- **#241 (KULLANICI BİLDİRİMİ):** panelden "Ödendi" işaretlenen alacak nakde HİÇ geçmiyordu
+  → tek kaynak `app/services/debt_settlement.py` + `app/account_rules.py`; **canlı veri
+  onarıldı** (nakit 1.963,52 → 6.963,52 TL).
+- **#242 (D25):** veri-işleyen envanteri "kodla kilitli" diyordu ama 4 ismi sabit kodluyordu →
+  kapı koddan türetiyor; sınıf taraması **Google/GitHub kimlik sağlayıcılarının envanterde
+  hiç olmadığını** buldu (üstelik §4 "harici kimlik sağlayıcı YOK" diyordu).
+- **#243 (D26+D27+D28):** export şifre hash'ini döküyor, iki tabloyu atlıyor, silme e-postayı
+  bırakıyordu → `app/data_subject.py` (şemadaki her tablo sınıflandırılmış; export tek uygulama).
+- **#244 (D29):** maskeleme yarısını kaçırıyordu ve log dosyasına hiç uygulanmıyordu →
+  desenler + `LogMaskeleyici` filtresi + `hide_parameters` (kaynakta savunma).
+- **#245 (D30):** `.env.prod.example` placeholder'ı fail-fast'i ve canlı kapıyı geçiyordu →
+  placeholder tanımı **örnek dosyanın kendisinden** türetiliyor.
+- **#246 (D32+D33):** `/api/prices/*` kimliksiz dış-çağrı yüzeyiydi; para birimi/locale
+  doğrulanmadan saklanıyordu.
+- **#247 (D39):** `/api/health` DB'ye dokunmuyordu → ölü sistem yeşil görünüyor, otomatik
+  rollback tetiklenmiyordu → **`/api/ready`** (DB + şema, 503).
+- **#248 (D37+D36+D38):** hep-başarılı fiyat cron'u, kendini `skip`'e çeviren ölü test, elle
+  beslenen migration kapısı.
+- **#249 (D34+D40):** sistem prompt'unda gerçek kişi adı; runbook komutları prod DB'yi görmüyordu.
+
+**Yeni dersler:** **L25** (sözleşme yola değil OLAYA yazılır), **L26** (yasağın gücü kaynağı
+seçen kod sayısı kadardır), **L27** (kapı listeyi elle taşıyorsa ölçmüyordur — kaynaktan türet),
+**L28** ("çökmedim" başarı değil, "atlandı" geçti değil).
+
+**Çalışma biçimi notu:** D31-D40 triyajı 4 ajanlı bir workflow ile **paralel** koşturuldu
+(her ajan kendi kanıtını çalıştırarak üretti); ana iş SOLO ilerledi. Triyaj çıktısı
+bulguların hangisinin hâlâ geçerli olduğunu kanıtla gösterdi — D35 örneğin ARTIK GEÇERSİZ
+(BUG #220 ile kapanmış, rapordaki hüküm bloğu bayat).
+
+**Sıradaki:** aşağıdaki "SIRADAKİ İŞLER" 1. maddesi (D31 — kapsam kapısının kör noktaları:
+`db.get` / `Model.kolon` / `func(Model.kolon)` şekilleri + `action_executor.py`'nin kapı
+kapsamında olmaması). Denetimin ORTA bulgularının TAMAMI kapandı; kalan DÜŞÜK bulgular D31
+ve D35'tir (D35 = yalnız rapor güncellemesi).
 
 > **6 Ağu 2026 — ÜÇÜNCÜ KULLANICI BİLDİRİMİ kapandı (BUG #241) ve "aynı olayın iki yolu
 > ayrışır" sınıfı.** Kullanıcı bir alacağı panelden "Ödendi" işaretledi, cockpit'te nakit
@@ -620,20 +640,20 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 
 #### SIRADAKİ İŞLER (öncelik sırasıyla)
 
-0. ✅ **KULLANICI BİLDİRİMİ — KAPANDI (BUG #241, 6 Ağu 2026).** Panelden "Ödendi"
-   işaretlenen alacak nakde hiç geçmiyordu; şüphe doğru çıktı ama kök neden "karşı-kayıt
-   eksik"ten daha keskindi: nakit ayağı **koç yoluna** yazılmıştı (BUG #113), panel yolu
-   ayrışmıştı. Tek kaynak `app/services/debt_settlement.py`, iz `settlement_account_id`,
-   sınıf taraması `app/account_rules.py` (5 seçici → 1, emanet/MC1 dışlaması). 31 backend +
-   6 vitest kapı, 5/5 mutasyon yakalandı, canlı veri onarıldı (nakit +5.000 TL).
-   Dersler **L25** (sözleşme yola değil olaya yazılır) ve **L26** (yasağın gücü, kaynağı
-   seçen kod sayısı kadardır).
-1. **Denetimin ORTA bulguları (7 adet kaldı: D25…D30; D14/D15/D16/D17/D18/D19/D20/D21/
-   D22/D23/D24 kapandı).** Öne çıkanlar:
-   **D25** (fallback zincirindeki iki LLM sağlayıcısı KVKK envanterinde yok — *sıradaki iş*), **D26/D27/D28** (KVKK export'u şifre hash'i döküyor;
-   silme sonrası e-posta `beta_invites`'ta kalıyor; export iki tabloyu atlıyor),
-   **D29** (maskeleme TCKN/telefon/token kaçırıyor), **D30** (SUPPORT_EMAIL placeholder'ı
-   fail-fast'i geçiyor).
+0. ✅ **KULLANICI BİLDİRİMİ (BUG #241) ve denetimin TÜM ORTA bulguları KAPANDI** (6 Ağu akşam
+   turu: #241…#249). Ayrıntı §11.0'da.
+1. 🔴 **D31 — kapsam (workspace/kullanıcı) kapısının KÖR NOKTALARI.** Paralel triyajın
+   koşturarak ürettiği kanıt: `tests/test_scope_enforcement.py` yalnız `db.query(Model)`
+   şeklini görüyor; `db.get(Model, id)`, `db.query(Model.kolon)`, `db.query(func.sum(...))`,
+   `select(Model.kolon)` şekilleri kapının dışında. Ayrıca **`app/action_executor.py` kapının
+   dosya kapsamında DEĞİL** (LLM'in TEK yazma yolu!) ve orada 11 ham `Model.user_id == user_id`
+   filtresi var. Bugün aktif sızıntı YOK (7 aday elle incelendi, sahiplik çağıranda
+   doğrulanmış) — ama BUG #162 tam bu sınıftan geçmişti ve yeni yazılan tek bir satır
+   suit yeşilken başka kullanıcının verisini okutabilir. **Not:** BUG #241 ile eklenen
+   `app/services/debt_settlement.py:92` da tam o kör-nokta şeklini (`db.get`) kullanıyor
+   (güvenli: `settlement_account_id` istemciden set edilemez) — yani kör nokta büyüyor.
+   İş: (a) tarayıcıya 4+1 şekli ekle + meta-testle kendi kör noktasını ölç, (b) `_TARGETS`'a
+   `action_executor.py` ekle ve 11 filtreyi `scope_filter`'a çevir ya da gerekçeli muaf yaz.
 2. **Denetimin DÜŞÜK bulguları (D31…D40).** **D39** (health DB'ye dokunmuyor → rollback kapısı
    DB çökmüşken de yeşil) ve **D40** (runbook'taki davet komutu YANLIŞ DB'ye yazıyor) canlı
    deploy öncesi değerli.

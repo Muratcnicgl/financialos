@@ -1219,7 +1219,7 @@ Diskten ve calistirarak dogrulandi. app/scheduler.py'de _kayit_basla/_kayit_biti
 
 ### D25 · [orta] Fallback zincirinde aktif iki LLM sağlayıcısı (Together AI, DeepInfra) veri-işleyen envanterinde ve KVKK metninde hiç yok
 
-- **Boyut:** hukuki-gizlilik · **Yer:** `app/coach.py:2098` · **Durum:** ⬜ AÇIK
+- **Boyut:** hukuki-gizlilik · **Yer:** `app/coach.py:2098` · **Durum:** ✅ KAPANDI (BUG #242)
 - **Neden yayın engeli / etki:** KVKK m.10 aydınlatma, kişisel verinin aktarılacağı alıcı gruplarının bildirilmesini zorunlu kılar; m.9 yurt dışı aktarımda alıcının açıkça bilinmesini gerektirir. Kullanıcı, finansal verisinin Together AI ve DeepInfra'ya gittiğini hiçbir belgede göremiyor — rıza kapsam dışı bir aktarım gerçekleşiyor. Operatör bir gün TOGETHER_API_KEY tanımlarsa (env örneği bunu davet ediyor) tüm beta kullanıcılarının bakiyeleri ve işlem açıklamaları beyan edilmemiş bir ABD şirketine akar; test bunu asla yakalamaz.
 
 <details><summary>Kanıt</summary>
@@ -1251,7 +1251,7 @@ Bulgu diskten dogrulandi, ancak siddet abartilmis. DOGRULANANLAR: (1) app/coach.
 
 ### D26 · [orta] KVKK veri export'u kullanıcının bcrypt şifre hash'ini ve OAuth subject id'sini dosyaya döküyor
 
-- **Boyut:** hukuki-gizlilik · **Yer:** `app/routers/user.py:167` · **Durum:** ⬜ AÇIK
+- **Boyut:** hukuki-gizlilik · **Yer:** `app/routers/user.py:167` · **Durum:** ✅ KAPANDI (BUG #243)
 - **Neden yayın engeli / etki:** KVKK taşınabilirlik export'u tasarımı gereği kullanıcının cihazına inen, e-postayla paylaşılan, yedek diske/buluta atılan bir dosyadır. İçindeki bcrypt hash çevrimdışı kırılabilir (zayıf/tekrar kullanılan şifrelerde saatler); hash sızan kullanıcı hem FinancialOS hesabını hem şifresini tekrar kullandığı banka/e-posta hesabını kaybeder. `oauth_sub` ise Google kimliğinin kalıcı tekil id'sidir ve profil eşleştirmeye yarar. Kimlik doğrulama sırrı, veri taşınabilirliği hakkının kapsamında değildir — sektörde (GDPR/DSAR uygulamaları) kimlik bilgisi export'tan çıkarılır.
 
 <details><summary>Kanıt</summary>
@@ -1307,7 +1307,7 @@ Neden yine de yayin engeli: KVKK/GDPR tasinabilirlik hakkinin kapsami kimlik dog
 
 ### D27 · [orta] Hesap silme sonrası kullanıcının e-posta adresi beta_invites tablosunda kalıyor — 'unutulma hakkı' tam değil
 
-- **Boyut:** hukuki-gizlilik · **Yer:** `app/kvkk.py:43` · **Durum:** ⬜ AÇIK
+- **Boyut:** hukuki-gizlilik · **Yer:** `app/kvkk.py:43` · **Durum:** ✅ KAPANDI (BUG #243)
 - **Neden yayın engeli / etki:** Silme talebinden sonra kullanıcının e-posta adresi + operatörün kişi hakkındaki serbest notu ("Ali - iş arkadaşı" gibi ilişki bilgisi) veritabanında süresiz kalıyor; bu, rıza metninde 'tüm veriniz silinir' diye verilen taahhüdün ihlalidir ve KVKK m.7 kapsamında Kurum'a şikâyet edilebilir. Pratik zarar: silinen kullanıcı hâlâ tanımlanabilir durumda, olası bir DB sızıntısında 'hesabını silmiş' kişiler de e-postasıyla ifşa olur.
 
 <details><summary>Kanıt</summary>
@@ -1339,7 +1339,7 @@ DISKTEN DOGRULANDI, curutulemedi. (1) Kod: app/kvkk.py:46 yalnizca `if "user_id"
 
 ### D28 · [orta] KVKK metninin ve arayüzün kullandığı export ucu iki tabloyu atlıyor; tamlık testi yanlış ucu koruyor
 
-- **Boyut:** hukuki-gizlilik · **Yer:** `app/serializers.py:63` · **Durum:** ⬜ AÇIK
+- **Boyut:** hukuki-gizlilik · **Yer:** `app/serializers.py:63` · **Durum:** ✅ KAPANDI (BUG #243)
 - **Neden yayın engeli / etki:** KVKK m.11 taşınabilirlik hakkı 'tüm veri' taahhüdüyle ilan edilmiş; kullanıcı indirdiği dosyanın eksik olduğunu bilmiyor. Hesabını silip başka bir araca geçen kullanıcı hedef katkı/çekim geçmişini (goal_allocations) ve otomatik tahsis kurallarını kalıcı olarak kaybeder — geri alınamaz veri kaybı, üstelik 'yedeğini al, sonra sil' diye yönlendirilen beta akışının (kvkk-consent-v2.md:65) tam ortasında. Testin yanlış ucu koruması, ileride eklenecek her yeni tablonun da sessizce dışarıda kalacağı anlamına gelir.
 
 <details><summary>Kanıt</summary>
@@ -1388,7 +1388,7 @@ SIDDET GEREKCESI (orta): Zarar gercek ve geri alinamaz — hesabini silip tasina
 
 ### D29 · [orta] Hata/log maskelemesi TCKN, telefon, bcrypt hash ve opak token'ları kaçırıyor; global hata yakalayıcı ham traceback'i maskesiz log dosyasına yazıyor
 
-- **Boyut:** hukuki-gizlilik · **Yer:** `app/error_tracking.py:30` · **Durum:** ⬜ AÇIK
+- **Boyut:** hukuki-gizlilik · **Yer:** `app/error_tracking.py:30` · **Durum:** ✅ KAPANDI (BUG #244)
 - **Neden yayın engeli / etki:** Modülün kendi docstring'i (satır 14-15) 'PII/sır temizliği zorunlu' diyerek bir güvence veriyor; gerçekte TCKN/telefon/IBAN/şifre hash'i bu ağdan geçiyor ve dosya log'una zaten maskesiz düşüyor. Sunucu log'u operatörün, yedek alan sistemlerin ve olası bir log toplama zincirinin görebildiği bir yüzeydir; KVKK m.12 veri minimizasyonu ve güvenlik yükümlülüğü karşılanmıyor. Somut zarar: bir üretim hatası anında kullanıcının adı + şifre hash'i log dosyasına yazılır, log yedeği sızarsa hesap ele geçirme riskine dönüşür.
 
 <details><summary>Kanıt</summary>
@@ -1451,7 +1451,7 @@ Gercek ek risk yuzeyi log'a ozgu kanallar: rotasyon yedekleri, log toplama zinci
 
 ### D30 · [orta] SUPPORT_EMAIL placeholder'i ('destek@<alan-adin>') hem fail-fast'i hem live_gate kapisini geciyor — sahte destek adresi kullanicilara yayinlanir
 
-- **Boyut:** operasyon-deploy · **Yer:** `app/settings.py:84` · **Durum:** ⬜ AÇIK
+- **Boyut:** operasyon-deploy · **Yer:** `app/settings.py:84` · **Durum:** ✅ KAPANDI (BUG #245)
 - **Neden yayın engeli / etki:** BUG #210'un kapatmaya calistigi zarar aynen geri gelir: giris yapamayan (yanlis sifre, dogrulanmamis e-posta, calismayan davet kodu) kullanici uygulama-ici geri bildirim widget'ina da ulasamaz; giris ekraninda ve /api/meta'da gosterilen tek kanal teslim edilemeyen bir adres olur. Kullanici sessizce kaybedilir ve KVKK'nin 'veri sorumlusuna basvuru' hakki fiilen kullanilamaz hale gelir — bunun uzerine iki bagimsiz otomatik kapi da 'gecti' der.
 
 <details><summary>Kanıt</summary>
@@ -1553,7 +1553,7 @@ Sonuc: bulgu gercek (savunma-derinligi / regresyon-kilidi borcu), kapali-beta bl
 
 ### D32 · [dusuk] /api/prices/* kimliksiz ve rate-limit'siz dis-servis cagri yuzeyi
 
-- **Boyut:** kimlik-oturum · **Yer:** `app/routers/prices.py:32` · **Durum:** ⬜ AÇIK
+- **Boyut:** kimlik-oturum · **Yer:** `app/routers/prices.py:32` · **Durum:** ✅ KAPANDI (BUG #246)
 - **Neden yayın engeli / etki:** EVDS_API_KEY yapilandirildigi anda kimliksiz bir saldirgan, istek basina 30 saniyeye kadar bloklanan bir dis HTTP cagrisi tetikleyebilir. Uygulamadaki TUM endpoint'ler senkron (`def`) oldugu icin bunlar Starlette threadpool'unu tuketir; birkac yuz eszamanli istekle butun API (cockpit, koc, islem girisi) yanit veremez hale gelir — yani odeme/borc takibi yapan kullanicilar servise erisemez. Ayrica operatorun TCMB EVDS kotasi ucuncu sahislar tarafindan tuketilebilir.
 
 <details><summary>Kanıt</summary>
@@ -1575,7 +1575,7 @@ Kod bulgunun tarif ettigi gibi: app/routers/prices.py:32 ve :52'de ne Depends(ge
 
 ### D33 · [dusuk] PUT /api/user para birimini doğrulamadan kabul edip saklıyor, ancak tüm arayüz sabit ' TL' gösteriyor — kullanıcı "ayarladım" sanır, tutarları yanlış para biriminde okur
 
-- **Boyut:** urunlesme · **Yer:** `app/routers/user.py:134` · **Durum:** ⬜ AÇIK
+- **Boyut:** urunlesme · **Yer:** `app/routers/user.py:134` · **Durum:** ✅ KAPANDI (BUG #246)
 - **Neden yayın engeli / etki:** Sahte olanak (false affordance): API 200 döndüğü ve GET /api/user değeri geri verdiği için kullanıcı/entegrasyon para biriminin ayarlandığına inanır. Kullanıcı currency=USD ayarlar, bakiyelerini dolar diye girer, uygulama her ekranda "15.000 TL" yazar — kullanıcı kendi net değerini, borç kapatma planını ve nakit tamponunu ~40 kat yanlış okur; bu doğrudan yanlış para kararı demektir. Ayrıca '!!!' gibi ISO-4217 olmayan değer KVKK veri dışa aktarımına ve DB'ye kalıcı yazılıyor; ileride para birimi gerçekten devreye alındığında bu bozuk kayıtlar geriye dönük temizlik/migration borcu üretir. Doğru davranış TZ dalındaki desendir: ya 422 döndür ya ucu hiç açma.
 
 <details><summary>Kanıt</summary>
@@ -1632,7 +1632,7 @@ KALAN GERCEK ZARAR: ISO-4217 disi degerler kullanici kaydinda ve KVKK export blo
 
 ### D34 · [dusuk] Kurucunun özel hayatına ait kişi adı ve senaryolar sistem prompt'una ve tool şemasına gömülü — her beta kullanıcısının LLM çağrısında üçüncü taraf sağlayıcıya gidiyor
 
-- **Boyut:** urunlesme · **Yer:** `app/coach.py:400` · **Durum:** ⬜ AÇIK
+- **Boyut:** urunlesme · **Yer:** `app/coach.py:400` · **Durum:** ✅ KAPANDI (BUG #249)
 - **Neden yayın engeli / etki:** İki somut zarar: (1) Her beta kullanıcısının her koç mesajında, kurucunun tanıdığı gerçek bir kişinin adı ("efe") ve kurucunun özel seyahat/yatırım senaryosu üçüncü taraf LLM sağlayıcısına (Gemini/Groq/Anthropic) gönderiliyor — sağlayıcı log/eğitim politikalarına bağlı olarak bu, kurucunun ve o kişinin hayatına dair bir parçanın dışarı çıkması demektir; ürünün kendi KVKK duruşuyla çelişir. (2) Ürün kalitesi: LLM'e verilen tek somut dedup_key ve aksiyon örnekleri tek bir fon kodu (TLY) ve tek bir kişi üzerinden kurulu; kullanıcı bir ürünün kendi hayatına ait olmayan isimleri model çıktısında görürse (dedup_key/hafıza başlığı yüzeye çıkarsa) güven kaybı yaşar ve bunun "başkasının verisi bana mı geldi?" sorusunu doğurması beta geri bildirimi olarak maliyetlidir. Düzeltme sıfır riskli: örnekleri jenerikleştir (ör. yakin_kisi_odemeleri_2026q3, fon_satisi_seyahat, haftalik_market).
 
 <details><summary>Kanıt</summary>
@@ -1671,7 +1671,7 @@ SONUC: Bulgu gercek bir kod durumunu dogru tarif ediyor ve duzeltmesi sifir risk
 
 ### D35 · [dusuk] Saat-bagimli flaky test: gunun %4.17'sinde (UTC 10:00-10:59) suit kirmizi — 'Flaky yok (M90)' iddiasi yanlis
 
-- **Boyut:** test-kalitesi · **Yer:** `tests/test_user_preferences.py:63` · **Durum:** BUG #220 ile KAPANDI (5 Ağu, commit 442aabf)
+- **Boyut:** test-kalitesi · **Yer:** `tests/test_user_preferences.py:63` · **Durum:** ✅ GEÇERSİZ — BUG #220 ile kapanmıştı (6 Ağu triyajı: hüküm bloğu bayattı)
 - **Neden yayın engeli / etki:** PROJE.md 'Flaky yok (M90)' diyor; disk aksini soyluyor. Gunde 1 saat boyunca CI ve pre-commit hook'u kirmizi. Flaky bir kapi, gercek regresyonu goren gozu koreltir: 'yine o test' denip `--no-verify` ile gecilir ve o sirada gerçek bir para/izolasyon hatasi da birlikte gecer. Ayrica kirmizi CI, deploy runbook'unun (Wave-8) on-kosulu.
 
 <details><summary>Kanıt</summary>
@@ -1705,7 +1705,7 @@ CURUTULEMEDI — diskten dogrulandi. (1) HEAD'deki kod bulgunun tarif ettigi gib
 
 ### D36 · [dusuk] Kendi basarisizligini `pytest.skip`'e ceviren test — yazildigi gunden beri olu, execute->hook yolu fiilen test edilmiyor
 
-- **Boyut:** test-kalitesi · **Yer:** `tests/test_scheduler.py:171` · **Durum:** ⬜ AÇIK
+- **Boyut:** test-kalitesi · **Yer:** `tests/test_scheduler.py:171` · **Durum:** ✅ KAPANDI (BUG #248)
 - **Neden yayın engeli / etki:** Test bir basarisizligi 'skip' olarak raporluyor; skip'ler ozet satirinda bir kenara yazilir ve kirmizi saymaz. Yarin `execute_pending_action` add_transaction icin gercekten bozulsa, suit yine 'yesil + 1 skip' der. Kullaniciya etkisi: koc onayli aksiyon (harcama/borc kaydi) uygulanamaz halde kalirsa kullanici parasini yanlis takip eder ve bunu suit degil kullanici kesfeder. Ayni dosyada satir 105-108'de `except Exception: pass` ile `CoachEngine.chat` hatasini yutan ikinci bir ornek daha var.
 
 <details><summary>Kanıt</summary>
@@ -1748,7 +1748,7 @@ SONUC: Gercek bir test-kalitesi defekti (dogumundan beri olu test + skip ile mas
 
 ### D37 · [dusuk] Fiyat cron'u TEK BIR hesabi bile guncelleyemedigi gecelerde kendini BASARILI (ok=True) kaydediyor
 
-- **Boyut:** dayaniklilik · **Yer:** `app/scheduler.py:308` · **Durum:** ⬜ AÇIK
+- **Boyut:** dayaniklilik · **Yer:** `app/scheduler.py:308` · **Durum:** ✅ KAPANDI (BUG #248)
 - **Neden yayın engeli / etki:** Dis saglayici kesintisi operasyonel olarak YESIL gorunur; kesinti fark edilmeden uzar ve bu sure boyunca kullanici bayat portfoy degerine bakar (bkz. 2. bulgu). Izleme sinyalinin yanlis pozitif olmasi, izlemenin var olma amacini ortadan kaldirir.
 
 <details><summary>Kanıt</summary>
@@ -1776,7 +1776,7 @@ SIDDET GEREKCESI: para kaybi / veri sizintisi / hukuki risk yok; kullaniciya don
 
 ### D38 · [dusuk] Migration geri-alinabilirlik kapisi elle yazilmis sabit listeye bagli — sonraki migration'lar denetlenmiyor
 
-- **Boyut:** dayaniklilik · **Yer:** `tests/test_rollback_drill.py:27` · **Durum:** ⬜ AÇIK
+- **Boyut:** dayaniklilik · **Yer:** `tests/test_rollback_drill.py:27` · **Durum:** ✅ KAPANDI (BUG #248)
 - **Neden yayın engeli / etki:** `pass` downgrade, eksik downgrade'den daha tehlikelidir: `alembic downgrade` BASARIYLA doner ve surum isaretcisini geri alir ama tablo/sutun yerinde kalir; operator 'sema geri alindi' sanir, sonraki `upgrade head` 'already exists' ile patlar ve kesinti panik aninda elle SQL'e doner (veri kaybi riski). Kapi sabit liste oldugu icin bir sonraki yayin migration'i bu tuzagi sessizce geri getirebilir. Bugun canli veriye zarar vermedigi icin dusuk siddet.
 
 <details><summary>Kanıt</summary>
@@ -1810,7 +1810,7 @@ ZARAR MODELI DOGRU: `pass` downgrade basarili doner, alembic_version isaretcisi 
 
 ### D39 · [dusuk] /api/health veritabanina hic dokunmuyor — deploy.sh otomatik-rollback kapisi, Docker HEALTHCHECK ve live_gate 1. kapisi DB cokmusken de YESIL
 
-- **Boyut:** operasyon-deploy · **Yer:** `app/main.py:295` · **Durum:** ⬜ AÇIK
+- **Boyut:** operasyon-deploy · **Yer:** `app/main.py:295` · **Durum:** ✅ KAPANDI (BUG #247)
 - **Neden yayın engeli / etki:** Deploy zincirindeki tek otomatik guvenlik agi (rollback) en olasi arizayi — Postgres'e baglanamama, yarim kalmis `alembic upgrade head`, tukenmis baglanti havuzu — hic goremez. Bozuk surum canlida kalir, kullanici her ekranda 500 alir, operatorun panelinde her sey yesildir. Finansal veri tasiyan bir betada 'yesil gorunen ama veriye erisemeyen' sistem, kullanicinin urune guvenini tek seferde bitirir ve sessiz terke yol acar.
 
 <details><summary>Kanıt</summary>
@@ -1841,7 +1841,7 @@ GERIYE KALAN GERCEK BOSLUK (bu yuzden bulgu ayakta ama kucuk): sureci ayakta kal
 
 ### D40 · [dusuk] Runbook'taki davet-uretme komutu konteyner disinda calisiyor — davet kodu YANLIS veritabanina (yerel SQLite) yazilir, davetli 403 alir
 
-- **Boyut:** operasyon-deploy · **Yer:** `docs/deployment/runbook.md:129` · **Durum:** ⬜ AÇIK
+- **Boyut:** operasyon-deploy · **Yer:** `docs/deployment/runbook.md:129` · **Durum:** ✅ KAPANDI (BUG #249)
 - **Neden yayın engeli / etki:** Operator davet kodunu uretir, ekranda gorur, davetliye gonderir; kod host uzerindeki bos bir SQLite dosyasina yazildigi icin canli Postgres'te YOKTUR. Davetli kayit ekraninda 'Kayit su anda davetlilere acik. Gecerli bir davet kodu gerekli.' (403, app/routers/auth.py:152) alir. Sebep ayristirilmadigi icin ne davetli ne operator nedenini anlar — betaya davet edilen kullanicilarin tamami kapida kaybedilir, uygulama hic denenmez.
 
 <details><summary>Kanıt</summary>

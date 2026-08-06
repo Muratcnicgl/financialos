@@ -3,7 +3,15 @@
 #
 # M49 (Wave-7) HİBRİT DB: default DATABASE_URL SQLite (dosya-volume). PostgreSQL'e geçmek için:
 #   docker compose --profile postgres up -d
-#   + .env'de DATABASE_URL=postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+#   + .env'de:
+#       APP_DB_PASSWORD=<güçlü-şifre>
+#       DATABASE_URL=postgresql://fos_app:${APP_DB_PASSWORD}@db:5432/financialos
+#       MIGRATION_DATABASE_URL=postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+# BUG #238 (D22): burada tek satırda `financialos:...` yazıyordu — o rol bu dosyanın
+# POSTGRES_USER'ı, yani BOOTSTRAP SUPERUSER'ı. Superuser RLS'i (FORCE dahil) bypass eder →
+# bu tarifi izleyen self-host kurulumunda ADR-038/M51'in DB-katmanı 2. savunması sessizce
+# YOK olurdu. Uygulama artık NOSUPERUSER `fos_app` rolüyle bağlanır; rolü entrypoint
+# (scripts/provision_app_role.py) her açılışta idempotent olarak kurar.
 # App dialect-aware (app/database.py) — DATABASE_URL neyse ona göre engine kurar.
 services:
   backend:

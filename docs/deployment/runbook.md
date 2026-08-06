@@ -39,7 +39,17 @@ curl -fsS https://$DOMAIN/api/health                    # {"status":"ok"}
 ```
 - **Scheduler (cron 7/24):** `scheduler` servisi sürekli çalışır → fiyat cron 02:45, batch 03:00 vb. **PC-kapalı sorunu ÇÖZÜLDÜ**
   (Wave-4 M4'ün prod-daemon gerekçesi, ADR-035). 24 saat sonra: `docker compose logs scheduler | grep price` → fiyat yazıldı mı.
-- **RLS aktif:** app `financialos` NON-superuser rolüyle bağlanır (ADR-038) → RLS 2. savunma canlı.
+- **RLS aktif (BUG #238 / D22):** burada eskiden "app `financialos` NON-superuser rolüyle bağlanır"
+  yazıyordu — **yanlıştı**: `financialos` postgres imajının `POSTGRES_USER`'ı, yani bootstrap
+  SUPERUSER'ı ve superuser `FORCE ROW LEVEL SECURITY`'ye rağmen RLS'i bypass eder; beyan edilen
+  2. savunma fiilen yoktu. Artık uygulama `fos_app` (NOSUPERUSER/NOBYPASSRLS) rolüyle bağlanır,
+  rolü entrypoint her deploy'da idempotent kurar, şemayı yalnız `MIGRATION_DATABASE_URL` (sahip
+  rolü) değiştirir. **Kanıtla** (iddiaya güvenme):
+  ```sh
+  docker compose -f docker-compose.prod.yml exec -T backend python -c \
+    "from app.settings import database_role_problems as p; print(p() or 'RLS rolu TAMAM')"
+  ```
+  Uygulama zaten superuser bağlantısıyla **açılmaz** (startup fail-fast, `validate_security_config`).
 
 ## Güncelleme (yeni sürüm)
 ```sh

@@ -89,9 +89,66 @@ def support_problems() -> list[str]:
     return []
 
 
+def database_role_problems() -> list[str]:
+    """BUG #238 (D22): production + Postgres'te uygulama SUPERUSER rolüyle bağlanamaz.
+
+    ADR-038/M51 workspace izolasyonunun DB-katmanı 2. savunmasını RLS'e dayandırıyor. Postgres
+    superuser'ı `FORCE ROW LEVEL SECURITY`'ye RAĞMEN her policy'yi bypass eder — yani uygulama
+    bootstrap rolüyle bağlandığında o savunma sessizce YOKTUR (prod compose tam olarak böyleydi:
+    yorumu "NON-superuser" diyordu, kullandığı rol POSTGRES_USER'dı). Bunu ancak çalışma anında
+    sorabiliriz: rolün kimliği bağlantı dizesinden okunamaz.
+
+    Asimetri bilinçli: **kanıtlanmış kötü** durum (super/bypassrls) uygulamayı AÇTIRMAZ; sorgu
+    yapılamıyorsa (geçici bağlantı sorunu) yalnız uyarı — aksi halde DB'nin bir saniyelik
+    sarsıntısı crash-loop'a dönerdi.
+    """
+    if not is_production():
+        return []
+    url = os.getenv("DATABASE_URL", "").strip()
+    if not url:
+        return []
+    try:
+        from sqlalchemy import make_url
+        if make_url(url).get_backend_name() != "postgresql":
+            return []          # SQLite self-host: RLS kavramı yok (hibrit, ADR-038)
+    except Exception:
+        return []
+
+    problems: list[str] = []
+    # (a) MA3 sınıfı: git'teki placeholder şifreyle deploy (bkz. SECRET_KEY, BUG #157).
+    try:
+        sifre = make_url(url).password or ""
+    except Exception:
+        sifre = ""
+    if "REPLACE" in sifre:
+        problems.append("DATABASE_URL şifresi hâlâ .env.prod.example placeholder'ı (REPLACE_...)")
+
+    # (b) Çekirdek: bağlandığımız rol RLS'e tabi mi?
+    try:
+        from sqlalchemy import text
+        from app.database import engine
+        with engine.connect() as conn:
+            satir = conn.execute(text(
+                "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user"
+            )).one()
+    except Exception as exc:      # kanıtlayamadık → bloklamıyoruz (bkz. docstring)
+        logger.warning("[security] DB rol kontrolü yapılamadı (%s) — RLS savunması doğrulanmadı", exc)
+        return problems
+
+    if satir.rolsuper or satir.rolbypassrls:
+        problems.append(
+            "uygulama veritabanına RLS'i bypass eden bir rolle bağlanıyor "
+            f"(superuser={satir.rolsuper}, bypassrls={satir.rolbypassrls}) — workspace "
+            "izolasyonunun DB-katmanı savunması etkisiz. DATABASE_URL'i NOSUPERUSER app "
+            "rolüne çevir (scripts/provision_app_role.py)"
+        )
+    return problems
+
+
 def validate_security_config() -> None:
     """Startup fail-fast. Production'da güvenlik config sorunu → RuntimeError; dev'de warning."""
-    problems = secret_key_problems() + auth_problems() + support_problems()
+    problems = (secret_key_problems() + auth_problems() + support_problems()
+                + database_role_problems())
     if not problems:
         logger.info("[security] config doğrulaması geçti (environment=%s)", environment())
         return

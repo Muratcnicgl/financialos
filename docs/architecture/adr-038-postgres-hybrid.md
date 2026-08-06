@@ -31,7 +31,15 @@ gerekli, ama dev deneyimi (tek-dosya, sıfır-kurulum) SQLite'ta kalmalı → **
 1. **workspace_id FK:** fiziksel yalnız Postgres (SQLite ALTER ADD FK yapamaz, M11 dersi); SQLite'ta model-FK + app-scope.
 2. **RLS:** yalnız Postgres (2. savunma). SQLite'ta app-katmanı scope tek savunma.
 3. **Numeric:** absürt değerlerde SQLite drift (gerçekçi domain'de fark yok).
-4. **RLS'in etkili olması:** app NON-superuser rolüyle bağlanmalı (compose `financialos`) — superuser RLS'i bypass eder.
+4. **RLS'in etkili olması:** app NON-superuser rolüyle bağlanmalı — superuser RLS'i (FORCE dahil) bypass eder.
+   ⚠️ **Düzeltme (BUG #238 / denetim D22, 6 Ağu 2026):** bu madde "compose `financialos`" diyordu; **yanlıştı.**
+   `financialos` prod compose'un `POSTGRES_USER`'ı, yani postgres imajının **bootstrap SUPERUSER**'ı — yani bu
+   ADR'nin 2. maddesindeki "DB-katmanı 2. savunma" prod'da FİİLEN YOKTU (madde kendi ön koşulunu ihlal ediyordu).
+   Doğrusu **iki rol**: `financialos` (sahip) yalnız migration + `pg_dump`; `fos_app` (NOSUPERUSER/NOBYPASSRLS)
+   uygulama trafiği. Rol her deploy'da `scripts/provision_app_role.py` ile idempotent kurulur. İddia artık üç
+   kapıya bağlı: compose sözleşmesi (`tests/test_prod_rls_rol_kapisi.py`), çalışma-anı fail-fast
+   (`app.settings.database_role_problems` — superuser bağlantısıyla uygulama AÇILMAZ) ve Postgres davranış kanıtı
+   (`tests/test_rls_postgres.py::test_superuser_force_rls_e_ragmen_bypass_eder`).
 
 ## Prod ortam yeteneği notu (M49 keşfi)
 Bu geliştirme ortamında docker CLI YOK → Wave-7 gate'leri için **`pgserver`** (bundled postgres binary wheel) ile
@@ -39,8 +47,9 @@ docker'sız PostgreSQL 16.2 koşuldu. Türkçe locale (`Turkish_Türkiye.1254`) 
 **`initdb --locale=C`** ile çözülür. `tests/pg_gate.py` dual-dialect test altyapısı (postgres yoksa skip).
 
 ## Revize tetikleyicisi
-Gerçek prod deploy (Wave-8, VPS) — compose postgres canlı koşulacak, CI'ya postgres service eklenecek (dual-dialect
-gate'ler CI'da da). Multi-tenant/ölçek büyürse RLS policy + connection-pool ayarları gözden geçirilir.
+Gerçek prod deploy (Wave-8, VPS) — compose postgres canlı koşulacak. **CI'ya postgres service eklendi
+(BUG #238):** `backend-tests` işi `PG_TEST_URL` ile koşar, dual-dialect gate'leri artık her push'ta gerçekten
+işletilir (eskiden her koşumda SKIP'ti — policy düşse hiçbir test kırmızı olmuyordu). Multi-tenant/ölçek büyürse RLS policy + connection-pool ayarları gözden geçirilir.
 
 ## Kaynak
 Wave-7 M49-M53 + M92 (milestone-log). Test: `tests/pg_gate.py`, `test_rls_postgres.py`, `test_numeric_dual_dialect.py`,

@@ -56,6 +56,13 @@ def fresh_pg_database(base_url: str, name: str) -> str:
     from sqlalchemy import create_engine as _ce
     admin = _ce(base_url, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
+        # BUG #238: bir gate testi yarıda kalınca (assert patlaması) bağlantıları açık
+        # bırakıyordu; sonraki testin DROP DATABASE'i "is being accessed by other users"
+        # ile ölüp ARDIŞIK ERROR zinciri üretiyordu — gerçek arıza kaybolur. Önce artık
+        # oturumları düşür, sonra düşür.
+        conn.execute(text(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+            "WHERE datname = :d AND pid <> pg_backend_pid()"), {"d": name})
         conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
         conn.execute(text(f'CREATE DATABASE "{name}"'))
     admin.dispose()

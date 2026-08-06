@@ -17,8 +17,19 @@ fi
 
 # web modu: şema migrate (tek sefer) + gunicorn. Scheduler bu process'lerde KAPALI (ayrı servis koşar).
 export SCHEDULER_ENABLED=false
+
+# BUG #238 (D22): uygulama artık NON-superuser rolle bağlanır (RLS ancak öyle uygulanır).
+# O rolün DDL yetkisi YOKTUR → migration şema sahibi rolüyle koşmalı. MIGRATION_DATABASE_URL
+# tanımlıysa yalnız bu adım için DATABASE_URL'i ezeriz; gunicorn app rolüyle açılır.
+MIGRATE_URL="${MIGRATION_DATABASE_URL:-$DATABASE_URL}"
 echo "[entrypoint] alembic upgrade head…"
-python -m alembic upgrade head
+DATABASE_URL="$MIGRATE_URL" python -m alembic upgrade head
+
+# Migration SONRASI: app rolünü yarat/güncelle + yeni tabloların yetkilerini ver (idempotent).
+# Sıra önemli — yeni migration'ın yarattığı tablo aksi halde app rolüne kapalı kalır.
+echo "[entrypoint] uygulama rolü provizyonu (NOSUPERUSER, RLS'e tabi)…"
+DATABASE_URL="$MIGRATE_URL" MIGRATION_DATABASE_URL="$MIGRATE_URL" \
+    python -m scripts.provision_app_role
 echo "[entrypoint] gunicorn başlıyor (uvicorn worker, WEB_CONCURRENCY=${WEB_CONCURRENCY:-2})…"
 exec gunicorn app.main:app \
     --worker-class uvicorn.workers.UvicornWorker \

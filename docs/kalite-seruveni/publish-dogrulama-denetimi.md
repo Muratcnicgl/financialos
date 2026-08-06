@@ -1104,7 +1104,17 @@ Diskten dogrulandi ve bagimsiz olarak yeniden uretildi. tests/test_error_trackin
 
 ### D22 · [orta] Prod dialect'i PostgreSQL'in RLS ve dual-dialect kapilari ne yerelde ne CI'da hic kosuyor (6 skip'in 5'i)
 
-- **Boyut:** test-kalitesi · **Yer:** `tests/pg_gate.py:49` · **Durum:** ⬜ AÇIK
+- **Boyut:** test-kalitesi · **Yer:** `tests/pg_gate.py:49` · **Durum:** ✅ **KAPANDI (BUG #238, 6 Ağu 2026)**
+- **Nasıl kapandı:** iki ayrı defekt çıktı. **(1) Regresyon boşluğu:** `.github/workflows/ci.yml`
+  `backend-tests` işine `postgres:16-alpine` servisi + `PG_TEST_URL` eklendi; iş **tüm süiti** koşuyor
+  (elle dosya listesi tutulmuyor → yeni dual-dialect testi otomatik kapsanır). 8 SKIP artık gerçekten
+  koşuyor. **(2) Denetimin çelişme turunda bulduğu CANLI defekt:** prod compose uygulamayı
+  `POSTGRES_USER` = **bootstrap superuser** ile bağlıyordu (yorumu "NON-superuser" diyordu) → RLS
+  prod'da tümüyle etkisizdi; gate CI'da koşsa bile prod'un gerçek rolünü ölçmeyecekti. Uygulama trafiği
+  `fos_app` (NOSUPERUSER/NOBYPASSRLS) rolüne alındı, şema değişikliği ayrı `MIGRATION_DATABASE_URL`
+  (sahip rolü) ile koşuyor, rol her deploy'da `scripts/provision_app_role.py` ile idempotent kuruluyor;
+  uygulama superuser bağlantısıyla **açılmıyor** (`app.settings.database_role_problems` fail-fast).
+  `test_rls_postgres.py` artık rolü elde yaratmıyor — **prod'un gerçek provizyon kodunu** çağırıyor.
 - **Neden yayın engeli / etki:** ADR-038'e gore prod PostgreSQL. Workspace izolasyonunun ikinci savunma katmani oldugu belgelenen RLS'in gercekten calistigina dair otomatik hicbir kanit yok — Alembic RLS migration'i sessizce bozulsa (policy dusse, FORCE kalksa) hicbir test kirmizi olmaz. Ilk savunma (scope_filter) tek bir endpoint'te unutuldugunda (BUG #162 tam olarak boyle olmustu) ikinci savunmanin varliginin da dogrulanmamis olmasi, aile/workspace paylasimi acildiginda baska bir kullanicinin finansal tablosunun okunmasi demektir. Ayrica Numeric(19,4) bit-butunlugu ve NULL-siralama kapilarinin da hic kosmamasi, SQLite'ta dogru gorunen para hesaplarinin prod'da farkli davranmasi riskini test disi birakiyor.
 
 <details><summary>Kanıt</summary>

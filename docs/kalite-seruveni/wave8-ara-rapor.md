@@ -41,7 +41,11 @@ GOAL TAMAM kaydı ancak canlı-deploy doğrulanınca yazılacak (`milestone-101-
 ## Güvenlik notu (deploy = internete açılma)
 Production-güvenlik gözüyle kapatıldı: secret imaja/git'e/chat'e girmez (fail-fast + .gitignore) · DB portu dışa kapalı ·
 `ENVIRONMENT=production` (/docs kapalı, SEC-015) · AUTH_ENABLED=true · HTTPS zorunlu (HTTP→301) · HSTS/CSP · non-root container ·
-RLS non-superuser rolüyle canlı (ADR-038). CORS aynı-origin (nginx). Rate-limit + JSON log mevcut (Wave-3/M35).
+RLS non-superuser rolüyle canlı (ADR-038). ⚠️ **Düzeltme (BUG #238 / D22, 6 Ağu 2026):** buradaki ve
+yukarıdaki tablodaki "RLS non-superuser" ifadesi YANLIŞTI — compose'daki `financialos` rolü postgres
+imajının `POSTGRES_USER`'ı, yani bootstrap SUPERUSER'ıydı ve superuser RLS'i (FORCE dahil) bypass eder;
+beyan edilen DB-katmanı savunma fiilen yoktu. Ayrı `fos_app` (NOSUPERUSER) rolü + startup fail-fast +
+CI postgres kapılarıyla kapatıldı. CORS aynı-origin (nginx). Rate-limit + JSON log mevcut (Wave-3/M35).
 
 ---
 ⚠️ **Bu rapor kapanış DEĞİL.** "GOAL TAMAM WAVE-8" yalnızca yukarıdaki KALAN kalemler canlı-doğrulandıktan sonra yazılır.

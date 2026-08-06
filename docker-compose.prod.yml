@@ -50,8 +50,18 @@ services:
       TRUST_PROXY_HEADERS: "1"
       AUTH_ENABLED: "true"
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY .env.prod'da zorunlu (fail-fast)}
-      # RLS'in etkili olması için app NON-superuser rol (financialos) ile bağlanır (ADR-038, M51)
-      DATABASE_URL: postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+      # BUG #238 (D22): burada `financialos` yazıyordu ve yorumu "NON-superuser" diyordu —
+      # ama `financialos` bu dosyanın POSTGRES_USER'ı, yani postgres imajının BOOTSTRAP
+      # SUPERUSER'ı. Superuser FORCE ROW LEVEL SECURITY'ye RAĞMEN RLS'i bypass eder →
+      # ADR-038/M51'in "DB-katmanı 2. savunma" beyanı prod'da FİİLEN YOKTU.
+      # Artık uygulama trafiği ayrı bir NOSUPERUSER/NOBYPASSRLS rolüyle akar; rol her
+      # deploy'da entrypoint tarafından provizyon edilir (scripts/provision_app_role.py).
+      DATABASE_URL: postgresql://${APP_DB_ROLE:-fos_app}:${APP_DB_PASSWORD:?APP_DB_PASSWORD .env.prod'da zorunlu (app rolü şifresi)}@db:5432/financialos
+      # Şema değişikliği yalnız SAHİP rolüyle (app rolünün DDL yetkisi yok). Bu URL sadece
+      # `alembic upgrade head` + rol provizyonu adımlarında kullanılır, sunucuda değil.
+      MIGRATION_DATABASE_URL: postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+      APP_DB_ROLE: ${APP_DB_ROLE:-fos_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
       # P9 (BUG #200): calisan surumun kimligi. deploy.sh git SHA'yi buraya gecirir ->
       # /api/health "version + build" doner; hata bildiriminde hangi kod kostugu KESIN.
@@ -74,7 +84,9 @@ services:
     restart: unless-stopped
     depends_on:
       backend:
-        condition: service_started   # backend migrate ettikten sonra
+        # backend migrate + app rolünü provizyon ettikten sonra. Yarış olursa (rol henüz yok)
+      # scheduler açılamaz ve `restart: unless-stopped` ile kendini toparlar (BUG #238).
+      condition: service_started
     env_file:
       - .env.prod                    # BUG #230 (D11) — backend ile aynı gerekçe
     environment:
@@ -90,7 +102,9 @@ services:
       # deploy.sh bunu yalnız "UYARI" basıp çıkış kodu 0 ile geçiyordu (sessiz arıza).
       AUTH_ENABLED: "true"
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY zorunlu}
-      DATABASE_URL: postgresql://financialos:${POSTGRES_PASSWORD}@db:5432/financialos
+      # BUG #238 (D22): scheduler de uygulama trafiğidir → RLS'e tabi app rolü. Migration
+      # koşmaz (entrypoint scheduler modu) → MIGRATION_DATABASE_URL burada BİLEREK yok.
+      DATABASE_URL: postgresql://${APP_DB_ROLE:-fos_app}:${APP_DB_PASSWORD:?APP_DB_PASSWORD .env.prod'da zorunlu}@db:5432/financialos
       LLM_PROVIDER: ${LLM_PROVIDER:-fallback}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
@@ -137,6 +151,8 @@ services:
     environment:
       TZ: ${TZ:-Europe/Istanbul}
       PGHOST: db
+      # BUG #238: yedek BİLEREK şema sahibi rolüyle alınır. App rolü RLS'e tabidir; bir
+      # workspace bağlamı sızarsa pg_dump EKSİK satırla "başarılı" biter — sessiz veri kaybı.
       PGUSER: financialos
       PGDATABASE: financialos
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod'da zorunlu}

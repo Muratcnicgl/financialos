@@ -2,17 +2,32 @@
 M51 (Wave-7) — Row-Level Security GATE (Postgres, DB-katmanı izolasyon 2. savunma).
 
 Kanıt: RLS aktifken, uygulama filtresi (scope_filter) BYPASS edilse bile (ham `SELECT * FROM accounts`,
-WHERE yok) Postgres yanlış workspace satırını DÖNDÜRMEZ. Superuser RLS'i bypass ettiğinden test NON-superuser
-rol (`fos_app` — prod'daki `financialos` app-rolünü temsil eder) ile bağlanır.
+WHERE yok) Postgres yanlış workspace satırını DÖNDÜRMEZ. Superuser RLS'i bypass ettiğinden test
+NON-superuser rol ile bağlanır.
+
+GUNCELLEMELER:
+  BUG #238 fix (denetim D22): bu dosya rolü ELDE yaratıyordu (`CREATE ROLE fos_app ...`) ve
+    docstring'i onu "prod'daki `financialos` app-rolünü temsil eder" diye niteliyordu. Bu
+    NİTELEME YANLIŞTI: prod compose uygulamayı `financialos` ile bağlıyordu ve o rol postgres
+    imajının POSTGRES_USER'ı, yani BOOTSTRAP SUPERUSER'ıydı — superuser FORCE'a rağmen RLS'i
+    bypass eder. Yani bu gate yeşil olsa bile prod'daki gerçek rolü hiç ölçmüyordu. Artık rol
+    prod'un GERÇEK provizyon yoluyla (`scripts/provision_app_role.py`, entrypoint'in çağırdığı
+    kod) kuruluyor + superuser'ın bypass ettiği davranışla ispatlanıyor.
 
 Postgres yoksa SKIP (ana SQLite süiti bloklanmaz). Bu gate yalnız Postgres'te anlamlı.
+CI'da PG_TEST_URL ile GERÇEKTEN koşar (BUG #238: eskiden her koşumda SKIP'ti).
 """
 from __future__ import annotations
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
+from scripts.provision_app_role import provision
 from tests.pg_gate import postgres_url_or_skip, fresh_pg_database
+
+APP_ROL = "fos_app"
+APP_SIFRE = "gate-test-app-role-pw"
 
 
 def _run_alembic(url: str):
@@ -27,19 +42,21 @@ def rls_db():
     base = postgres_url_or_skip()
     url = fresh_pg_database(base, "fos_rls_gate")
     _run_alembic(url)  # RLS migration dahil head
-    return url
+    yield url
+    # BUG #238: rol cluster-GENELİNDEDİR (veritabanına değil). Test yarıda kalsa bile
+    # düşürülmezse sonraki koşum bayat şifreyle karşılaşır → temizlik teardown'a alındı.
+    _rolu_dusur(url)
 
 
 def test_rls_yanlis_workspace_sifir_satir(rls_db):
     """RLS GATE: yanlış workspace context → uygulama filtresi bypass edilse bile 0 satır."""
+    # BUG #238: rol PROD'UN GERÇEK YOLUYLA kurulur — entrypoint'in çağırdığı aynı fonksiyon.
+    # Elle `CREATE ROLE` yazılsaydı gate, prod'da fiilen kullanılan rolü değil kendi
+    # kurgusunu ölçerdi (denetim D22'nin çürüttüğü tam olarak buydu).
+    provision(rls_db, APP_ROL, APP_SIFRE)
+
     admin = create_engine(rls_db, isolation_level="AUTOCOMMIT")
     with admin.connect() as c:
-        # Non-superuser app-rolü (prod financialos rolü); yoksa yarat + grant.
-        c.execute(text("DROP ROLE IF EXISTS fos_app"))
-        c.execute(text("CREATE ROLE fos_app LOGIN NOSUPERUSER"))
-        c.execute(text("GRANT USAGE ON SCHEMA public TO fos_app"))
-        c.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fos_app"))
-        c.execute(text("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fos_app"))
         # Seed (superuser → RLS bypass, kurulum): 1 user + 2 workspace + her ws'de 1 account.
         c.execute(text("INSERT INTO users (id, name, email) VALUES (1, 'murat', 'm@x.com')"))
         c.execute(text("INSERT INTO workspaces (id, owner_user_id, name, is_personal) VALUES (1,1,'WS1',true),(2,1,'WS2',false)"))
@@ -48,8 +65,7 @@ def test_rls_yanlis_workspace_sifir_satir(rls_db):
     admin.dispose()
 
     # Non-superuser bağlan (RLS ona uygulanır)
-    from sqlalchemy.engine import make_url
-    app_url = str(make_url(rls_db).set(username="fos_app", password=None))
+    app_url = str(make_url(rls_db).set(username=APP_ROL, password=APP_SIFRE))
     app_eng = create_engine(app_url)
 
     def raw_count(conn):
@@ -105,10 +121,101 @@ def test_rls_yanlis_workspace_sifir_satir(rls_db):
         s.close(); hook_eng.dispose()
 
     # temizlik
-    admin2 = create_engine(rls_db, isolation_level="AUTOCOMMIT")
-    with admin2.connect() as c:
-        c.execute(text("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM fos_app"))
-        c.execute(text("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM fos_app"))
-        c.execute(text("REVOKE USAGE ON SCHEMA public FROM fos_app"))
-        c.execute(text("DROP ROLE IF EXISTS fos_app"))
-    admin2.dispose()
+    _rolu_dusur(rls_db)
+
+
+def _rolu_dusur(url: str) -> None:
+    """Rolü ve bağımlı yetkilerini düşürür. Rol yoksa sessizce geçer (teardown'da çağrılır)."""
+    admin = create_engine(url, isolation_level="AUTOCOMMIT")
+    with admin.connect() as c:
+        if not c.execute(text("SELECT 1 FROM pg_roles WHERE rolname = :r"),
+                         {"r": APP_ROL}).scalar():
+            admin.dispose()
+            return
+        for sql in (
+            f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {APP_ROL}",
+            f"REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM {APP_ROL}",
+            f"REVOKE USAGE ON SCHEMA public FROM {APP_ROL}",
+            f"ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM {APP_ROL}",
+            f"ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM {APP_ROL}",
+            f"DROP ROLE IF EXISTS {APP_ROL}",
+        ):
+            c.execute(text(sql))
+    admin.dispose()
+
+
+# ── BUG #238 (denetim D22): prod rol seçiminin RLS'i etkisizleştirdiğinin DAVRANIŞ kanıtı ──
+
+def test_superuser_force_rls_e_ragmen_bypass_eder(rls_db):
+    """Prod eskiden bootstrap SUPERUSER ile bağlanıyordu. Bu testin gösterdiği şey, o kurulumda
+    RLS diye bir 2. savunmanın HİÇ olmadığıdır: aynı sorgu, aynı yanlış workspace bağlamı,
+    aynı FORCE'lu tablo — superuser hepsini görür, app rolü sıfır satır görür."""
+    provision(rls_db, APP_ROL, APP_SIFRE)
+    su = create_engine(rls_db, isolation_level="AUTOCOMMIT")
+    try:
+        with su.connect() as c:
+            assert c.execute(text("SELECT rolsuper FROM pg_roles WHERE rolname = current_user")
+                             ).scalar() is True, "test kurgusu: admin bağlantısı superuser değil"
+            c.execute(text("INSERT INTO users (id, name, email) VALUES (1,'m','m@x.com')"))
+            c.execute(text("INSERT INTO workspaces (id, owner_user_id, name, is_personal) "
+                           "VALUES (1,1,'WS1',true)"))
+            c.execute(text("INSERT INTO accounts (user_id, workspace_id, name, account_type, "
+                           "balance, is_emanet) VALUES (1,1,'A1','cash',100,false)"))
+            # FORCE ROW LEVEL SECURITY tabloda AÇIK — yine de superuser'a uygulanmaz.
+            zorlanmis = c.execute(text(
+                "SELECT relrowsecurity AND relforcerowsecurity FROM pg_class "
+                "WHERE relname = 'accounts'")).scalar()
+            assert zorlanmis is True, "migration RLS'i ENABLE+FORCE etmemiş (kapı ölçemez)"
+            c.execute(text("SET app.current_workspace_id = '999'"))  # YANLIŞ workspace
+            assert c.execute(text("SELECT count(*) FROM accounts")).scalar() == 1, (
+                "beklenmedik: superuser RLS'e takıldı — bu testin premisi güncellenmeli"
+            )
+    finally:
+        su.dispose()
+
+    # Aynı sorgu, provizyon edilmiş app rolüyle → RLS uygulanır.
+    app_url = str(make_url(rls_db).set(username=APP_ROL, password=APP_SIFRE))
+    app_eng = create_engine(app_url)
+    try:
+        with app_eng.connect() as c:
+            c.execute(text("SET app.current_workspace_id = '999'"))
+            assert c.execute(text("SELECT count(*) FROM accounts")).scalar() == 0, (
+                "app rolü RLS'i bypass etti — prod'da DB-katmanı savunma yok demektir"
+            )
+    finally:
+        app_eng.dispose()
+        _rolu_dusur(rls_db)
+
+
+def test_provizyon_edilen_rol_rls_e_tabidir(rls_db):
+    """Provizyon scripti (entrypoint'in çağırdığı kod) rolü gerçekten RLS'e tabi yaratıyor mu?
+    `NOSUPERUSER` ama `BYPASSRLS` bir rol de savunmayı sessizce kaldırırdı."""
+    provision(rls_db, APP_ROL, APP_SIFRE)
+    eng = create_engine(rls_db)
+    try:
+        with eng.connect() as c:
+            r = c.execute(text("SELECT rolsuper, rolbypassrls, rolcanlogin, rolcreatedb, "
+                               "rolcreaterole FROM pg_roles WHERE rolname = :r"),
+                          {"r": APP_ROL}).one()
+        assert r.rolsuper is False, "app rolü SUPERUSER — RLS tamamen etkisiz"
+        assert r.rolbypassrls is False, "app rolü BYPASSRLS — RLS sessizce atlanır"
+        assert r.rolcanlogin is True, "app rolü login olamıyor — uygulama bağlanamaz"
+        assert r.rolcreatedb is False and r.rolcreaterole is False, (
+            "app rolüne gereksiz yönetim yetkisi verilmiş (en az yetki ilkesi)"
+        )
+    finally:
+        eng.dispose()
+        _rolu_dusur(rls_db)
+
+
+def test_provizyon_idempotent_ve_sifresiz_calismaz(rls_db):
+    """Her deploy'da koşar (entrypoint) → ikinci koşum patlamamalı; şifresiz rol yaratılmamalı."""
+    provision(rls_db, APP_ROL, APP_SIFRE)
+    provision(rls_db, APP_ROL, APP_SIFRE + "-yeni")  # şifre güncellenir, hata vermez
+    try:
+        with pytest.raises(ValueError):
+            provision(rls_db, APP_ROL, "")
+        with pytest.raises(ValueError):
+            provision(rls_db, "fos_app; DROP TABLE users", APP_SIFRE)  # rol adı beyaz listeli
+    finally:
+        _rolu_dusur(rls_db)

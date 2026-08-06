@@ -12,6 +12,24 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    # BUG #238 (denetim D22): postgres servisi YOKTU → dual-dialect kapıları (RLS, Numeric
+    # bit-bütünlüğü, NULL-ordering, geri-yükleme provası) her koşumda SKIP'e düşüyordu.
+    # Prod dialect'i PostgreSQL (ADR-038); RLS policy'si sessizce düşse hiçbir test kırmızı
+    # olmuyordu. Artık aynı iş hem SQLite hem Postgres kapılarıyla koşar.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,9 +41,12 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
       - name: Fresh DB migration lock (ADR-013a)
         run: python scripts/test_fresh_db_migration.py
-      - name: Pytest
+      - name: Pytest (SQLite + PostgreSQL dual-dialect kapıları)
         env:
           SECRET_KEY: ci-test-secret-key-min-32-characters-long-0123456789
+          # tests/pg_gate.py bunu görünce SKIP etmez. Tüm süit koşulur: dosya listesi
+          # tutulmaz → yeni bir dual-dialect testi otomatik kapsanır (drift yok).
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: python -m pytest tests/ -q
 
   e2e:

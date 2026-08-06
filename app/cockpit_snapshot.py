@@ -2,6 +2,13 @@
 Cockpit Snapshot Helper — Wave-2 H2G3 ikinci alt is
 Premortem ve DecisionJournal icin ortak snapshot kaynagi.
 Bridgewater pattern: karar hangi state'de alindi, hash ile saklanir.
+
+GUNCELLEMELER:
+- BUG #239 fix (D23): snapshot artik `investment_price_stale`/`investment_price_age`
+  tasiyor. Premortem "net degerin X TL" derken X'in yatirim kismi 30 gunluk fiyattan
+  geliyorsa senaryo uretimi bunu bilmeli — aksi halde "portfoyu sat" tavsiyesi olmayan
+  bir fiyata dayanir. (Yeni alanlar snapshot hash'ini degistirir: eski premortem
+  onbellek kayitlari bir kez gecersizlesir, dogru davranis.)
 """
 
 from __future__ import annotations
@@ -29,6 +36,8 @@ class CockpitSnapshot(TypedDict):
     card_debt_tl: float
     loan_debt_tl: float
     investment_tl: float
+    investment_price_stale: bool        # BUG #239 (D23): yatırım fiyatları bayat mı
+    investment_price_age: Optional[str]  # en eski fiyat yaşı ("30 gün önce") veya None
     cashflow_30d_tl: float
     cashflow_60d_tl: float
     lowest_balance_tl: float
@@ -84,6 +93,10 @@ def build_cockpit_snapshot(db: Session, user_id: int) -> CockpitSnapshot:
         "card_debt_tl": float(cockpit.get("kart_borcu") or 0.0),
         "loan_debt_tl": float(cockpit.get("kredi_borcu") or 0.0),
         "investment_tl": float(cockpit.get("yatirim_deger") or 0.0),
+        # BUG #239 (D23): premortem "net değerin X TL" der; X'in yatırım kısmı bayat fiyattan
+        # geliyorsa senaryo üretimi bunu bilmeli (aynı sınıf: değer var, tazelik yok).
+        "investment_price_stale": bool((cockpit.get("fiyat_tazeligi") or {}).get("bayat_var")),
+        "investment_price_age": (cockpit.get("fiyat_tazeligi") or {}).get("en_eski_yas"),
         "cashflow_30d_tl": float(summary_30.get("net_flow") or 0.0),
         "cashflow_60d_tl": float(summary_60.get("net_flow") or 0.0),
         "lowest_balance_tl": float(summary_30.get("lowest_balance") or 0.0),

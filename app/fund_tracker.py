@@ -12,6 +12,12 @@ Bu modül:
 2. TEFAS sayfasının URL'ini üretir (frontend butonu için)
 3. Manuel fiyat güncellemesini DB'ye yazar (timestamp ile)
 4. TEFAS otomatik fiyat çekme: try_auto_fetch_fund_price (pytefas 0.3.0)
+
+GUNCELLEMELER:
+- BUG #239 fix (D23): `PRICE_ALERT_HOURS` (72s) eklendi. Bu modülün tazelik kuralları artık
+  yalnız panel rozetini değil koç/premortem bağlamını ve Hesaplar panelini de besliyor
+  (rules_engine + schemas.FiyatTazeligiMixin tek kaynak olarak buraya bağlı) — etiket eşiği
+  ile alarm eşiği ayrıştı.
 """
 
 from datetime import datetime, timedelta
@@ -32,6 +38,13 @@ logger = logging.getLogger(__name__)
 
 # Fiyatın 'taze' sayılacağı eşik (saat)
 PRICE_FRESHNESS_HOURS = 24
+
+# BUG #239 fix (D23): ETİKETLEME eşiği ile ALARM eşiği aynı olmamalı.
+# 24 saat "bu fiyat dünden" demek için doğru eşik (etiket ücretsizdir, dürüsttür).
+# Ama TEFAS hafta sonu/tatilde yayın yapmaz — 24 saati alarm eşiği yapmak her pazar
+# uyarı üretir ve uyarı yorgunluğu gerçek kesintiyi görünmez kılar. Alarm, sağlayıcının
+# GERÇEKTEN sustuğunu gösteren süreden sonra çıkar (hafta sonu + bir iş günü payı).
+PRICE_ALERT_HOURS = 72
 
 
 def is_price_stale(last_update: Optional[datetime], threshold_hours: int = PRICE_FRESHNESS_HOURS) -> bool:

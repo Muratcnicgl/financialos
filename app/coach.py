@@ -9,6 +9,12 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #239 fix (D23, bayat fiyat): koç, fiyat sağlayıcısı çöktüğünde haftalarca eski fiyatla
+  hesaplanmış "yatırım değerin X TL, %Y kârdasın" cümlesini KOŞULSUZ kuruyordu. Tazelik verisi
+  yalnız HTTP katmanında (routers/cockpit) ekleniyordu, koç ise generate_cockpit'i doğrudan
+  çağırdığı için o alanı hiç görmüyordu. Artık tazelik cockpit sözleşmesinin parçası: hesap
+  satırı ve K/Z satırı "⚠️ FİYAT BAYAT (yaş)" taşır, bayat varsa bloka "'şu anki/güncel'
+  DEME" talimatı eklenir — BUG #211'de döviz için konan disiplinin fiyat karşılığı.
 - BUG #234 fix (D15, kota birimi): sağlayıcıların GERÇEK istekleri artık kota ölçümüne
   düşüyor. `LLMProvider.__init_subclass__` her somut sağlayıcının `_raw_chat`'ini otomatik
   sarmalar (yeni sağlayıcı eklenince kanca unutulamaz — fail-closed); zincir sağlayıcısı
@@ -905,6 +911,10 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
             line += f" (aylık {_fmt(acc['aylik_taksit'])}, kalan {acc.get('kalan_taksit')} taksit, sonraki {acc.get('sonraki_taksit')})"
         if acc.get("lot"):
             line += f" (lot {acc['lot']}, fiyat {acc.get('fiyat')}, maliyet/lot {acc.get('maliyet_per_lot')})"
+            # BUG #239 fix (D23): sağlayıcı çöktüğünde fiyat olduğu yerde kalır. İşaretlenmezse
+            # koç 30 günlük fiyatı "şu anki değerin" diye sunar — kullanıcı ona göre satar.
+            if acc.get("fiyat_bayat"):
+                line += f" ⚠️ FİYAT BAYAT ({acc.get('fiyat_yas')} güncellendi)"
         account_lines.append(line)
     accounts_text = "\n".join(account_lines)
 
@@ -912,10 +922,13 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
     for p in cockpit.get("investment_pnl", []):
         brut_sign = "+" if p["brut_kar"] >= 0 else ""  # BUG #035
         getiri_str = f"{p['getiri_yuzde']:+.2f}".replace(".", ",")  # BUG #035
+        # BUG #239 (D23): K/Z satırı ("%30 kârdasın") satış kararını doğrudan tetikler —
+        # bayat fiyattan üretilmişse işaretsiz kalamaz.
+        bayat_ek = f" ⚠️ FİYAT BAYAT ({p.get('fiyat_yas')})" if p.get("fiyat_bayat") else ""
         pnl_lines.append(
             f"  - {p['account_name']} ({p['fund_code']}): "
             f"maliyet {_fmt(p['toplam_maliyet'])} → değer {_fmt(p['guncel_deger'])} "
-            f"(brüt kâr {brut_sign}{_fmt(p['brut_kar'])}, getiri %{getiri_str})"
+            f"(brüt kâr {brut_sign}{_fmt(p['brut_kar'])}, getiri %{getiri_str}){bayat_ek}"
         )
     pnl_text = "\n".join(pnl_lines) if pnl_lines else "  (Yatırım yok)"
 
@@ -993,6 +1006,23 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
             f"yok, ödeme gerekmiyor' de; 0-bakiyeli borca ASLA ödeme önerme."
         )
 
+    # BUG #239 fix (D23): BUG #211'de döviz için konan disiplinin fiyat/portföy karşılığı —
+    # "bayat değeri şu anki diye sunmak, hiç sunmamaktan daha kötüdür". İşaret yetmez, DİL de
+    # değişmeli: satırdaki rozet olmadan LLM rakamı yine "şu anki değerin" diye çerçeveler.
+    _tz = cockpit.get("fiyat_tazeligi") or {}
+    fiyat_bayat_block = ""
+    if _tz.get("bayat_var"):
+        _yas = _tz.get("en_eski_yas") or "bilinmiyor"
+        fiyat_bayat_block = (
+            f"\n\n## ⚠️ FİYAT TAZELİĞİ — YATIRIM FİYATLARI BAYAT\n"
+            f"  - {_tz.get('bayat_sayisi')} yatırım hesabının fiyatı güncellenmiyor "
+            f"(en eskisi: {_yas} güncellendi).\n"
+            f"  - Yukarıdaki Yatırım Değeri ve K/Z bu ESKİ fiyatlardan hesaplandı.\n"
+            f"  (Bu rakamları verirken 'şu anki/güncel değerin' DEME — '{_yas} güncellenen "
+            f"fiyata göre' diye söyle. Satış/alım konuşulursa önce fiyatı doğrulamasını "
+            f"söyle. Güncel fiyat UYDURMA.)"
+        )
+
     context = f"""
 # COCKPIT — BUGÜNKÜ DURUM
 
@@ -1020,7 +1050,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
 {accounts_text}
 
 ## Yatırım K/Z
-{pnl_text}
+{pnl_text}{fiyat_bayat_block}
 
 ## Yaklaşan Ödemeler
 {payments_text}

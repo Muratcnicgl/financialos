@@ -14,6 +14,12 @@ Her fonksiyon saf (pure) — sadece girdiye bakar, çıktıyı döner.
 7. Komut çözümleme            (parse_gg_command)
 
 GÜNCELLEMELER:
+- BUG #239 fix (D23): yatırım fiyatının TAZELİĞİ artık cockpit sözleşmesinin parçası
+  (`fiyat_bayat`/`fiyat_yas` her yatırım hesabında + her K/Z satırında, `fiyat_tazeligi`
+  özeti üst seviyede). Eskiden yalnız HTTP katmanında ekleniyordu; cockpit'i doğrudan
+  çağıran koç/premortem/snapshot yolları bayat fiyatı "güncel değer" diye sunuyordu.
+  Sağlayıcı 72 saatten uzun susarsa ayrıca `alerts`'e uyarı düşer (24 saat ETİKET eşiği,
+  72 saat ALARM eşiği — TEFAS hafta sonu yayın yapmadığı için ikisi ayrı, fund_tracker).
 - BUG #086 fix: _calculate_expected_income_until_eom, bu ay tetiklenmiş (nakde geçmiş)
   geliri beklenen'e saymaz (çift-sayım önlendi — kurucu "çift sayma yasak").
 - BUG #096 (A1 tamamlama): _collect_upcoming_reminders artık kredi kartı SON ÖDEME
@@ -112,6 +118,7 @@ from app.models import (
     NetWorthSnapshot,
 )
 from app.money import D, ZERO, floatify  # ADR-030: iç aritmetik Decimal, public sınır float(floatify)
+from app.fund_tracker import is_price_stale, get_price_age_text  # BUG #239 (D23): tazelik kaynakta
 
 # ============================================================
 # M43 (ADR-036) — WORKSPACE SCOPING (contextvar köprüsü)
@@ -1467,6 +1474,58 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
 _MIN_TRAP_ALERT_MONTHS = 12
 
 
+def _en_eski_bayat(bayat_fiyatlar: List[Tuple[Optional[datetime], str, str]]):
+    """En eski fiyat kaydı (hiç girilmemiş = en eski). Boş listede None."""
+    if not bayat_fiyatlar:
+        return None
+    return min(bayat_fiyatlar, key=lambda k: (k[0] is not None, k[0] or datetime.min))
+
+
+def _fiyat_tazelik_ozeti(bayat_fiyatlar: List[Tuple[Optional[datetime], str, str]]) -> Dict:
+    """
+    BUG #239 (D23): cockpit'i tüketen HER yol (koç, premortem, snapshot, HTTP) yatırım
+    fiyatlarının bayat olup olmadığını tek bakışta görebilsin. Emanet hariç — emanet
+    hesap üzerinde alım/satım kararı verilmez (MC1), fiyat yaşı orada tavsiye üretmez.
+    """
+    en_eski = _en_eski_bayat(bayat_fiyatlar)
+    return {
+        "bayat_var": bool(bayat_fiyatlar),
+        "bayat_sayisi": len(bayat_fiyatlar),
+        "en_eski_yas": en_eski[2] if en_eski else None,
+        "hesaplar": [ad for _, ad, _ in bayat_fiyatlar],
+    }
+
+
+def _bayat_fiyat_alerts(bayat_fiyatlar: List[Tuple[Optional[datetime], str, str]]) -> List[Dict]:
+    """
+    BUG #239 (D23): fiyat sağlayıcısı GERÇEKTEN sustuysa panelde de görünür uyarı.
+    Koç bağlamı tek yüzey olarak yetmez — kullanıcı hiçbir şey sormadan da satabilir.
+
+    İki eşik ayrımı bilinçli (fund_tracker.PRICE_ALERT_HOURS): 24 saat 'bu fiyat dünden'
+    demek için doğru ETİKET eşiği, ama TEFAS hafta sonu yayın yapmadığından ALARM eşiği
+    olamaz. Hiç fiyat girilmemiş hesap da alarm üretmez — bu bir sağlayıcı kesintisi
+    değil kurulum durumudur (panel zaten 'henüz girilmedi' rozetini gösterir).
+    """
+    from app.fund_tracker import PRICE_ALERT_HOURS
+    simdi = datetime.utcnow()
+    esik = timedelta(hours=PRICE_ALERT_HOURS)
+    ciddi = [(ts, ad, yas) for ts, ad, yas in bayat_fiyatlar
+             if ts is not None and (simdi - ts) > esik]
+    if not ciddi:
+        return []
+    en_eski = _en_eski_bayat(ciddi)
+    adlar = ", ".join(ad for _, ad, _ in ciddi[:3])
+    return [{
+        "seviye": "uyari",
+        "baslik": "Yatırım fiyatı güncellenmiyor",
+        "mesaj": (
+            f"{adlar} için son fiyat {en_eski[2]} güncellendi — fiyat kaynağı susuyor. "
+            f"Portföy değeri ve kâr/zarar bu ESKİ fiyattan hesaplanıyor; satış/alım "
+            f"kararından önce fiyatı doğrula."
+        ),
+    }]
+
+
 def _min_payment_trap_alerts(trap: Optional[Dict]) -> List[Dict]:
     """
     FEAT-015: asgari-ödeme tuzağı uyarısı. Kart SADECE asgari ödemeyle ASLA kapanmıyorsa
@@ -1960,6 +2019,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     accounts_detail = []
 
     investment_pnl_list = []
+    bayat_fiyatlar: List[Tuple[Optional[datetime], str, str]] = []  # BUG #239 (D23)
 
     for acc in accounts:
         # BUG #007 FIX: investment hesaplari icin balance her zaman lot * fiyat.
@@ -1995,6 +2055,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
             detail["sonraki_taksit"] = acc.next_payment_date.isoformat() if acc.next_payment_date else None
         elif acc.account_type == AccountType.investment:
             value = D(acc.lot_count or 0) * D(acc.current_price or 0)  # ADR-030: lot(float)+fiyat→D
+            # BUG #239 (D23): tazelik hesabın kendisinden türetilir (ek sorgu yok → workspace
+            # kapsamı zaten bu döngüde geçerli; ikinci bir user_id sorgusu kapsamı delerdi).
+            fiyat_bayat = is_price_stale(acc.last_price_update)
+            fiyat_yas = get_price_age_text(acc.last_price_update)
             if acc.is_emanet:
                 emanet_deger += value
             else:
@@ -2007,12 +2071,24 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
                     pnl["account_id"] = acc.id
                     pnl["account_name"] = acc.name
                     pnl["fund_code"] = acc.fund_code
+                    # BUG #239 (D23): "%30 kârdasın" cümlesi bayat fiyattan üretiliyorsa
+                    # bunu taşımak zorunda — K/Z satırı satış kararını doğrudan tetikler.
+                    pnl["fiyat_bayat"] = fiyat_bayat
+                    pnl["fiyat_yas"] = fiyat_yas
                     investment_pnl_list.append(pnl)
             detail["lot"] = acc.lot_count
             detail["fiyat"] = acc.current_price
             detail["maliyet_per_lot"] = acc.cost_per_lot
             detail["fund_code"] = acc.fund_code
             detail["guncel_deger"] = round(value, 2)
+            # BUG #239 fix (D23): fiyat tazeliği artık COCKPIT SÖZLEŞMESİNİN parçası.
+            # Eskiden yalnız HTTP katmanında (routers/cockpit.py) ekleniyordu; cockpit'i
+            # doğrudan çağıran koç/premortem/snapshot yolları bunu HİÇ görmüyordu ve
+            # sağlayıcı çöküşünde 30 günlük fiyatı "güncel değer" diye sunuyorlardı.
+            detail["fiyat_bayat"] = fiyat_bayat
+            detail["fiyat_yas"] = fiyat_yas
+            if fiyat_bayat and not acc.is_emanet:
+                bayat_fiyatlar.append((acc.last_price_update, acc.name, fiyat_yas))
 
         accounts_detail.append(detail)
 
@@ -2119,9 +2195,12 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         trap_alerts = _min_payment_trap_alerts(asgari_tuzagi)
     except Exception as e:
         logger.warning("borç metrikleri (tuzak/konsolidasyon) hesaplanamadı user_id=%s: %s", user_id, e)
+    # BUG #239 (D23): sağlayıcı GERÇEKTEN sustuysa (>72s) kullanıcı bunu panelde de görsün —
+    # koç bağlamı tek yüzey olarak yeterli değil (kullanıcı hiç soru sormadan da satabilir).
+    fiyat_tazelik_alerts = _bayat_fiyat_alerts(bayat_fiyatlar)
     alerts = kritik_front + alerts + \
              [a for a in overdue_alerts if a["seviye"] != "kritik"] + \
-             sub_price_alerts + overspend_alerts + trap_alerts
+             sub_price_alerts + overspend_alerts + trap_alerts + fiyat_tazelik_alerts
     # #125: KARARLI önem sıralaması — tüm 'kritik' kalemler tüm 'uyari'lardan önce (iç sıra korunur).
     # detect_alerts kritik/uyari'yi karıştırıyordu; kullanıcı en ciddi sinyali her zaman en başta görsün.
     _SEV = {"kritik": 0, "uyari": 1}
@@ -2198,6 +2277,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "kart_borcu": round(kart_borcu, 2),
         "kredi_borcu": round(kredi_borcu, 2),
         "yatirim_deger": round(yatirim_deger, 2),
+        # BUG #239 (D23): yatirim_deger'in DAYANDIĞI fiyatlar taze mi? Aynı dict'te dönmezse
+        # tüketici "güncel değer" sanar (koç tam olarak bunu yapıyordu).
+        "fiyat_tazeligi": _fiyat_tazelik_ozeti(bayat_fiyatlar),
         "emanet_kasa": round(emanet_deger, 2),
         "beklenen_gelir": expected_income,
         "reel_butce": reel_butce,

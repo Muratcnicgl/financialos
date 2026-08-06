@@ -1142,7 +1142,23 @@ SIDDET NEDEN "dusuk" DEGIL (ve bulguyu guclendiren ek disk kaniti): docker-compo
 
 ### D23 · [orta] Koc, saglayici coktugunde haftalarca eski fiyatlari 'guncel' gibi sunuyor — yatirimda bayat isareti YOK (BUG #211'de doviz icin cozulen sorun fiyat tarafinda acik)
 
-- **Boyut:** dayaniklilik · **Yer:** `app/coach.py:891` · **Durum:** ⬜ AÇIK
+- **Boyut:** dayaniklilik · **Yer:** `app/coach.py:891` · **Durum:** ✅ **KAPANDI — BUG #239** (6 Ağu).
+  Kök sebep bulgunun tarif ettiğinden yapısaldı: tazelik verisi yalnız HTTP katmanında
+  (`routers/cockpit.py`) ekleniyordu, cockpit'i doğrudan çağıran koç/premortem/snapshot
+  yolları onu hiç görmüyordu. Düzeltme tüketicide değil KAYNAKTA: `generate_cockpit` artık
+  her yatırım hesabında ve her K/Z satırında `fiyat_bayat`/`fiyat_yas`, üst seviyede
+  `fiyat_tazeligi` özeti döner; koç satırları `⚠️ FİYAT BAYAT (yaş)` ile işaretlenir ve
+  bayat varsa bağlama *"'şu anki/güncel' DEME"* talimatı düşer (BUG #211'in FX disiplininin
+  birebir karşılığı). Alarm eşiği etiket eşiğinden AYRI (24s etiket / 72s alarm,
+  `fund_tracker.PRICE_ALERT_HOURS`) — çelişme turunun haklı olarak işaret ettiği hafta sonu
+  gürültüsü alarm üretmez, ama etiket her zaman dürüsttür.
+  **Sınıf taraması (L11) ikinci yüzeyi buldu:** Hesaplar paneli fiyatı koşulsuz **"Güncel
+  fiyat"** diye etiketliyordu ve yaşı gösteremiyordu (`AccountOut` türetilmiş yaş dönmüyordu)
+  → `schemas.FiyatTazeligiMixin` + panel rozeti. Çelişme turunun "kullanıcıda görünür sinyal
+  başka yüzeyde var (Cockpit kartı)" telafisi bu yüzden yalnız kısmen geçerliydi: *satış
+  kararının verildiği* ekran fiyatı "güncel" diye etiketliyordu.
+  Kapılar: `tests/test_fiyat_bayat_koc.py` (18, kapsam tabanı assert'li + uç↔panel sözleşmesi)
+  + `frontend/src/hesap-fiyat-bayat.test.jsx` (4). Mutasyon kontrolü 3/3 yakaladı.
 - **Neden yayın engeli / etki:** TEFAS/Is Yatirim/yfinance coktugunde saglayicilar sessizce None doner (router.py:51/71, fund_tracker.py:271-275, yfinance_client.py:34) ve fiyat guncellenmez. Koc bu durumda 30 gun onceki fiyatla hesaplanmis 'yatirim degerin X TL, %Y kardasin' cumlesini KOSULSUZ kurar. Kullanici bu rakama gore satis/alim karari verirse dogrudan para kaybeder. Projenin kendi ilkesi (BUG #211: 'bayat degeri suanki diye sunmak hic sunmamaktan daha kotudur') fiyat yolunda ihlal ediliyor; ayrica ADR-001 grounding vaadi (kocun her TL'si izlenebilir/dogru olmali) kirilir.
 
 <details><summary>Kanıt</summary>

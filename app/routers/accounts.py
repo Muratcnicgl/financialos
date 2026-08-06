@@ -26,6 +26,7 @@ from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 # SEC-032: finansal float alanları sonlu olmalı (inf/NaN/taşma rules_engine'i çökertir).
 # balance negatif olabilir (FinansBakiye); limit/faiz/lot/fiyat ≥0 (FinansOptOran).
 from app.schema_types import FinansBakiye, FinansOptBakiye, FinansOptOran
+from app.schemas import FiyatTazeligiMixin  # BUG #239 (D23): fiyat tazeliği tek kaynaktan
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"], dependencies=[Depends(require_write())])
 
@@ -79,7 +80,9 @@ class AccountUpdate(BaseModel):
     is_emanet: Optional[bool] = None
 
 
-class AccountOut(AccountBase):
+class AccountOut(AccountBase, FiyatTazeligiMixin):
+    """BUG #239 (D23): `fiyat_bayat`/`fiyat_yas` mixin'den türer — panel fiyatı "güncel"
+    diye etiketlemeden önce yaşını bilir. Tazelik kuralı tek yerde (fund_tracker)."""
     id: int
     last_price_update: Optional[UtcDateTime] = None
     created_at: UtcDateTime

@@ -21,6 +21,12 @@ import { useToast } from '../components/Toast.jsx';
  *  - Sil (onay)
  *  - Yatirim hesabinda 'Fiyat guncelle' butonu (TEFAS link + manuel deger)
  *  - Yenile butonu
+ *
+ * GUNCELLEMELER:
+ *  - BUG #239 fix (D23): yatirim kartinda fiyat yasi gorunur; fiyat bayatsa baslik
+ *    "Guncel fiyat" degil "Fiyat (bayat)" olur. Saglayici sustugunda kullanici ekranda
+ *    "guncel" yazisina bakip satis karari veriyordu. Yas metni backend'den gelir
+ *    (schemas.FiyatTazeligiMixin) — istemcide ikinci bir tazelik kurali yazilmaz.
  */
 export default function Accounts() {
   const toast = useToast();
@@ -312,10 +318,23 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
               <span className="font-numeric">{a.lot_count}</span>
             </div>
           )}
+          {/* BUG #239 (D23): sağlayıcı sustuğunda fiyat olduğu yerde kalır. "Güncel fiyat"
+              etiketi o an düpedüz yalan olur — kullanıcı bu rakama bakıp satar. Yaş her
+              zaman görünür; bayatsa etiket de değişir. */}
           {a.current_price != null && (
             <div className="flex justify-between">
-              <span>Güncel fiyat</span>
+              <span>{a.fiyat_bayat ? 'Fiyat (bayat)' : 'Güncel fiyat'}</span>
               <span className="font-numeric">{formatTL(a.current_price)} TL</span>
+            </div>
+          )}
+          {a.current_price != null && a.fiyat_yas && (
+            <div className="flex justify-between">
+              <span>Fiyat yaşı</span>
+              <span className={a.fiyat_bayat
+                ? 'font-numeric text-amber-600 dark:text-amber-400 font-semibold'
+                : 'font-numeric'}>
+                {a.fiyat_yas}{a.fiyat_bayat ? ' ⚠️' : ''}
+              </span>
             </div>
           )}
           {a.cost_per_lot != null && (

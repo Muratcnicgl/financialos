@@ -1,6 +1,11 @@
 """
 Pydantic v2 şemaları — API request/response doğrulama.
 ORM modellerinden bağımsız, frontend ile veri sözleşmesi.
+
+GUNCELLEMELER:
+- BUG #239 fix (D23): `FiyatTazeligiMixin` — hesap çıktısı döndüren şemalar yatırım
+  fiyatının yaşını/bayatlığını türetir (tek kaynak: fund_tracker). Hesaplar paneli
+  fiyatı koşulsuz "Güncel fiyat" diye etiketliyordu; yaşı gösterecek alanı yoktu.
 """
 
 from datetime import datetime, date
@@ -66,10 +71,38 @@ class AccountUpdate(BaseModel):
     is_emanet: Optional[bool] = None
 
 
-class AccountRead(AccountBase, TimestampedSchema):
+class FiyatTazeligiMixin(BaseModel):
+    """
+    BUG #239 fix (D23) — sınıf taraması: Hesaplar paneli fiyatı düpedüz "Güncel fiyat" diye
+    etiketliyordu ve yaşını gösteremiyordu (ham zaman damgası vardı, türetilmiş yaş yoktu).
+    Sağlayıcı haftalarca sussa da kullanıcı ekranda "güncel" yazısını görüyordu.
+
+    Yaş metni TEK KAYNAKTAN (`fund_tracker`) türetilir — istemcide ikinci bir tazelik kuralı
+    yazılmaz (iki kural = zamanla ayrışan iki gerçek). Hesap sözleşmesi döndüren her şema
+    bunu miras alır; yeni bir hesap çıktısı eklenip tazelik unutulamaz.
+    """
+    last_price_update: Optional[datetime] = None
+
+    @computed_field
+    @property
+    def fiyat_bayat(self) -> bool:
+        if getattr(self, "account_type", None) != "investment" or self.current_price is None:
+            return False
+        from app.fund_tracker import is_price_stale
+        return is_price_stale(self.last_price_update)
+
+    @computed_field
+    @property
+    def fiyat_yas(self) -> Optional[str]:
+        if getattr(self, "account_type", None) != "investment" or self.current_price is None:
+            return None
+        from app.fund_tracker import get_price_age_text
+        return get_price_age_text(self.last_price_update)
+
+
+class AccountRead(AccountBase, TimestampedSchema, FiyatTazeligiMixin):
     id: int
     user_id: int
-    last_price_update: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 

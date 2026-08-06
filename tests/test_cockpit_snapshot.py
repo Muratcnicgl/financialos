@@ -28,6 +28,9 @@ def _fake_cockpit():
         "kredi_borcu": 0.0,
         "yatirim_deger": 40000.0,
         "daily_limit": 250.0,
+        # BUG #239 (D23): gerçek cockpit bu alanı her zaman döner
+        "fiyat_tazeligi": {"bayat_var": True, "bayat_sayisi": 1,
+                           "en_eski_yas": "30 gün önce", "hesaplar": ["TLY"]},
     }
 
 
@@ -67,6 +70,9 @@ def test_snapshot_yapisi_tam(monkeypatch):
         "snapshot_at", "net_worth_tl", "cash_tl", "card_debt_tl", "loan_debt_tl",
         "investment_tl", "cashflow_30d_tl", "cashflow_60d_tl", "lowest_balance_tl",
         "lowest_balance_date", "crunch_count", "daily_limit_tl",
+        # BUG #239 (D23): yatırım değerinin DAYANDIĞI fiyat taze mi — premortem senaryosu
+        # "portföyü sat" derken olmayan bir fiyata dayanmasın.
+        "investment_price_stale", "investment_price_age",
     }
     assert expected_keys == set(snapshot.keys())
 
@@ -76,6 +82,9 @@ def test_snapshot_yapisi_tam(monkeypatch):
     assert snapshot["card_debt_tl"] == 5000.0
     assert snapshot["loan_debt_tl"] == 0.0
     assert snapshot["investment_tl"] == 40000.0
+    # BUG #239 (D23): 40.000 TL'nin bayat fiyattan geldiği bilgisi snapshot'ta taşınmalı
+    assert snapshot["investment_price_stale"] is True
+    assert snapshot["investment_price_age"] == "30 gün önce"
     assert snapshot["cashflow_30d_tl"] == 7000.0
     assert snapshot["cashflow_60d_tl"] == 14000.0
     assert snapshot["lowest_balance_tl"] == 12000.0

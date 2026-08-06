@@ -5,6 +5,10 @@ Klein 1989 prospective hindsight + LLM-tabanli senaryo uretimi.
 Kullanicinin onaylamak uzere oldugu bir aksiyon icin 5 basarisizlik senaryosu uretir.
 Her senaryo: gerekce + olasilik etiketi + TL etki + mitigation aksiyonu.
 
+GUNCELLEMELER:
+- BUG #239 fix (D23): cockpit ozetinde yatirim fiyatlari BAYAT ise prompt bunu acikca
+  yazar (deger + yasi). Sinif taramasi: koc yolundaki ayni defektin premortem karsiligi.
+
 ADR-001 ilkesi: Premortem KARAR VERMEZ, sadece korluk noktalarini acar.
 Son karar her zaman kullanicinin.
 
@@ -162,6 +166,14 @@ def _user_prompt(action_context: dict, cockpit_snapshot: Optional[dict] = None) 
             f"  En dusuk bakiye: {cockpit_snapshot.get('lowest_balance_tl', 0.0)} TL",
             f"  Nakit kriz gunu sayisi (30g): {cockpit_snapshot.get('crunch_count', 0)}",
         ]
+        # BUG #239 fix (D23): net degerin yatirim kismi BAYAT fiyattan geliyorsa senaryo
+        # uretimi bunu bilmeli — yoksa "portfoyu sat" tavsiyesi olmayan bir fiyata dayanir.
+        if cockpit_snapshot.get("investment_price_stale"):
+            lines.append(
+                f"  DIKKAT — yatirim fiyatlari BAYAT: son guncelleme "
+                f"{cockpit_snapshot.get('investment_price_age') or 'bilinmiyor'}. "
+                f"Yatirim degeri ve net deger bu ESKI fiyattan hesaplandi."
+            )
 
     lines += [
         "",

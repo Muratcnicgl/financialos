@@ -1,6 +1,10 @@
 # FinancialOS — Improvement Backlog (Kalite Serüveni)
 
-**Başlangıç:** 6 Temmuz 2026 · **Durum:** 1. tur tamamlandı — **520 kanıta dayalı madde / 18 kategori**.
+**Başlangıç:** 6 Temmuz 2026 · **Durum:** 1. tur tamamlandı — **521 kanıta dayalı madde / 18 kategori**.
+
+> **Düzeltme (7 Ağu 2026):** bu dosya yıllardır "520" diyordu; `sections/` altındaki gerçek madde
+> sayısı **521**'dir (FEAT 40 değil **41**). Ölçüm: her boyut dosyasında `### [KOD-NNN]` blok sayımı.
+> **Güncel durum dağılımı (6 Ağu 2026 ölçümü):** 145 KAPALI · 272 AÇIK · 79 KISMEN · 25 DURUMSUZ.
 **Yöntem:** Gerçek kod denetimi (`file:line`) + en iyi uygulamalar / benzer ürünler / akademik kaynak. Kopyalama değil entegrasyon. Her madde bir geliştirici tarafından ek araştırma olmadan uygulanabilir.
 
 ## Kök vizyon (bağlam)
@@ -20,7 +24,7 @@ Ata sürüm **"Sovereign OS"**: tamamen yerel, internetsiz, **Qwen 2.5** ile ken
 | RULE | Rules Engine & finansal doğruluk | 40 | [sections/RULE.md](sections/RULE.md) |
 | LLM | Coach / AI orkestrasyon | 40 | [sections/LLM.md](sections/LLM.md) |
 | UX | Ürün & kullanıcı deneyimi | 40 | [sections/UX.md](sections/UX.md) |
-| FEAT | Finansal ürün özellikleri (yeni yetenek) | 40 | [sections/FEAT.md](sections/FEAT.md) |
+| FEAT | Finansal ürün özellikleri (yeni yetenek) | 41 | [sections/FEAT.md](sections/FEAT.md) |
 | DATA | Veri modeli & DB | 35 | [sections/DATA.md](sections/DATA.md) |
 | SEC | Güvenlik, gizlilik, auth (KVKK) | 35 | [sections/SEC.md](sections/SEC.md) |
 | FE | Frontend mimari & kod kalitesi | 35 | [sections/FE.md](sections/FE.md) |
@@ -34,7 +38,7 @@ Ata sürüm **"Sovereign OS"**: tamamen yerel, internetsiz, **Qwen 2.5** ile ken
 | A11Y | Erişilebilirlik & i18n | 20 | [sections/A11Y.md](sections/A11Y.md) |
 | DOCS | Dokümantasyon & DX | 15 | [sections/DOCS.md](sections/DOCS.md) |
 | DVIZ | Raporlama & görselleştirme | 15 | [sections/DVIZ.md](sections/DVIZ.md) |
-| **TOPLAM** | **18 kategori** | **520** | |
+| **TOPLAM** | **18 kategori** | **521** | |
 
 ## Öne çıkan canlı bug'lar (öncelikli düzeltme)
 - **RULE-001** — `str(acc.account_type)` enum'da `"AccountType.cash"` döner → `account_type` kriterli GoalRule hiçbir işlemi yakalamıyor (sessiz ölü kural). Tek satır fix.

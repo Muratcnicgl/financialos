@@ -436,6 +436,30 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
 
+> **📌 7 AĞUSTOS 2026 — DEVİR BELGESİ + ÜÇ YAZILI KARAR (önce bunları oku)**
+>
+> **(0) Tam devir belgesi:** `docs/kalite-seruveni/master-durum-raporu-2026-08-06.md` — 31.668 satır,
+> 215 dosya INLINE gömülü (46 ADR, 12 charter, 521 backlog maddesi, 76 denetim raporu, MCP graph'ın
+> tamamı, 565 commit'lik git log). Sıfırdan gelen bir oturum için tek dosya yeterlidir.
+>
+> **(1) MİLESTONE/TAG DİSİPLİNİ BIRAKILDI.** 98 tag'in tamamı ≤ 18 Tem 2026; 4-6 Ağustos'taki 103
+> commit tag'siz ve `milestone-log.md`'ye yazılmadı. Bu **bilinçli metodoloji değişimidir, çürüme
+> değildir** — ama bugüne kadar hiçbir yerde yazılı değildi (master rapor YANILGI-7). İş artık
+> **P0-P9 fazı + D-bulgu kodu + BUG numarası** ile yürür; `milestone-log.md` tarihsel arşivdir.
+>
+> **(2) MCP MEMORY = TARİHSEL ARŞİV.** Graph 18 Tem 18:14'te dondu; `.mcp-sync-pending.log`'da 186
+> commit bekliyor (14 Tem → 6 Ağu). Capture (git hook) çalışıyor, FLUSH (elle) hiç koşulmadı — yani
+> izleme çağrısı işin gövdesine yazılmıştı (**L24**). **Karar:** MCP tek gerçek kaynak değildir;
+> güncel durum = repo + master rapor. 186 satırlık birikim özet olarak MCP'ye **yazılmadı** (ikinci
+> bir gerçek kaynak üretmek borcu ödemez, çoğaltır). Ledger büyümesini gösteren araç:
+> `scripts/mcp_sync_report.py`.
+>
+> **(3) TEK BUG ENVANTERİ = `uygulanan-fixler.md`.** Repoda 235 benzersiz BUG numarası var, ledger'da
+> 114'ü (YANILGI-5). Geriye dönük toplama yapılmadı; bundan sonra her numara ledger'a yazılır.
+>
+> **Düzeltilen bayat sayılar:** coverage %92 → **%93** (ölçüldü), backlog toplamı 520 → **521**,
+> `PROJE.md`'deki "Aktif goal: WAVE-8" satırı → "Aktif hat: PUBLISH YOLU".
+
 **Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li ve **origin'e push'lu**.
 **Test tabanı:** `2045 passed, 18 skipped` (backend) + `151 passed` (vitest) + 4 e2e
 (Playwright — 2'si bugün eklendi, yerelde koşuldu). Kırmızı yok.

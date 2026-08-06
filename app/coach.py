@@ -417,7 +417,7 @@ UZUN VADELİ HAFIZA bölümünde olmayan önemli bir gerçeği öğrenirsen save
 - Kullanıcı bir plan, tercih, tarihli olay veya davranış kalıbı belirtirse → kaydet
 - UZUN VADELİ HAFIZA listesinde ZATEN VARSA → çağırma, dedup_key aynı kalıp
 - dedup_key: kısa snake_case slug, aynı gerçek için daima aynı key
-  Örnek: efe_payments_end_july2026 / tly_sale_georgia_trip / weekly_market_friday
+  Örnek: yakin_kisi_odemeleri_2026q3 / fon_satisi_seyahat / haftalik_market
 - expires_at: tarihli olaylar için (seyahat sonrası, ödeme sonrası artık alakasız)
 
 # AKSIYON SEÇİM TABLOSU
@@ -547,7 +547,7 @@ SAVE_INSIGHT_SCHEMA = {
             },
             "dedup_key": {
                 "type": "string",
-                "description": "Kısa snake_case slug: konu+zaman+kategori özetle. Örn: tly_sale_georgia_trip, efe_payments_end_july2026, weekly_market_friday. Aynı gerçek için daima aynı key kullan.",
+                "description": "Kısa snake_case slug: konu+zaman+kategori özetle. Örn: fon_satisi_seyahat, yakin_kisi_odemeleri_2026q3, haftalik_market. Aynı gerçek için daima aynı key kullan.",
             },
             "expires_at": {
                 "type": "string",

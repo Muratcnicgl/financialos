@@ -158,14 +158,20 @@ docker compose -f docker-compose.prod.yml exec -T db   psql -U financialos -d fi
 ```
 
 ## Beta işletimi (P7)
+
+> **BUG #249 (D40): bu komutlar konteyner İÇİNDE koşar.** Host kabuğunda `DATABASE_URL`
+> tanımlı değildir; `python -m scripts.beta_invite` orada çalıştırılırsa davet kodu **yanlış
+> veritabanına** (yerel SQLite dosyası) yazılır ve davetli canlıda 403 alır — komut ise
+> "davet üretildi" der. `exec -T backend` öneki, komutu prod veritabanını gören süreçte koşturur.
+
 ```sh
 # Davet kodu uret (kapali beta) — --email VER (asagidaki nota bak)
-python -m scripts.beta_invite --email <davetli> --note "<kim>"
-python -m scripts.beta_invite --list
+docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.beta_invite --email <davetli> --note "<kim>"
+docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.beta_invite --list
 
 # GERI BILDIRIM + SISTEM HATASI TRIYAJI — gunluk bak
-python -m scripts.beta_triage                      # acik geri bildirimler + son 7 gun hatalar
-python -m scripts.beta_triage --kapat <ID> --not "duzeltildi: BUG #NNN"
+docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.beta_triage      # acik geri bildirimler + son 7 gun hatalar
+docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.beta_triage --kapat <ID> --not "duzeltildi: BUG #NNN"
 
 # Cron sagligi (gece islerinin gercekten kostugu) — TEK BAKILACAK ALAN: sorunlu_isler
 curl -fsS -H "Authorization: Bearer <token>" https://$DOMAIN/api/ops/scheduler \
@@ -194,9 +200,9 @@ degil **sessiz terk**tir: davet edilir, kayit olur, ilk ekranda takilir, kimse s
 panelde her sey yesil gorunur. Onu bu arac gorunur kilar:
 
 ```sh
-python -m scripts.beta_metrics             # son 30 gun
-python -m scripts.beta_metrics --gun 7
-python -m scripts.beta_metrics --json      # cron/izleme icin
+docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.beta_metrics   # son 30 gun
+docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.beta_metrics --gun 7
+docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.beta_metrics --json   # cron/izleme icin
 ```
 
 Ciktida **yalniz sayi/oran** vardir — e-posta, isim, serbest metin ve para tutari bu araçtan

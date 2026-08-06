@@ -43,6 +43,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import ApiCallLog, ApiCallStatus
+from app.error_tracking import temizle  # BUG #258: kalici hata metni maskeli yazilir
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +235,12 @@ def tamamla(db: Session, log: Optional[ApiCallLog], provider: Optional[str] = No
         log.duration_ms = duration_ms
         log.tool_calls_count = tool_calls_count
         # SEC-009: ham sağlayıcı hatası 300 karakterle sınırlı (KVKK export'una girer).
-        log.error_message = error_message[:300] if error_message else None
+        # BUG #258 fix: KISALTMAK MASKELEMEK DEĞİLDİR. Sağlayıcı istisnaları çoğu zaman
+        # isteğin kendisini taşır — `...?key=AIza...`, `Authorization: Bearer ...`, hatta
+        # kullanıcının cümlesi. Bunlar DB'ye yazılıyordu ve `error_tracking.temizle`
+        # zinciri yalnız LOG tarafına bağlıydı (BUG #244) — yani maskeleme vardı ama
+        # KALICI yüzeye hiç ulaşmıyordu (L21). Maskeleme artık yazma sınırında.
+        log.error_message = temizle(error_message, max_uzunluk=300) if error_message else None
         db.commit()
     except Exception as e:  # noqa: BLE001 — muhasebe güncellemesi isteği kirletmez
         logger.warning("ApiCallLog guncellemesi basarisiz: %s", e)

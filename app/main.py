@@ -202,6 +202,16 @@ from app.request_limits import GovdeCokBuyuk as _GovdeCokBuyuk
 
 app.add_middleware(_GovdeBoyutuMiddleware)
 
+# ============================================================
+# GUVENLIK BASLIKLARI (SEC-005 / BUG #259) — H22'nin ikinci uygulamasi
+# ============================================================
+# HSTS/CSP/X-Frame-Options/nosniff yalniz nginx sablonundaydi. H22: "hicbir guvenlik siniri
+# TEK katmanda yasamamali" — vekil atlanirsa (systemd yolu, dogrudan port, tunel) korumanin
+# TAMAMI kayboluyordu. Vekildeki baslik EZILMEZ; ayrinti: app/security_headers.py
+from app.security_headers import GuvenlikBasliklariMiddleware as _GuvenlikBasliklari
+
+app.add_middleware(_GuvenlikBasliklari)
+
 
 @app.exception_handler(_GovdeCokBuyuk)
 async def _govde_cok_buyuk(request, exc: _GovdeCokBuyuk):

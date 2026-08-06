@@ -27,7 +27,7 @@
 - **Etki:** Yüksek · **Efor:** S
 
 ### [SEC-005] Güvenlik başlıkları yok (HSTS, CSP, X-Frame-Options, nosniff)
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: app güvenlik başlığı yok, Caddy'ye devredilmiş (main.py:157)
+- **Durum:** ✅ KAPANDI — **BUG #259 (7 Ağu 2026):** başlıklar yalnız nginx şablonundaydı (H22 ihlali: tek katman; vekil atlanırsa korumanın TAMAMI kaybolur). `app/security_headers.py` uygulama katmanında CSP/X-Frame/nosniff/Referrer/COOP/CORP/Permissions-Policy ekler, HSTS yalnız HTTPS'te (yerel geliştirmeyi kilitlemez), vekildeki başlık EZİLMEZ. Kapı: `tests/security/test_guvenlik_basliklari.py` (11 test — nginx↔uygulama küme eşitliği dahil)
 - **Kanıt:** `app/main.py:152-163`
 - **Aksiyon:** `@app.middleware("http")` ile başlıklar.
 - **Etki:** Orta · **Efor:** S
@@ -46,13 +46,13 @@
 - **Etki:** Yüksek · **Efor:** M · **Not:** "LLM asla DB yazmaz" en güçlü savunma — gevşetme.
 
 ### [SEC-008] Ham finansal mesaj log'a yazılıyor (PII loglama)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ham finansal mesaj loglanıyor logger.warning({user_message!r}) (coach.py:2445)
+- **Durum:** ✅ KAPANDI (kayıt bayattı) — BUG #180 ile ham finansal metin log'dan çıkarılmıştı; bugün yalnız `mesaj uzunlugu=%d` loglanıyor (`coach.py:2740,2807`). M85 doğrulaması eski satır numarasına bakmış. 7 Ağu 2026'da R3 ile yeniden ölçüldü
 - **Kanıt:** `app/coach.py:1695,1757` (`{user_message!r}`)
 - **Aksiyon:** Uzunluk/hash logla; PII redaksiyon filtresi; prod'da DEBUG kapalı. (KVKK veri minimizasyonu)
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-009] `ApiCallLog.error_message` ham hata metni — sır sızma
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ApiCallLog.error_message ham str(e) (coach.py:344)
+- **Durum:** ✅ KAPANDI — **BUG #258 (7 Ağu 2026):** maskeleme (`error_tracking.temizle`) vardı ama yalnız LOG zincirine bağlıydı (BUG #244); **KALICI** üç yol (`ApiCallLog.error_message`, `reasoning_traces.error`, `scheduler_runs.detail`) yalnız KISALTIYORDU. Kısaltmak maskelemek değildir — sağlayıcı istisnası `...?key=AIza...` taşır ve ApiCallLog **KVKK export'una** girer. Maske artık yazma sınırında + desenler değerin ŞEKLİNE bakıyor (AIza/sk-/gsk_/csk-/xsmtpsib/URL kimliği). Kapı: `tests/security/test_kalici_hata_maskeleme.py` (11 test, mutasyon 3/3 kırmızı)
 - **Kanıt:** `routers/coach.py:189,200`
 - **Aksiyon:** `type(e).__name__` + temizlenmiş metin; ham payload saklama.
 - **Etki:** Düşük · **Efor:** S
@@ -118,13 +118,13 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [SEC-020] Bağımlılık güvenlik taraması yok (pip-audit)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: pip-audit/safety yok
+- **Durum:** ✅ KAPANDI — **BUG #260 (7 Ağu 2026):** P2'de pip-audit ELLE koşulup 23→0 yapılmıştı ama CI'da tarama YOKTU (`grep -rl pip-audit .github/` → 0 sonuç). Bir kez yeşil olmak sürekli yeşil değildir (**L28**): bağımlılık açığı kod değişmeden çıkar. `dependency-audit` job'ı (pip-audit --strict + npm audit --audit-level=high) her push **ve haftalık cron** ile koşar. Kapı: `tests/security/test_bagimlilik_tarama_kapisi.py`
 - **Kanıt:** `requirements.txt`; scraper'lar (yfinance, tefas-crawler, borsapy) risk yüzeyi
 - **Aksiyon:** `pip-audit`/`safety` + CI.
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-021] Bağımlılıklar aralıklı pin'li — supply-chain riski
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: requirements >= pin, lock/hash yok
+- **Durum:** 🟡 KISMEN — hash/lock hâlâ yok ama artık **ölçülüyor**: 9 paket aralıklı (`>=`) pin'li ve bu sayı ratchet ile kilitli (yeni esnek pin eklenirse kapı kırılır — `test_requirements_sabit_surumlu`). 4'ü LLM SDK'sı (hızlı sürüm döngüsü), 4'ü P2'nin 'en az şu sürüm' güvenlik tabanı (tavan koymak eski CVE'ye çivilerdi). Tam hash-pinning (pip-tools/uv lock) ayrı iş
 - **Kanıt:** `requirements.txt`: `anthropic>=0.79.0`, `google-genai>=0.3.0`, `groq>=0.11.0` vb.
 - **Aksiyon:** Kesin pin + `requirements.lock` (pip-tools/uv); hash doğrulama.
 - **Etki:** Düşük · **Efor:** S

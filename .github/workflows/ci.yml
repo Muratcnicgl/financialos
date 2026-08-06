@@ -8,6 +8,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # BUG #260 (SEC-020): bağımlılık açıkları KODU DEĞİŞMEDEN ortaya çıkar. P2 turunda
+  # pip-audit ELLE koşulup 23 açık 0'a indirilmişti; tekrarlayan bir tarama olmadığı için
+  # o "0" yazıldığı gün doğruydu, ertesi gün ölçülmüyordu. Haftalık koşum bu boşluğu kapatır.
+  schedule:
+    - cron: '0 6 * * 1'   # her pazartesi 06:00 UTC
 
 jobs:
   backend-tests:
@@ -48,6 +53,29 @@ jobs:
           # tutulmaz → yeni bir dual-dialect testi otomatik kapsanır (drift yok).
           PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: python -m pytest tests/ -q
+
+  # BUG #260 (SEC-020/SEC-021): bağımlılık güvenlik taraması CI'da YOKTU.
+  # Ölçüm: `grep -rl "pip-audit" .github/` → 0 sonuç; backlog "tarama yok" diyordu ve
+  # haklıydı — P2'deki 23→0 sonucu tek seferlik bir insan koşumuydu (L28: bir kez yeşil,
+  # sürekli yeşil demek değildir). Bu iş her push + her pazartesi koşar.
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: pip-audit (Python bağımlılıkları)
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          # requirements.txt sabit sürümlüdür; kurulum yapmadan dosyayı denetler.
+          pip-audit -r requirements.txt --strict
+      - name: npm audit (frontend, yüksek/kritik)
+        working-directory: frontend
+        run: npm audit --audit-level=high
 
   e2e:
     runs-on: ubuntu-latest

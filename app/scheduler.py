@@ -46,6 +46,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
+from app.error_tracking import temizle  # BUG #258: kalıcı çalışma kaydı maskeli yazılır
 from sqlalchemy import delete
 from app.models import User, ReasoningTrace, Workspace
 from app.rules_engine import workspace_scope  # M73: batch job'ları personal-workspace kapsamında koşar
@@ -207,7 +208,9 @@ def _kayit_bitir(kayit_id, ok: bool, detail: str = "") -> None:
                 return
             k.finished_at = datetime.utcnow()
             k.ok = ok
-            k.detail = (detail or "")[:300]
+            # BUG #258: iş özeti hata metni taşıyabilir (dış API cevabı, bağlantı dizesi).
+            # KALICI kayıt → maskeden geçer (kısaltmak maskelemek değildir).
+            k.detail = temizle(detail, max_uzunluk=300) if detail else ""
             db.commit()
             eski = (db.query(SchedulerRun)
                     .filter(SchedulerRun.job_name == k.job_name)

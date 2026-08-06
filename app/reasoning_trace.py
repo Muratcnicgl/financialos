@@ -44,6 +44,7 @@ from typing import Iterator, Optional
 from sqlalchemy.orm import Session
 
 from app.models import OperationName, ReasoningTrace
+from app.error_tracking import temizle  # BUG #258: kalici iz maskeli
 
 
 class _StepProxy:
@@ -147,7 +148,8 @@ class TraceRecorder:
         try:
             yield proxy
         except Exception as exc:
-            record.error = f"{type(exc).__name__}: {str(exc)[:500]}"
+            # BUG #258: iz kaydi KALICI — istisna metni sir/PII tasiyabilir, maskeden gecer.
+            record.error = temizle(f"{type(exc).__name__}: {exc}", max_uzunluk=500)
             raise
         finally:
             record.latency_ms = int((time.perf_counter() - start) * 1000)

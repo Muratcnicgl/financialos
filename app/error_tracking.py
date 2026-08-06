@@ -58,6 +58,21 @@ _MASKELER = [
     # SQLAlchemy istisnası bound parameter'ları metne basar: `[parameters: ('Ali Veli', ...)]`.
     # İçindeki her şey kullanıcı verisidir (ad, adres, açıklama) — teşhis için SQL yeter.
     (re.compile(r"\[parameters:.*?\]", re.S), "[parameters: <gizli>]"),
+
+    # BUG #258 fix: ETİKETE değil DEĞERİN KENDİSİNE bakan desenler. Önceki liste yalnız
+    # "api_key=" gibi bir ETİKET görürse maskeliyordu; oysa sağlayıcı istisnaları anahtarı
+    # çoğu zaman etiketsiz taşır:
+    #   * Gemini/Google:  https://...?key=AIzaSyD...     → "key" kelimesi "api_key" değildir
+    #   * OpenAI/OpenRouter: sk-... / sk-or-...   Groq: gsk_...   Cerebras: csk-...
+    #   * SMTP: smtp://kullanici:parola@host
+    # Anahtarın ŞEKLİ sabittir; etiketi olmasa da tanınır. (Ders L26: yasağın gücü, kaynağı
+    # SEÇEN kod sayısı kadardır — burada "kaynak" değerin biçimidir.)
+    (re.compile(r"(?i)([?&](?:key|apikey|api_key|access_token|token)=)[^&\s\"']+"), r"\1<gizli>"),
+    (re.compile(r"\bAIza[0-9A-Za-z_\-]{20,}"), "<api-anahtari>"),               # Google
+    (re.compile(r"\b(?:sk|csk|rk)-[A-Za-z0-9_\-]{16,}"), "<api-anahtari>"),      # OpenAI/OpenRouter/Cerebras
+    (re.compile(r"\bgsk_[A-Za-z0-9_\-]{16,}"), "<api-anahtari>"),                # Groq
+    (re.compile(r"\bxsmtpsib-[A-Za-z0-9_\-]{16,}"), "<smtp-anahtari>"),          # Brevo
+    (re.compile(r"(?i)\b([a-z0-9+.\-]+)://([^:/\s@]+):([^@/\s]+)@"), r"\1://\2:<gizli>@"),  # URL kimliği
 ]
 
 

@@ -74,11 +74,28 @@ def test_kullanim_sartlari_tavsiye_degildir_uyarisi_icerir(client):
     assert "spk" in icerik, "Lisans durumu (SPK) açıkça belirtilmemiş"
 
 
-def test_envanter_koddaki_llm_saglayicilarini_listeler():
-    """Veri-işleyen envanteri KODLA tutarlı olmalı (yeni sağlayıcı eklenip yazılmazsa kırılır)."""
-    envanter = (_ROOT / "docs" / "legal" / "veri-isleyen-envanteri.md").read_text(encoding="utf-8").lower()
-    for saglayici in ("gemini", "groq", "anthropic", "ollama"):
-        assert saglayici in envanter, f"Envanterde {saglayici} yok — KVKK aydınlatması eksik"
+def test_envanter_kod_kapisi_gercekten_var():
+    """BUG #242 (D25): burada eskiden 4 sağlayıcı adı SABİT kodluydu ve `app.coach` hiç
+    okunmuyordu — Together AI ile DeepInfra zincire girip envantere hiç yazılmadığı halde
+    test yeşil kalıyordu ("kodla kilitlenir" iddiası yanlıştı). Gerçek türetme
+    `tests/test_veri_isleyen_envanteri_kapisi.py`'ye taşındı; bu test yalnız o kapının
+    YERİNDE olduğunu doğrular (sessizce silinip iddia geri gelmesin)."""
+    kapi = _ROOT / "tests" / "test_veri_isleyen_envanteri_kapisi.py"
+    assert kapi.exists(), "Envanter↔kod kapısı silinmiş — beyan yeniden ölçümsüz kaldı"
+    metin = kapi.read_text(encoding="utf-8")
+    assert "LLMProvider" in metin and "https?://" in metin, (
+        "Kapı artık koddan türetmiyor (sınıf + host taraması) — sabit liste tuzağına dönmüş"
+    )
+
+
+def test_riza_metni_sosyal_giris_saglayicilarini_beyan_eder():
+    """Sosyal girişte kimlik dış sağlayıcıyla doğrulanır; rıza metni bunu SAKLAYAMAZ.
+    (Envanter §3b ile aynı gerçeğin kullanıcıya sunulan yüzü — biri düzeltilip diğeri
+    unutulursa beyan ↔ gerçek ayrışır.)"""
+    from app.routers.legal import BELGELER
+    metin = (_ROOT / "docs" / "legal" / BELGELER["kvkk"][0]).read_text(encoding="utf-8").lower()
+    for saglayici in ("google", "github"):
+        assert saglayici in metin, f"Rıza metni sosyal giriş sağlayıcısı '{saglayici}'yı anmıyor"
 
 
 def test_riza_surumu_yayinlanan_metinle_ayni():

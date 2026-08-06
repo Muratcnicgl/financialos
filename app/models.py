@@ -382,6 +382,10 @@ class PersonalDebt(Base):
     due_date = Column(Date, nullable=True)
     is_paid = Column(Boolean, default=False, nullable=False)
     paid_date = Column(Date, nullable=True)
+    # BUG #241: kapanışın nakit ayağının İZİ — hangi hesaba işlendi. NULL = ayak hiç
+    # uygulanmadı (fix öncesi panelden işaretlenmiş eski kayıtlar), o yüzden geri alma da
+    # o kayıttan para düşmez. Tek kaynak: app/services/debt_settlement.py.
+    settlement_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="debts")

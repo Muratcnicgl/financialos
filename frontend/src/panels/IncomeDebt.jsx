@@ -3,7 +3,7 @@ import {
   TrendingUp, TrendingDown, Plus, Pencil, Trash2, X,
   Loader2, AlertTriangle, RefreshCw, CheckCircle, Clock,
   Calendar, ArrowDownToLine, ArrowUpToLine, Filter,
-  Power, CreditCard, Receipt,
+  Power, CreditCard, Receipt, Wallet, RotateCcw,
 } from 'lucide-react';
 import {
   incomesApi, expensesApi, debtsApi, accountsApi,
@@ -158,11 +158,46 @@ export default function IncomeDebt() {
     } catch (e) { toast.error(`Kayıt yapılamadı: ${e.message}`); }
   };
 
+  // BUG #241: "Ödendi" artık nakde de yansıyor. Kullanıcı bakiyesinin NEDEN değiştiğini
+  // görmeli — hangi hesaba, ne kadar. Nakit hesap yoksa (ayak uygulanmadıysa) sessiz kalma,
+  // uyar: kayıt kapandı ama bakiye değişmedi.
   const handleMarkPaid = async (debt) => {
     try {
-      await debtsApi.update(debt.id, { is_paid: true, paid_date: todayLocalISO() });
+      const guncel = await debtsApi.update(debt.id, { is_paid: true, paid_date: todayLocalISO() });
+      const tahsilat = debt.direction === 'receivable';
+      const hesap = accounts.find(a => a.id === guncel?.settlement_account_id);
+      if (hesap) {
+        toast.success(
+          `${tahsilat ? 'Tahsilat' : 'Ödeme'} işlendi: ${tahsilat ? '+' : '−'}${formatTL(debt.amount)} TL`,
+          { detail: `${hesap.name} bakiyesine yansıdı` },
+        );
+      } else {
+        toast.warning('Kayıt ödendi olarak işaretlendi ama nakit bakiyesi değişmedi', {
+          detail: 'Nakit hesap bulunamadı — Hesaplar sekmesinden bir nakit hesap ekle.',
+        });
+      }
       handleRefresh();
     } catch (e) { toast.error(`Ödendi işaretlenemedi: ${e.message}`); }
+  };
+
+  // BUG #241: yanlış işaretlenen kapanış geri alınabilir olmalı — backend nakit ayağını
+  // simetrik geri sarar, panelde bu yol yoktu (kullanıcı hatasını düzeltemiyordu).
+  const handleUndoPaid = async (debt) => {
+    try {
+      const guncel = await debtsApi.update(debt.id, { is_paid: false });
+      const hesap = accounts.find(a => a.id === debt.settlement_account_id);
+      if (hesap) {
+        const tahsilat = debt.direction === 'receivable';
+        toast.success('Ödendi işareti geri alındı', {
+          detail: `${hesap.name}: ${tahsilat ? '−' : '+'}${formatTL(debt.amount)} TL geri sarıldı`,
+        });
+      } else {
+        toast.success('Ödendi işareti geri alındı', {
+          detail: 'Bu kaydın nakit karşılığı hiç işlenmemişti — bakiye değişmedi.',
+        });
+      }
+      if (guncel) handleRefresh();
+    } catch (e) { toast.error(`Geri alınamadı: ${e.message}`); }
   };
 
   const handleDelete = async () => {
@@ -402,9 +437,11 @@ export default function IncomeDebt() {
                 <DebtRow
                   key={d.id}
                   debt={d}
+                  accounts={accounts}
                   onEdit={() => setEditingDebt(d)}
                   onDelete={() => setConfirmDelete({ kind: 'debt', item: d })}
                   onMarkPaid={() => handleMarkPaid(d)}
+                  onUndoPaid={() => handleUndoPaid(d)}
                 />
               ))}
             </div>
@@ -547,8 +584,13 @@ function ExpenseRow({ expense, accounts, onToggle, onEdit, onDelete }) {
 // DEBT ROW
 // ============================================================
 
-function DebtRow({ debt, onEdit, onDelete, onMarkPaid }) {
+function DebtRow({ debt, accounts = [], onEdit, onDelete, onMarkPaid, onUndoPaid }) {
   const isReceivable = debt.direction === 'receivable';
+  // BUG #241: kapanışın nakit ayağı hangi hesaba işlendi. Bakiye sessizce değişmez —
+  // kullanıcı satırın kendisinden görür. (null = ayak uygulanmadı: fix öncesi kayıt.)
+  const settlementAccount = debt.is_paid
+    ? accounts.find(a => a.id === debt.settlement_account_id)
+    : null;
   const sign = isReceivable ? '+' : '−';
   const colorClass = isReceivable
     ? 'text-positive-600 dark:text-positive-400'
@@ -608,6 +650,12 @@ function DebtRow({ debt, onEdit, onDelete, onMarkPaid }) {
             {debt.is_paid && debt.paid_date && (
               <span>Ödenme: {formatDate(debt.paid_date)}</span>
             )}
+            {settlementAccount && (
+              <span className="flex items-center gap-1">
+                <Wallet className="w-3 h-3" />
+                {isReceivable ? 'Nakde geçti' : 'Nakitten çıktı'}: {settlementAccount.name}
+              </span>
+            )}
           </div>
         </div>
         <div className="text-right flex-shrink-0">
@@ -622,6 +670,18 @@ function DebtRow({ debt, onEdit, onDelete, onMarkPaid }) {
                 title="Ödendi olarak işaretle"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {/* BUG #241: kapanışın nakit ayağı geri sarılabilir olduğu HALDE panelde
+                geri alma yolu yoktu — yanlış işaretlenen tahsilat düzeltilemiyordu. */}
+            {debt.is_paid && (
+              <button
+                type="button"
+                onClick={onUndoPaid}
+                className="btn btn-ghost btn-icon !p-1 hover:!text-warn-600"
+                title="Ödendi işaretini geri al"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
             )}
             <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
@@ -1011,6 +1071,11 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }) {
     ? `${data.name} (${formatTL(data.amount)} TL/ay)`
     : `${data.counterparty} · ${formatTL(data.amount)} TL`;
 
+  // BUG #241: silinen kaydın nakit ayağı da geri sarılır (sahipsiz bakiye etkisi kalmaz).
+  // Kullanıcı bunu ONAYDAN ÖNCE bilmeli — bakiyesi sürpriz olarak değişmesin.
+  const nakitGeriSarilacak = item.kind === 'debt' && data.settlement_account_id != null;
+  const geriSarmaYonu = data.direction === 'receivable' ? 'düşecek' : 'artacak';
+
   return (
     <Modal title={item.kind === 'income' ? 'Geliri sil' : item.kind === 'expense' ? 'Gideri sil' : 'Kaydı sil'} onClose={onClose}>
       <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-negative-50 dark:bg-negative-950/30 border border-negative-200 dark:border-negative-800">
@@ -1020,6 +1085,12 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }) {
           <p className="text-zinc-700 dark:text-zinc-300">
             Bu kayıt silinecek. Geri alınamaz.
           </p>
+          {nakitGeriSarilacak && (
+            <p className="mt-1 text-zinc-700 dark:text-zinc-300">
+              Bu kaydın nakit karşılığı da geri alınacak: nakit bakiyen{' '}
+              <strong>{formatTL(data.amount)} TL {geriSarmaYonu}</strong>.
+            </p>
+          )}
         </div>
       </div>
       {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}

@@ -207,8 +207,14 @@ def _load_world(db: Session, user_id: int, as_of: date) -> WorldSnap:
 # ============================================================
 
 def _find_default_cash_account(world: WorldSnap) -> Optional[AccountSnap]:
-    for a in world.accounts:
-        if a.account_type == "cash":
+    """Simülasyonun varsayılan nakit hesabı — gerçek yolla (app/account_rules) PARİTE.
+
+    BUG #241 sınıf taraması: emanet dışlaması burada YOKTU. Gerçek executor emanet hesabı
+    bloklarken sim onun bakiyesini değiştirip önizlemede olmayacak bir sonucu gösteriyordu
+    (MC1 + sim↔executor paritesi, BUG #101/#143 dersi). Sıra id ile deterministik.
+    """
+    for a in sorted(world.accounts, key=lambda x: x.id):
+        if a.account_type == "cash" and not a.is_emanet:
             return a
     return None
 

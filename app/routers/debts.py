@@ -7,6 +7,13 @@ PersonalDebt endpoint'leri (4):
 
 Mukemmellestirici: PUT ile paid_date set edilirse is_paid otomatik True olur.
 Frontend "Odendi" butonu basinca {"paid_date": "2026-05-05"} yollar yeter.
+
+GUNCELLEMELER
+- BUG #241 fix: "Odendi" isaretlemek NAKDI DE hareket ettirir (tahsilat +, odeme -).
+  Eskiden bu uc yalnizca bayragi ceviriyordu; ayni olayin koc yolu (mark_debt_paid)
+  nakdi hareket ettirdigi icin iki yol ayrismisti → panelden tahsil isaretlenen alacak
+  listeden dusuyor, karsiligi nakde gecmiyor, Tam Net Deger 5000 TL "buharlasiyordu".
+  Nakit ayagi TEK KAYNAK: app/services/debt_settlement.py (isaret + hedef hesap + simetri).
 """
 
 from datetime import datetime, date
@@ -21,6 +28,7 @@ from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, PersonalDebt, DebtDirection
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
+from app.services.debt_settlement import KapanisDurumu, senkronize_nakit  # BUG #241
 
 router = APIRouter(prefix="/api/debts", tags=["debts"], dependencies=[Depends(require_write())])
 
@@ -54,6 +62,9 @@ class DebtOut(DebtBase):
     id: int
     is_paid: bool
     paid_date: Optional[date]
+    # BUG #241: kapanışın nakit ayağı hangi hesaba işlendi (None = ayak uygulanmadı).
+    # Panel bunu hesap adına çevirip "nereye işlendi"yi gösterir — bakiye sessizce değişmez.
+    settlement_account_id: Optional[int] = None
     created_at: UtcDateTime
 
     model_config = {"from_attributes": True}  # BUG #118: Pydantic V2 (V1 class Config deprecated)
@@ -116,6 +127,7 @@ def update_debt(
     Guncelle. Mukemmellestirici akilli davranis:
     - paid_date verilirse is_paid otomatik True olur (kullanici sadece tarih girer)
     - is_paid=False verilirse paid_date otomatik None olur (geri al)
+    - BUG #241: odendi/geri-al/tutar-duzeltme NAKDE de yansir (tek kaynak, fark kadar)
     """
     debt = db.query(PersonalDebt).filter(
         PersonalDebt.id == debt_id, scope_filter(PersonalDebt, user.id, ws_id)
@@ -123,6 +135,7 @@ def update_debt(
     if not debt:
         raise HTTPException(404, f"Borc/alacak bulunamadi (id={debt_id})")
 
+    onceki = KapanisDurumu.oku(debt)  # BUG #241: nakit ayağı mutasyon ÖNCESİ duruma göre senkronlanır
     update_data = payload.model_dump(exclude_unset=True)
     for k, v in update_data.items():
         setattr(debt, k, v)
@@ -138,6 +151,9 @@ def update_debt(
     elif "paid_date" in update_data:
         debt.is_paid = update_data["paid_date"] is not None
 
+    # BUG #241: kapanışın nakit ayağı — borç mutasyonuyla AYNI transaction'da (yarım kapanış olamaz).
+    senkronize_nakit(db, user.id, debt, onceki, ws_id)
+
     db.commit()
     db.refresh(debt)
     return debt
@@ -150,12 +166,22 @@ def delete_debt(
     user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
-    """Borc/alacak kaydini sil."""
+    """Borc/alacak kaydini sil.
+
+    BUG #241: kaydin nakit ayagi uygulanmissa silmeyle birlikte GERI SARILIR — silinen
+    kaydin arkasinda sahipsiz bakiye etkisi kalamaz ("bu kayit hic olmadi" demek, onun
+    uydurdugu 5000 TL'yi de goturur). Ayagi uygulanmamis (settlement_account_id NULL)
+    kayitta bu no-op'tur. Panel silme onayinda tutari acikca uyarir.
+    """
     debt = db.query(PersonalDebt).filter(
         PersonalDebt.id == debt_id, scope_filter(PersonalDebt, user.id, ws_id)
     ).first()
     if not debt:
         raise HTTPException(404, f"Borc/alacak bulunamadi (id={debt_id})")
+
+    onceki = KapanisDurumu.oku(debt)
+    debt.is_paid = False          # kayıt yok olacak → ayağı da yok say
+    senkronize_nakit(db, user.id, debt, onceki, ws_id)
     db.delete(debt)
     db.commit()
     return None

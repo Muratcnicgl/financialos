@@ -69,6 +69,9 @@ from app.models import (
 )
 from app.rules_engine import simulate_partial_sale
 from app.money import D, ZERO  # ADR-030: para Decimal (DB Numeric kolonlarına Decimal yazılır)
+# BUG #241: borç/alacak kapanışının nakit ayağı TEK KAYNAK (panel yolu ile ortak).
+from app.services.debt_settlement import KapanisDurumu, senkronize_nakit
+from app.account_rules import varsayilan_hesap, varsayilan_nakit_hesap  # BUG #241 (MC1 emanet)
 
 
 # ============================================================
@@ -204,10 +207,11 @@ def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> 
             )
             return payload
 
-    card = db.query(Account).filter(
-        Account.user_id == user_id,
-        Account.account_type == AccountType.credit_card,
-    ).first()
+    # BUG #241 sınıf taraması: varsayılan hesap seçimi TEK KAYNAK (emanet dışlanır — MC1 —
+    # ve sıra deterministik). Eskiden kart kategorisi EMANET bir kartı varsayılan yapabiliyordu:
+    # aksiyon üretilir, onaylandığında executor'ın emanet guard'ı reddeder (sessiz çıkmaz sokak).
+    card = varsayilan_hesap(db, user_id, _yazma_workspace_id(db, user_id),
+                            tip=AccountType.credit_card)
     if not card:
         return payload
 
@@ -733,6 +737,8 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
     if debt.is_paid:
         return {"success": False, "message": "Bu borc zaten odenmiş olarak isaretli."}
 
+    onceki = KapanisDurumu.oku(debt)  # BUG #241: nakit ayağı mutasyon ÖNCESİ duruma göre senkronlanır
+
     paid_date_str = payload.get("paid_date")
     debt.paid_date = (  # BUG #237 fix (D17): tarih verilmediyse KULLANICININ günü
         date.fromisoformat(paid_date_str) if paid_date_str else user_today_by_id(db, user_id)
@@ -743,22 +749,13 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
     # / borcumu ödedim" → mark_debt_paid). Bu yüzden NAKDİ DE HAREKET ETTİRMELİ — eskiden yalnız
     # is_paid işaretleyip nakdi hareketsiz bırakıyordu: alacak tahsili net değeri YANLIŞ düşürüyor,
     # borç ödemesi yanlış yükseltiyordu (tahsilat/ödeme net-nötr olmalı; görülen nakit değişmeli).
-    # Simülasyon zaten böyle yapıyordu → executor ile TUTARLI hale geldi. Varsayılan nakit hesaba işlenir.
-    cash = (
-        db.query(Account)
-        .filter(Account.user_id == user_id, Account.account_type == AccountType.cash)
-        .order_by(Account.id.asc())
-        .first()
+    # BUG #241 fix: nakit ayağı artık BURADA kodlanmıyor — panel yolu (`PUT /api/debts/{id}`) ile
+    # AYNI tek kaynaktan geçiyor (iki yol ayrışmıştı: panel bayrağı çevirip nakdi hareketsiz
+    # bırakıyordu). Ek olarak hedef hesap artık kapsam-farkında ve EMANET hesabı dışlıyor (MC1).
+    sonuc = senkronize_nakit(
+        db, user_id, debt, onceki,
+        workspace_id=_yazma_workspace_id(db, user_id),
     )
-    cash_effect = 0.0
-    if cash:
-        if debt.direction == DebtDirection.receivable:
-            cash.balance += debt.amount          # alacak TAHSİL edildi → nakit artar
-            cash_effect = debt.amount
-        else:
-            cash.balance -= debt.amount          # borç ÖDENDİ → nakit azalır
-            cash_effect = -debt.amount
-        cash.updated_at = datetime.utcnow()
 
     db.commit()
 
@@ -769,8 +766,8 @@ def _execute_mark_debt_paid(db: Session, user_id: int, payload: Dict) -> Dict:
         "amount": debt.amount,
         "direction": debt.direction.value,
         "paid_date": debt.paid_date.isoformat(),
-        "cash_effect": cash_effect,               # +tahsilat / -ödeme; nakit hesap yoksa 0
-        "cash_account": cash.name if cash else None,
+        "cash_effect": sonuc["cash_effect"],      # +tahsilat / -ödeme; nakit hesap yoksa 0
+        "cash_account": sonuc["cash_account"],
     }
 
 
@@ -805,9 +802,9 @@ def _execute_pay_credit_card(db: Session, user_id: int, payload: Dict) -> Dict:
         source = db.query(Account).filter(
             Account.id == src_id, Account.user_id == user_id).first()
     else:
-        source = (db.query(Account)
-                  .filter(Account.user_id == user_id, Account.account_type == AccountType.cash)
-                  .order_by(Account.id.asc()).first())
+        # BUG #241 sınıf taraması: varsayılan hesap seçimi TEK KAYNAK (emanet dışlanır — MC1 —
+        # ve kapsam-farkında). Eskiden buradaki sorgu emanet nakit hesabı seçebiliyordu.
+        source = varsayilan_nakit_hesap(db, user_id, _yazma_workspace_id(db, user_id))
     if not source:
         return {"success": False, "message": "Ödemenin çekileceği nakit hesap bulunamadı."}
 

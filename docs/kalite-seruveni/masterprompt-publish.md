@@ -46,7 +46,7 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
   (Murat tüm işlemleri önceden onayladı) — **tek istisna §9 İNSAN-KAPISI**.
 - **GERİLEME YASAK.** Bu masterprompt yalnız ileri yönlü güncellenir (§12).
 
-### §1.3 DERS-KURALLARI L1-L24 (v2.0+ — YALNIZ EKLENİR)
+### §1.3 DERS-KURALLARI L1-L26 (v2.0+ — YALNIZ EKLENİR)
 
 > Not: `D1` §1'de **sektör referansı** kuralıdır; karışmasın diye ders-kuralları **L** ile numaralanır.
 
@@ -78,6 +78,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L21 | **Bir sinyal "hesaplanıyor" olabilir ve yine de karar veren katmana HİÇ ulaşmayabilir.** Türetilmiş veriyi (tazelik, risk işareti, bayrak) yalnız bir sunum katmanında (router/panel) üretirsen, aynı kaynağı DOĞRUDAN tüketen diğer yollar (LLM bağlamı, motor, snapshot) onu asla görmez — ve "veri var" görüntüsü kimseyi kaynağa bakmaya sevk etmez. Sinyali üretildiği yere değil, **ona göre karar verilen sözleşmeye** koy; sonra kapsam tabanını assert et. | #239 (`is_stale`/`age_text` yalnız `routers/cockpit.py`'de ekleniyordu; koç/premortem/snapshot cockpit'i doğrudan çağırdığı için bayat fiyatı "güncel değer" diye sunuyorlardı) |
 | L23 | **Bir şeyin YOKLUĞUNU raporlaması gereken yüzey, envanterini o şeyin ÇIKTISINDAN türetemez.** "Hangi işler var" sorusunu çalışma kayıtlarından (ya da "hangi kullanıcı var"ı log'dan, "hangi entegrasyon var"ı başarılı isteklerden) türeten her uç, tam da bozuk olan öğeyi — hiç çıktı üretmeyeni — göremez ve **boş liste "her şey yolunda" gibi okunur.** Envanter, izlenenden BAĞIMSIZ bir kaynaktan (beyan edilmiş liste) gelmeli; ölçüm ona göre eşleştirilmeli. Yan tuzak: envanter beyandan gelmeye başlayınca liste hep dolu olur — "kaç kayıt var" ile "kaç iş tanımlı" ölçütünü karıştıran eski tüketici (canlı kapı) sessizce hep-yeşile döner, onu da aynı commit'te düzelt. | #240 (`/api/ops/scheduler` iş adlarını `SchedulerRun` tablosundan türetiyordu → hiç kaydı olmayan 3 iş uçta HİÇ yoktu; canlı kapı `bool(isler)` ile "cron çalıştı" sanıyordu) |
 | L24 | **İzleme çağrısı işin GÖVDESİNE yazılıyorsa, unutulması an meselesidir — kaydı planlama noktasına bağla.** "Her iş kaydını açar" bir konvansiyon değil, bir sözleşmedir: sarmalayıcı/kayıt noktası yapısal olarak uygularsa yeni iş ekleyen kişi unutamaz. Ve sözleşmeyi **iş listesinin kendisi üzerinden** assert et (her planlı iş için: koştur → kayıt var mı) — "beş işten üçü unutulmuş" ancak listeyi gezen bir kapıyla görülür. Aynı tarama işin *dışarıda* koşan kardeşlerini de kapsamalı (yedek/timer/compose döngüsü): en kritik iş çoğu zaman uygulama sürecinin dışındadır. | #240 (`_kayit_basla` iki job gövdesine elle yazılmıştı; KVKK 90-gün saklama işi dahil 3'ü kayıtsızdı — prod yedeği de yalnız konteyner log'una yazıyordu) |
+| L25 | **Aynı gerçek-dünya olayının birden çok girişi varsa, sözleşme YOLA değil OLAYA yazılır.** Bir olayın (tahsilat, ödeme, iptal) etkisi bir yolun içine kodlanırsa, o yol düzeltildiğinde kardeş yol sessizce eski kalır — ve düzeltmenin kendisi "bu iş bitti" hissi yarattığı için kimse ikinciye bakmaz. Etkiyi tek bir servis/modüle çıkar, HER giriş oradan geçsin, pariteyi **iki yolu yan yana koşturan** bir testle kilitle. Fark testi tek yolu doğrulayan testten daha değerlidir: tek yol testi ayrışmayı göremez. | #241 (BUG #113 koç yolunun nakit ayağını eklemişti; panel yolu — kullanıcının fiilen kullandığı "Ödendi" butonu — bayrağı çevirip nakdi hiç hareket ettirmiyordu, alacak tahsilinde Tam Net Değer eriyordu) |
+| L26 | **Bir yasağın (dokunulmaz hesap, salt-okunur kayıt, korumalı kaynak) gücü, onu uygulayan guard'ın değil KAYNAĞI SEÇEN kodun sayısı kadardır.** Guard tek yerde olabilir ve doğru çalışabilir; ama korunan kaynağı "varsayılan" olarak seçen beş ayrı sorgu varsa yasak ya delinir ya da her onayda patlayan sessiz çıkmaz sokaklar üretir. Seçimi tek kaynağa topla ve "kendi seçim sorgusunu yazan var mı" diye **statik** kapı koy. | #241 sınıf taraması (5 ayrı "varsayılan nakit/kart hesabı" sorgusu; hiçbiri `is_emanet` dışlamıyordu, üçü sırasızdı → `app/account_rules.py` + `test_varsayilan_hesap_kapisi.py`) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -448,9 +450,32 @@ Beşinde de aynı ritim: kanıtı davranış testine çevir → düzelt → **mu
 bu turda da işe yaradı: #234'te iki ek LLM yolu, #236'da dört ek dosya, **#237'de denetimin
 listelediği 8 yerin ötesinde 12 yer daha**, #238'de self-host compose'un aynı superuser
 reçetesi + eksik placeholder fail-fast'i.
+**Ardından KULLANICI BİLDİRİMİ kapandı: #241** (panelden "ödendi" işaretlenen alacak nakde
+hiç geçmiyordu — canlı veride 5.000 TL eksikti, onarıldı).
 **Sıradaki:** D25 (fallback zincirindeki iki LLM sağlayıcısı — Together AI, DeepInfra —
 KVKK veri-işleyen envanterinde hiç yok; "envanter kodla kilitlenir" diyen test 4 ismi sabit
 kodluyor, kod tarafını hiç okumuyor).
+
+> **6 Ağu 2026 — ÜÇÜNCÜ KULLANICI BİLDİRİMİ kapandı (BUG #241) ve "aynı olayın iki yolu
+> ayrışır" sınıfı.** Kullanıcı bir alacağı panelden "Ödendi" işaretledi, cockpit'te nakit
+> artmadı. Kök neden: aynı gerçek-dünya olayının İKİ girişi vardı ve nakit ayağı **yolun
+> içine** kodlanmıştı — koç yolu (`mark_debt_paid`, BUG #113) nakdi hareket ettiriyor, panel
+> yolu (`PUT /api/debts/{id}`) yalnız bayrağı çeviriyordu. Yani tahsilat Tam Net Değer'i
+> DÜŞÜRÜYOR, borç ödemesi YÜKSELTİYORDU (para buharlaşıyor/üretiliyor). BUG #161/SBN-001
+> ailesinin aynısı: kural birden çok yerde ayrı kodlanmış. Fix tüketicide değil sözleşmede:
+> `app/services/debt_settlement.py` tek kaynak (yön + hedef hesap + simetri), iki yol da
+> oradan geçiyor; kapanış `personal_debts.settlement_account_id` ile **iz bırakıyor** →
+> geri alma tam da uygulandığı hesaptan geri sarılıyor, ayağı hiç uygulanmamış eski kayıt
+> (NULL) geri alınınca **hayalet para düşmüyor**. Panelde geri-alma yolu da yoktu (backend
+> simetrikti ama kullanıcı hatasını düzeltemiyordu) — eklendi. **Ders (L25):** sözleşme yola
+> değil olaya yazılır; pariteyi iki yolu yan yana koşturan test kilitler. **Sınıf taraması
+> (L11)** ikinci defekti buldu: "varsayılan nakit/kart hesabı" **beş ayrı yerde** seçiliyordu
+> (executor ×3, transactions, incomes, sim) ve **hiçbiri emanet hesabı dışlamıyordu** — MC1
+> guard'ı tek yerdeyken seçiciler çoğalmıştı; üçü sırasızdı (`.first()`), yani aynı olayın
+> uygulanması ve geri sarılması farklı hesaplara düşebilirdi. `app/account_rules.py` tek
+> kaynak + statik kapı (**L26**). **Canlı veri:** yedek alındı, migration koşuldu, onarım
+> script'i (`scripts/repair_debt_settlements.py`, çift-sayım korumalı: koç yolundan kapatılan
+> kayıtları atlar) 1 kapanışı onardı → nakit 1.963,52 → 6.963,52 TL.
 
 > **6 Ağu 2026 — D24 kapandı (BUG #240) ve "envanterini izlediği şeyin çıktısından türeten
 > yüzey" sınıfı.** Planlanan beş cron işinden üçü (`k2_batch`, `nightly_trace_cleanup`,
@@ -595,17 +620,14 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 
 #### SIRADAKİ İŞLER (öncelik sırasıyla)
 
-0. 🔴 **KULLANICI BİLDİRİMİ — SIRADAKİ İLK İŞ (6 Ağu 2026, Murat).** *"Efe 5000 TL borç
-   ödendi işaretledim ama cockpit'te bakiyem artmadı."* Yani bir ALACAK tahsil edildi diye
-   işaretlendi, nakit tarafında karşılığı görünmedi. Şüphe yönü: tahsil işaretlemesi yalnız
-   alacağın kendi durumunu güncelliyor, karşı-kayıt (nakit hesap bakiyesi / işlem satırı)
-   üretilmiyor olabilir — yani **BUG #161 ailesinin (işaret konvansiyonu / `balance_delta`,
-   SBN-001) alacak-tahsili yolundaki kardeşi.** Kullanım-turu bulgusu: statik denetimin
-   bulamadığı sınıf (#232/#233 gibi). Ritim aynı: kanıtı davranış testine çevir (işaretle →
-   cockpit nakit ARTMALI) → düzelt → mutasyon → sınıf taraması (borç ödemesi, gelir tahsili,
-   abonelik, hedef katkısı aynı yoldan mı geçiyor) → tam süit → commit. **Denetimin ORTA
-   bulguları (D25…) bundan SONRA** — canlı kullanıcı verisiyle çelişen rakam her şeyden önce
-   gelir.
+0. ✅ **KULLANICI BİLDİRİMİ — KAPANDI (BUG #241, 6 Ağu 2026).** Panelden "Ödendi"
+   işaretlenen alacak nakde hiç geçmiyordu; şüphe doğru çıktı ama kök neden "karşı-kayıt
+   eksik"ten daha keskindi: nakit ayağı **koç yoluna** yazılmıştı (BUG #113), panel yolu
+   ayrışmıştı. Tek kaynak `app/services/debt_settlement.py`, iz `settlement_account_id`,
+   sınıf taraması `app/account_rules.py` (5 seçici → 1, emanet/MC1 dışlaması). 31 backend +
+   6 vitest kapı, 5/5 mutasyon yakalandı, canlı veri onarıldı (nakit +5.000 TL).
+   Dersler **L25** (sözleşme yola değil olaya yazılır) ve **L26** (yasağın gücü, kaynağı
+   seçen kod sayısı kadardır).
 1. **Denetimin ORTA bulguları (7 adet kaldı: D25…D30; D14/D15/D16/D17/D18/D19/D20/D21/
    D22/D23/D24 kapandı).** Öne çıkanlar:
    **D25** (fallback zincirindeki iki LLM sağlayıcısı KVKK envanterinde yok — *sıradaki iş*), **D26/D27/D28** (KVKK export'u şifre hash'i döküyor;

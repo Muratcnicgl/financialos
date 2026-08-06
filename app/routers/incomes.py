@@ -23,6 +23,7 @@ from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, RecurringIncome, Account, AccountType, PendingAction, ActionStatus
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
+from app.account_rules import varsayilan_nakit_hesap  # BUG #241 sınıf taraması (MC1 emanet)
 
 logger = logging.getLogger(__name__)
 
@@ -139,10 +140,10 @@ def trigger_due_incomes(
     today = user_today(user)  # BUG #197
     year_month = f"{today.year}-{today.month:02d}"
 
-    cash_acc = db.query(Account).filter(
-        scope_filter(Account, user.id, ws_id),  # M43
-        Account.account_type == AccountType.cash,
-    ).first()
+    # BUG #241 sınıf taraması: varsayılan hesap seçimi TEK KAYNAK. Eskiden buradaki sorgu
+    # EMANET nakit hesabı seçebiliyordu → executor'ın MC1 guard'ı yüzünden onaylandığında
+    # HER ZAMAN başarısız olan bir gelir aksiyonu üretiliyordu (sessiz çıkmaz sokak).
+    cash_acc = varsayilan_nakit_hesap(db, user.id, ws_id)
     if not cash_acc:
         return {"triggered": []}
 

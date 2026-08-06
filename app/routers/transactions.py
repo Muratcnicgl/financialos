@@ -25,6 +25,7 @@ from app.serializers import utc_isoformat  # BUG #092: datetime UTC suffix
 # manuel doğrulamada (dostça Türkçe mesaj + quick_text modu) kalır → FinansOptBakiye (sign-agnostik sonlu).
 from app.schema_types import FinansOptBakiye
 from app.money import D  # ADR-030: para Decimal coercion
+from app.account_rules import varsayilan_hesap  # BUG #241 sınıf taraması: varsayılan hesap tek kaynak
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType,
 )
@@ -307,20 +308,13 @@ def create_transaction(
     # Default hesap seçimi — DATA-018: yalnız quick-text için DEĞİL, HER create için (account_id
     # verilmemişse) varsayılan hesaba düş. Böylece hem UX korunur hem "yetim" işlem üretilmez.
     if not data.get("account_id"):
-        if data.get("is_card_expense"):
-            acc = (
-                db.query(Account)
-                .filter(scope_filter(Account, user.id, ws_id),  # M43
-                        Account.account_type == AccountType.credit_card)
-                .first()
-            )
-        else:
-            acc = (
-                db.query(Account)
-                .filter(scope_filter(Account, user.id, ws_id),  # M43
-                        Account.account_type == AccountType.cash)
-                .first()
-            )
+        # BUG #241 sınıf taraması: varsayılan hesap seçimi TEK KAYNAK (app/account_rules).
+        # Eskiden buradaki iki sorgu EMANET hesabı seçebiliyordu (MC1 ihlali: executor emanet
+        # hesabı açıkça bloklarken bu yol onu sessizce varsayılan yapıyordu) ve sırasızdı.
+        acc = varsayilan_hesap(
+            db, user.id, ws_id,
+            tip=AccountType.credit_card if data.get("is_card_expense") else AccountType.cash,
+        )
         if acc:
             data["account_id"] = acc.id
 

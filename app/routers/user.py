@@ -16,6 +16,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
+from app.money_format import desteklenen_kodlar  # BUG #256 (H4): para birimi tek kaynak
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
@@ -28,7 +29,10 @@ from app.data_subject import disa_aktar  # BUG #243: KVKK export TEK KAYNAK
 # düğme vermektir — denetimin (D33) asıl şikâyeti buydu; geçersiz kodu reddetmek onun
 # yalnız yarısını kapatır. Çok-para-birimi ADR-042 ile ayrıca ele alınacak (kur çevrimi +
 # görüntüleme + geçmiş değerleme); o iş bitince bu küme genişler ve kapı da onunla büyür.
-DESTEKLENEN_PARA_BIRIMLERI = {"TRY"}
+# BUG #256 (H4/ADR-044): bu küme artık ELLE yazılmıyor — biçimlendirmenin TEK KAYNAĞINDAN
+# türetilir. Aksi halde "API'nin kabul ettiği" ile "arayüzün gösterebildiği" iki ayrı liste
+# olur ve bir gün sessizce ayrışır (L27: kapı, ölçtüğü listeyi elle taşıyorsa ölçmüyordur).
+DESTEKLENEN_PARA_BIRIMLERI = set(desteklenen_kodlar())
 _LOCALE_DESENI = re.compile(r"^[a-z]{2}(-[A-Z]{2})?$")
 from app.models import (
     User, Account, Transaction, RecurringIncome, RecurringExpense, PersonalDebt,

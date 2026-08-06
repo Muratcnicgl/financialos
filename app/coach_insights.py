@@ -59,6 +59,7 @@ from app.models import (
 )
 from app.rules_engine import _scope  # M73: extractor'lar aktif workspace kapsamında (batch personal-scope'lar)
 from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
+from app.prompt_safety import guvenli_metin as _guvenli  # BUG #257 (H9)
 
 logger = logging.getLogger(__name__)
 
@@ -2267,8 +2268,17 @@ def format_insights_for_prompt(
     for ins in insights:
         insight_type_label = (ins.insight_type or "GENEL").upper()
         confidence_label = ins.confidence_basis or "unknown"
-        title_text = ins.title or "(baslik yok)"
-        content_text = ins.content or "(icerik yok)"
+        # BUG #257 (H9, sinif taramasi): insight metinleri prompt'a HAM giriyordu. Iki
+        # kaynak var: (1) cikarici fonksiyonlar (kullanicinin kategori/hesap adlarini gomer),
+        # (2) kocun kendi `save_insight` cagrisi (kullanici koca yazdirabilir) — yani metin
+        # DB'de kalicilasip sonraki oturumlarda kendi baglamina geri doner. Yapi tasiyan
+        # isaretler burada notrlenir; icerik korunur.
+        # azami=0 -> KESME YOK. Uzunluk zaten asagidaki token butcesiyle yonetiliyor
+        # (butce asilinca insight KOMPLE dusuruluyor — "drop, truncate degil" stratejisi).
+        # Buraya ikinci bir kesme koymak o stratejiyi sessizce bozar: icerigin sonu kaybolur
+        # ama insight yine de "tam" gibi sunulur. Bu modulun isi UZUNLUK degil YAPI.
+        title_text = _guvenli(ins.title, azami=0) or "(baslik yok)"
+        content_text = _guvenli(ins.content, azami=0) or "(icerik yok)"
 
         block = (
             f"\n[{insight_type_label} | GUVEN: {confidence_label}]\n"

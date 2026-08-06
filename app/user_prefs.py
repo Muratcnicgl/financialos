@@ -66,7 +66,16 @@ def user_today_by_id(db, user_id) -> date:
 
 
 def user_currency(user) -> str:
-    return (getattr(user, "currency", None) or VARSAYILAN_PARA_BIRIMI).upper()
+    """
+    Kullanıcının para birimi kodu.
+
+    BUG #256 (H4): gövde `app.money_format.kullanici_para_kodu`'na devredildi. Eskiden burada
+    ayrı bir uygulama vardı ve **hiçbir üretim kodundan çağrılmıyordu** (yalnız test) —
+    yani "kullanıcı tercihi" fiilen ölü bir alandı. Artık tek kaynak biçimlendiricinin
+    kendisidir; buradaki isim geriye uyum içindir.
+    """
+    from app.money_format import kullanici_para_kodu  # geç import: döngüsel bağımlılık yok
+    return kullanici_para_kodu(user)
 
 
 def user_locale(user) -> str:

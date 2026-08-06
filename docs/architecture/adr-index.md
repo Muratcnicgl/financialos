@@ -76,3 +76,7 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   `frontend/src/lib/money.js` tek kaynak; TRY kilidi bilinçli + fail-fast; **grounding para
   birimine bağlandı** (etiket değişince doğrulama sessiz-yeşile düşüyordu) ve "etiketsiz tutar"
   artık kırmızı. Statik kapı: `tests/test_para_birimi_kapisi.py` (kapsam tabanı + muafiyet tavanı).
+- **ADR-045 — Prompt enjeksiyonuna karşı YAPI savunması (H9 / BUG #257):** kullanıcı verisi koç
+  bağlamının bölümlemesini değiştiremez (`app/prompt_safety.guvenli_metin`); sansür değil yapı
+  nötrleme. Sınıf taraması kalıcı yolu da kapattı (insight → prompt → insight). Kapı:
+  `tests/test_prompt_injection_kapisi.py` (kapsam tabanı + mutasyon).

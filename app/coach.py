@@ -125,6 +125,7 @@ from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
 from app.grounding import check_grounding  # LLM-003: cikti dogrulama (grounding)
+from app.prompt_safety import guvenli_metin as _guvenli  # BUG #257 (H9): kullanici verisi baglamin YAPISINI degistiremez
 from app.user_prefs import user_today_by_id  # BUG #237 (D17): 'bugün' kullanıcının saat diliminde
 # kota-exempt: motor rezervasyon yapmaz (uç yapar); buradan yalnız GERÇEK istek SAYIMI
 # kancası kullanılır — BUG #234 (D15).
@@ -896,13 +897,14 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
     cp_lines = []
     for cp in checkpoints:
         cp_lines.append(
-            f"  [{cp.checkpoint_type.value.upper()} P{cp.priority}] {cp.title}: {cp.description}"
+            f"  [{cp.checkpoint_type.value.upper()} P{cp.priority}] "
+            f"{_guvenli(cp.title)}: {_guvenli(cp.description, azami=400)}"
         )
     cp_text = "\n".join(cp_lines) if cp_lines else "  (Henüz Master Checkpoint tanımlanmamış)"
 
     account_lines = []
     for acc in cockpit["accounts"]:
-        line = f"  - id={acc['id']} [{acc['tip']}] {acc['ad']}: {_para(acc['bakiye'])}"
+        line = f"  - id={acc['id']} [{acc['tip']}] {_guvenli(acc['ad'])}: {_para(acc['bakiye'])}"
         if acc.get("is_emanet"):
             line += " 🔒 EMANET (DOKUNULMAZ)"
         if acc.get("limit"):
@@ -927,7 +929,7 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
         # bayat fiyattan üretilmişse işaretsiz kalamaz.
         bayat_ek = f" ⚠️ FİYAT BAYAT ({p.get('fiyat_yas')})" if p.get("fiyat_bayat") else ""
         pnl_lines.append(
-            f"  - {p['account_name']} ({p['fund_code']}): "
+            f"  - {_guvenli(p['account_name'])} ({_guvenli(p['fund_code'], azami=40)}): "
             # BUG #256 (H4): bu üç tutar ETİKETSİZ yazılıyordu — grounding yalnız etiketli
             # tutarları denetlediği için yatırım K/Z satırı (satış kararını doğrudan tetikleyen
             # cümle) doğrulamanın DIŞINDA kalıyordu. Etiket artık tek kaynaktan geliyor.
@@ -937,12 +939,12 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
     pnl_text = "\n".join(pnl_lines) if pnl_lines else "  (Yatırım yok)"
 
     payments_text = "\n".join([
-        f"  - {turkish_date(date.fromisoformat(p['tarih'])) if p.get('tarih') else '?'}: {p.get('ad', '?')} → {_para(p.get('tutar', 0))} ({p.get('tip', '')}){_day_suffix(p['tarih'], today) if p.get('tarih') else ''}"
+        f"  - {turkish_date(date.fromisoformat(p['tarih'])) if p.get('tarih') else '?'}: {_guvenli(p.get('ad', '?'))} → {_para(p.get('tutar', 0))} ({_guvenli(p.get('tip', ''), azami=40)}){_day_suffix(p['tarih'], today) if p.get('tarih') else ''}"
         for p in cockpit.get("upcoming_payments", [])
     ]) or "  (Yaklaşan ödeme yok)"
 
     receivables_text = "\n".join([
-        f"  - {turkish_date(date.fromisoformat(r['tarih'])) if r.get('tarih') else '?'}: {r.get('kim', '?')} → {_para(r.get('tutar', 0))} ({r.get('aciklama', '')}){_day_suffix(r['tarih'], today) if r.get('tarih') else ''}"
+        f"  - {turkish_date(date.fromisoformat(r['tarih'])) if r.get('tarih') else '?'}: {_guvenli(r.get('kim', '?'))} → {_para(r.get('tutar', 0))} ({_guvenli(r.get('aciklama', ''))}){_day_suffix(r['tarih'], today) if r.get('tarih') else ''}"
         for r in cockpit.get("upcoming_receivables", [])
     ]) or "  (Yaklaşan tahsilat yok)"
 
@@ -1089,9 +1091,9 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                 risk_s = " ⚠️ KART RİSKİ"
             else:
                 risk_s = ""
-            acc_s = f", {r['account_name']}" if r["account_name"] else ""
+            acc_s = f", {_guvenli(r['account_name'])}" if r["account_name"] else ""
             r_lines.append(
-                f"  - {_days_label(r['days_until'])}: {r['name']} "
+                f"  - {_days_label(r['days_until'])}: {_guvenli(r['name'])} "
                 f"{sign}{_para(r['amount'])} ({r['type']}{acc_s}){risk_s}"
             )
         context += "\n\n## YAKLAŞAN VADELER (0-7 gün)\n" + "\n".join(r_lines)
@@ -1110,7 +1112,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                 sign = "+" if p["change_pct"] >= 0 else ""
                 change_s = f"({sign}{p['change_pct']:.0f}%)"
             anomaly_s = " ⚠️ ANOMALİ" if p["anomaly_flag"] else ""
-            p_lines.append(f"  - {cat}: {prev_s} → {curr_s} {change_s}{anomaly_s}")
+            p_lines.append(f"  - {_guvenli(cat)}: {prev_s} → {curr_s} {change_s}{anomaly_s}")
         context += "\n\n## Davranış Kalıpları (son 30 gün / önceki 30 gün)\n" + "\n".join(p_lines)
 
     # BU AY (A3 özeti) — koçun aylık trend farkındalığı (kurucu "durum raporu" ruhu).
@@ -1128,7 +1130,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             top_cat_s = ""
             if cur_ms["expense_categories"]:
                 tc = cur_ms["expense_categories"][0]
-                top_cat_s = f"\n  - En çok: {tc['category']} {_para(tc['total'])} (%{tc['percentage']:.0f})"
+                top_cat_s = f"\n  - En çok: {_guvenli(tc['category'])} {_para(tc['total'])} (%{tc['percentage']:.0f})"
             sr = cur_ms["savings_rate"]
             sr_s = f", tasarruf oranı %{sr:.0f}" if sr is not None else ""
             context += (
@@ -1159,7 +1161,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             sign = "+" if t["tip"] == "income" else "-"
             tarih = t.get("tarih") or "?"
             kat = t.get("kategori") or ""
-            acikla = f" — {t['aciklama']}" if t.get("aciklama") else ""
+            acikla = f" — {_guvenli(t['aciklama'])}" if t.get("aciklama") else ""
             si_lines.append(f"  - {tarih}: {sign}{_para(t['tutar'])} ({kat}){acikla}")
         context += "\n\n## SON İŞLEMLER (en yeni ilk)\n" + "\n".join(si_lines)
 
@@ -1214,7 +1216,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     ay_ag = cockpit.get("alacak_yaslanma") or {}
     if ay_ag.get("gecikmis_adet", 0) > 0:
         risk_s = "; ".join(
-            f"{k['kim']} {_para(k['tutar'])} ({k['gecikme_gun']}g)"
+            f"{_guvenli(k['kim'])} {_para(k['tutar'])} ({k['gecikme_gun']}g)"
             for k in ay_ag.get("en_riskli", [])
         )
         context += (
@@ -1235,10 +1237,10 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         t_lines = []
         for k in at["kartlar"][:2]:
             if k.get("asla_bitmez"):
-                t_lines.append(f"  - {k['ad']}: yalnız asgariyle ASLA kapanmaz (asgari < faiz, borç büyüyor)")
+                t_lines.append(f"  - {_guvenli(k['ad'])}: yalnız asgariyle ASLA kapanmaz (asgari < faiz, borç büyüyor)")
             else:
                 t_lines.append(
-                    f"  - {k['ad']}: yalnız asgariyle {k['ay']} ay, toplam {_para(k['toplam_faiz'])} faiz "
+                    f"  - {_guvenli(k['ad'])}: yalnız asgariyle {k['ay']} ay, toplam {_para(k['toplam_faiz'])} faiz "
                     f"(biter {k['payoff_tarih']})"
                 )
         context += (
@@ -1322,7 +1324,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     zd = cockpit.get("zarflar") or {}
     if zd.get("zarflar"):
         asan = [z for z in zd["zarflar"] if z.get("asildi")]
-        asan_s = (" · AŞAN: " + ", ".join(f"{z['category']} ({_fmt(z['harcanan'])}/{_fmt(z['butce'])})" for z in asan[:3])) if asan else ""
+        asan_s = (" · AŞAN: " + ", ".join(f"{_guvenli(z['category'])} ({_fmt(z['harcanan'])}/{_fmt(z['butce'])})" for z in asan[:3])) if asan else ""
         context += (
             f"\n\n## BÜTÇE ZARFLARI\n"
             f"  - Toplam bütçe {_para(zd['toplam_butce'])}, harcanan {_para(zd['toplam_harcanan'])}, "
@@ -1347,7 +1349,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     # FİNANSAL SAĞLIK SKORU (FEAT-022): 0-100 şeffaf composite — bileşenleriyle.
     hs = cockpit.get("saglik_skoru") or {}
     if hs.get("bilesenler"):
-        bilesen_s = ", ".join(f"{b['ad']} {b['puan']}" for b in hs["bilesenler"])
+        bilesen_s = ", ".join(f"{_guvenli(b['ad'])} {b['puan']}" for b in hs["bilesenler"])
         context += (
             f"\n\n## FİNANSAL SAĞLIK SKORU: {hs['skor']}/100 ({hs['seviye']})\n"
             f"  - Bileşenler: {bilesen_s}"

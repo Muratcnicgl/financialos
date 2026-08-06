@@ -40,6 +40,7 @@ from sqlalchemy.orm import Session
 from app.coach import LLMProvider, build_provider
 from app.models import DecisionJournal, PendingAction
 from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
+from app.prompt_safety import guvenli_metin as _guvenli  # BUG #257 (H9): kullanici metni yapiyi bozamaz
 
 logger = logging.getLogger(__name__)
 
@@ -146,12 +147,12 @@ def _user_prompt(action_context: dict, cockpit_snapshot: Optional[dict] = None) 
     lines = [
         "AKSIYON BAGLAMI:",
         f"  Tip: {action_context.get('action_type', 'bilinmiyor')}",
-        f"  Aciklama: {action_context.get('description', '-')}",
+        f"  Aciklama: {_guvenli(action_context.get('description', '-'), azami=300)}",
         f"  Tutar: {_para(action_context.get('amount_tl', 0.0))}",
-        f"  Hedef: {action_context.get('target', '-')}",
+        f"  Hedef: {_guvenli(action_context.get('target', '-'))}",
     ]
     if action_context.get("rationale"):
-        lines.append(f"  Kullanicinin gerekcesi: {action_context['rationale']}")  # BUG #166: kişi adı yok
+        lines.append(f"  Kullanicinin gerekcesi: {_guvenli(action_context['rationale'], azami=500)}")  # BUG #166: kişi adı yok
 
     if cockpit_snapshot:
         lines += [

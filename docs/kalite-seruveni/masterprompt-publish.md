@@ -437,30 +437,44 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
 
 **Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li ve **origin'e push'lu**.
-**Test tabanı:** `1993 passed, 18 skipped` (backend) + `145 passed` (vitest). Kırmızı yok.
+**Test tabanı:** `2045 passed, 18 skipped` (backend) + `151 passed` (vitest) + 4 e2e
+(Playwright — 2'si bugün eklendi, yerelde koşuldu). Kırmızı yok.
 Skip artışı bilinçli: D38 kapısı artık TÜM migration'ları geziyor, 10 bilinen-eski sürüm
 gerekçeli istisna olarak skip'liyor.
 
-**Bu oturumda (6 Ağu, akşam) 9 bulgu kapandı — biri canlı kullanıcı bildirimi, sekizi denetim:**
+**Bu oturumda (6 Ağu, akşam) 14 iş kapandı — biri canlı kullanıcı bildirimi, dokuzu denetim
+bulgusu, dördü kalite/kapı borcu:**
 - **#241 (KULLANICI BİLDİRİMİ):** panelden "Ödendi" işaretlenen alacak nakde HİÇ geçmiyordu
   → tek kaynak `app/services/debt_settlement.py` + `app/account_rules.py`; **canlı veri
-  onarıldı** (nakit 1.963,52 → 6.963,52 TL).
+  onarıldı** (nakit 1.963,52 → 6.963,52 TL) ve **gerçek tarayıcıda** doğrulandı (e2e + ekran).
 - **#242 (D25):** veri-işleyen envanteri "kodla kilitli" diyordu ama 4 ismi sabit kodluyordu →
   kapı koddan türetiyor; sınıf taraması **Google/GitHub kimlik sağlayıcılarının envanterde
   hiç olmadığını** buldu (üstelik §4 "harici kimlik sağlayıcı YOK" diyordu).
 - **#243 (D26+D27+D28):** export şifre hash'ini döküyor, iki tabloyu atlıyor, silme e-postayı
   bırakıyordu → `app/data_subject.py` (şemadaki her tablo sınıflandırılmış; export tek uygulama).
-- **#244 (D29):** maskeleme yarısını kaçırıyordu ve log dosyasına hiç uygulanmıyordu →
-  desenler + `LogMaskeleyici` filtresi + `hide_parameters` (kaynakta savunma).
-- **#245 (D30):** `.env.prod.example` placeholder'ı fail-fast'i ve canlı kapıyı geçiyordu →
-  placeholder tanımı **örnek dosyanın kendisinden** türetiliyor.
-- **#246 (D32+D33):** `/api/prices/*` kimliksiz dış-çağrı yüzeyiydi; para birimi/locale
-  doğrulanmadan saklanıyordu.
-- **#247 (D39):** `/api/health` DB'ye dokunmuyordu → ölü sistem yeşil görünüyor, otomatik
-  rollback tetiklenmiyordu → **`/api/ready`** (DB + şema, 503).
+- **#244 (D29):** maskeleme yarısını kaçırıyordu ve log dosyasına hiç uygulanmıyordu.
+- **#245 (D30):** `.env.prod.example` placeholder'ı fail-fast'i ve canlı kapıyı geçiyordu.
+  *(Aynı oturumda düzeltme: ilk fix `live_gate`'i import yüzünden ÇÖKERTMİŞTİ — script
+  koşturulunca görüldü; bağımsızlık artık teste bağlı.)*
+- **#246 (D32+D33):** `/api/prices/*` kimliksiz dış-çağrı yüzeyiydi; tercihler doğrulanmıyordu.
+- **#247 (D39):** `/api/health` DB'ye dokunmuyordu → **`/api/ready`** (DB + şema, 503).
 - **#248 (D37+D36+D38):** hep-başarılı fiyat cron'u, kendini `skip`'e çeviren ölü test, elle
   beslenen migration kapısı.
 - **#249 (D34+D40):** sistem prompt'unda gerçek kişi adı; runbook komutları prod DB'yi görmüyordu.
+- **#250 (D31):** kapsam kapısının KENDİSİ kör noktalıydı (`db.get`/`Model.kolon`/`func(...)`)
+  ve **koçun tek yazma yolu kapı kapsamında değildi** → ikisi de kapandı.
+- **#251:** para birimi ayarı gösterilemeyen kodları kabul ediyordu (D33'ün asıl şikâyeti).
+- **#252:** üç eski kapı kendi kapsamını ölçmüyordu (L23/L27 uygulaması).
+- **#253:** giriş yapamayan kullanıcının "bende mi, sizde mi?" sorusu cevapsızdı → kimliksiz
+  `SistemDurumu` görünümü.
+- **#254:** şifre politikası kişiye özel tahmini görmüyordu (`ali@x.com` → `ali12345` geçiyordu);
+  blocklist 30→108.
+- **ADR-043 (P2.1):** oturum sabitlemesi kararının yazılı gerekçesi + kanıt tablosu teste bağlı.
+- **Kalıcı kapı:** `tests/test_kullanim_turu_degismezleri.py` — bir günlük kullanımı uçlardan
+  koşturur, her adımda muhasebe kimliği/beklenen delta/panel-çökmez ölçer (BUG #241 fix'i geri
+  alınınca kırmızı olduğu mutasyonla kanıtlandı).
+- **Ölçüm:** `scripts/suite_db_izolasyon_kontrolu.py` — "süit canlı veriye dokunmuyor" iddiası
+  ölçüldü: **TEMİZ** (2045 test, 31 tabloda 0 satır değişikliği).
 
 **Yeni dersler:** **L25** (sözleşme yola değil OLAYA yazılır), **L26** (yasağın gücü kaynağı
 seçen kod sayısı kadardır), **L27** (kapı listeyi elle taşıyorsa ölçmüyordur — kaynaktan türet),
@@ -471,10 +485,11 @@ seçen kod sayısı kadardır), **L27** (kapı listeyi elle taşıyorsa ölçmü
 bulguların hangisinin hâlâ geçerli olduğunu kanıtla gösterdi — D35 örneğin ARTIK GEÇERSİZ
 (BUG #220 ile kapanmış, rapordaki hüküm bloğu bayat).
 
-**Sıradaki:** aşağıdaki "SIRADAKİ İŞLER" 1. maddesi (D31 — kapsam kapısının kör noktaları:
-`db.get` / `Model.kolon` / `func(Model.kolon)` şekilleri + `action_executor.py`'nin kapı
-kapsamında olmaması). Denetimin ORTA bulgularının TAMAMI kapandı; kalan DÜŞÜK bulgular D31
-ve D35'tir (D35 = yalnız rapor güncellemesi).
+**Sıradaki:** **doğrulama denetiminin 40 bulgusunun TAMAMI kapandı** (D01-D40; D35 zaten
+BUG #220 ile kapanmıştı, rapordaki hüküm bloğu bayattı). Sıradaki iş artık denetim listesi
+değil, **P6/P7 insan-kapısı**: Oracle VM + domain + canlı sırlar → `scripts/deploy.sh` →
+`scripts/live_gate.py <url>` (bugün yerelde uçtan uca koşturuldu, dev config'te beklenen 6
+kapı düşüyor) → gerçek davetliler. Kod tarafında bilinen teknik engel YOK.
 
 > **6 Ağu 2026 — ÜÇÜNCÜ KULLANICI BİLDİRİMİ kapandı (BUG #241) ve "aynı olayın iki yolu
 > ayrışır" sınıfı.** Kullanıcı bir alacağı panelden "Ödendi" işaretledi, cockpit'te nakit

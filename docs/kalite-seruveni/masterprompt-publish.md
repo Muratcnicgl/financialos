@@ -426,18 +426,40 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026)
 
-**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. **Yerel `main`, `origin`'in 73
+**Repo durumu:** çalışma ağacı TEMİZ, her şey commit'li. **Yerel `main`, `origin`'in 76
 commit önünde** — push Murat'ın kararı, sorulmadan yapılmadı.
-**Test tabanı:** `1810 passed, 6 skipped` (backend) + `135 passed` (vitest). Kırmızı yok.
+**Test tabanı:** `1829 passed, 9 skipped` (backend; skip'lerin 8'i Postgres gerektirir ve
+**artık CI'da gerçekten koşar**) + `135 passed` (vitest). Kırmızı yok.
 
-**Bu oturumda (6 Ağu) ORTA bulgu turu açıldı — 4 commit, 5 bulgu kapandı:** #234 (D14+D15
+**Bu oturumda (6 Ağu) ORTA bulgu turu açıldı — 5 commit, 6 bulgu kapandı:** #234 (D14+D15
 kota muhasebesi), #235 (D21 test kirliliği, kökten), #236 (D18 imajdaki kişisel veri),
-**#237 (D17 saat dilimi — koçun kaydettiği işlem kalıcı olarak yanlış güne yazılıyordu)**.
-Dördünde de aynı ritim: kanıtı davranış testine çevir → düzelt → **mutasyon kontrolü** →
+**#237 (D17 saat dilimi — koçun kaydettiği işlem kalıcı olarak yanlış güne yazılıyordu)**,
+**#238 (D22 — belgelenen RLS savunması prod'da fiilen yoktu)**.
+Beşinde de aynı ritim: kanıtı davranış testine çevir → düzelt → **mutasyon kontrolü** →
 **sınıf taraması (L11)** → tam süit → ayrı commit + ledger + rapor satırı. Sınıf taraması
 bu turda da işe yaradı: #234'te iki ek LLM yolu, #236'da dört ek dosya, **#237'de denetimin
-listelediği 8 yerin ötesinde 12 yer daha** buldu.
-**Sıradaki:** D22 (Postgres RLS kapıları ne yerelde ne CI'da koşuyor — 6 skip'in 5'i).
+listelediği 8 yerin ötesinde 12 yer daha**, #238'de self-host compose'un aynı superuser
+reçetesi + eksik placeholder fail-fast'i.
+**Sıradaki:** D23 (yatırımda bayat fiyat işareti yok — BUG #211'de döviz için çözülen
+sorunun fiyat tarafındaki açığı).
+
+> **6 Ağu 2026 — D22 kapandı (BUG #238) ve denetimin kendi çelişme turunun haklı çıktığı yer.**
+> Bulgu "kapılar CI'da koşmuyor" (regresyon boşluğu) diye açılmıştı; çelişme turu şiddeti
+> düşürürken bir **canlı defekt** not düşmüştü: prod compose uygulamayı `POSTGRES_USER` ile
+> bağlıyor, o rol bootstrap **SUPERUSER** ve superuser `FORCE ROW LEVEL SECURITY`'ye rağmen
+> RLS'i bypass eder. Yani ADR-038/M51'in "DB-katmanı 2. savunma" beyanı prod'da **hiç yoktu**
+> — ve compose'un kendi yorumu "NON-superuser" diyordu. Aynı yanlış tarif dört yerde daha
+> yazılıydı (`.env.prod.example`, runbook, ADR-038 madde 4, self-host compose): operatör
+> **dokümanı doğru uygulayarak** savunmayı kapatıyordu. Kapatma: iki rol ayrımı (sahip =
+> migration/pg_dump, `fos_app` NOSUPERUSER = uygulama trafiği) + entrypoint'te idempotent rol
+> provizyonu + **startup fail-fast** (superuser bağlantısıyla uygulama açılmaz) + CI'ya
+> postgres servisi (`pytest tests/` tamamı, dosya listesi tutulmuyor). **Ders (L19):** bir
+> güvenlik katmanının "açık" olması, ONU ETKİSİZ KILAN bir yapılandırmayla birlikte
+> yaşayabilir. Migration'ın 12 tabloya ENABLE+FORCE etmesi doğruydu, policy doğruydu, test
+> doğruydu — bağlanılan ROL yanlıştı ve hiçbiri bunu ölçmüyordu. Katmanın varlığını değil,
+> **o katmanın önkoşulunu** teste bağla. **Ders (L20):** bir gate'in kendi kurgusunu prod'un
+> gerçeğiyle eşitlediğini İDDİA eden yorum (`fos_app` — "prod'daki rolü temsil eder")
+> doğrulanmamış bir köprüdür; gate prod'un **gerçek kurulum kodunu** çağırmalı.
 
 > **6 Ağu 2026 — KULLANICI BİLDİRİMİ kapandı (BUG #232, denetim dışı).** "Pasifleştir" basılan
 > kural Aktif/Pasif/**Hepsi** hiçbir sekmede görünmüyordu: `GET /api/checkpoints`
@@ -500,6 +522,7 @@ ayrı commit + ledger + denetim raporu satırı. Sınıf taraması bu turda iki 
 | #234 | D14+D15 | LLM kota sayacı paylaşılan havuzu hiç ölçmüyordu (kullanıcı-filtreli sorgu → %80/%100 dalları matematiksel olarak ölü) ve tavan ÇAĞRI değil MESAJ sayıyordu (bir mesaj = 1-4 gerçek istek) → ilan edilen maliyet tavanı gerçeğin 2-3 katına izin veriyordu |
 | #235 | D21 | Bir test dosyası üretim `app`'ine kalıcı çöken uç ekliyordu; kapsam kilitleri görmeye başlayınca süit kalıcı kırmızıya düştü → commit kapısı fiilen ölmüştü. Önceki tur bunu ENVANTER tarafında elemişti (tüketici çözümü); kaynak düzeltildi + kirlilik AST kapısına bağlandı |
 | #237 | D17 | Koçun kaydettiği işlem KALICI olarak yanlış güne yazılıyordu ("bugün" = sunucunun günü). Kök sebep yapısaldı: `execute_pending_action` handler'lara User geçirmiyordu → hiçbiri `user_today`'e ulaşamıyordu; prompt de LLM'e "tarih EKLEME" dediği için en sık kullanılan yol bilerek bu dala giriyordu. ADR-042 bu zararı kendisi tarif edip "uygulandı" demişti — **kapatıldığı iddia edilen** bir doğruluk hatası |
+| #238 | D22 | Belgelenen "DB-katmanı 2. savunma" (RLS) prod'da FİİLEN YOKTU: compose uygulamayı `POSTGRES_USER` = bootstrap SUPERUSER ile bağlıyordu (yorumu "NON-superuser" diyordu) ve superuser FORCE'a rağmen her policy'yi bypass eder. Aynı yanlış tarif 4 yerde daha yazılıydı → operatör dokümanı izleyerek savunmayı kapatıyordu. İkinci yarısı: RLS/dual-dialect kapıları CI'da postgres olmadığı için her koşumda SKIP'ti; gate koşsa bile rolü ELDE yaratıp "prod'u temsil eder" dediği için prod'un gerçek rolünü ölçmeyecekti |
 | #236 | D18 | Kurucunun ve adı geçen üçüncü bir kişinin gerçek finansal verisi (tutarlar, 13 aylık borç takvimi, banka markaları) prod Docker imajına giriyordu; aynı dosya `drop_all` yaptığı için prod konteynerinde tek komut tüm beta verisini silebiliyordu. Kapsam artık imajın GERÇEK içeriğine bağlı (Dockerfile COPY + `.dockerignore` simülasyonu) |
 
 **Ders (L15 adayı):** bir sayaç için "neyi sayıyor" sorusu koddan okunmakla cevaplanamaz —
@@ -527,10 +550,8 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 
 #### SIRADAKİ İŞLER (öncelik sırasıyla)
 
-1. **Denetimin ORTA bulguları (10 adet kaldı: D22…D30; D14/D15/D16/D17/D18/D19/D20/D21
-   kapandı).** Öne çıkanlar: **D22** (Postgres RLS
-   kapıları ne yerelde ne
-   CI'da koşuyor — 6 skip'in 5'i; sıradaki iş), **D23** (yatırımda bayat fiyat işareti yok), **D24** (5
+1. **Denetimin ORTA bulguları (9 adet kaldı: D23…D30; D14/D15/D16/D17/D18/D19/D20/D21/D22
+   kapandı).** Öne çıkanlar: **D23** (yatırımda bayat fiyat işareti yok — *sıradaki iş*), **D24** (5
    cron işinden 3'ü kayıt tutmuyor), **D26/D27/D28** (KVKK export'u şifre hash'i döküyor;
    silme sonrası e-posta `beta_invites`'ta kalıyor; export iki tabloyu atlıyor),
    **D29** (maskeleme TCKN/telefon/token kaçırıyor), **D30** (SUPPORT_EMAIL placeholder'ı
@@ -556,7 +577,7 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 | Faz | Konu | Durum | Kanıt / Not |
 |---|---|---|---|
 | P0 | Temel doğrulama | ✅ | `pytest tests/ -q` → **1608 passed, 6 skipped** (2 dk 12 sn) + vitest **125 passed**; migration/çalışma-ağacı kontrolü yapıldı. **BUG #220:** süitte zamana bağlı gizli bir flaky vardı (UTC+14/UTC-11 farkı günün ~1/24'ünde 2 gün) — kapatıldı |
-| P1 | Veri izolasyonu | ✅ | 4 bug kapandı (**#162** çapraz-kullanıcı kural sızıntısı, **#163** çok-kullanıcı backfill, **#164** yıkıcı script footgun'ı, **#165** workspace kapsam tutarsızlığı) + statik kapı (3 meta-testle ispatlı) + runtime matris (17 test) + **PostgreSQL RLS gate 13 passed** (`scripts/pg_gate_run.py`). ⚠️ **Düzeltme (BUG #217, 5 Ağu):** buradaki "kapsam kilitli" iddiası yazıldığı andan itibaren GEÇERSİZDİ — kapsam kilidi `app.routes`'tan besleniyordu ve FastAPI 0.141'de boş dönüyordu, yani hiçbir ucu ölçmüyordu. Kilit OpenAPI'ye taşındı + taban assert edildi; açılır açılmaz `/api/legal/{slug}` matris dışı çıktı (gerekçeli istisnaya yazıldı). Matrisin kendisi (17 test) doğruydu, **kapsamı** ölçülmemişti |
+| P1 | Veri izolasyonu | ✅ | 4 bug kapandı (**#162** çapraz-kullanıcı kural sızıntısı, **#163** çok-kullanıcı backfill, **#164** yıkıcı script footgun'ı, **#165** workspace kapsam tutarsızlığı) + statik kapı (3 meta-testle ispatlı) + runtime matris (17 test) + **PostgreSQL RLS gate 13 passed** (`scripts/pg_gate_run.py`). ⚠️ **Düzeltme (BUG #238 / D22, 6 Ağu):** bu "13 passed" ELLE koşulmuş bir kanıttı (CI'da postgres yoktu → her koşumda SKIP) ve ölçtüğü rol prod'un rolü DEĞİLDİ: prod uygulamayı bootstrap superuser ile bağlıyordu, superuser RLS'i bypass eder → **RLS savunması canlıda hiç yoktu.** Kapandı: iki rol ayrımı + startup fail-fast + CI postgres servisi (18 pg testi her push'ta koşar). ⚠️ **Düzeltme (BUG #217, 5 Ağu):** buradaki "kapsam kilitli" iddiası yazıldığı andan itibaren GEÇERSİZDİ — kapsam kilidi `app.routes`'tan besleniyordu ve FastAPI 0.141'de boş dönüyordu, yani hiçbir ucu ölçmüyordu. Kilit OpenAPI'ye taşındı + taban assert edildi; açılır açılmaz `/api/legal/{slug}` matris dışı çıktı (gerekçeli istisnaya yazıldı). Matrisin kendisi (17 test) doğruydu, **kapsamı** ölçülmemişti |
 | P2 | Güvenlik review | ✅ | **19 bug kapandı + bağımlılık 23→0.** Rapor: `guvenlik-review-publish.md`. Kabul edilen 3 risk gerekçeli yazılı (kayıt enumerasyonu, dolaylı prompt injection, localStorage token). Eski not: **8 başlıktan 6'sı kapandı.** Kapatılan: #170 sıfırlama-token'ı prod'da yanıtta dönüyordu (hesap ele geçirme), #171 prod'da AUTH_ENABLED doğrulanmıyordu (API kimliksiz açık), #172 şifre sıfırlama oturumları düşürmüyordu + tek-kullanım + logout access iptali, #173 viewer paylaşılan workspace'e yazabiliyordu, #174 kimliksiz kullanıcı yaratma, #175 ham exception gövdede, #176/#177/#181 girdi sınırları, #178 prod CORS localhost, #179 OAuth token'ları URL'de, #180 PII log. **Bağımlılık: pip-audit 23 açık → 0** (PyJWT/authlib/starlette/cryptography dahil), npm audit 0. **Gövde sınırı TAMAM (H22 / #213):** sınır yalnız nginx'teydi (ters vekil atlanırsa koruma yok, chunked gövdede `Content-Length` hiç gelmez) → uygulama katmanına taşındı, akan gövde sayılır, 413 hata-izlemeye düşmez, nginx şablonu testle kilitlendi (14 test). **KALAN:** rate-limit çok-worker/proxy-IP (Redis veya nginx limit_req), OAuth PKCE + state store çok-worker, refresh rotasyonu, şifre politikası (blocklist), register enumerasyonu kararı |
 | P3 | Operasyonel gerçeklik | ✅ | **Onboarding UI TAMAM (H20)** — Cockpit boş-durum kartı + demo veri akışı. **Kota TAMAM (ADR-041, BUG #188):** kullanıcı-başına LLM tavanı — paylaşılan sağlayıcı kotasını tek kişi tüketip diğerlerini kilitleyemez; tavan dolunca uygulama kapanmaz (Rules Engine deterministik). **#189** OAuth env adı kod↔doküman uyumsuzluğu, **#190** giriş yapmış kullanıcı şifre değiştiremiyordu. Sıfırdan-kullanıcı e2e ✅ (P3.5). **P3.2 (boş-veri hali her panelde) TAMAM (5 Ağu):** backend tarafı zaten kanıtlıydı ama kapsamı ölçülmemişti (**#217** — 87 uçtan 1'i taranıyordu); arayüz tarafı hiç sınanmamıştı → 13 panel × boş-durum + 13 panel × hata-durumu (54 test, gerçek boş-kullanıcı fixture'ı + sözleşme kayması kapısı). Bulunan gerçek defektler: **#218** (sonsuz istek döngüsü), **#219** (Bütçe paneli hata yolunda çöküyordu). **Kalan:** onboarding rehberi + opsiyonel demo veri |
 | P3.5 | **Ürünleşme (tek-kullanıcı DNA söküm)** | ✅ | **H1/H2/H3/H5/H21 ✅ + H4 saat dilimi ✅** (para birimi görüntüleme ADR-042 ile P8 öncesine planlı — yayın-engeli değil). ⚠️ **Düzeltme (BUG #237, 6 Ağu):** buradaki "saat dilimi ✅" iddiası da (ADR-042 ile birlikte) YARIM'dı — yalnız 7 router benimsemişti; koçun kaydettiği işlem SUNUCU gününe, yani farklı saat dilimindeki kullanıcı için KALICI olarak yanlış güne yazılıyordu. Kök sebep yapısaldı (handler'lara User geçmiyordu). Kapatıldı + **iddia artık statik kapıya bağlı** (`tests/test_saat_dilimi_kapisi.py` — her `date.today()` gerekçe zorunlu, 13 modül için adoption kilidi). Ders: L17. Eski not: **H1/H2/H3/H5 ✅** (kullanıcı-tanımlı kural motoru #192, demo veri #194, iz temizliği). **Kalan: H4** (para birimi/dil/saat dilimi/kategori seti kullanıcı başına) — TRY/TR varsayımı hâlâ kodda; çok-para-birimi büyük bir iş, ayrı ADR ile ele alınacak. Eski not: **1. tur:** BUG #166 (metinlerde kişi adı → jenerik + statik kapı), #167 (TR normalize Kiril 'о' + sıra hatası → sessiz veri bozulması), #168 (banka markası koda gömülü → kullanıcının kendi hesap adları). **Kalan:** kullanıcı-tanımlı kural motoru (MC sabitleri), kişiselleştirme alanları, boş-durum + demo veri, sıfırdan-kullanıcı uçtan uca testi, yorum/docstring temizliği |

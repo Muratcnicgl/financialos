@@ -19,7 +19,7 @@
 
 ### D01 · [kritik] Koç-onaylı işlem workspace_id=NULL yazılıyor → kullanıcının KENDİ işlem listesinden/raporundan kayboluyor (bakiye değişiyor)
 
-- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:615` · **Durum:** ⬜ AÇIK
+- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:615` · **Durum:** 🟡 BUG #221 ile kapatıldığı GÖRÜNÜYOR (`_yazma_workspace_id`, `app/action_executor.py`) — ancak bu oturumda AYRICA doğrulanmadı; sıradaki oturum koşturarak teyit etsin (R3)
 - **Neden yayın engeli / etki:** Kayıt ZORUNLU olarak workspace'e bağlı okunuyor (app/routers/transactions.py:260 scope_filter). Production'da her kullanıcının personal workspace'i var (app/routers/auth.py:180 ensure_personal_workspace + app/workspace_deps.py:88 production fail-fast), yani bu yol HER kullanıcıda AÇIK. Kullanıcı koça 'X TL harcadım' der, onaylar, bakiyesi düşer ama işlem hiçbir listede/raporda/bütçede görünmez → para 'buharlaştı' algısı, yanlış kategori bütçesi, yanlış reel_butce, hatalı harcama analizi. Ürünün amiral özelliği (koç ile kayıt) sessizce kayıt kaybediyor; finansal uygulamada bu doğrudan güven ve kullanıcı kaybıdır.
 
 <details><summary>Kanıt</summary>
@@ -91,7 +91,7 @@ ZARAR / YAYIN ENGELI: Urunun amiral akisi (koca "X TL harcadim" de -> onayla)
 
 ### D02 · [yuksek] Koç-onaylı Master Checkpoint (kırmızı çizgi) workspace_id=NULL → panelde de koç bağlamında da yok
 
-- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:936` · **Durum:** ⬜ AÇIK
+- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:936` · **Durum:** 🟡 BUG #221/#223 ailesiyle kapatıldığı GÖRÜNÜYOR — bu oturumda AYRICA doğrulanmadı; koşturarak teyit edilmeli (R3)
 - **Neden yayın engeli / etki:** Kullanıcı koça 'nakit tabanım 5000 TL' gibi bir kırmızı çizgi söyler, koç kaydeder, kullanıcı 'kaydedildi' geri bildirimi alır — ama çizgi ne Kırmızı Çizgiler panelinde görünür, ne koçun sistem bağlamına girer, ne de kural motorunun okuduğu kümededir. Ürünün en temel güvenlik vaadi (Master Checkpoint enforcement) koç üzerinden yaratılan çizgiler için fiilen çalışmaz; kullanıcı korunduğunu sanırken korunmaz. Bu para kaybına yol açan sessiz bir yanlış-güven durumudur.
 
 <details><summary>Kanıt</summary>
@@ -1503,7 +1503,7 @@ SIDDET NEDEN 'YUKSEK' DEGIL 'ORTA': iki gercek hafifletici diskten dogrulandi.
 
 ### D31 · [dusuk] Statik kapı 4 yaygın sorgu şeklini hiç modellemiyor (db.get / Model.kolon / func(Model.kolon)) ve LLM yazma yolu action_executor.py 1. kapının kapsamı dışında
 
-- **Boyut:** izolasyon · **Yer:** `tests/test_scope_enforcement.py:106` · **Durum:** ⬜ AÇIK
+- **Boyut:** izolasyon · **Yer:** `tests/test_scope_enforcement.py:106` · **Durum:** ✅ KAPANDI (BUG #250, 6 Ağu akşam — tarayıcı `db.get`/`Model.kolon`/`func(...)`/`select(Model.kolon)` şekillerini görüyor + `action_executor.py` kapı kapsamına alındı; 11 filtre kapsam-farkında ya da gerekçeli muaf)
 - **Neden yayın engeli / etki:** BUG #162 (çapraz-kullanıcı hedef sızıntısı, kullanıcının parası başkasının hedef ilerlemesine yazılıyordu) tam olarak 'kapının modellemediği sorgu şekli' sınıfından geçmişti. Aynı sınıf hâlâ açık: kapalı betada eklenecek `db.get(Account, payload_id)` veya `db.query(Transaction.amount)` biçimli tek bir yeni satır, süit YEŞİL kalırken çapraz-kullanıcı okuma/yazma açar. Kapı bu haliyle 'geçti' raporu üretiyor ama korumadığı yüzey belgelenmemiş.
 
 <details><summary>Kanıt</summary>

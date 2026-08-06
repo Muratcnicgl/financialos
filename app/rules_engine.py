@@ -103,12 +103,17 @@ logger = logging.getLogger(__name__)
 
 def _tl(x: float) -> str:
     """
-    Türkçe para formatı: 1234.56 -> '1.234,56' (nokta binlik, virgül ondalık).
+    Türkçe SAYI formatı: 1234.56 -> '1.234,56' (nokta binlik, virgül ondalık).
+
     BUG #122: alert/mesaj tutarları eskiden '{:,.2f}' ile NOKTA ondalık ("74.99 TL")
     üretiyordu — hem Türkçe UI ile tutarsız hem de grounding bug'ı: koç bunu echo edince
-    _TL_NUM_RE noktayı binlik sanıp "74" okuyor, yanlış-pozitif "izlenemeyen tutar" veriyordu.
+    desen noktayı binlik sanıp "74" okuyor, yanlış-pozitif "izlenemeyen tutar" veriyordu.
+
+    BUG #256 (H4): gövde `app.money_format.tr_sayi`'ya devredildi (aynı kural üç yerde
+    ayrı yazılmıştı). Adı yanıltıcı — para ETİKETİ eklemez; etiketli metin için `_para()`
+    kullan. Yeni kod doğrudan `tr_sayi`/`format_para` çağırmalı.
     """
-    return f"{x:,.2f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+    return tr_sayi(x)
 
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
@@ -118,6 +123,7 @@ from app.models import (
     NetWorthSnapshot,
 )
 from app.money import D, ZERO, floatify  # ADR-030: iç aritmetik Decimal, public sınır float(floatify)
+from app.money_format import format_para as _para, tr_sayi, para_etiketi  # BUG #256 (H4): para etiketi tek kaynak
 from app.fund_tracker import is_price_stale, get_price_age_text  # BUG #239 (D23): tazelik kaynakta
 
 # ============================================================
@@ -324,7 +330,7 @@ def evaluate_credit_card_strategy(
         gun_kaldi = payment_day_eff - today.day
         mesaj = (
             f"Son ödeme tarihine {gun_kaldi} gün kaldı ({payment_day_eff}'i). "
-            f"{_tl(current_debt)} TL borç hazırlığı yapılmalı."
+            f"{_para(current_debt)} borç hazırlığı yapılmalı."
         )
     else:
         durum = "kesim_dikkat"
@@ -796,14 +802,14 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
             alerts.append({
                 "seviye": "kritik",
                 "baslik": f"Gecikmiş borç: {d.counterparty}",
-                "mesaj": f"{d.counterparty}'a {_tl(d.amount)} TL borç {gecikme} gün gecikti — öde.",
+                "mesaj": f"{d.counterparty}'a {_para(d.amount)} borç {gecikme} gün gecikti — öde.",
                 "tutar": d.amount,
             })
         else:
             alerts.append({
                 "seviye": "uyari",
                 "baslik": f"Gecikmiş alacak: {d.counterparty}",
-                "mesaj": f"{d.counterparty} {_tl(d.amount)} TL {gecikme} gün gecikti — tahsil et.",
+                "mesaj": f"{d.counterparty} {_para(d.amount)} {gecikme} gün gecikti — tahsil et.",
                 "tutar": d.amount,
             })
     return alerts
@@ -848,7 +854,7 @@ def _crunch_alert_from_summary(
         "baslik": "Nakit krizi öngörüsü",
         "mesaj": (
             f"{horizon_days} gün içinde nakit sıfırın altına düşüyor "
-            f"(ilk kriz {first_crunch}, en düşük {_tl(lowest)} TL @ {lowest_date}). "
+            f"(ilk kriz {first_crunch}, en düşük {_para(lowest)} @ {lowest_date}). "
             f"Alacakları öne al veya gideri ertele — kriz henüz ÖNLENEBİLİR."
         ),
         # grounding: projekte edilen tutar cockpit'te numerik olarak izlenebilir olsun (#120 dersi)
@@ -1135,8 +1141,8 @@ def _category_overspend_alerts(
                 "seviye": "uyari",
                 "baslik": f"Kategori aşım öngörüsü: {cat}",
                 "mesaj": (
-                    f"{cat} bu gidişle ay sonu ~{_tl(projected)} TL olur "
-                    f"({ref_label} {_tl(ref)} TL, %{asim_pct} fazla). Hız kes."
+                    f"{cat} bu gidişle ay sonu ~{_para(projected)} olur "
+                    f"({ref_label} {_para(ref)}, %{asim_pct} fazla). Hız kes."
                 ),
                 "tutar": projected,        # grounding
                 "_proj": projected,        # sıralama için (dışa sızmaz sorun değil)
@@ -1343,7 +1349,7 @@ def _subscription_price_alerts_from_result(sub_result: Dict) -> List[Dict]:
                 "seviye": "uyari",
                 "baslik": f"Abonelik zammı: {s['isim']}",
                 "mesaj": (
-                    f"{s['isim']} {_tl(eski)} → {_tl(yeni)} TL'ye çıkmış "
+                    f"{s['isim']} {_tl(eski)} → {_para(yeni)}'ye çıkmış "
                     f"(%{artis_pct} artış). Hâlâ kullanıyor musun?"
                 ),
                 "tutar": yeni,  # grounding: yeni tutar cockpit'te izlenebilir
@@ -1405,7 +1411,7 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
         if en_riskli:
             return {
                 "tip": "kriz",
-                "eylem": f"{en_riskli['kim']}'den {_tl(en_riskli['tutar'])} TL tahsil et",
+                "eylem": f"{en_riskli['kim']}'den {_para(en_riskli['tutar'])} tahsil et",
                 "gerekce": (f"Nakit krizi öngörülüyor; {en_riskli['gecikme_gun']} gün geciken bu "
                             f"tahsilat krizi önleyebilir. {crunch.get('mesaj', '')}"),
                 "tutar": en_riskli["tutar"],
@@ -1422,9 +1428,9 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
     if isinstance(_gecikmis_adet, (int, float)) and _gecikmis_adet > 0 and en_riskli:
         return {
             "tip": "tahsilat",
-            "eylem": f"{en_riskli['kim']}'den {_tl(en_riskli['tutar'])} TL tahsil et",
+            "eylem": f"{en_riskli['kim']}'den {_para(en_riskli['tutar'])} tahsil et",
             "gerekce": (f"{_gecikmis_adet} gecikmiş alacağın var (toplam "
-                        f"{_tl(ay.get('toplam_gecikmis') or 0)} TL); en eskisi {en_riskli['gecikme_gun']} gün. "
+                        f"{_para(ay.get('toplam_gecikmis') or 0)}); en eskisi {en_riskli['gecikme_gun']} gün. "
                         f"Nakit dar — önce en eskisini tahsil et."),
             "tutar": en_riskli["tutar"],
         }
@@ -1443,12 +1449,12 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
         if not isinstance(fs, dict):
             fs = {}
         _aylik_faiz = fs.get("aylik_toplam") or 0   # present-but-None → 0 (savunmacı; None>0 çökerdi)
-        gerekce = f"{_tl(atanmamis)} TL boşta nakdin var, kart borcun {_tl(kart_borcu)} TL."
+        gerekce = f"{_para(atanmamis)} boşta nakdin var, kart borcun {_para(kart_borcu)}."
         if _aylik_faiz > 0:
-            gerekce += f" Karta ödemek aylık faiz sızıntısını ({_tl(_aylik_faiz)} TL) azaltır."
+            gerekce += f" Karta ödemek aylık faiz sızıntısını ({_para(_aylik_faiz)}) azaltır."
         return {
             "tip": "firsat",
-            "eylem": f"Boşta {_tl(odenebilir)} TL'yi kart borcuna öde",
+            "eylem": f"Boşta {_para(odenebilir)}'yi kart borcuna öde",
             "gerekce": gerekce,
             "tutar": odenebilir,
         }
@@ -1456,7 +1462,7 @@ def recommend_next_action(cockpit: Dict) -> Optional[Dict]:
     # 5. STABİL — acil hamle yok. Borç varsa disipline (borçsuzluk tarihiyle motive et), yoksa None.
     if kart_borcu > 0 or (cockpit.get("kredi_borcu", 0) or 0) > 0:
         gunluk = cockpit.get("daily_limit", 0) or 0   # present-but-None → 0 (savunmacı; _tl(None) çökerdi)
-        gerekce = f"Bugünlük kritik sinyal yok. Günlük limit {_tl(gunluk)} TL; her aşmama borcu hızlandırır."
+        gerekce = f"Bugünlük kritik sinyal yok. Günlük limit {_para(gunluk)}; her aşmama borcu hızlandırır."
         bo = cockpit.get("borc_ozgurluk") or {}
         if bo.get("borcsuz_tarih") and not bo.get("asla_bitmez"):
             gerekce += f" Bu tempoyla {bo['borcsuz_tarih']} tarihinde borçsuzsun — disiplin bunu öne çeker."
@@ -1551,7 +1557,7 @@ def _min_payment_trap_alerts(trap: Optional[Dict]) -> List[Dict]:
             "baslik": "Kart asgari ödeme tuzağı",
             "mesaj": (
                 f"{worst['ad']} kartını yalnız asgariyle ödersen {worst['ay']} ay sürünür ve "
-                f"{_tl(worst['toplam_faiz'])} TL faiz ödersin (biter {worst['payoff_tarih']}). "
+                f"{_para(worst['toplam_faiz'])} faiz ödersin (biter {worst['payoff_tarih']}). "
                 f"Asgarinin üstüne ekle — süre ve faiz hızla düşer."
             ),
             "tutar": worst["toplam_faiz"],  # grounding: toplam_faiz cockpit'te izlenebilir
@@ -1849,13 +1855,13 @@ def calculate_card_utilization(
     if band == "kritik":
         mesaj = (
             f"Kart kullanımın %{oran} — neredeyse dolu. Kredi notunu baskılar ve acil "
-            f"nakit tamponun yok. %30'a inmek için borç {_tl(saglikli_borc_hedefi)} TL "
-            f"seviyesine düşmeli; her ödediğin TL oranı doğrudan iyileştirir."
+            f"nakit tamponun yok. %30'a inmek için borç {_para(saglikli_borc_hedefi)} "
+            f"seviyesine düşmeli; her ödediğin {para_etiketi()} oranı doğrudan iyileştirir."
         )
     elif band == "yuksek":
         mesaj = (
             f"Kart kullanımın %{oran} — yüksek. %30 altı sağlıklı sayılır; "
-            f"{_tl(saglikli_borc_hedefi)} TL borç seviyesi hedef."
+            f"{_para(saglikli_borc_hedefi)} borç seviyesi hedef."
         )
     elif band == "orta":
         mesaj = f"Kart kullanımın %{oran} — sağlıklı eşiğe (%30) yakın, iyi yoldasın."
@@ -2153,9 +2159,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     elif nakit > 0 and kart_borcu / nakit > 2:  # RULE-009: max(nakit,1) çarpıtması yerine nakit>0 guard
         statu = "Kart borcu nakdin iki katından fazla. Likidite baskısı yüksek."
     elif daily_limit < 100:
-        statu = f"Ay sonuna {days_remaining} gün, günlük limit {daily_limit:.0f} TL. Sıkı dönem."
+        statu = f"Ay sonuna {days_remaining} gün, günlük limit {_para(daily_limit, ondalik=0)}. Sıkı dönem."
     else:
-        statu = f"Ay sonuna {days_remaining} gün, günlük limit {daily_limit:.0f} TL."
+        statu = f"Ay sonuna {days_remaining} gün, günlük limit {_para(daily_limit, ondalik=0)}."
 
     # Uyarılar
     alerts = detect_alerts(
@@ -2366,7 +2372,7 @@ def detect_alerts(
             alerts.append({
                 "seviye": "kritik",
                 "baslik": "Kart kullanım oranı %95 üzeri",
-                "mesaj": f"Kart {kullanim:.1f}% dolu. Yeni harcama riskli, kalan limit {_tl(kart_limit - kart_borcu)} TL.",
+                "mesaj": f"Kart {kullanim:.1f}% dolu. Yeni harcama riskli, kalan limit {_para(kart_limit - kart_borcu)}.",
             })
         elif kullanim >= 80:
             alerts.append({
@@ -2380,7 +2386,7 @@ def detect_alerts(
         alerts.append({
             "seviye": "kritik",
             "baslik": "Reel bütçe negatif",
-            "mesaj": f"Beklenen gelirle birlikte bile bütçe {_tl(reel_butce)} TL. Kart borcu nakdi aşıyor.",
+            "mesaj": f"Beklenen gelirle birlikte bile bütçe {_para(reel_butce)}. Kart borcu nakdi aşıyor.",
         })
 
     # 3. Nakit çok düşük
@@ -2388,7 +2394,7 @@ def detect_alerts(
         alerts.append({
             "seviye": "uyari",
             "baslik": "Nakit çok düşük",
-            "mesaj": f"Kasada {_tl(nakit)} TL. Acil durum tamponu yok.",
+            "mesaj": f"Kasada {_para(nakit)}. Acil durum tamponu yok.",
         })
 
     # 4. 7 gün içinde büyük ödeme var mı?
@@ -2403,7 +2409,7 @@ def detect_alerts(
         alerts.append({
             "seviye": "uyari",
             "baslik": f"7 gün içinde büyük ödeme: {p['ad']}",
-            "mesaj": f"{p['tarih']} tarihinde {_tl(p['tutar'])} TL — nakitin %{(p['tutar'] / max(nakit, 1)) * 100:.0f}'i.",
+            "mesaj": f"{p['tarih']} tarihinde {_para(p['tutar'])} — nakitin %{(p['tutar'] / max(nakit, 1)) * 100:.0f}'i.",
         })
 
     return alerts

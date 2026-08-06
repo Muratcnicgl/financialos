@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { formatTL, todayLocalISO } from '../api.js';
+import { todayLocalISO } from '../api.js';
+import { formatPara, formatSayi } from '../lib/money.js';
 
 const TR_MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
                    'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -109,7 +110,7 @@ export default function CashflowCalendar({ days }) {
               </span>
               {hasForecast && (
                 <span className={`text-[9px] font-numeric leading-none mt-0.5 ${balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-                  {balance >= 0 ? '' : '−'}{formatTL(Math.abs(balance), { compact: true })}
+                  {balance >= 0 ? '' : '−'}{formatSayi(Math.abs(balance), { compact: true })}
                 </span>
               )}
               {isCrunch && (
@@ -139,14 +140,14 @@ export default function CashflowCalendar({ days }) {
                 <div key={i} className="flex items-center justify-between text-xs">
                   <span className="text-zinc-600 dark:text-zinc-400 truncate max-w-[70%]">{ev.label}</span>
                   <span className={`font-numeric font-semibold flex-shrink-0 ${ev.amount >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-                    {ev.amount > 0 ? '+' : ''}{formatTL(ev.amount)} TL
+                    {ev.amount > 0 ? '+' : ''}{formatPara(ev.amount)}
                   </span>
                 </div>
               ))}
               <div className="border-t border-zinc-200 dark:border-zinc-700 mt-1.5 pt-1.5 flex justify-between text-xs font-semibold">
                 <span className="text-zinc-500 dark:text-zinc-400">Kapanış</span>
                 <span className={`font-numeric ${selected.day.closing_balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-                  {formatTL(selected.day.closing_balance)} TL
+                  {formatPara(selected.day.closing_balance)}
                 </span>
               </div>
             </div>

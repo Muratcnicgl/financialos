@@ -8,10 +8,11 @@ import {
   BarChart, Bar, XAxis, YAxis, LabelList,
   LineChart, Line, CartesianGrid, ReferenceLine,
 } from 'recharts';
-import { reportsApi, formatTL } from '../api.js';
+import { reportsApi } from '../api.js';
 import NetWorthAnalysis from '../components/NetWorthAnalysis.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import { formatPara } from '../lib/money.js';
 
 const COLORS = [
   '#4f46e5', '#16a34a', '#ea580c', '#0891b2',
@@ -39,7 +40,7 @@ function CustomTooltip({ active, payload }) {
   return (
     <div className="card px-3 py-2 text-xs shadow-lg border">
       <p className="font-semibold mb-0.5">{d.category}</p>
-      <p className="font-numeric">{formatTL(d.total)} TL</p>
+      <p className="font-numeric">{formatPara(d.total)}</p>
       <p className="text-zinc-500">%{d.percentage.toFixed(1)} · {d.count} işlem</p>
     </div>
   );
@@ -170,7 +171,7 @@ export default function Reports() {
               Toplam {TYPE_META[type].label}:
             </span>{' '}
             <span className="font-numeric font-bold text-lg">
-              {formatTL(grandTotal)} TL
+              {formatPara(grandTotal)}
             </span>
             <span className="text-zinc-500 ml-2">
               · {items.length} kategori · son {days} gün
@@ -410,13 +411,13 @@ export default function Reports() {
               <div className="card p-4">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Bekleyen tahsilat</p>
                 <p className="font-numeric text-lg font-bold text-positive-600 dark:text-positive-400">
-                  +{formatTL(cashflowData.summary.total_receivable)} TL
+                  +{formatPara(cashflowData.summary.total_receivable)}
                 </p>
               </div>
               <div className="card p-4">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Bekleyen ödeme</p>
                 <p className="font-numeric text-lg font-bold text-negative-600 dark:text-negative-400">
-                  {formatTL(cashflowData.summary.total_payable)} TL
+                  {formatPara(cashflowData.summary.total_payable)}
                 </p>
               </div>
               <div className="card p-4">
@@ -426,7 +427,7 @@ export default function Reports() {
                     ? 'text-positive-600 dark:text-positive-400'
                     : 'text-negative-600 dark:text-negative-400'
                 }`}>
-                  {cashflowData.summary.net_flow >= 0 ? '+' : ''}{formatTL(cashflowData.summary.net_flow)} TL
+                  {cashflowData.summary.net_flow >= 0 ? '+' : ''}{formatPara(cashflowData.summary.net_flow)}
                 </p>
               </div>
             </div>
@@ -461,7 +462,7 @@ export default function Reports() {
                               ? 'text-positive-600 dark:text-positive-400'
                               : 'text-negative-600 dark:text-negative-400'
                           }`}>
-                            {item.amount >= 0 ? '+' : ''}{formatTL(Math.abs(item.amount))} TL
+                            {item.amount >= 0 ? '+' : ''}{formatPara(Math.abs(item.amount))}
                           </p>
                         </div>
                       ))}
@@ -470,7 +471,7 @@ export default function Reports() {
                       <p className={`text-right text-xs font-numeric mt-1.5 ${
                         dayNet >= 0 ? 'text-positive-600' : 'text-negative-600'
                       }`}>
-                        Net: {dayNet >= 0 ? '+' : ''}{formatTL(Math.abs(dayNet))} TL
+                        Net: {dayNet >= 0 ? '+' : ''}{formatPara(Math.abs(dayNet))}
                       </p>
                     )}
                   </div>
@@ -508,7 +509,7 @@ function TrendTooltip({ active, payload, label }) {
       <p className="font-semibold mb-1">{fmtXDate(label)}</p>
       {payload.map(p => (
         <p key={p.dataKey} style={{ color: p.stroke }} className="font-numeric">
-          {p.name}: {formatTL(p.value)} TL
+          {p.name}: {formatPara(p.value)}
         </p>
       ))}
     </div>
@@ -576,7 +577,7 @@ function CashflowTimeline({ items, days, today: todayStr }) {
         return (
           <div
             key={i}
-            title={`${fmtXDate(item.date)}: ${item.label} — ${item.amount >= 0 ? '+' : ''}${formatTL(item.amount)} TL`}
+            title={`${fmtXDate(item.date)}: ${item.label} — ${item.amount >= 0 ? '+' : ''}${formatPara(item.amount)}`}
             className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white dark:border-zinc-900 hover:scale-125 transition-transform cursor-default"
             style={{
               left: `${pct}%`,

@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from app.coach import LLMProvider, build_provider
 from app.models import DecisionJournal, PendingAction
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +147,7 @@ def _user_prompt(action_context: dict, cockpit_snapshot: Optional[dict] = None) 
         "AKSIYON BAGLAMI:",
         f"  Tip: {action_context.get('action_type', 'bilinmiyor')}",
         f"  Aciklama: {action_context.get('description', '-')}",
-        f"  Tutar: {action_context.get('amount_tl', 0.0)} TL",
+        f"  Tutar: {_para(action_context.get('amount_tl', 0.0))}",
         f"  Hedef: {action_context.get('target', '-')}",
     ]
     if action_context.get("rationale"):
@@ -156,14 +157,14 @@ def _user_prompt(action_context: dict, cockpit_snapshot: Optional[dict] = None) 
         lines += [
             "",
             "COCKPIT OZETI (mevcut finansal durum):",
-            f"  Net deger: {cockpit_snapshot.get('net_worth_tl', 0.0)} TL",
-            f"  30g net akis: {cockpit_snapshot.get('cashflow_30d_tl', 0.0)} TL",
-            f"  60g net akis: {cockpit_snapshot.get('cashflow_60d_tl', 0.0)} TL",
+            f"  Net deger: {_para(cockpit_snapshot.get('net_worth_tl', 0.0))}",
+            f"  30g net akis: {_para(cockpit_snapshot.get('cashflow_30d_tl', 0.0))}",
+            f"  60g net akis: {_para(cockpit_snapshot.get('cashflow_60d_tl', 0.0))}",
             # BUG #065 fix (CS-001): yanlış anahtar 'crunch_day' HER ZAMAN '-' döndürüyordu;
             # build_cockpit_snapshot 'lowest_balance_date/tl' + 'crunch_count' üretiyor. Dosyanın
             # en kritik verisi (nakit ne zaman tükenir) LLM'e hiç ulaşmıyordu.
             f"  En dusuk bakiye tarihi: {cockpit_snapshot.get('lowest_balance_date', '-')}",
-            f"  En dusuk bakiye: {cockpit_snapshot.get('lowest_balance_tl', 0.0)} TL",
+            f"  En dusuk bakiye: {_para(cockpit_snapshot.get('lowest_balance_tl', 0.0))}",
             f"  Nakit kriz gunu sayisi (30g): {cockpit_snapshot.get('crunch_count', 0)}",
         ]
         # BUG #239 fix (D23): net degerin yatirim kismi BAYAT fiyattan geliyorsa senaryo

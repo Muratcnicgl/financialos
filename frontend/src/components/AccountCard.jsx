@@ -2,7 +2,8 @@ import {
   Wallet, CreditCard, TrendingUp, Building2, Lock,
   ExternalLink, Clock,
 } from 'lucide-react';
-import { formatTL, formatDate } from '../api.js';
+import { formatDate } from '../api.js';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
  * AccountCard — Bir hesabin detayli karti.
@@ -50,7 +51,7 @@ export default function AccountCard({ account, onPriceUpdateClick }) {
 
       {/* Bakiye */}
       <p className="font-numeric text-xl font-bold mb-2">
-        {formatTL(a.bakiye)} <span className="text-xs font-normal text-zinc-500">TL</span>
+        {formatSayi(a.bakiye)} <span className="text-xs font-normal text-zinc-500">{paraEtiketi()}</span>
       </p>
 
       {/* Tipe ozel detaylar */}
@@ -58,7 +59,7 @@ export default function AccountCard({ account, onPriceUpdateClick }) {
         <div className="space-y-2 text-xs">
           <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
             <span>Limit</span>
-            <span className="font-numeric">{formatTL(a.limit)} TL</span>
+            <span className="font-numeric">{formatPara(a.limit)}</span>
           </div>
           <div>
             <div className="flex justify-between text-zinc-600 dark:text-zinc-400 mb-1">
@@ -82,7 +83,7 @@ export default function AccountCard({ account, onPriceUpdateClick }) {
           <div className="flex justify-between">
             <span>Aylık taksit</span>
             <span className="font-numeric font-semibold text-zinc-800 dark:text-zinc-200">
-              {formatTL(a.aylik_taksit)} TL
+              {formatPara(a.aylik_taksit)}
             </span>
           </div>
           <div className="flex justify-between">
@@ -106,12 +107,12 @@ export default function AccountCard({ account, onPriceUpdateClick }) {
           </div>
           <div className="flex justify-between">
             <span>Fiyat</span>
-            <span className="font-numeric">{formatTL(a.fiyat)} TL</span>
+            <span className="font-numeric">{formatPara(a.fiyat)}</span>
           </div>
           {a.maliyet_per_lot && (
             <div className="flex justify-between">
               <span>Maliyet/lot</span>
-              <span className="font-numeric">{formatTL(a.maliyet_per_lot)} TL</span>
+              <span className="font-numeric">{formatPara(a.maliyet_per_lot)}</span>
             </div>
           )}
           {!a.is_emanet && onPriceUpdateClick && (

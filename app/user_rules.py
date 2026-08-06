@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Account, AccountType, MasterCheckpoint
 from app.money import D
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +96,8 @@ def _min_cash_floor(db, user_id, workspace_id, action_type, payload, params) -> 
     mevcut = _nakit_toplami(db, user_id, workspace_id)
     sonra = mevcut - cikis
     if sonra < taban:
-        return (f"bu işlem sonrası nakit {sonra:,.2f} TL olurdu; kendi belirlediğin taban "
-                f"{taban:,.2f} TL")
+        return (f"bu işlem sonrası nakit {_para(sonra, ondalik=2)} olurdu; kendi belirlediğin taban "
+                f"{_para(taban, ondalik=2)}")
     return None
 
 
@@ -123,8 +124,8 @@ def _max_single_expense(db, user_id, workspace_id, action_type, payload, params)
         return None
     tutar = abs(D(payload.get("amount", 0)))
     if tutar > tavan:
-        return (f"{tutar:,.2f} TL tek seferlik harcama, kendi koyduğun "
-                f"{tavan:,.2f} TL sınırının üstünde")
+        return (f"{_para(tutar, ondalik=2)} tek seferlik harcama, kendi koyduğun "
+                f"{_para(tavan, ondalik=2)} sınırının üstünde")
     return None
 
 

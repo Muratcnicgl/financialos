@@ -5,10 +5,7 @@ import {
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
   Eye, Telescope, Bell, Waves, ArrowRight, Target, ChevronDown, ChevronRight,
 } from 'lucide-react';
-import {
-  cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi,
-  cashflowApi, formatTL, formatTLSuffix, formatPercent, formatDate, signClass, parseTRNumber,
-} from '../api.js';
+import { cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi, cashflowApi, formatPercent, formatDate, signClass, parseTRNumber } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
 import MonthlySummary from '../components/MonthlySummary.jsx';
 import AccountCard from '../components/AccountCard.jsx';
@@ -16,6 +13,7 @@ import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import Onboarding from '../components/Onboarding.jsx';  // H20: ilk kullanım rehberi + demo veri
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
  * FEAT-030 (UX açıklanabilirlik): Günlük limitin AÇIK dökümü.
@@ -32,7 +30,7 @@ function BudgetBreakdown({ dokum }) {
         {label}
       </span>
       <span className={`font-numeric ${muted ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-200'}`}>
-        {sign}{formatTL(Math.abs(value))} TL
+        {sign}{formatPara(Math.abs(value))}
       </span>
     </div>
   );
@@ -55,18 +53,18 @@ function BudgetBreakdown({ dokum }) {
           <div className="border-t border-zinc-200 dark:border-zinc-700 mt-1 pt-1 flex items-center justify-between font-semibold">
             <span className="text-zinc-700 dark:text-zinc-200">= Reel bütçe</span>
             <span className={`font-numeric ${dokum.reel_butce >= 0 ? 'text-zinc-800 dark:text-zinc-100' : 'text-negative-600 dark:text-negative-400'}`}>
-              {formatTL(dokum.reel_butce)} TL
+              {formatPara(dokum.reel_butce)}
             </span>
           </div>
           <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mt-0.5">
             <span>÷ {dokum.days_remaining} gün</span>
             <span className="font-numeric font-semibold text-brand-600 dark:text-brand-400">
-              = {formatTL(dokum.daily_limit)} TL/gün
+              = {formatPara(dokum.daily_limit)}/gün
             </span>
           </div>
           {dokum.alacak_haric > 0 && (
             <p className="mt-1.5 text-zinc-400 dark:text-zinc-500 leading-snug">
-              Not: Alacaklar ({formatTL(dokum.alacak_haric)} TL) bütçeye dahil DEĞİL — tahsilat
+              Not: Alacaklar ({formatPara(dokum.alacak_haric)}) bütçeye dahil DEĞİL — tahsilat
               muhatabın kontrolünde. Kredinin yalnız <b>bu ayki taksiti</b> düşülür; bakiyenin
               tamamı değil.
             </p>
@@ -172,8 +170,8 @@ export default function Cockpit({ setActiveTab }) {
   const alacaklarVar = alacaklarToplami > 0;
   // Tam Net Değer alt-yazısı: hem +alacak hem −kişisel-borç şeffaf gösterilir (#116)
   const netTamDetay = [
-    alacaklarToplami > 0 ? `+${formatTL(alacaklarToplami)} TL alacak` : null,
-    borclarToplami > 0 ? `−${formatTL(borclarToplami)} TL kişisel borç` : null,
+    alacaklarToplami > 0 ? `+${formatPara(alacaklarToplami)} alacak` : null,
+    borclarToplami > 0 ? `−${formatPara(borclarToplami)} kişisel borç` : null,
   ].filter(Boolean).join(', ');
 
   // H20 (BUG #194): veri yoksa yeni kullanıcı yönlendirilir; verisi olanı rahatsız etmez.
@@ -335,13 +333,13 @@ export default function Cockpit({ setActiveTab }) {
             Bugünkü harcama hedefi
           </h3>
           <p className="font-numeric text-3xl sm:text-4xl font-bold text-brand-700 dark:text-brand-400">
-            {formatTLSuffix(data.today_target)}
+            {formatPara(data.today_target)}
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Ay sonuna {data.days_remaining} gün · Günlük limit {formatTL(data.daily_limit)} TL
+            Ay sonuna {data.days_remaining} gün · Günlük limit {formatPara(data.daily_limit)}
             {data.carried_forward !== 0 && (
               <span className={signClass(data.carried_forward)}>
-                {' '}· Devreden {data.carried_forward > 0 ? '+' : ''}{formatTL(data.carried_forward)} TL
+                {' '}· Devreden {data.carried_forward > 0 ? '+' : ''}{formatPara(data.carried_forward)}
               </span>
             )}
           </p>
@@ -351,7 +349,7 @@ export default function Cockpit({ setActiveTab }) {
           {data.yarin_limit_harcamasiz > data.daily_limit && (
             <p className="text-xs text-positive-600 dark:text-positive-400 mt-1.5 flex items-center gap-1">
               <Waves className="w-3.5 h-3.5 shrink-0" />
-              Bugün harcamazsan yarın limitin {formatTL(data.yarin_limit_harcamasiz)} TL/gün'e çıkar
+              Bugün harcamazsan yarın limitin {formatPara(data.yarin_limit_harcamasiz)}/gün'e çıkar
             </p>
           )}
           {/* FEAT-009: ileriye-dönük güvenli harcama tabanı — lumpy yükümlülükleri hesaba katar (kart hariç) */}
@@ -360,7 +358,7 @@ export default function Cockpit({ setActiveTab }) {
               <Lock className="w-3.5 h-3.5 shrink-0" />
               Güvenli harcama (90g öngörü, kart borcu düşülmüş):{' '}
               <span className={`font-numeric font-semibold ${data.guvenli_harcama > 0 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
-                {formatTL(data.guvenli_harcama)} TL
+                {formatPara(data.guvenli_harcama)}
               </span>
             </p>
           )}
@@ -387,8 +385,8 @@ export default function Cockpit({ setActiveTab }) {
           <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
           <span className="text-zinc-600 dark:text-zinc-300">
             {data.abonelik_yuku.adet} abonelik ·{' '}
-            <span className="font-numeric font-semibold">{formatTL(data.abonelik_yuku.aylik)} TL</span>/ay
-            <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(data.abonelik_yuku.yillik)} TL/yıl)</span>
+            <span className="font-numeric font-semibold">{formatPara(data.abonelik_yuku.aylik)}</span>/ay
+            <span className="text-zinc-400 dark:text-zinc-500"> ({formatPara(data.abonelik_yuku.yillik)}/yıl)</span>
           </span>
         </div>
       )}
@@ -402,7 +400,7 @@ export default function Cockpit({ setActiveTab }) {
               ? 'Minimum ödemelerle borç makul sürede kapanmıyor — ek ödeme şart.'
               : <>Borçsuzluk: <span className="font-semibold">{data.borc_ozgurluk.kalan_ay} ay</span>
                   {data.borc_ozgurluk.borcsuz_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (≈{formatDate(data.borc_ozgurluk.borcsuz_tarih)})</span>}
-                  <span className="text-zinc-400 dark:text-zinc-500"> · kalan faiz {formatTL(data.borc_ozgurluk.toplam_faiz)} TL</span></>}
+                  <span className="text-zinc-400 dark:text-zinc-500"> · kalan faiz {formatPara(data.borc_ozgurluk.toplam_faiz)}</span></>}
           </span>
         </div>
       )}
@@ -413,8 +411,8 @@ export default function Cockpit({ setActiveTab }) {
           <AlertTriangle className="w-4 h-4 text-negative-500 shrink-0" />
           <span className="text-zinc-600 dark:text-zinc-300">
             Faize giden:{' '}
-            <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatTL(data.faiz_sizintisi.aylik_toplam)} TL</span>/ay
-            <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(data.faiz_sizintisi.yillik_toplam)} TL/yıl · günde {formatTL(data.faiz_sizintisi.gunluk)} TL)</span>
+            <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatPara(data.faiz_sizintisi.aylik_toplam)}</span>/ay
+            <span className="text-zinc-400 dark:text-zinc-500"> ({formatPara(data.faiz_sizintisi.yillik_toplam)}/yıl · günde {formatPara(data.faiz_sizintisi.gunluk)})</span>
           </span>
         </div>
       )}
@@ -433,7 +431,7 @@ export default function Cockpit({ setActiveTab }) {
               <span className="text-zinc-600 dark:text-zinc-300">
                 Kart kullanımı{' '}
                 <span className={`font-numeric font-semibold ${txtColor}`}>%{ku.oran}</span>
-                <span className="text-zinc-400 dark:text-zinc-500"> ({formatTL(ku.toplam_borc)} / {formatTL(ku.toplam_limit)} TL)</span>
+                <span className="text-zinc-400 dark:text-zinc-500"> ({formatSayi(ku.toplam_borc)} / {formatPara(ku.toplam_limit)})</span>
               </span>
               {tr && (
                 <span className={`ml-auto text-xs font-numeric ${tr.iyilesme ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
@@ -445,8 +443,8 @@ export default function Cockpit({ setActiveTab }) {
               <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Sağlıklı eşik %30 — borç <span className="font-numeric">{formatTL(ku.saglikli_borc_hedefi)} TL</span> seviyesine inmeli.
-              Kullanım oranı kredi notunda en ağır faktörlerden; her ödenen TL doğrudan düşürür.
+              Sağlıklı eşik %30 — borç <span className="font-numeric">{formatPara(ku.saglikli_borc_hedefi)}</span> seviyesine inmeli.
+              Kullanım oranı kredi notunda en ağır faktörlerden; her ödenen {paraEtiketi()} doğrudan düşürür.
             </p>
           </div>
         );
@@ -459,12 +457,12 @@ export default function Cockpit({ setActiveTab }) {
           <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
             <div>
               <span className="font-semibold">{data.alacak_yaslanma.gecikmis_adet} gecikmiş alacak</span>{' '}
-              <span className="font-numeric font-semibold text-warn-600 dark:text-warn-400">{formatTL(data.alacak_yaslanma.toplam_gecikmis)} TL</span>
+              <span className="font-numeric font-semibold text-warn-600 dark:text-warn-400">{formatPara(data.alacak_yaslanma.toplam_gecikmis)}</span>
               <span className="text-zinc-400 dark:text-zinc-500"> / {data.alacak_yaslanma.adet} alacak</span>
             </div>
             {data.alacak_yaslanma.en_riskli?.length > 0 && (
               <div className="text-zinc-400 dark:text-zinc-500 text-xs">
-                Önce kovala: {data.alacak_yaslanma.en_riskli.map((k) => `${k.kim} ${formatTL(k.tutar)} TL (${k.gecikme_gun}g)`).join(' · ')}
+                Önce kovala: {data.alacak_yaslanma.en_riskli.map((k) => `${k.kim} ${formatPara(k.tutar)} (${k.gecikme_gun}g)`).join(' · ')}
               </div>
             )}
           </div>
@@ -481,7 +479,7 @@ export default function Cockpit({ setActiveTab }) {
                 {k.asla_bitmez
                   ? <><span className="font-semibold">{k.ad}</span>: yalnız asgariyle <span className="font-semibold text-negative-600 dark:text-negative-400">asla kapanmaz</span> (asgari &lt; faiz)</>
                   : <><span className="font-semibold">{k.ad}</span> asgari-ödeme tuzağı: <span className="font-semibold">{k.ay} ay</span> · faiz{' '}
-                      <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatTL(k.toplam_faiz)} TL</span>
+                      <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatPara(k.toplam_faiz)}</span>
                       {k.payoff_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (biter ≈{formatDate(k.payoff_tarih)})</span>}</>}
               </div>
             ))}
@@ -570,17 +568,17 @@ export default function Cockpit({ setActiveTab }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Toplam maliyet</p>
-              <p className="font-numeric font-semibold">{formatTLSuffix(investmentPnl.toplam_maliyet)}</p>
+              <p className="font-numeric font-semibold">{formatPara(investmentPnl.toplam_maliyet)}</p>
             </div>
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Güncel değer</p>
-              <p className="font-numeric font-semibold">{formatTLSuffix(investmentPnl.guncel_deger)}</p>
+              <p className="font-numeric font-semibold">{formatPara(investmentPnl.guncel_deger)}</p>
             </div>
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Brüt kâr</p>
               <p className={`font-numeric font-semibold ${signClass(investmentPnl.brut_kar)}`}>
                 {investmentPnl.brut_kar > 0 ? '+' : ''}
-                {formatTLSuffix(investmentPnl.brut_kar)}
+                {formatPara(investmentPnl.brut_kar)}
               </p>
             </div>
             <div>
@@ -614,14 +612,14 @@ export default function Cockpit({ setActiveTab }) {
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">En Düşük Bakiye</p>
               <p className={`font-numeric font-semibold text-sm ${flowSummary.lowest_balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-                {formatTL(flowSummary.lowest_balance)} TL
+                {formatPara(flowSummary.lowest_balance)}
               </p>
               <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{formatDate(flowSummary.lowest_date)}</p>
             </div>
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Net Akış</p>
               <p className={`font-numeric font-semibold text-sm ${flowSummary.net_flow >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-                {flowSummary.net_flow > 0 ? '+' : ''}{formatTL(flowSummary.net_flow)} TL
+                {flowSummary.net_flow > 0 ? '+' : ''}{formatPara(flowSummary.net_flow)}
               </p>
             </div>
             <div>
@@ -674,7 +672,7 @@ export default function Cockpit({ setActiveTab }) {
                     </p>
                   </div>
                   <span className={`font-numeric font-semibold flex-shrink-0 ${colorClass}`}>
-                    {sign}{formatTL(r.amount)} TL
+                    {sign}{formatPara(r.amount)}
                   </span>
                 </div>
               );
@@ -716,7 +714,7 @@ export default function Cockpit({ setActiveTab }) {
                     }`}
                   >
                     {p.tip === 'gelir' ? '+' : '−'}
-                    {formatTL(p.tutar)} TL
+                    {formatPara(p.tutar)}
                   </span>
                 </div>
               ))}
@@ -746,7 +744,7 @@ export default function Cockpit({ setActiveTab }) {
                     </p>
                   </div>
                   <span className="font-numeric font-semibold text-positive-600 dark:text-positive-400 flex-shrink-0">
-                    +{formatTL(r.tutar)} TL
+                    +{formatPara(r.tutar)}
                   </span>
                 </div>
               ))}
@@ -927,7 +925,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
 
         <form onSubmit={handleSubmit}>
           <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
-            Yeni fiyat (TL)
+            Yeni fiyat ({paraEtiketi()})
           </label>
           <input
             type="text"

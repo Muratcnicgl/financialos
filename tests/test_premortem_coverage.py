@@ -163,7 +163,7 @@ def test_user_prompt_minimal_action_only():
     assert "AKSIYON BAGLAMI:" in out
     assert "Tip: sell_investment" in out
     assert "Aciklama: Fon satisi" in out
-    assert "Tutar: 12000.0 TL" in out
+    assert "Tutar: 12.000,00 TL" in out  # BUG #256: ham float değil, tek kaynaktan TR biçimi
     assert "Hedef: AAK fonu" in out
     # cockpit blogu YOK
     assert "COCKPIT OZETI" not in out
@@ -202,12 +202,12 @@ def test_user_prompt_with_cockpit_snapshot():
     out = _user_prompt(ctx, cockpit)
 
     assert "COCKPIT OZETI (mevcut finansal durum):" in out
-    assert "Net deger: 50000.0 TL" in out
-    assert "30g net akis: 7000.0 TL" in out
-    assert "60g net akis: 14000.0 TL" in out
+    assert "Net deger: 50.000,00 TL" in out  # BUG #256
+    assert "30g net akis: 7.000,00 TL" in out  # BUG #256
+    assert "60g net akis: 14.000,00 TL" in out  # BUG #256
     # BUG #065: dogru anahtarlar kullanilmali
     assert "En dusuk bakiye tarihi: 2026-06-01" in out
-    assert "En dusuk bakiye: 12000.0 TL" in out
+    assert "En dusuk bakiye: 12.000,00 TL" in out  # BUG #256
     assert "Nakit kriz gunu sayisi (30g): 3" in out
 
 
@@ -216,7 +216,7 @@ def test_user_prompt_empty_context_uses_defaults():
     out = _user_prompt({}, None)
     assert "Tip: bilinmiyor" in out
     assert "Aciklama: -" in out
-    assert "Tutar: 0.0 TL" in out
+    assert "Tutar: 0,00 TL" in out  # BUG #256
     assert "Hedef: -" in out
 
 

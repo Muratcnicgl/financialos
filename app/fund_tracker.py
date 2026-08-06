@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Account, AccountType
 from app.money import D  # ADR-030: para Decimal coercion
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +169,7 @@ def update_fund_price_manual(
         "new_value": new_value,
         "value_diff": round(new_value - old_value, 2),
         "timestamp": account.last_price_update.isoformat(),
-        "message": f"{account.name}: {old_price or 0:.4f} -> {new_price:.4f} TL (deger: {old_value:.2f} -> {new_value:.2f} TL)",
+        "message": f"{account.name}: {old_price or 0:.4f} -> {_para(new_price, ondalik=4)} (deger: {old_value:.2f} -> {_para(new_value, ondalik=2)})",
     }
 
 

@@ -70,3 +70,9 @@ tutarlılık turunda oluşturuldu ("ADR-index güncel mi" boşluğu kapandı).
 ## Not
 Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = mimari hafızanın tam repo-envanteri
 (BORÇ #3 kapandı, M74). Detaylı gerekçeler ilgili `adr-XXX-*.md` dosyalarında.
+
+## Ek (7 Ağu 2026)
+- **ADR-044 — Para biçimlendirme tek kaynak (H4 / BUG #256):** `app/money_format.py` +
+  `frontend/src/lib/money.js` tek kaynak; TRY kilidi bilinçli + fail-fast; **grounding para
+  birimine bağlandı** (etiket değişince doğrulama sessiz-yeşile düşüyordu) ve "etiketsiz tutar"
+  artık kırmızı. Statik kapı: `tests/test_para_birimi_kapisi.py` (kapsam tabanı + muafiyet tavanı).

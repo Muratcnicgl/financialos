@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { formatTL } from '../api.js';
+import { formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
  * MetricCard — Cockpit'teki tek bir gostergeyi (nakit, kart borcu vb.)
@@ -22,7 +22,9 @@ export default function MetricCard({
   trend,           // 'up' | 'down' | null
   isEmanet = false,
   prefix = '',
-  suffix = ' TL',
+  // BUG #256 (H4): varsayılan sonek elle ' TL' yazılıydı; 13 çağıranın hiçbiri `suffix`
+  // geçmediği için para birimi FİİLEN buraya çivilenmişti. Artık tek kaynaktan gelir.
+  suffix = ` ${paraEtiketi()}`,
   loading = false,
 }) {
   const variants = {
@@ -83,7 +85,7 @@ export default function MetricCard({
             {/* MC2 (Wave-8): mobilde text-lg (2-kolon grid ~150px'e sığar) + truncate YOK →
                 kritik net-değer kesilmesin; realistik TL değeri tek satır sığar. */}
             <p className={`font-numeric text-lg sm:text-2xl font-bold ${v.valueText} leading-tight`}>
-              {prefix}{formatTL(value)}{suffix}
+              {prefix}{formatSayi(value)}{suffix}
             </p>
             {trend === 'up' && (
               <TrendingUp className="w-4 h-4 text-positive-500 mb-1 flex-shrink-0" />

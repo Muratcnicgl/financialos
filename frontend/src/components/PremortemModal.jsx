@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Brain, X, AlertTriangle, ShieldCheck, Loader2, Check } from 'lucide-react';
 import { premortemApi, actionsApi } from '../api.js';
+import { formatPara } from '../lib/money.js';
 import { useToast } from '../components/Toast.jsx';
 
 const PROB_COLORS = {
@@ -9,13 +10,13 @@ const PROB_COLORS = {
   yuksek:  { border: 'border-negative-500',   badge: 'bg-negative-100 dark:bg-negative-900/30 text-negative-700 dark:text-negative-300' },
 };
 
+// BUG #256 (H4): kendi `toLocaleString` + elle ' TL' soneki vardı (dört ayrı biçimlendiriciden
+// biri). Tek kaynağa bağlandı. Alan adı `impact_tl` API sözleşmesidir, değişmez (Türkçe alan
+// adları korunur) — değişen yalnız GÖSTERİM.
 function fmtImpact(impact_tl) {
-  const abs = Math.abs(impact_tl).toLocaleString('tr-TR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  if (impact_tl < 0) return `−${abs} TL kayıp`;
-  if (impact_tl > 0) return `+${abs} TL`;
+  const para = formatPara(Math.abs(impact_tl));
+  if (impact_tl < 0) return `−${para} kayıp`;
+  if (impact_tl > 0) return `+${para}`;
   return 'belirsiz';
 }
 

@@ -42,6 +42,7 @@ from app.models import (
     PersonalDebt, DebtDirection,
 )
 from app.scope import scope_expr  # BUG #224: aktif workspace koprusu (yaprak modul)
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 
 # ============================================================
@@ -266,9 +267,9 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
                 return False, f"Satis geliri emanet hesaba (MC1) yatirilamaz: {target.name}"
             target.balance += net_to_account
             world.event_log.append(
-                f"[T+0] SATIS: {lots} lot {inv.fund_code} @ {price:.2f} TL "
+                f"[T+0] SATIS: {lots} lot {inv.fund_code} @ {_para(price, ondalik=2)} "
                 f"= {gross:,.2f} brut, stopaj {withholding:,.2f}, "
-                f"net {net_to_account:,.2f} TL -> {target.name}"
+                f"net {_para(net_to_account, ondalik=2)} -> {target.name}"
             )
             return True, "ok"
 
@@ -307,7 +308,7 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
                 # transfer: executor bakiye değiştirmiyor → simülasyon da değiştirmez
 
             world.event_log.append(
-                f"[T+0] ISLEM: {ttype} {amount:,.2f} TL -> {target.name} "
+                f"[T+0] ISLEM: {ttype} {_para(amount, ondalik=2)} -> {target.name} "
                 f"({payload.get('category', '')})"
             )
             return True, "ok"
@@ -323,7 +324,7 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             old = target.balance
             target.balance = float(payload["new_balance"])
             world.event_log.append(
-                f"[T+0] BAKIYE: {target.name} {old:,.2f} -> {target.balance:,.2f} TL"
+                f"[T+0] BAKIYE: {target.name} {old:,.2f} -> {_para(target.balance, ondalik=2)}"
             )
             return True, "ok"
 
@@ -344,7 +345,7 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
                     cash.balance -= d.amount
             d.paid_date = world.as_of
             world.event_log.append(
-                f"[T+0] BORC/ALACAK: {d.counterparty} {d.amount:,.2f} TL "
+                f"[T+0] BORC/ALACAK: {d.counterparty} {_para(d.amount, ondalik=2)} "
                 f"({d.direction}) ODENDI"
             )
             return True, "ok"
@@ -356,7 +357,7 @@ def _apply_action(world: WorldSnap, action_type: str, payload: Dict) -> Tuple[bo
             target.current_price = float(payload["new_price"])
             target.balance = (target.lot_count or 0) * target.current_price
             world.event_log.append(
-                f"[T+0] FIYAT: {target.name} -> {target.current_price:.2f} TL"
+                f"[T+0] FIYAT: {target.name} -> {_para(target.current_price, ondalik=2)}"
             )
             return True, "ok"
 
@@ -495,7 +496,7 @@ def _project_forward(world: WorldSnap, days: int) -> WorldSnap:
         d.paid_date = d.due_date
         world.event_log.append(
             f"[{d.due_date}] {'TAHSILAT' if d.direction == 'receivable' else 'ODEME'}: "
-            f"{d.counterparty} {d.amount:,.2f} TL"
+            f"{d.counterparty} {_para(d.amount, ondalik=2)}"
         )
 
     # 4. Kart son odemesi (basit model: ay sonunda kart borcu nakitten dusulur)

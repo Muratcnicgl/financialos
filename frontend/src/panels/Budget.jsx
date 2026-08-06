@@ -4,6 +4,7 @@ import { envelopesApi, formatTL, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import DetectedSubscriptions from '../components/DetectedSubscriptions.jsx';
 import Wishlist from '../components/Wishlist.jsx';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
  * Bütçe Zarfları (FEAT-001) — kategori bazlı aylık bütçe. Her zarf: bütçe / bu-ay harcanan /
@@ -101,7 +102,7 @@ export default function Budget() {
         <div className="card p-4 border-brand-200 dark:border-brand-800/50 bg-brand-50/50 dark:bg-brand-950/20">
           <p className="text-xs text-zinc-600 dark:text-zinc-400">Boşta nakit (henüz zarfa atanmamış)</p>
           <p className={`font-numeric text-2xl font-bold ${data.atanmamis_nakit < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-brand-700 dark:text-brand-400'}`}>
-            {formatTL(data.atanmamis_nakit)} TL
+            {formatPara(data.atanmamis_nakit)}
           </p>
           {data.atanmamis_nakit < 0 && (
             <p className="text-xs text-negative-600 dark:text-negative-400 mt-0.5">Aşırı bütçeleme — nakdinden fazlasını zarflara ayırdın.</p>
@@ -113,10 +114,10 @@ export default function Budget() {
       <div className="card p-4 flex items-center gap-3">
         <Wallet className="w-5 h-5 text-brand-600 dark:text-brand-400" />
         <div className="text-sm">
-          <span className="font-semibold">{formatTL(durum.toplam_butce)} TL</span> bütçe ·{' '}
-          <span className="font-numeric">{formatTL(durum.toplam_harcanan)} TL</span> harcandı ·{' '}
+          <span className="font-semibold">{formatPara(durum.toplam_butce)}</span> bütçe ·{' '}
+          <span className="font-numeric">{formatPara(durum.toplam_harcanan)}</span> harcandı ·{' '}
           <span className={durum.toplam_kalan < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-positive-600 dark:text-positive-400'}>
-            {formatTL(durum.toplam_kalan)} TL kaldı
+            {formatPara(durum.toplam_kalan)} kaldı
           </span>
         </div>
       </div>
@@ -129,7 +130,7 @@ export default function Budget() {
                  value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
         </div>
         <div className="w-32">
-          <label className="text-xs text-zinc-500 dark:text-zinc-400">Aylık bütçe (TL)</label>
+          <label className="text-xs text-zinc-500 dark:text-zinc-400">Aylık bütçe ({paraEtiketi()})</label>
           <input type="number" min="1" step="1" className="input w-full" placeholder="2000"
                  value={form.monthly_amount} onChange={(e) => setForm({ ...form, monthly_amount: e.target.value })} />
         </div>
@@ -154,7 +155,7 @@ export default function Budget() {
                   <span className="font-medium capitalize">{env.category}</span>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-numeric ${st.asildi ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-600 dark:text-zinc-300'}`}>
-                      {formatTL(st.harcanan)} / {formatTL(st.butce)} TL
+                      {formatSayi(st.harcanan)} / {formatPara(st.butce)}
                     </span>
                     <button type="button" onClick={() => remove(env.id)} className="text-zinc-400 hover:text-negative-500 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2" title="Sil">
                       <Trash2 className="w-4 h-4" />
@@ -166,7 +167,7 @@ export default function Budget() {
                        style={{ width: `${pct}%` }} />
                 </div>
                 <p className={`text-xs mt-1 ${st.asildi ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                  {st.asildi ? `${formatTL(-st.kalan)} TL aşıldı` : `${formatTL(st.kalan)} TL kaldı`}
+                  {st.asildi ? `${formatPara(-st.kalan)} aşıldı` : `${formatPara(st.kalan)} kaldı`}
                 </p>
               </div>
             );

@@ -40,6 +40,7 @@ from app.action_executor import (
 from app.premortem import link_premortem_outcome
 from app.rules_engine import generate_cockpit, workspace_scope  # M43
 from app.workspace_deps import active_workspace_id, require_write  # M43, require_write
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 router = APIRouter(prefix="/api/actions", tags=["actions"], dependencies=[Depends(require_write())])
 
@@ -118,7 +119,7 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
             "Kalıcı öğrenilebilecek bir şey (harcama kalıbı, tercih, beklenmedik maliyet) varsa "
             "save_insight çağır. Yoksa hiçbir şey yapma — boş cevap kabul edilir.\n\n"
             f"# Onaylanan Aksiyon\n"
-            f"Tür: {action_type} | Özet: {summary} | Tutar: {amount} TL | Kategori: {category}\n\n"
+            f"Tür: {action_type} | Özet: {summary} | Tutar: {_para(amount)} | Kategori: {category}\n\n"
             f"# Mevcut dedup_key'ler (bunları tekrarlama; uygunsa kullan)\n"
             f"{existing_keys}\n\n"
             "# dedup_key kuralı\n"

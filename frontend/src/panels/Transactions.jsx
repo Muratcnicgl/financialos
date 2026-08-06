@@ -4,11 +4,9 @@ import {
   Search, Trash2, Pencil, X, Filter, ArrowUp, ArrowDown,
   Wallet, CreditCard,
 } from 'lucide-react';
-import {
-  transactionsApi, accountsApi,
-  formatTL, formatDate, signClass, todayLocalISO, parseTRNumber,
-} from '../api.js';
+import { transactionsApi, accountsApi, formatDate, signClass, todayLocalISO, parseTRNumber } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
  * Transactions paneli — islem listesi + hizli giris.
@@ -230,7 +228,7 @@ export default function Transactions() {
             <span>Gelir</span>
           </div>
           <p className="font-numeric text-base font-bold text-positive-600 dark:text-positive-400">
-            +{formatTL(totals.income)}
+            +{formatSayi(totals.income)}
           </p>
         </div>
         <div className="card p-3 text-center">
@@ -239,13 +237,13 @@ export default function Transactions() {
             <span>Gider</span>
           </div>
           <p className="font-numeric text-base font-bold text-negative-600 dark:text-negative-400">
-            −{formatTL(totals.expense)}
+            −{formatSayi(totals.expense)}
           </p>
         </div>
         <div className="card p-3 text-center">
           <div className="text-xs text-zinc-500 mb-1">Net</div>
           <p className={`font-numeric text-base font-bold ${signClass(totals.net)}`}>
-            {totals.net >= 0 ? '+' : '−'}{formatTL(Math.abs(totals.net))}
+            {totals.net >= 0 ? '+' : '−'}{formatSayi(Math.abs(totals.net))}
           </p>
         </div>
       </div>
@@ -476,7 +474,7 @@ function TransactionRow({ txn, account, onEdit, onDelete }) {
         {/* Sag — tutar + butonlar */}
         <div className="text-right flex-shrink-0">
           <p className={`font-numeric font-bold text-base ${colorClass}`}>
-            {sign}{formatTL(txn.amount)}
+            {sign}{formatSayi(txn.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
             <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
@@ -570,7 +568,7 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
 
         {/* Tutar */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar (TL)</label>
+          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
           <input
             type="text"
             value={amount}
@@ -690,7 +688,7 @@ function ConfirmDeleteModal({ txn, onClose, onConfirm }) {
         <AlertTriangle className="w-5 h-5 text-negative-600 dark:text-negative-400 flex-shrink-0 mt-0.5" />
         <div className="text-sm">
           <p className="font-semibold text-negative-700 dark:text-negative-300 mb-1">
-            {txn.category || '(kategorisiz)'} · {formatTL(txn.amount)} TL
+            {txn.category || '(kategorisiz)'} · {formatPara(txn.amount)}
           </p>
           <p className="text-zinc-700 dark:text-zinc-300">
             Bu işlem silinecek ve hesap bakiyesi otomatik güncellenecek. Geri alınamaz.

@@ -120,6 +120,7 @@ from app.models import (
 )
 from app.rules_engine import generate_cockpit, turkish_date, generate_monthly_summary, workspace_scope
 from app.action_executor import propose_action, _fmt, ACTION_TYPES  # M82: enum tek kaynak
+from app.money_format import format_para as _para, para_etiketi  # BUG #256 (H4): para etiketi tek kaynak
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
@@ -856,8 +857,8 @@ def _maybe_market_block(user_message: str) -> Tuple[str, list]:
         block = (
             f"\n\n## PİYASA — SON BİLİNEN KUR (BAYAT: {yas_metni} önce çekildi, "
             f"canlı bağlantı şu an yok)\n"
-            f"  - USD/TRY: {_fmt(float(fx['usd_try']))} TL\n"
-            f"  - EUR/TRY: {_fmt(float(fx['eur_try']))} TL\n"
+            f"  - USD/TRY: {_para(float(fx['usd_try']))}\n"
+            f"  - EUR/TRY: {_para(float(fx['eur_try']))}\n"
             f"  (Kur sorulursa DEĞERİ VER ama 'şu anki/güncel' DEME. '{yas_metni} önceki "
             f"kur' diye söyle ve canlıya şu an ulaşamadığını ekle.)"
         )
@@ -865,8 +866,8 @@ def _maybe_market_block(user_message: str) -> Tuple[str, list]:
 
     block = (
         f"\n\n## CANLI PİYASA — ŞU ANKİ GÜNCEL KUR (canlı çekildi: {fx['guncelleme']})\n"
-        f"  - USD/TRY: {_fmt(float(fx['usd_try']))} TL\n"
-        f"  - EUR/TRY: {_fmt(float(fx['eur_try']))} TL\n"
+        f"  - USD/TRY: {_para(float(fx['usd_try']))}\n"
+        f"  - EUR/TRY: {_para(float(fx['eur_try']))}\n"
         f"  (Kur sorulursa bunu 'şu anki/güncel kur' diye ver; 'kaydedilmiş' DEME — canlı "
         f"değerdir. Kaynak adı zorunlu değil, uydurma.)"
     )
@@ -901,7 +902,7 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
 
     account_lines = []
     for acc in cockpit["accounts"]:
-        line = f"  - id={acc['id']} [{acc['tip']}] {acc['ad']}: {_fmt(acc['bakiye'])} TL"
+        line = f"  - id={acc['id']} [{acc['tip']}] {acc['ad']}: {_para(acc['bakiye'])}"
         if acc.get("is_emanet"):
             line += " 🔒 EMANET (DOKUNULMAZ)"
         if acc.get("limit"):
@@ -927,18 +928,21 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
         bayat_ek = f" ⚠️ FİYAT BAYAT ({p.get('fiyat_yas')})" if p.get("fiyat_bayat") else ""
         pnl_lines.append(
             f"  - {p['account_name']} ({p['fund_code']}): "
-            f"maliyet {_fmt(p['toplam_maliyet'])} → değer {_fmt(p['guncel_deger'])} "
-            f"(brüt kâr {brut_sign}{_fmt(p['brut_kar'])}, getiri %{getiri_str}){bayat_ek}"
+            # BUG #256 (H4): bu üç tutar ETİKETSİZ yazılıyordu — grounding yalnız etiketli
+            # tutarları denetlediği için yatırım K/Z satırı (satış kararını doğrudan tetikleyen
+            # cümle) doğrulamanın DIŞINDA kalıyordu. Etiket artık tek kaynaktan geliyor.
+            f"maliyet {_para(p['toplam_maliyet'])} → değer {_para(p['guncel_deger'])} "
+            f"(brüt kâr {brut_sign}{_para(p['brut_kar'])}, getiri %{getiri_str}){bayat_ek}"
         )
     pnl_text = "\n".join(pnl_lines) if pnl_lines else "  (Yatırım yok)"
 
     payments_text = "\n".join([
-        f"  - {turkish_date(date.fromisoformat(p['tarih'])) if p.get('tarih') else '?'}: {p.get('ad', '?')} → {_fmt(p.get('tutar', 0))} TL ({p.get('tip', '')}){_day_suffix(p['tarih'], today) if p.get('tarih') else ''}"
+        f"  - {turkish_date(date.fromisoformat(p['tarih'])) if p.get('tarih') else '?'}: {p.get('ad', '?')} → {_para(p.get('tutar', 0))} ({p.get('tip', '')}){_day_suffix(p['tarih'], today) if p.get('tarih') else ''}"
         for p in cockpit.get("upcoming_payments", [])
     ]) or "  (Yaklaşan ödeme yok)"
 
     receivables_text = "\n".join([
-        f"  - {turkish_date(date.fromisoformat(r['tarih'])) if r.get('tarih') else '?'}: {r.get('kim', '?')} → {_fmt(r.get('tutar', 0))} TL ({r.get('aciklama', '')}){_day_suffix(r['tarih'], today) if r.get('tarih') else ''}"
+        f"  - {turkish_date(date.fromisoformat(r['tarih'])) if r.get('tarih') else '?'}: {r.get('kim', '?')} → {_para(r.get('tutar', 0))} ({r.get('aciklama', '')}){_day_suffix(r['tarih'], today) if r.get('tarih') else ''}"
         for r in cockpit.get("upcoming_receivables", [])
     ]) or "  (Yaklaşan tahsilat yok)"
 
@@ -962,7 +966,7 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
 
     emanet_line = ""
     if cockpit.get("emanet_kasa", 0) > 0:
-        emanet_line = f"\n  - Emanet Kasa       : {_fmt(cockpit['emanet_kasa'])} TL (DOKUNULMAZ)"
+        emanet_line = f"\n  - Emanet Kasa       : {_para(cockpit['emanet_kasa'])} (DOKUNULMAZ)"
 
     net_deger_tam = cockpit.get('net_deger_tam', cockpit['net_deger'])
     alacaklar_toplami = cockpit.get('alacaklar_toplami', 0)
@@ -972,15 +976,15 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
         # BUG #116: Tam Net Değer hem alacağı (+) hem kişisel borcu (−) içerir (simetrik, realist).
         detay = []
         if alacaklar_toplami > 0:
-            detay.append(f"+{_fmt(alacaklar_toplami)} TL alacak")
+            detay.append(f"+{_para(alacaklar_toplami)} alacak")
         if borclar_toplami > 0:
-            detay.append(f"−{_fmt(borclar_toplami)} TL kişisel borç")
+            detay.append(f"−{_para(borclar_toplami)} kişisel borç")
         net_deger_block = (
-            f"  - Görülen Net Değer : {_fmt(cockpit['net_deger'])} TL (operasyonel, alacak/borç hariç)\n"
-            f"  - Tam Net Değer     : {_fmt(net_deger_tam)} TL (stratejik, {', '.join(detay)} dahil)"
+            f"  - Görülen Net Değer : {_para(cockpit['net_deger'])} (operasyonel, alacak/borç hariç)\n"
+            f"  - Tam Net Değer     : {_para(net_deger_tam)} (stratejik, {', '.join(detay)} dahil)"
         )
     else:
-        net_deger_block = f"  - Net Değer         : {_fmt(cockpit['net_deger'])} TL"
+        net_deger_block = f"  - Net Değer         : {_para(cockpit['net_deger'])}"
 
     # FEAT-031: borca güvenle yatırılabilir nakit — koça İNSAN-DİLİ gerçek olarak beslenir
     # (iç terim YOK: "menü/senaryo/model/FEAT" kelimeleri modele hiç gösterilmez → papağanlamaz).
@@ -990,19 +994,19 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
         def _s_txt(s):
             t, o = s["tampon"], s["odenebilir"]
             if t == 0:
-                return f"hiç kenarda tutmazsan {_fmt(o)} TL (ama cebin bugün boşalır — riskli)"
+                return f"hiç kenarda tutmazsan {_para(o)} (ama cebin bugün boşalır — riskli)"
             etk = " (dengeli)" if s.get("varsayilan") else ""
-            return f"{_fmt(t)} TL kenarda tutarsan {_fmt(o)} TL{etk}"
+            return f"{_para(t)} kenarda tutarsan {_para(o)}{etk}"
         _senaryo_str = "; ".join(_s_txt(s) for s in gbo.get("senaryolar", []))
         borc_odeme_line = (
             f"\n  - Borca bugün güvenle yatırılabilir nakit (mevcut borç: kart "
-            f"{_fmt(gbo.get('kart_borcu', 0))} TL, kredi {_fmt(gbo.get('kredi_borcu', 0))} TL): "
+            f"{_para(gbo.get('kart_borcu', 0))}, kredi {_para(gbo.get('kredi_borcu', 0))}): "
             f"{_senaryo_str}. Sorulan borç 0 ise oraya ödeme önerme."
         )
     elif gbo.get("sebep") == "borc_yok":
         borc_odeme_line = (
-            f"\n  - Ödenecek borç yok (kart {_fmt(gbo.get('kart_borcu', 0))} TL, kredi "
-            f"{_fmt(gbo.get('kredi_borcu', 0))} TL). Kullanıcı 'ne kadar ödeyeyim' derse 'borcun "
+            f"\n  - Ödenecek borç yok (kart {_para(gbo.get('kart_borcu', 0))}, kredi "
+            f"{_para(gbo.get('kredi_borcu', 0))}). Kullanıcı 'ne kadar ödeyeyim' derse 'borcun "
             f"yok, ödeme gerekmiyor' de; 0-bakiyeli borca ASLA ödeme önerme."
         )
 
@@ -1030,20 +1034,20 @@ Tarih: {cockpit['tarih_turkce']}
 Statü: {cockpit['statu']}{ilk_adim_block}
 
 ## Ana Göstergeler
-  - Nakit Kasa        : {_fmt(cockpit['nakit_kasa'])} TL
-  - Kart Borcu        : {_fmt(cockpit['kart_borcu'])} TL
-  - Kredi Borcu       : {_fmt(cockpit['kredi_borcu'])} TL
-  - Yatırım Değeri    : {_fmt(cockpit['yatirim_deger'])} TL{emanet_line}
-  - Beklenen Gelir    : {_fmt(cockpit['beklenen_gelir'])} TL
-  - Reel Bütçe        : {_fmt(cockpit['reel_butce'])} TL
+  - Nakit Kasa        : {_para(cockpit['nakit_kasa'])}
+  - Kart Borcu        : {_para(cockpit['kart_borcu'])}
+  - Kredi Borcu       : {_para(cockpit['kredi_borcu'])}
+  - Yatırım Değeri    : {_para(cockpit['yatirim_deger'])}{emanet_line}
+  - Beklenen Gelir    : {_para(cockpit['beklenen_gelir'])}
+  - Reel Bütçe        : {_para(cockpit['reel_butce'])}
 {net_deger_block}
 
 ## Bugünkü Limit
   - Ay sonuna kalan   : {cockpit['days_remaining']} gün
-  - Günlük limit      : {_fmt(cockpit['daily_limit'])} TL/gün
-  - Bugünkü hedef     : {_fmt(cockpit['today_target'])} TL (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_fmt(cockpit['carried_forward'])})
-  - Bugün harcamazsan : yarınki limit {_fmt(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))} TL/gün (zikzak: biriken güç)
-  - Güvenli harcama   : {_fmt(cockpit.get('guvenli_harcama', 0))} TL (gelecek yükümlülükler + kart borcu düşülünce bugün gerçekten güvenle harcanabilir tutar; 0 ise güvenli boşta para yok)
+  - Günlük limit      : {_para(cockpit['daily_limit'])}/gün
+  - Bugünkü hedef     : {_para(cockpit['today_target'])} (devreden {("+" if cockpit['carried_forward'] >= 0 else "")}{_para(cockpit['carried_forward'])})
+  - Bugün harcamazsan : yarınki limit {_para(cockpit.get('yarin_limit_harcamasiz', cockpit['daily_limit']))}/gün (zikzak: biriken güç)
+  - Güvenli harcama   : {_para(cockpit.get('guvenli_harcama', 0))} (gelecek yükümlülükler + kart borcu düşülünce bugün gerçekten güvenle harcanabilir tutar; 0 ise güvenli boşta para yok)
   - Nakit runway      : {cockpit.get('nakit_runway_gun') if cockpit.get('nakit_runway_gun') is not None else '—'} gün (gelirsiz mevcut nakit son 30g harcama hızıyla kaç gün yeter){borc_odeme_line}
 
 ## Hesaplar
@@ -1088,7 +1092,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             acc_s = f", {r['account_name']}" if r["account_name"] else ""
             r_lines.append(
                 f"  - {_days_label(r['days_until'])}: {r['name']} "
-                f"{sign}{_fmt(r['amount'])} TL ({r['type']}{acc_s}){risk_s}"
+                f"{sign}{_para(r['amount'])} ({r['type']}{acc_s}){risk_s}"
             )
         context += "\n\n## YAKLAŞAN VADELER (0-7 gün)\n" + "\n".join(r_lines)
 
@@ -1098,15 +1102,15 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         p_lines = []
         for p in patterns:
             cat = p["category"]
-            prev_s = _fmt(p["prev_30d"])
-            curr_s = _fmt(p["curr_30d"])
+            prev_s = _para(p["prev_30d"])   # BUG #256: etiket tek kaynak
+            curr_s = _para(p["curr_30d"])
             if p["change_pct"] is None:
                 change_s = "(yeni)"
             else:
                 sign = "+" if p["change_pct"] >= 0 else ""
                 change_s = f"({sign}{p['change_pct']:.0f}%)"
             anomaly_s = " ⚠️ ANOMALİ" if p["anomaly_flag"] else ""
-            p_lines.append(f"  - {cat}: {prev_s} TL → {curr_s} TL {change_s}{anomaly_s}")
+            p_lines.append(f"  - {cat}: {prev_s} → {curr_s} {change_s}{anomaly_s}")
         context += "\n\n## Davranış Kalıpları (son 30 gün / önceki 30 gün)\n" + "\n".join(p_lines)
 
     # BU AY (A3 özeti) — koçun aylık trend farkındalığı (kurucu "durum raporu" ruhu).
@@ -1124,15 +1128,15 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             top_cat_s = ""
             if cur_ms["expense_categories"]:
                 tc = cur_ms["expense_categories"][0]
-                top_cat_s = f"\n  - En çok: {tc['category']} {_fmt(tc['total'])} TL (%{tc['percentage']:.0f})"
+                top_cat_s = f"\n  - En çok: {tc['category']} {_para(tc['total'])} (%{tc['percentage']:.0f})"
             sr = cur_ms["savings_rate"]
             sr_s = f", tasarruf oranı %{sr:.0f}" if sr is not None else ""
             context += (
                 f"\n\n## BU AY ({ms['period']['label']} — ay içi)\n"
-                f"  - Gelir {_fmt(cur_ms['total_income'])} TL | "
-                f"Gider {_fmt(cur_ms['total_expense'])} TL | "
-                f"Net {_fmt(cur_ms['net_change'])} TL{sr_s}\n"
-                f"  - Trend: {exp_delta_s} (net değişim Δ {_fmt(tr['net_change_delta'])} TL)"
+                f"  - Gelir {_para(cur_ms['total_income'])} | "
+                f"Gider {_para(cur_ms['total_expense'])} | "
+                f"Net {_para(cur_ms['net_change'])}{sr_s}\n"
+                f"  - Trend: {exp_delta_s} (net değişim Δ {_para(tr['net_change_delta'])})"
                 f"{top_cat_s}"
             )
             # BUG #110 fix: koça gösterilen aylık sayıları cockpit'e ekle ki grounding onları
@@ -1156,7 +1160,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             tarih = t.get("tarih") or "?"
             kat = t.get("kategori") or ""
             acikla = f" — {t['aciklama']}" if t.get("aciklama") else ""
-            si_lines.append(f"  - {tarih}: {sign}{_fmt(t['tutar'])} TL ({kat}){acikla}")
+            si_lines.append(f"  - {tarih}: {sign}{_para(t['tutar'])} ({kat}){acikla}")
         context += "\n\n## SON İŞLEMLER (en yeni ilk)\n" + "\n".join(si_lines)
 
     # BORÇ ÖZGÜRLÜĞÜ (kurucu "Borç Çığı"/avalanche): 5-kredi durumunda koç proaktif yol gösterir.
@@ -1175,7 +1179,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                 payoff_s = av.payoff_date.isoformat() if av.payoff_date else "?"
                 sure_s = (
                     f"~{av.months_to_freedom} ay (≈{payoff_s}), "
-                    f"toplam faiz {_fmt(av.total_interest_paid)} TL"
+                    f"toplam faiz {_para(av.total_interest_paid)}"
                 )
             context += (
                 f"\n\n## BORÇ ÖZGÜRLÜĞÜ (Borç Çığı — en yüksek faiz önce, min. ödeme senaryosu)\n"
@@ -1196,7 +1200,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     ks = cockpit.get("konsolidasyon") or {}
     if ks.get("borc_adet", 0) >= 2:
         context += (
-            f"\n\n## KONSOLİDASYON EŞİĞİ ({ks['borc_adet']} borç, toplam {_fmt(ks['toplam_bakiye'])} TL)\n"
+            f"\n\n## KONSOLİDASYON EŞİĞİ ({ks['borc_adet']} borç, toplam {_para(ks['toplam_bakiye'])})\n"
             f"  - Ağırlıklı ortalama faiz: %{ks['agirlikli_ort_oran']:.2f}/ay "
             f"(dağılım %{ks['en_dusuk_oran']:.2f}–%{ks['en_yuksek_oran']:.2f})\n"
             f"  - Konsolidasyon (tek krediye toplama) SADECE teklif edilen oran "
@@ -1210,12 +1214,12 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     ay_ag = cockpit.get("alacak_yaslanma") or {}
     if ay_ag.get("gecikmis_adet", 0) > 0:
         risk_s = "; ".join(
-            f"{k['kim']} {_fmt(k['tutar'])} TL ({k['gecikme_gun']}g)"
+            f"{k['kim']} {_para(k['tutar'])} ({k['gecikme_gun']}g)"
             for k in ay_ag.get("en_riskli", [])
         )
         context += (
             f"\n\n## ALACAK YAŞLANDIRMA ({ay_ag['adet']} alacak, "
-            f"{ay_ag['gecikmis_adet']} gecikmiş = {_fmt(ay_ag['toplam_gecikmis'])} TL)\n"
+            f"{ay_ag['gecikmis_adet']} gecikmiş = {_para(ay_ag['toplam_gecikmis'])})\n"
             f"  - En riskli (en çok geciken önce): {risk_s}\n"
             f"  - Nakit dar — önce en eski gecikeni tahsil et (solvency-kritik)."
         )
@@ -1234,7 +1238,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                 t_lines.append(f"  - {k['ad']}: yalnız asgariyle ASLA kapanmaz (asgari < faiz, borç büyüyor)")
             else:
                 t_lines.append(
-                    f"  - {k['ad']}: yalnız asgariyle {k['ay']} ay, toplam {_fmt(k['toplam_faiz'])} TL faiz "
+                    f"  - {k['ad']}: yalnız asgariyle {k['ay']} ay, toplam {_para(k['toplam_faiz'])} faiz "
                     f"(biter {k['payoff_tarih']})"
                 )
         context += (
@@ -1260,7 +1264,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             .order_by(WishlistItem.created_at.asc()).all()
         )
         if _ready:
-            w_lines = [f"  - {w.item} ({_fmt(float(w.amount))} TL)" for w in _ready[:3]]
+            w_lines = [f"  - {w.item} ({_para(float(w.amount))})" for w in _ready[:3]]
             context += (
                 "\n\n## İSTEK LİSTESİ — 24 SAAT DOLDU (hâlâ isteniyor mu SOR)\n"
                 + "\n".join(w_lines)
@@ -1284,7 +1288,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             )
         context += (
             f"\n\n## BORÇ ÖDEME İLERLEMESİ (momentum — motive et)\n"
-            f"  - {bi['baslangic_tarih']}'ten beri {_fmt(bi['odendi'])} TL borç ödedin "
+            f"  - {bi['baslangic_tarih']}'ten beri {_para(bi['odendi'])} borç ödedin "
             f"(%{bi['yuzde']} azalma, {bi['baslangic_borc']:.0f}→{bi['guncel_borc']:.0f}). "
             f"Bu ivmeyi vurgula — davranışsal momentum borç bitirmenin #1 faktörü."
             f"{milestone_line}"
@@ -1304,10 +1308,10 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                        f"({yon}, {tr['degisim']:+.1f} puan).")
         context += (
             f"\n\n## KART KULLANIM ORANI (kredi sağlığı)\n"
-            f"  - Kullanım %{ku['oran']} ({ku['band']}). Toplam borç {_fmt(ku['toplam_borc'])} / "
-            f"limit {_fmt(ku['toplam_limit'])} TL. %30 sağlıklı eşiğe inmek için borç "
-            f"{_fmt(ku['saglikli_borc_hedefi'])} TL seviyesine düşmeli.{trend_s} "
-            f"Kredi notunda en ağır faktörlerden — her ödenen TL oranı doğrudan düşürür."
+            f"  - Kullanım %{ku['oran']} ({ku['band']}). Toplam borç {_para(ku['toplam_borc'])} / "  # BUG #256: etiketsizdi
+            f"limit {_para(ku['toplam_limit'])}. %30 sağlıklı eşiğe inmek için borç "
+            f"{_para(ku['saglikli_borc_hedefi'])} seviyesine düşmeli.{trend_s} "
+            f"Kredi notunda en ağır faktörlerden — her ödenen {para_etiketi()} oranı doğrudan düşürür."
         )
         _kn = [ku["oran"], ku["toplam_borc"], ku["toplam_limit"], ku["saglikli_borc_hedefi"]]
         if tr:
@@ -1321,9 +1325,9 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         asan_s = (" · AŞAN: " + ", ".join(f"{z['category']} ({_fmt(z['harcanan'])}/{_fmt(z['butce'])})" for z in asan[:3])) if asan else ""
         context += (
             f"\n\n## BÜTÇE ZARFLARI\n"
-            f"  - Toplam bütçe {_fmt(zd['toplam_butce'])} TL, harcanan {_fmt(zd['toplam_harcanan'])} TL, "
-            f"kalan {_fmt(zd['toplam_kalan'])} TL{asan_s}\n"
-            f"  - Atanmamış (boşta) nakit: {_fmt(cockpit.get('atanmamis_nakit', 0))} TL "
+            f"  - Toplam bütçe {_para(zd['toplam_butce'])}, harcanan {_para(zd['toplam_harcanan'])}, "
+            f"kalan {_para(zd['toplam_kalan'])}{asan_s}\n"
+            f"  - Atanmamış (boşta) nakit: {_para(cockpit.get('atanmamis_nakit', 0))} "
             f"(YNAB 'her liraya görev' — atanmamış para kolay harcanır)"
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend(
@@ -1335,7 +1339,7 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     if ay.get("adet", 0) > 0:
         context += (
             f"\n\n## ABONELİK YÜKÜ ({ay['adet']} tespit edildi)\n"
-            f"  - Aylık {_fmt(ay['aylik'])} TL · Yıllık {_fmt(ay['yillik'])} TL "
+            f"  - Aylık {_para(ay['aylik'])} · Yıllık {_para(ay['yillik'])} "
             f"(kullanılmayan varsa iptal fırsatı — nakit dar)"
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([ay["aylik"], ay["yillik"]])
@@ -1354,8 +1358,8 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     if fs.get("aylik_toplam", 0) > 0:
         context += (
             f"\n\n## FAİZ SIZINTISI (borç faiz maliyeti)\n"
-            f"  - Aylık {_fmt(fs['aylik_toplam'])} TL · Yıllık {_fmt(fs['yillik_toplam'])} TL faize gidiyor "
-            f"(her gün {_fmt(fs['gunluk'])} TL). Borç eritme = bu sızıntıyı durdurmak."
+            f"  - Aylık {_para(fs['aylik_toplam'])} · Yıllık {_para(fs['yillik_toplam'])} faize gidiyor "
+            f"(her gün {_para(fs['gunluk'])}). Borç eritme = bu sızıntıyı durdurmak."
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([fs["aylik_toplam"], fs["yillik_toplam"]])
 

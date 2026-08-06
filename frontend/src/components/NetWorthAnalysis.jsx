@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { reportsApi, formatTL } from '../api.js';
+import { reportsApi } from '../api.js';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
  * Net değer analizi (FEAT-021 ayrıştırma + FEAT-024 enflasyon-düzeltilmiş reel).
@@ -47,14 +48,14 @@ export default function NetWorthAnalysis() {
                 Bu dönem net değer değişimi
               </h3>
               <p className={`font-numeric text-xl font-bold mb-2 ${attr.degisim >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-                {attr.degisim >= 0 ? '+' : ''}{formatTL(attr.degisim)} TL
+                {attr.degisim >= 0 ? '+' : ''}{formatPara(attr.degisim)}
               </p>
               <div className="space-y-1">
                 {attr.surucureler.map((s) => (
                   <div key={s.ad} className="flex items-center justify-between text-xs">
                     <span className="text-zinc-600 dark:text-zinc-400">{s.ad}</span>
                     <span className={`font-numeric ${s.katki >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-                      {s.katki >= 0 ? '+' : ''}{formatTL(s.katki)} TL
+                      {s.katki >= 0 ? '+' : ''}{formatPara(s.katki)}
                     </span>
                   </div>
                 ))}
@@ -71,15 +72,15 @@ export default function NetWorthAnalysis() {
               <div className="flex items-center gap-2 mb-1">
                 {real.reel_degisim >= 0 ? <TrendingUp className="w-4 h-4 text-positive-500" /> : <TrendingDown className="w-4 h-4 text-negative-500" />}
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Nominal {real.nominal_degisim >= 0 ? '+' : ''}{formatTL(real.nominal_degisim)} → Reel{' '}
+                  Nominal {real.nominal_degisim >= 0 ? '+' : ''}{formatSayi(real.nominal_degisim)} → Reel{' '}
                   <span className={real.reel_degisim >= 0 ? 'text-positive-600 dark:text-positive-400 font-semibold' : 'text-negative-600 dark:text-negative-400 font-semibold'}>
-                    {real.reel_degisim >= 0 ? '+' : ''}{formatTL(real.reel_degisim)}
-                  </span> TL
+                    {real.reel_degisim >= 0 ? '+' : ''}{formatSayi(real.reel_degisim)}
+                  </span> {paraEtiketi()}
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Enflasyon etkisi: <span className={real.enflasyon_etkisi >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}>
-                  {formatTL(real.enflasyon_etkisi)} TL
+                  {formatPara(real.enflasyon_etkisi)}
                 </span>
                 {real.enflasyon_etkisi >= 0 ? ' (borç eridi)' : ' (servet aşındı)'}
               </p>

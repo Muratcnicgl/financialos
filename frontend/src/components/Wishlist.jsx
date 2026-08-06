@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Plus, ShoppingBag, Check, X, Clock } from 'lucide-react';
 import { wishlistApi, formatTL, parseTRNumber } from '../api';
 import { useToast } from './Toast.jsx';
+import { formatPara } from '../lib/money.js';
 
 /**
  * FEAT-032: İstek listesi / 24-saat impuls bekleme. Büyük/plansız alımı hemen yapmak yerine
@@ -95,7 +96,7 @@ export default function Wishlist() {
             }`}>
               <div className="flex-1 min-w-0">
                 <span className="text-zinc-800 dark:text-zinc-100">{w.item}</span>
-                <span className="text-zinc-400 dark:text-zinc-500"> · {formatTL(w.amount)} TL</span>
+                <span className="text-zinc-400 dark:text-zinc-500"> · {formatPara(w.amount)}</span>
                 {w.hazir && (
                   <span className="ml-1 inline-flex items-center gap-0.5 text-xs text-warn-600 dark:text-warn-400">
                     <Clock className="w-3 h-3" /> 24s doldu

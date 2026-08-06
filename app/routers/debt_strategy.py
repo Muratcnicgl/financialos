@@ -28,6 +28,7 @@ from app.debt_strategy import (
     simulate_purchase_opportunity_cost,
 )
 from app.models import User
+from app.money_format import para_etiketi  # BUG #256 (H4): para etiketi tek kaynak
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ class DebtStrategyResponse(BaseModel):
 def compare(
     extra_monthly: float = Query(
         0.0, ge=0.0, le=100_000.0,
-        description="Aylik ekstra odeme (0 - 100000 TL)",
+        description=f"Aylik ekstra odeme (0 - 100000 {para_etiketi()})",
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -138,7 +139,7 @@ def consolidation(
 def opportunity_cost(
     amount: float = Query(
         ..., gt=0.0, le=10_000_000.0,
-        description="Harcamayı düşündüğün tutar (TL) — borca ödemenin alternatif maliyeti",
+        description=f"Harcamayı düşündüğün tutar ({para_etiketi()}) — borca ödemenin alternatif maliyeti",
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

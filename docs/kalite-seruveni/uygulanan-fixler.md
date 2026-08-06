@@ -2,6 +2,13 @@
 
 Her satır: yapıldı → **doğrulandı**. Halüsinasyon/varsayım yok; her fix çalıştırılarak teyit edildi. Backlog ID + BUG/ADR numarası referanslı.
 
+> **KARAR (7 Ağu 2026): bu dosya TEK RESMÎ BUG ENVANTERİDİR.** Bundan sonra açılan her `BUG #NNN`
+> buraya satır yazar — başka hiçbir yer envanter sayılmaz.
+> **Dürüst kayıt (master rapor YANILGI-5):** repoda **235** benzersiz BUG numarası geçiyor, bu
+> ledger'da **114**'ü var (#059–#254 aralığı). Eksiklerin kaydı `milestone-log.md` ve
+> `masterprompt-publish.md` içinde dağınık duruyor. **Geriye dönük toplama YAPILMADI** — ayrı iş
+> olarak açık bırakıldı; bu not onu gizlememek içindir.
+
 | # | ID | Değişiklik | Dosya | Doğrulama | Durum |
 |---|----|-----------|-------|-----------|-------|
 | 1 | RULE-001 / BUG #059 | `account_type` kriteri `str(enum)` yerine `.value` — enum bug'ı yüzünden account_type kriterli her GoalRule sessizce ölüydü | `app/goal_rules.py:130` | `AccountType.cash.value=='cash'` (True), `str(...)=='AccountType.cash'` (False); import OK | ✅ |
@@ -561,3 +568,11 @@ minör), RULE-013 (baseline model değişimi + migrasyon). Birincil-yol doğrulu
 **Ledger notu (2026-08-05):** bu dosya P1 turundan sonra geride kalmıştı; BUG #166-#210 arası
 publish-yolu düzeltmeleri **`masterprompt-publish.md` §11 durum tablosunda** kayıtlı (tek doğruluk
 kaynağı orası). Bu bölüm ledger'ı yeniden bağlar; §11 ile çelişki çıkarsa §11 esas alınır.
+
+## Tur — H4 PARA BİRİMİ + KAYIT BORÇLARI (7 Ağu 2026)
+
+| # | ID | Değişiklik | Dosya | Doğrulama | Durum |
+|---|----|-----------|-------|-----------|-------|
+| — | YANILGI-1/2/3/4/5/7 | **Kayıt borçları yazılı hale geldi:** MCP graph "tarihsel arşiv" ilan edildi (186 satırlık flush bilinçli olarak YAPILMADI — ikinci gerçek kaynak üretmez), milestone/tag disiplininin 18 Tem'de bırakıldığı yazıldı, coverage %92→%93, backlog 520→521, tek bug envanteri ilan edildi | `PROJE.md`, `masterprompt-publish.md` §11.0, `backlog.md`, `uygulanan-fixler.md` | `tests/test_kayit_kararlari_kapisi.py` **13 test** (karar cümleleri diskte + bayat iddia geri gelirse kırmızı + devir belgesi var + mutasyon: cümle silinince KIRMIZI) | ✅ |
+| — | BUG #255 | **`scripts/mcp_sync_report.py` HER durumda 0 dönüyordu** — "186 commit birikmiş" ile "birikme yok" aynı çıkış kodunu veriyordu (hep-başarılı araç, BUG #248 sınıfı / L28). Eşik (50) aşılınca 2 döner; `--temizle` bilinçli kapatma yolu | `scripts/mcp_sync_report.py` | `tests/test_kayit_kararlari_kapisi.py::test_mcp_ledger_esigi_gercekten_olculuyor` (boş=0, az=0, çok=2) | ✅ |
+| — | **BUG #256** | **PARA BİRİMİ TEK KAYNAK (H4, ADR-044).** Biçimlendirme **yedi ayrı yerde** kodluydu (`_tl`, `_fmt`, `{x:,.0f}` [İngilizce ayraç!], `api.js formatTL`, `DebtStrategy` yerel `TL()`, iki modal). Etiket 167 backend sabiti + 91 frontend satırında elle yazılıydı; `user_currency()` üretimde hiç çağrılmıyordu. **En kritik yarısı:** `grounding.py` deseni `TL` literaline gömülüydü → etiket değişse doğrulama `{"ok": True}` ile **sessiz-yeşile** düşerdi; ayrıca koç bağlamının yatırım K/Z ve kart borcu satırları **etiketsiz** tutar yazıyordu, yani hiç denetlenmiyorlardı. Fix: `app/money_format.py` + `frontend/src/lib/money.js` tek kaynak; 87+45+14 çağrı yeri dönüştürüldü; grounding etiketleri tek kaynaktan alır + yeni `etiketsiz` alanı kırmızı yapar | `app/money_format.py`, `app/grounding.py`, `frontend/src/lib/money.js` + 18 backend + 24 frontend dosyası | `tests/test_para_birimi_kapisi.py` **10**, `tests/test_grounding_para_birimi.py` **15**, `frontend/src/money.test.js` **8**. **Mutasyon 3/3:** etiket `TL→XX` (backend) KIRMIZI, `etiketsiz` denetimi kaldırılınca KIRMIZI, frontend etiketi `TL→XX` KIRMIZI. Tam süit **2084 passed, 18 skipped** + **151 vitest** + `npm run build` OK | ✅ |

@@ -32,6 +32,7 @@ from app.user_prefs import user_today_by_id  # BUG #237 (D17)
 
 from app.models import Account, AccountType
 from app.rules_engine import _scope  # M72: aktif workspace kapsamı (köprü; contextvar yoksa user_id)
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 
 # ============================================================
@@ -329,12 +330,12 @@ def compare_strategies(
         note = 'Iki strateji neredeyse ayni sonuc verir. Davranissal tercih daha onemli.'
     elif saved > 0:
         note = (
-            f'Avalanche {saved:.0f} TL tasarruf eder ve {abs(months_diff)} ay daha '
+            f'Avalanche {_para(saved, ondalik=0)} tasarruf eder ve {abs(months_diff)} ay daha '
             f'hizli biter. Snowball motivasyon icin tercih edilir.'
         )
     else:
         note = (
-            f'Snowball {abs(saved):.0f} TL tasarruf eder — cunku kucuk borc yuksek '
+            f'Snowball {_para(abs(saved), ondalik=0)} tasarruf eder — cunku kucuk borc yuksek '
             f'faizli. Iki yontem de iyi secim.'
         )
 

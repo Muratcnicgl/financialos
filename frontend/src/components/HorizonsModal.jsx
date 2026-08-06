@@ -7,36 +7,38 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, X, Calendar, Clock, ArrowRight, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { simulationApi, actionsApi } from '../api.js';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 import { useToast } from '../components/Toast.jsx';
 
 // ============================================================
 // YARDIMCI FORMATLAYICILAR
 // ============================================================
 
-const fmt = (v) =>
-  (v ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// BUG #256 (H4): bu dosya kendi `toLocaleString('tr-TR', …)` biçimlendiricisini kuruyor ve
+// para etiketini elle ' TL' yazıyordu — api.js'ten bağımsız DÖRDÜNCÜ uygulama. Tek kaynağa
+// bağlandı (`lib/money.js`); sayı biçimi ve etiket artık tüm arayüzle birlikte değişir.
+const fmt = (v) => formatSayi(v ?? 0);
 
 const fmtDelta = (v, frame = 'gain') => {
   if (v === undefined || v === null || v === 0) return null;
-  const absVal = Math.abs(v);
-  const fmtVal = fmt(absVal);
+  const paraStr = formatPara(Math.abs(v));
   if (frame === 'gain') {
-    return v > 0 ? `+${fmtVal} TL kazanç` : `−${fmtVal} TL kayıp`;
+    return v > 0 ? `+${paraStr} kazanç` : `−${paraStr} kayıp`;
   } else {
-    return v > 0 ? `+${fmtVal} TL fırsat` : `−${fmtVal} TL risk`;
+    return v > 0 ? `+${paraStr} fırsat` : `−${paraStr} risk`;
   }
 };
 
 const summaryText = (val, frame, metric) => {
   if (val === null || val === undefined || val === 0) return null;
-  const absStr = fmt(Math.abs(val));
+  const absStr = formatPara(Math.abs(val));
   const sign = val > 0 ? '+' : '−';
   if (frame === 'gain') {
     const verb = val > 0 ? 'kazanırsın' : 'kaybedersin';
-    return `30g sonra ${metric}: ${sign}${absStr} TL ${verb}`;
+    return `30g sonra ${metric}: ${sign}${absStr} ${verb}`;
   } else {
     const verb = val > 0 ? 'fırsatını kaçırırsın' : 'risk azaltma fırsatını kaçırırsın';
-    return `Bu aksiyonu yapmazsan 30g'de ${metric}: ${sign}${absStr} TL ${verb}`;
+    return `Bu aksiyonu yapmazsan 30g'de ${metric}: ${sign}${absStr} ${verb}`;
   }
 };
 
@@ -87,7 +89,7 @@ function HorizonCard({ snap, meta, frame }) {
                     ? 'text-positive-600 dark:text-positive-400'
                     : 'text-zinc-700 dark:text-zinc-300'
                 }`}>
-                  {fmt(value)} TL
+                  {formatPara(value ?? 0)}
                 </span>
                 {dText && (
                   <p className={`text-[10px] font-numeric ${dVal < 0 ? 'text-negative-500' : 'text-positive-500'}`}>

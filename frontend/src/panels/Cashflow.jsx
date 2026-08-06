@@ -6,6 +6,7 @@ import BalanceTrend from '../components/BalanceTrend.jsx';
 import CashflowCalendar from '../components/CashflowCalendar.jsx';
 import CashflowSankey from '../components/CashflowSankey.jsx';
 import CashflowSummary from '../components/CashflowSummary.jsx';
+import { paraEtiketi } from '../lib/money.js';
 
 const HORIZON_OPTIONS = [30, 60, 90];
 
@@ -138,9 +139,9 @@ export default function Cashflow() {
             onKeyDown={e => e.key === 'Enter' && applyThreshold()}
             className="w-20 px-2 py-1 text-xs font-numeric rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-right"
             placeholder="0"
-            title="Sıkışma eşiği (TL)"
+            title="Sıkışma eşiği ({paraEtiketi()})"
           />
-          <span className="text-xs text-zinc-400">TL</span>
+          <span className="text-xs text-zinc-400">{paraEtiketi()}</span>
         </div>
       </div>
 

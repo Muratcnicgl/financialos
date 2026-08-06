@@ -120,4 +120,9 @@ def test_context_grounding_tutarliligi_invariant(db_session, test_user):
     _seed_founding(db_session, test_user.id)
     context, cockpit = _build_context_message(db_session, test_user.id)
     r = check_grounding(context, cockpit)
-    assert r["ok"] is True, f"context'te grounding'siz TL tutar(lar): {r['unverified']}"
+    # BUG #256: mesaj artık ETİKETSİZ tutarları da gösterir — eskiden yalnız `unverified`
+    # yazdırılıyordu ve kapı kırmızıya düştüğünde ekranda boş liste görünüyordu (teşhis edilemez).
+    assert r["ok"] is True, (
+        f"context'te grounding'siz tutar(lar): izlenemeyen={r['unverified']} "
+        f"etiketsiz={r.get('etiketsiz')}"
+    )

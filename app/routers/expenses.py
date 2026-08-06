@@ -20,6 +20,7 @@ from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43 workspace scoping
 from app.models import User, RecurringExpense, Account, PendingAction, ActionStatus
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +216,7 @@ def trigger_due_expenses(
                     "transaction_date": today.isoformat(),
                     "is_card_expense": False,
                 },
-                summary=f"{exp.name}: {_fmt(exp.amount)} TL ödendi",
+                summary=f"{exp.name}: {_para(exp.amount)} ödendi",  # BUG #256: çift biçimlendirme değil, tek kaynak
             )
             # BUG #070 fix (P0-15): last_triggered BURADA set EDİLMEZ — execute'te
             # (_mark_recurring_triggered) set edilir; reddedilen/başarısız gider re-triggerable kalır.

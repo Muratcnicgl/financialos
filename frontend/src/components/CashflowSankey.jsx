@@ -1,6 +1,6 @@
 import { Sankey, Tooltip, ResponsiveContainer } from 'recharts';
-import { formatTL } from '../api.js';
 import { GitMerge } from 'lucide-react';
+import { formatPara } from '../lib/money.js';
 
 const NODE_COLORS = {
   income: '#22c55e',    // positive-500
@@ -43,7 +43,7 @@ function CustomTooltip({ active, payload }) {
         {p.source?.name ?? ''} → {p.target?.name ?? ''}
       </p>
       <p className="font-numeric mt-0.5 text-zinc-600 dark:text-zinc-300">
-        {formatTL(p.value)} TL
+        {formatPara(p.value)}
       </p>
     </div>
   );

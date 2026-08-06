@@ -2,7 +2,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from 'recharts';
-import { formatTL, formatDate } from '../api.js';
+import { formatDate } from '../api.js';
+import { formatPara, formatSayi } from '../lib/money.js';
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -13,16 +14,16 @@ function CustomTooltip({ active, payload }) {
         {formatDate(d.date, { withYear: true })}
       </p>
       <p className={`font-numeric font-bold ${d.balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-        {formatTL(d.balance)} TL
+        {formatPara(d.balance)}
       </p>
       {d.inflows > 0 && (
         <p className="text-positive-600 dark:text-positive-400 mt-0.5">
-          +{formatTL(d.inflows)} TL giriş
+          +{formatPara(d.inflows)} giriş
         </p>
       )}
       {d.outflows < 0 && (
         <p className="text-negative-600 dark:text-negative-400 mt-0.5">
-          {formatTL(d.outflows)} TL çıkış
+          {formatPara(d.outflows)} çıkış
         </p>
       )}
       {d.crunch && (
@@ -65,7 +66,7 @@ export default function BalanceTrend({ days, today }) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={v => formatTL(v, { compact: true })}
+            tickFormatter={v => formatSayi(v, { compact: true })}
             tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.6 }}
             axisLine={false}
             tickLine={false}

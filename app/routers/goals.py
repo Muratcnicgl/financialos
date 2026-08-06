@@ -33,6 +33,7 @@ from app import models, schemas
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id, scope_filter, require_write  # M43, require_write
 from app.rules_engine import workspace_scope  # M72: baseline hesabı aktif workspace kapsamında
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 from app.goal_engine import (
     calculate_baseline_for_debt_freedom,
     link_transaction,
@@ -238,8 +239,9 @@ def create_allocation(
     if abs(payload.amount) + existing_abs > tx_amt:
         raise HTTPException(
             status_code=422,
-            detail=(f"Allocation tutarı transaction tutarını aşıyor. İşlem: {tx_amt} TL, "
-                    f"zaten bağlı (tüm hedefler): {existing_abs} TL, istenen: {abs(payload.amount)} TL."),
+            detail=(f"Allocation tutarı transaction tutarını aşıyor. İşlem: {_para(tx_amt)}, "
+                    f"zaten bağlı (tüm hedefler): {_para(existing_abs)}, "
+                    f"istenen: {_para(abs(payload.amount))}."),  # BUG #256: etiket tek kaynak
         )
 
     try:

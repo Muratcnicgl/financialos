@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.user_prefs import user_today  # BUG #237 (D17)
 from app.workspace_deps import active_workspace_id, scope_filter, require_write
+from app.money_format import format_para  # BUG #256 (H4): para etiketi tek kaynak
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType, RecurringIncome,
     MasterCheckpoint, CheckpointType, Goal, DemoDataMarker,
@@ -115,8 +116,8 @@ def demo_yukle(
 
     kural = MasterCheckpoint(
         user_id=user.id, workspace_id=ws_id, title="Örnek kural: nakit tabanı",
-        description="Nakdim 5.000 TL'nin altına inmesin (bu bir demo kuralıdır — "
-                    "kendi kuralını yazınca bunu silebilirsin).",
+        description=f"Nakdim {format_para(5000, ondalik=0)}'nin altına inmesin (bu bir demo "
+                    "kuralıdır — kendi kuralını yazınca bunu silebilirsin).",
         checkpoint_type=CheckpointType.red_line, priority=2, is_active=True,
         rule_type="min_cash_floor", rule_params='{"amount": 5000}')
     db.add(kural)

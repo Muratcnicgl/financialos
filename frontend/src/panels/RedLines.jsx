@@ -5,6 +5,7 @@ import {
   Flame, Target, BookOpen, Info,
 } from 'lucide-react';
 import { checkpointsApi, accountsApi, parseTRNumber } from '../api.js';  // H21: dayatılan kural formu
+import { paraEtiketi } from '../lib/money.js';
 
 /**
  * RedLines paneli — Master Checkpoint yonetimi.
@@ -530,7 +531,7 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
 
           {ruleType && ruleType !== 'account_untouchable' && (
             <div>
-              <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Tutar (TL)</label>
+              <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
               <input
                 type="text" inputMode="decimal"
                 value={ruleAmount}

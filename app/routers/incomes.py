@@ -24,6 +24,7 @@ from app.workspace_deps import active_workspace_id, scope_filter, require_write 
 from app.models import User, RecurringIncome, Account, AccountType, PendingAction, ActionStatus
 from app.schema_types import FinansTutar, FinansOptTutar  # SEC-032: sonlu/pozitif tutar
 from app.account_rules import varsayilan_nakit_hesap  # BUG #241 sınıf taraması (MC1 emanet)
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,7 @@ def trigger_due_incomes(
                     "description": f"{inc.name} — {today.strftime('%B %Y')}",
                     "transaction_date": today.isoformat(),
                 },
-                summary=f"{inc.name}: {_fmt(inc.amount)} TL geldi",
+                summary=f"{inc.name}: {_para(inc.amount)} geldi",  # BUG #256: etiket tek kaynak
             )
             # BUG #070 fix (P0-15): last_triggered BURADA set EDİLMEZ — execute'te set edilir.
             pending.source_recurring_id = inc.id

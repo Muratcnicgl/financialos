@@ -5,11 +5,9 @@ import {
   Calendar, ArrowDownToLine, ArrowUpToLine, Filter,
   Power, CreditCard, Receipt, Wallet, RotateCcw,
 } from 'lucide-react';
-import {
-  incomesApi, expensesApi, debtsApi, accountsApi,
-  formatTL, formatDate, todayLocalISO, currentYearMonthLocal, parseTRNumber,
-} from '../api.js';
+import { incomesApi, expensesApi, debtsApi, accountsApi, formatDate, todayLocalISO, currentYearMonthLocal, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 const CURRENT_YEAR_MONTH = currentYearMonthLocal(); // "2026-05" — LOCAL (gece vardiyası TZ güvenliği)
 const EXPENSE_CATEGORIES = ['abonelik', 'fatura', 'kira', 'sigorta', 'internet', 'telefon', 'diger'];
@@ -168,7 +166,7 @@ export default function IncomeDebt() {
       const hesap = accounts.find(a => a.id === guncel?.settlement_account_id);
       if (hesap) {
         toast.success(
-          `${tahsilat ? 'Tahsilat' : 'Ödeme'} işlendi: ${tahsilat ? '+' : '−'}${formatTL(debt.amount)} TL`,
+          `${tahsilat ? 'Tahsilat' : 'Ödeme'} işlendi: ${tahsilat ? '+' : '−'}${formatPara(debt.amount)}`,
           { detail: `${hesap.name} bakiyesine yansıdı` },
         );
       } else {
@@ -189,7 +187,7 @@ export default function IncomeDebt() {
       if (hesap) {
         const tahsilat = debt.direction === 'receivable';
         toast.success('Ödendi işareti geri alındı', {
-          detail: `${hesap.name}: ${tahsilat ? '−' : '+'}${formatTL(debt.amount)} TL geri sarıldı`,
+          detail: `${hesap.name}: ${tahsilat ? '−' : '+'}${formatPara(debt.amount)} geri sarıldı`,
         });
       } else {
         toast.success('Ödendi işareti geri alındı', {
@@ -269,7 +267,7 @@ export default function IncomeDebt() {
             <span>Aylık gelir</span>
           </div>
           <p className="font-numeric text-base font-bold text-positive-600 dark:text-positive-400">
-            +{formatTL(summary.monthlyIncome)} <span className="text-[10px] font-normal">TL</span>
+            +{formatSayi(summary.monthlyIncome)} <span className="text-[10px] font-normal">{paraEtiketi()}</span>
           </p>
         </div>
         <div className="card p-3">
@@ -278,7 +276,7 @@ export default function IncomeDebt() {
             <span>Aylık gider</span>
           </div>
           <p className="font-numeric text-base font-bold text-negative-600 dark:text-negative-400">
-            −{formatTL(summary.monthlyExpense)} <span className="text-[10px] font-normal">TL</span>
+            −{formatSayi(summary.monthlyExpense)} <span className="text-[10px] font-normal">{paraEtiketi()}</span>
           </p>
         </div>
         <div className="card p-3">
@@ -287,7 +285,7 @@ export default function IncomeDebt() {
             <span>Bekleyen alacak</span>
           </div>
           <p className="font-numeric text-base font-bold text-positive-600 dark:text-positive-400">
-            +{formatTL(summary.pendingReceivable)} <span className="text-[10px] font-normal">TL</span>
+            +{formatSayi(summary.pendingReceivable)} <span className="text-[10px] font-normal">{paraEtiketi()}</span>
           </p>
         </div>
         <div className="card p-3">
@@ -296,7 +294,7 @@ export default function IncomeDebt() {
             <span>Bekleyen borç</span>
           </div>
           <p className="font-numeric text-base font-bold text-negative-600 dark:text-negative-400">
-            −{formatTL(summary.pendingPayable)} <span className="text-[10px] font-normal">TL</span>
+            −{formatSayi(summary.pendingPayable)} <span className="text-[10px] font-normal">{paraEtiketi()}</span>
           </p>
         </div>
       </div>
@@ -513,7 +511,7 @@ function IncomeRow({ income, onToggle, onEdit, onDelete }) {
         </div>
         <div className="text-right flex-shrink-0">
           <p className="font-numeric font-bold text-base text-positive-600 dark:text-positive-400">
-            +{formatTL(income.amount)}
+            +{formatSayi(income.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
             <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
@@ -561,7 +559,7 @@ function ExpenseRow({ expense, accounts, onToggle, onEdit, onDelete }) {
         </div>
         <div className="text-right flex-shrink-0">
           <p className="font-numeric font-bold text-base text-negative-600 dark:text-negative-400">
-            −{formatTL(expense.amount)}
+            −{formatSayi(expense.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
             <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
@@ -660,7 +658,7 @@ function DebtRow({ debt, accounts = [], onEdit, onDelete, onMarkPaid, onUndoPaid
         </div>
         <div className="text-right flex-shrink-0">
           <p className={`font-numeric font-bold text-base ${colorClass}`}>
-            {sign}{formatTL(debt.amount)}
+            {sign}{formatSayi(debt.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
             {!debt.is_paid && (
@@ -750,7 +748,7 @@ function IncomeFormModal({ income, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar (TL)</label>
+          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
           <input
             type="text"
             value={amount}
@@ -855,7 +853,7 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
             className="input" placeholder="Netflix, Kira, İnternet..." autoFocus />
         </div>
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar (TL)</label>
+          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
           <input type="text" value={amount} onChange={e => setAmount(e.target.value)}
             className="input font-numeric !text-base !font-semibold" placeholder="149" />
         </div>
@@ -981,7 +979,7 @@ function DebtFormModal({ debt, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar (TL)</label>
+          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
           <input
             type="text"
             value={amount}
@@ -1068,8 +1066,8 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }) {
 
   const data = item.item;
   const label = item.kind === 'income' || item.kind === 'expense'
-    ? `${data.name} (${formatTL(data.amount)} TL/ay)`
-    : `${data.counterparty} · ${formatTL(data.amount)} TL`;
+    ? `${data.name} (${formatPara(data.amount)}/ay)`
+    : `${data.counterparty} · ${formatPara(data.amount)}`;
 
   // BUG #241: silinen kaydın nakit ayağı da geri sarılır (sahipsiz bakiye etkisi kalmaz).
   // Kullanıcı bunu ONAYDAN ÖNCE bilmeli — bakiyesi sürpriz olarak değişmesin.
@@ -1088,7 +1086,7 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }) {
           {nakitGeriSarilacak && (
             <p className="mt-1 text-zinc-700 dark:text-zinc-300">
               Bu kaydın nakit karşılığı da geri alınacak: nakit bakiyen{' '}
-              <strong>{formatTL(data.amount)} TL {geriSarmaYonu}</strong>.
+              <strong>{formatPara(data.amount)} {geriSarmaYonu}</strong>.
             </p>
           )}
         </div>

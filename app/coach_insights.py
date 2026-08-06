@@ -58,6 +58,7 @@ from app.models import (
     MasterCheckpoint,
 )
 from app.rules_engine import _scope  # M73: extractor'lar aktif workspace kapsamında (batch personal-scope'lar)
+from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
 logger = logging.getLogger(__name__)
 
@@ -1285,9 +1286,9 @@ def extract_breakthrough(db: Session, user_id: int) -> dict:
         if nw_delta >= BT_NET_WORTH_THRESHOLD_TL:
             breakthroughs.append((
                 "Kutlanacak ilerleme: Net deger iyilesmesi",
-                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama net deger {nw_recent:,.0f} TL, "
-                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {nw_base:,.0f} TL idi. "
-                f"Net iyilesme: +{nw_delta:,.0f} TL. Bu finansal durumda anlamli bir ilerleme.",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama net deger {_para(nw_recent, ondalik=0)}, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(nw_base, ondalik=0)} idi. "
+                f"Net iyilesme: +{_para(nw_delta, ondalik=0)}. Bu finansal durumda anlamli bir ilerleme.",
                 {
                     "component": "net_worth_full",
                     "recent_avg": round(nw_recent, 2),
@@ -1306,9 +1307,9 @@ def extract_breakthrough(db: Session, user_id: int) -> dict:
         if cd_delta >= BT_DEBT_REDUCTION_THRESHOLD_TL:
             breakthroughs.append((
                 "Kutlanacak ilerleme: Kart borcu azalmasi",
-                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama kart borcu {cd_recent:,.0f} TL, "
-                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {cd_base:,.0f} TL idi. "
-                f"Azalma: -{cd_delta:,.0f} TL. Borc disiplini calisiyor.",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama kart borcu {_para(cd_recent, ondalik=0)}, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(cd_base, ondalik=0)} idi. "
+                f"Azalma: -{_para(cd_delta, ondalik=0)}. Borc disiplini calisiyor.",
                 {
                     "component": "card_debt",
                     "recent_avg": round(cd_recent, 2),
@@ -1327,9 +1328,9 @@ def extract_breakthrough(db: Session, user_id: int) -> dict:
         if ld_delta >= BT_DEBT_REDUCTION_THRESHOLD_TL:
             breakthroughs.append((
                 "Kutlanacak ilerleme: Kredi borcu azalmasi",
-                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama kredi borcu {ld_recent:,.0f} TL, "
-                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {ld_base:,.0f} TL idi. "
-                f"Azalma: -{ld_delta:,.0f} TL. Kredi odemeleri ilerliyor.",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama kredi borcu {_para(ld_recent, ondalik=0)}, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(ld_base, ondalik=0)} idi. "
+                f"Azalma: -{_para(ld_delta, ondalik=0)}. Kredi odemeleri ilerliyor.",
                 {
                     "component": "loan_debt",
                     "recent_avg": round(ld_recent, 2),
@@ -1348,9 +1349,9 @@ def extract_breakthrough(db: Session, user_id: int) -> dict:
         if iv_delta >= BT_INVESTMENT_GROWTH_THRESHOLD_TL:
             breakthroughs.append((
                 "Kutlanacak ilerleme: Yatirim buyumesi",
-                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama yatirim degeri {iv_recent:,.0f} TL, "
-                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {iv_base:,.0f} TL idi. "
-                f"Buyume: +{iv_delta:,.0f} TL.",
+                f"Son {BT_RECENT_WINDOW_DAYS} gun ortalama yatirim degeri {_para(iv_recent, ondalik=0)}, "
+                f"onceki {BT_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(iv_base, ondalik=0)} idi. "
+                f"Buyume: +{_para(iv_delta, ondalik=0)}.",
                 {
                     "component": "investment_value",
                     "recent_avg": round(iv_recent, 2),
@@ -1533,9 +1534,9 @@ def extract_setback(db: Session, user_id: int) -> dict:
         if nw_drop >= ST_NET_WORTH_THRESHOLD_TL:
             setbacks.append((
                 "Dikkat: Net deger kotulesmesi",
-                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama net deger {nw_recent:,.0f} TL, "
-                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {nw_base:,.0f} TL idi. "
-                f"Dusus: -{nw_drop:,.0f} TL. Harcama-gelir dengesi gozden gecirilmeli.",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama net deger {_para(nw_recent, ondalik=0)}, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(nw_base, ondalik=0)} idi. "
+                f"Dusus: -{_para(nw_drop, ondalik=0)}. Harcama-gelir dengesi gozden gecirilmeli.",
                 {
                     "component": "net_worth_full",
                     "recent_avg": round(nw_recent, 2),
@@ -1554,9 +1555,9 @@ def extract_setback(db: Session, user_id: int) -> dict:
         if cd_increase >= ST_DEBT_INCREASE_THRESHOLD_TL:
             setbacks.append((
                 "Dikkat: Kart borcu artisi",
-                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama kart borcu {cd_recent:,.0f} TL, "
-                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {cd_base:,.0f} TL idi. "
-                f"Artis: +{cd_increase:,.0f} TL. Kart kullanim disiplini onerilir.",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama kart borcu {_para(cd_recent, ondalik=0)}, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(cd_base, ondalik=0)} idi. "
+                f"Artis: +{_para(cd_increase, ondalik=0)}. Kart kullanim disiplini onerilir.",
                 {
                     "component": "card_debt",
                     "recent_avg": round(cd_recent, 2),
@@ -1575,9 +1576,9 @@ def extract_setback(db: Session, user_id: int) -> dict:
         if ld_increase >= ST_DEBT_INCREASE_THRESHOLD_TL:
             setbacks.append((
                 "Dikkat: Kredi borcu artisi",
-                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama kredi borcu {ld_recent:,.0f} TL, "
-                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {ld_base:,.0f} TL idi. "
-                f"Artis: +{ld_increase:,.0f} TL. Yeni kredi/refinansman kararlari gozden gecirilmeli.",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama kredi borcu {_para(ld_recent, ondalik=0)}, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(ld_base, ondalik=0)} idi. "
+                f"Artis: +{_para(ld_increase, ondalik=0)}. Yeni kredi/refinansman kararlari gozden gecirilmeli.",
                 {
                     "component": "loan_debt",
                     "recent_avg": round(ld_recent, 2),
@@ -1596,9 +1597,9 @@ def extract_setback(db: Session, user_id: int) -> dict:
         if iv_loss >= ST_INVESTMENT_LOSS_THRESHOLD_TL:
             setbacks.append((
                 "Dikkat: Yatirim deger kaybi",
-                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama yatirim degeri {iv_recent:,.0f} TL, "
-                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {iv_base:,.0f} TL idi. "
-                f"Kayip: -{iv_loss:,.0f} TL. Piyasa hareketi mi davranissal mi - ayrimi onemli.",
+                f"Son {ST_RECENT_WINDOW_DAYS} gun ortalama yatirim degeri {_para(iv_recent, ondalik=0)}, "
+                f"onceki {ST_BASELINE_WINDOW_DAYS} gun ortalamasi {_para(iv_base, ondalik=0)} idi. "
+                f"Kayip: -{_para(iv_loss, ondalik=0)}. Piyasa hareketi mi davranissal mi - ayrimi onemli.",
                 {
                     "component": "investment_value",
                     "recent_avg": round(iv_recent, 2),

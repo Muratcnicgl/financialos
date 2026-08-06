@@ -654,28 +654,13 @@ export async function consumeOAuthRedirect() {
 // FORMATTER YARDIMCILARI — Tum panellerde tekrar kullanilir
 // =============================================================
 
-const tlFormatter = new Intl.NumberFormat('tr-TR', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-const tlCompactFormatter = new Intl.NumberFormat('tr-TR', {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
-
-/** 1234.56 -> "1.234,56" */
-export function formatTL(amount, { compact = false } = {}) {
-  if (amount === null || amount === undefined || isNaN(amount)) return '—';
-  const fmt = compact ? tlCompactFormatter : tlFormatter;
-  return fmt.format(amount);
-}
-
-/** 1234.56 -> "1.234,56 TL" */
-export function formatTLSuffix(amount, opts) {
-  if (amount === null || amount === undefined || isNaN(amount)) return '—';
-  return formatTL(amount, opts) + ' TL';
-}
+// BUG #256 (H4): para biçimlendirmenin gövdesi artık `lib/money.js` — TEK KAYNAK.
+// Buradaki iki isim yalnız GERİYE UYUM içindir (eski import'lar kırılmasın):
+//   formatTL       -> formatSayi (etiket EKLEMEZ)
+//   formatTLSuffix -> formatPara (etiketi tek kaynaktan ekler)
+// Yeni kod doğrudan `lib/money.js`'ten `formatPara`/`formatSayi` almalı; statik kapı
+// (`tests/test_para_birimi_kapisi.py`) üretim kodunda yeni ham " TL" literalini reddeder.
+export { formatSayi as formatTL, formatPara as formatTLSuffix, formatPara, formatSayi, paraEtiketi, PARA_BIRIMI } from './lib/money.js';
 
 /**
  * Kullanıcının girdiği sayıyı locale-toleranslı parse eder (formatTL'in tersi).

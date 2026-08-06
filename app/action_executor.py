@@ -69,6 +69,7 @@ from app.models import (
 )
 from app.rules_engine import simulate_partial_sale
 from app.money import D, ZERO  # ADR-030: para Decimal (DB Numeric kolonlarına Decimal yazılır)
+from app.money_format import format_para as _para, tr_sayi  # BUG #256 (H4): para etiketi tek kaynak
 # BUG #241: borç/alacak kapanışının nakit ayağı TEK KAYNAK (panel yolu ile ortak).
 from app.services.debt_settlement import KapanisDurumu, senkronize_nakit
 from app.account_rules import varsayilan_hesap, varsayilan_nakit_hesap  # BUG #241 (MC1 emanet)
@@ -172,8 +173,15 @@ def _cat_normalize(cat: str) -> str:
 
 
 def _fmt(x: float) -> str:
-    """BUG #031 fix: Sayıyı Türkçe format ile döner: 1234.56 → '1.234,56'"""
-    return f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    """
+    BUG #031 fix: Sayıyı Türkçe format ile döner: 1234.56 → '1.234,56'
+
+    BUG #256 (H4): gövde artık `app.money_format.tr_sayi`'ya devrediyor — aynı kural üç
+    yerde ayrı yazılmıştı (burada, `rules_engine._tl`, frontend `formatTL`). Ad geriye
+    uyum için korunuyor; SAYI biçimi tek kaynaktan gelir. Para ETİKETİ eklemek isteyen
+    `_para()` (= `money_format.format_para`) kullanır, elle " TL" YAZMAZ.
+    """
+    return tr_sayi(x)
 
 
 def _fmt_lot(x) -> str:
@@ -316,8 +324,8 @@ def propose_action(
                 if projected > card.credit_limit:
                     overage = round(projected - card.credit_limit, 2)
                     warning = (
-                        f"⚠️ Bu işlem kart limitini {overage:,.2f} TL aşacak "
-                        f"(mevcut borç: {card.balance:,.2f} TL, limit: {card.credit_limit:,.2f} TL)"
+                        f"⚠️ Bu işlem kart limitini {_para(overage, ondalik=2)} aşacak "
+                        f"(mevcut borç: {_para(card.balance, ondalik=2)}, limit: {_para(card.credit_limit, ondalik=2)})"
                     )
                     logger.warning(f"BUG #027: {warning}")
 
@@ -355,33 +363,33 @@ def _build_action_message(action_type: str, result: Dict) -> str:
             sim = result.get("satis_simulasyonu", {})
             return (
                 f"{_fmt_lot(sim.get('satilan_lot', '?'))} lot {result.get('investment_name', '?')} satıldı. "  # BUG #032 fix
-                f"Elde edilen: {_fmt(sim.get('net_eline_gecen', 0))} TL "
-                f"(stopaj: {_fmt(sim.get('stopaj', 0))} TL). "
+                f"Elde edilen: {_para(sim.get('net_eline_gecen', 0))} "
+                f"(stopaj: {_para(sim.get('stopaj', 0))}). "
                 f"Kalan: {_fmt_lot(result.get('kalan_lot', 0))} lot."  # BUG #032 fix
             )
         if action_type == "add_transaction":
             account_name = result.get("account_name") or ""
             account_part = f" {account_name} hesabına" if account_name else ""
             return (
-                f"{_fmt(result.get('amount', 0))} TL {result.get('category', '?')} işlemi"
+                f"{_para(result.get('amount', 0))} {result.get('category', '?')} işlemi"
                 f"{account_part} kaydedildi."
             )
         if action_type == "pay_credit_card":
             return (
-                f"{result.get('card_account', '?')} kartına {_fmt(result.get('amount', 0))} TL ödeme "
+                f"{result.get('card_account', '?')} kartına {_para(result.get('amount', 0))} ödeme "
                 f"yapıldı ({result.get('source_account', '?')}'ten). Yeni kart borcu: "
-                f"{_fmt(result.get('card_new_balance', 0))} TL."
+                f"{_para(result.get('card_new_balance', 0))}."
             )
         if action_type == "mark_debt_paid":
             counterparty = result.get("counterparty", "?")
             amount = result.get("amount", 0)
             if result.get("direction") == "receivable":
-                return f"{counterparty} alacağı tahsil edildi: {_fmt(amount)} TL."
-            return f"{counterparty}'a borç ödendi: {_fmt(amount)} TL."
+                return f"{counterparty} alacağı tahsil edildi: {_para(amount)}."
+            return f"{counterparty}'a borç ödendi: {_para(amount)}."
         if action_type == "update_account_balance":
             return (
                 f"{result.get('account_name', '?')} bakiyesi güncellendi: "
-                f"{_fmt(result.get('old_balance', 0))} → {_fmt(result.get('new_balance', 0))} TL."
+                f"{_fmt(result.get('old_balance', 0))} → {_para(result.get('new_balance', 0))}."
             )
         if action_type == "update_fund_price":
             return result.get("message", "Fon fiyatı güncellendi.")
@@ -823,7 +831,7 @@ def _execute_pay_credit_card(db: Session, user_id: int, payload: Dict) -> Dict:
 
     warn = None
     if amount > float(card.balance):
-        warn = (f"Ödeme ({_fmt(amount)} TL) kart borcundan ({_fmt(card.balance)} TL) fazla — "
+        warn = (f"Ödeme ({_para(amount)}) kart borcundan ({_para(card.balance)}) fazla — "
                 "fazlası kart alacak bakiyesi olur.")
 
     card.balance -= D(amount)      # kart borcu AZALIR (doğru yön)

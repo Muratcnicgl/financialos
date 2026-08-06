@@ -19,6 +19,7 @@ from app.dependencies import get_db, get_current_user
 from app.rules_engine import workspace_scope  # BUG #223: aktif workspace kapsamı
 from app.workspace_deps import active_workspace_id  # BUG #223: üyelik doğrulama + ws çözümü
 from app.models import User
+from app.money_format import para_etiketi  # BUG #256 (H4): para etiketi tek kaynak
 
 router = APIRouter(prefix="/api/cashflow", tags=["cashflow"])
 
@@ -101,7 +102,7 @@ def cashflow_forecast(
     ),
     crunch_threshold: float = Query(
         default=0.0,
-        description="Bu TL tutarının altına düşen günler crunch=True (varsayılan 0)",
+        description=f"Bu {para_etiketi()} tutarının altına düşen günler crunch=True (varsayılan 0)",
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

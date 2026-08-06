@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Check, X, AlertCircle, Loader2, Pencil, Brain, TrendingUp } from 'lucide-react';
-import { actionsApi, formatTLSuffix, formatDate, todayLocalISO, parseTRNumber } from '../api.js';
+import { actionsApi, formatDate, todayLocalISO, parseTRNumber } from '../api.js';
 import PremortemModal from './PremortemModal.jsx';
 import HorizonsModal from './HorizonsModal.jsx';
+import { formatPara, paraEtiketi } from '../lib/money.js';
 
 /**
  * PendingActions — Onay bekleyen aksiyonlari listeler.
@@ -68,7 +69,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
       ...(form.transaction_date ? { transaction_date: form.transaction_date } : {}),
     };
     if (!form.transaction_date) delete newPayload.transaction_date;
-    const summary = `${form.transaction_type === 'expense' ? 'Gider' : 'Gelir'}: ${form.amount} TL — ${form.category}`;
+    const summary = `${form.transaction_type === 'expense' ? 'Gider' : 'Gelir'}: ${formatPara(Number(form.amount))} — ${form.category}`;
     try {
       const updated = await actionsApi.edit(actionId, newPayload, summary);
       setEditing(false);
@@ -92,7 +93,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
     return (
       <div className="mt-2 space-y-1.5 text-[11px]">
         <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-          <label className="text-zinc-500">Tutar (TL)</label>
+          <label className="text-zinc-500">Tutar ({paraEtiketi()})</label>
           <input type="number" step="0.01" value={form.amount}
             onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
             className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
@@ -146,7 +147,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
       <table className="mt-2 w-full text-[11px] border-collapse">
         <tbody>
           {[
-            ['Tutar',    formatTLSuffix(p.amount)],
+            ['Tutar',    formatPara(p.amount)],
             ['Tip',      p.transaction_type === 'expense' ? 'Gider' : 'Gelir'],
             ['Kategori', p.category || '—'],
             ['Tarih',    tarih],

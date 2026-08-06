@@ -4,12 +4,10 @@ import {
   Plus, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle,
   X, ExternalLink, Clock,
 } from 'lucide-react';
-import {
-  accountsApi, fundPriceApi,
-  formatTL, formatTLSuffix, formatDate, signClass, parseTRNumber,
-} from '../api.js';
+import { accountsApi, fundPriceApi, formatDate, signClass, parseTRNumber } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
 import { useToast } from '../components/Toast.jsx';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
  * Accounts paneli — 8 hesabin tam yonetimi.
@@ -246,7 +244,7 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
       </div>
 
       <p className="font-numeric text-xl font-bold mb-2">
-        {formatTL(balance)} <span className="text-xs font-normal text-zinc-500">TL</span>
+        {formatSayi(balance)} <span className="text-xs font-normal text-zinc-500">{paraEtiketi()}</span>
       </p>
 
       {/* Tipe ozel detay */}
@@ -254,7 +252,7 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
         <div className="space-y-1 text-xs">
           <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
             <span>Limit</span>
-            <span className="font-numeric">{formatTL(a.credit_limit)} TL</span>
+            <span className="font-numeric">{formatPara(a.credit_limit)}</span>
           </div>
           <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
             <span>Kesim / Ödeme</span>
@@ -285,7 +283,7 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
             <div className="flex justify-between">
               <span>Aylık taksit</span>
               <span className="font-numeric font-semibold text-zinc-800 dark:text-zinc-200">
-                {formatTL(a.monthly_payment)} TL
+                {formatPara(a.monthly_payment)}
               </span>
             </div>
           )}
@@ -324,7 +322,7 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
           {a.current_price != null && (
             <div className="flex justify-between">
               <span>{a.fiyat_bayat ? 'Fiyat (bayat)' : 'Güncel fiyat'}</span>
-              <span className="font-numeric">{formatTL(a.current_price)} TL</span>
+              <span className="font-numeric">{formatPara(a.current_price)}</span>
             </div>
           )}
           {a.current_price != null && a.fiyat_yas && (
@@ -340,7 +338,7 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
           {a.cost_per_lot != null && (
             <div className="flex justify-between">
               <span>Maliyet/lot</span>
-              <span className="font-numeric">{formatTL(a.cost_per_lot)} TL</span>
+              <span className="font-numeric">{formatPara(a.cost_per_lot)}</span>
             </div>
           )}
           {!a.is_emanet && (
@@ -590,7 +588,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
         <ExternalLink className="w-3 h-3" /> TEFAS'ta aç
       </a>
       <form onSubmit={handleSubmit}>
-        <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Yeni fiyat (TL)</label>
+        <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Yeni fiyat ({paraEtiketi()})</label>
         <input type="text" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="input font-numeric" placeholder="5223.81" autoFocus />
         {err && <p className="text-xs text-negative-600 dark:text-negative-400 mt-2">{err}</p>}
         <div className="flex gap-2 mt-4">

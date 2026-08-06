@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Plus, Loader2 } from 'lucide-react';
-import { subscriptionsApi, accountsApi, formatTL } from '../api.js';
+import { subscriptionsApi, accountsApi } from '../api.js';
 import { useToast } from './Toast.jsx';
+import { formatPara } from '../lib/money.js';
 
 /**
  * Tespit edilen abonelikler (FEAT-006) + "Düzenli gidere ekle" (detect→act).
@@ -54,7 +55,7 @@ export default function DetectedSubscriptions() {
         <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
         <h3 className="text-sm font-semibold">Tespit edilen abonelikler</h3>
         <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-auto">
-          {formatTL(subs.aylik_toplam)} TL/ay
+          {formatPara(subs.aylik_toplam)}/ay
         </span>
       </div>
       {subs.abonelikler.map((s) => (
@@ -62,7 +63,7 @@ export default function DetectedSubscriptions() {
           <div className="min-w-0">
             <p className="font-medium truncate">{s.isim}</p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {formatTL(s.aylik_maliyet)} TL/ay · {s.tekrar} kez
+              {formatPara(s.aylik_maliyet)}/ay · {s.tekrar} kez
               {s.fiyat_degisti && <span className="text-warn-600 dark:text-warn-400"> · zam var</span>}
             </p>
           </div>

@@ -2,9 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { debtStrategyApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
+import { formatPara, paraEtiketi } from '../lib/money.js';
 
-const TL = (n) =>
-  new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(n || 0);
+// BUG #256 (H4): burada `style:'currency', currency:'TRY'` ile YEREL bir biçimlendirici
+// vardı — api.js'in `formatTL`'inden farklı davranıyordu (null → "₺0" vs "—", 0 ondalık vs 2).
+// Aynı ekranda iki farklı para gösterimi demekti. Tek kaynağa bağlandı; bu panelin
+// "tam sayı" tercihi `ondalik: 0` ile korunuyor.
+const paraTam = (n) => formatPara(n ?? 0, { ondalik: 0 });  // tam sayı gösterim (bu panelin tercihi)
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
@@ -55,7 +59,7 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
                 <span className="text-zinc-200 truncate min-w-0">{debt?.name || `Hesap #${accountId}`}</span>
                 {debt && (
                   <span className="text-xs text-zinc-500 ml-auto whitespace-nowrap flex-shrink-0">
-                    {TL(debt.balance)} · %{debt.interest_rate_monthly.toFixed(2)}/ay
+                    {paraTam(debt.balance)} · %{debt.interest_rate_monthly.toFixed(2)}/ay
                   </span>
                 )}
               </li>
@@ -67,7 +71,7 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-700/50">
         <div>
           <div className="text-xs text-zinc-400">Toplam Faiz</div>
-          <div className={`text-base font-semibold ${c.text}`}>{TL(strategy.total_interest_paid)}</div>
+          <div className={`text-base font-semibold ${c.text}`}>{paraTam(strategy.total_interest_paid)}</div>
         </div>
         <div>
           <div className="text-xs text-zinc-400">Süre</div>
@@ -118,7 +122,7 @@ function ConsolidationSimulator({ debts }) {
         <div>
           <h3 className="text-base font-semibold text-zinc-100">Konsolidasyon Simülatörü</h3>
           <p className="text-xs text-zinc-400 mt-0.5">
-            {debts.length} borç · toplam {TL(total)} · ağırlıklı ort. faiz{' '}
+            {debts.length} borç · toplam {paraTam(total)} · ağırlıklı ort. faiz{' '}
             <span className="font-semibold text-zinc-200">%{weighted.toFixed(2)}/ay</span>.
             Konsolidasyon yalnız bu oranın <span className="font-semibold">altında</span> avantajlı. Nötr araç — tavsiye değil.
           </p>
@@ -149,11 +153,11 @@ function ConsolidationSimulator({ debts }) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <div className="text-xs text-zinc-400">Yeni taksit</div>
-              <div className="text-base font-semibold text-zinc-100">{TL(result.yeni_taksit)}/ay</div>
+              <div className="text-base font-semibold text-zinc-100">{paraTam(result.yeni_taksit)}/ay</div>
             </div>
             <div>
               <div className="text-xs text-zinc-400">Toplam faiz</div>
-              <div className="text-base font-semibold text-zinc-100">{TL(result.yeni_toplam_faiz)}</div>
+              <div className="text-base font-semibold text-zinc-100">{paraTam(result.yeni_toplam_faiz)}</div>
             </div>
             <div>
               <div className="text-xs text-zinc-400">Vade</div>
@@ -211,7 +215,7 @@ function OpportunityCost({ hasDebt }) {
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-xs text-zinc-400">
-          Harcama tutarı (TL)
+          Harcama tutarı ({paraEtiketi()})
           <input type="number" step="100" min="0" value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="block mt-1 w-40 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
@@ -225,15 +229,15 @@ function OpportunityCost({ hasDebt }) {
       {result && (
         <div className="rounded-lg border border-warn-600/50 bg-warn-950/30 p-4 text-sm text-zinc-200 space-y-1">
           <div>
-            <span className="font-semibold">{TL(result.harcama)}</span> harcarsan, bu parayı{' '}
+            <span className="font-semibold">{paraTam(result.harcama)}</span> harcarsan, bu parayı{' '}
             <span className="font-semibold">{result.hedef_borc}</span> borcuna ödemek yerine:
           </div>
           <div>
-            → <span className="font-semibold text-warn-300">{TL(result.faiz_tasarrufu)}</span> fazla faiz ödersin
+            → <span className="font-semibold text-warn-300">{paraTam(result.faiz_tasarrufu)}</span> fazla faiz ödersin
             {result.ay_kazanci > 0 && <> ve borçsuzluk <span className="font-semibold">{result.ay_kazanci} ay</span> gecikir</>}.
           </div>
           <div className="text-xs text-zinc-400">
-            Öde: {result.odersen_ay} ay / {TL(result.odersen_faiz)} faiz · Harca: {result.baseline_ay} ay / {TL(result.baseline_faiz)} faiz
+            Öde: {result.odersen_ay} ay / {paraTam(result.odersen_faiz)} faiz · Harca: {result.baseline_ay} ay / {paraTam(result.baseline_faiz)} faiz
           </div>
         </div>
       )}
@@ -352,7 +356,7 @@ export default function DebtStrategy() {
           <label className="text-sm text-zinc-300 font-medium">
             Opsiyonel ekstra aylık ödeme
           </label>
-          <span className="text-base font-semibold font-numeric text-brand-400">{TL(extraMonthly)}</span>
+          <span className="text-base font-semibold font-numeric text-brand-400">{paraTam(extraMonthly)}</span>
         </div>
         <input
           type="range"
@@ -367,8 +371,8 @@ export default function DebtStrategy() {
           className="w-full accent-brand-500"
         />
         <div className="flex justify-between text-xs text-zinc-500 mt-1">
-          <span>0 TL</span>
-          <span>5.000 TL</span>
+          <span>{formatPara(0, { ondalik: 0 })}</span>
+          <span>{formatPara(5000, { ondalik: 0 })}</span>
         </div>
       </div>
 
@@ -405,7 +409,7 @@ export default function DebtStrategy() {
               <div className="flex flex-wrap gap-6 text-sm pt-2">
                 <div>
                   <span className="text-zinc-400">Avalanche ile faiz tasarrufu: </span>
-                  <span className="font-semibold font-numeric text-positive-300">{TL(data.comparison.interest_saved_with_avalanche)}</span>
+                  <span className="font-semibold font-numeric text-positive-300">{paraTam(data.comparison.interest_saved_with_avalanche)}</span>
                 </div>
                 {data.comparison.months_difference !== 0 && (
                   <div>

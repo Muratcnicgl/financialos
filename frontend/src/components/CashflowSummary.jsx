@@ -1,5 +1,6 @@
 import { TrendingDown, TrendingUp, AlertTriangle, Wallet } from 'lucide-react';
-import { formatTL, formatDate } from '../api.js';
+import { formatDate } from '../api.js';
+import { formatPara, formatSayi } from '../lib/money.js';
 
 export default function CashflowSummary({ summary }) {
   const { lowest_balance, lowest_date, total_receivable, total_payable, net_flow, crunch_count, opening_balance } = summary;
@@ -13,7 +14,7 @@ export default function CashflowSummary({ summary }) {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Mevcut Nakit</p>
         </div>
         <p className="font-numeric font-bold text-lg text-zinc-900 dark:text-zinc-50">
-          {formatTL(opening_balance)} TL
+          {formatPara(opening_balance)}
         </p>
       </div>
 
@@ -24,7 +25,7 @@ export default function CashflowSummary({ summary }) {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">En Düşük Bakiye</p>
         </div>
         <p className={`font-numeric font-bold text-lg ${lowest_balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-          {formatTL(lowest_balance)} TL
+          {formatPara(lowest_balance)}
         </p>
         <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
           {formatDate(lowest_date, { withYear: true })}
@@ -41,12 +42,12 @@ export default function CashflowSummary({ summary }) {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Net Akış</p>
         </div>
         <p className={`font-numeric font-bold text-lg ${net_flow >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
-          {net_flow > 0 ? '+' : ''}{formatTL(net_flow)} TL
+          {net_flow > 0 ? '+' : ''}{formatPara(net_flow)}
         </p>
         <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
-          <span className="text-positive-500">+{formatTL(total_receivable)}</span>
+          <span className="text-positive-500">+{formatSayi(total_receivable)}</span>
           {' / '}
-          <span className="text-negative-500">{formatTL(total_payable)}</span>
+          <span className="text-negative-500">{formatSayi(total_payable)}</span>
         </p>
       </div>
 

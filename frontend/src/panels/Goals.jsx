@@ -3,6 +3,7 @@ import { goalsApi } from '../api';
 import { formatTL, formatTLSuffix, formatDate, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import { Loader2, Target, Plus, X, RefreshCw } from 'lucide-react';
+import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 function getGoalIcon(goalType) {
   return goalType === 'debt_freedom' ? '💰' : '🎯';
@@ -161,11 +162,11 @@ function GoalCard({ goal, onSelect }) {
       <div className="grid grid-cols-3 gap-2 text-center text-sm">
         <div>
           <p className="text-zinc-400 text-xs">Mevcut</p>
-          <p className="font-semibold text-zinc-100">{formatTL(goal.current_amount)}</p>
+          <p className="font-semibold text-zinc-100">{formatSayi(goal.current_amount)}</p>
         </div>
         <div>
           <p className="text-zinc-400 text-xs">Hedef</p>
-          <p className="font-semibold text-zinc-100">{formatTL(goal.target_amount)}</p>
+          <p className="font-semibold text-zinc-100">{formatSayi(goal.target_amount)}</p>
         </div>
         <div>
           <p className="text-zinc-400 text-xs">Tahmini Bitiş</p>
@@ -180,8 +181,8 @@ function GoalCard({ goal, onSelect }) {
         <div className={`mt-2 text-xs flex items-center justify-center gap-1.5 ${goal.sinking_fund.gecikmis ? 'text-negative-400' : 'text-zinc-400'}`}>
           <span>💧</span>
           {goal.sinking_fund.gecikmis
-            ? `Vade geçti — kalan ${formatTL(goal.sinking_fund.aylik_gereken)} TL gerekli`
-            : `Aylık gereken: ${formatTL(goal.sinking_fund.aylik_gereken)} TL/ay · ${goal.sinking_fund.kalan_ay} ay kaldı`}
+            ? `Vade geçti — kalan ${formatPara(goal.sinking_fund.aylik_gereken)} gerekli`
+            : `Aylık gereken: ${formatPara(goal.sinking_fund.aylik_gereken)}/ay · ${goal.sinking_fund.kalan_ay} ay kaldı`}
         </div>
       )}
     </button>
@@ -317,7 +318,7 @@ function AllocationsTab({ allocations, onRefresh }) {
           <div key={a.id} className="bg-zinc-800/50 p-3 rounded text-sm flex items-center justify-between gap-2">
             <div className="text-zinc-300">
               <span className={a.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                {a.amount >= 0 ? '+' : ''}{formatTLSuffix(a.amount)}
+                {a.amount >= 0 ? '+' : ''}{formatPara(a.amount)}
               </span>
               <span className="text-zinc-500 ml-2 text-xs">
                 {a.source === 'rule' ? '• Kural' : '• Manuel'} · TX#{a.transaction_id}
@@ -351,7 +352,7 @@ function RulesTab({ rules, goalId, onRefresh }) {
 
   const allocationLabel = (r) => {
     if (r.allocation_type === 'percent') return `%${r.allocation_value}`;
-    if (r.allocation_type === 'fixed') return formatTLSuffix(r.allocation_value);
+    if (r.allocation_type === 'fixed') return formatPara(r.allocation_value);
     return 'Tamamı';
   };
 
@@ -496,7 +497,7 @@ function GoalCreateWizard({ onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-300 mb-1">Hedef Tutar (TL) *</label>
+                <label className="block text-sm text-zinc-300 mb-1">Hedef Tutar ({paraEtiketi()}) *</label>
                 <input
                   type="number"
                   value={form.target_amount}

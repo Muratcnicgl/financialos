@@ -113,11 +113,49 @@ def test_development_ortaminda_bloklanmaz(monkeypatch):
 # 3. CANLI KAPI da aynı gerçeği ölçer
 # ============================================================
 
+def _live_gate_kaynak() -> str:
+    return (KOK / "scripts" / "live_gate.py").read_text(encoding="utf-8")
+
+
 def test_live_gate_placeholder_i_yesil_gecmez():
     """Aynı boşluk canlı kapıda da vardı: `"@" in destek` placeholder'ı geçiriyordu."""
-    kaynak = (KOK / "scripts" / "live_gate.py").read_text(encoding="utf-8")
-    assert "placeholder_mi" in kaynak, (
+    assert "placeholder" in _live_gate_kaynak(), (
         "live_gate destek adresini hâlâ '@ var mı' ile ölçüyor — placeholder yeşil geçer"
+    )
+
+
+def test_live_gate_uygulama_paketini_IMPORT_ETMEZ():
+    """Canlı kapı BİLİNÇLİ olarak bağımsızdır: uygulama paketi olmayan bir makineden
+    (operatörün dizüstü) canlı URL'ye karşı koşabilmeli.
+
+    Bu test bir hatadan doğdu: placeholder ölçütü `from app.settings import placeholder_mi`
+    ile eklendi ve script `ModuleNotFoundError: No module named 'app'` ile ÇÖKTÜ — yani
+    "kapıyı sertleştiren" değişiklik kapıyı tamamen ÖLDÜRMÜŞTÜ ve bu ancak script GERÇEKTEN
+    koşturulunca görüldü (R3: koşan komut > kod > doküman)."""
+    import re as _re
+    kaynak = _live_gate_kaynak()
+    ihlaller = _re.findall(r"^\s*(?:from|import)\s+app[\s.]", kaynak, _re.M)
+    assert not ihlaller, (
+        f"live_gate.py uygulama paketini import ediyor ({ihlaller}) — script bağımsızlığını "
+        "kaybeder ve app olmayan makinede ÇÖKER"
+    )
+
+
+def test_live_gate_deseni_settings_ile_ayni():
+    """Desen iki yerde yaşıyor (import yerine kopya — yukarıdaki gerekçe). O hâlde
+    AYRIŞMAMALARI teste bağlı olmalı: tek kaynak burada sözleşmedir, import değil."""
+    import ast as _ast
+    from app.settings import _PLACEHOLDER_IZLERI as ayarlardaki
+    agac = _ast.parse(_live_gate_kaynak())
+    bulunan = None
+    for dugum in _ast.walk(agac):
+        if isinstance(dugum, _ast.Assign) and any(
+                getattr(h, "id", "") == "_PLACEHOLDER_IZLERI" for h in dugum.targets):
+            bulunan = tuple(_ast.literal_eval(dugum.value))
+    assert bulunan is not None, "live_gate'te _PLACEHOLDER_IZLERI bulunamadı"
+    assert set(bulunan) == set(ayarlardaki), (
+        f"Placeholder desenleri ayrışmış — live_gate={sorted(bulunan)}, "
+        f"settings={sorted(ayarlardaki)}"
     )
 
 

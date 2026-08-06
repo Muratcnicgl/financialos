@@ -130,11 +130,18 @@ def kosla(base: str, email: Optional[str], password: Optional[str],
     destek = str(kunye.get("destek", ""))
     # BUG #245 (D30): "@ var mı" yetmiyordu — `destek@<alan-adin>` placeholder'ı hem
     # startup fail-fast'ini hem BU kapıyı yeşil geçiyordu. Teslim edilemeyen adres,
-    # adresin YOKLUĞU kadar zararlıdır; ölçüt tek kaynaktan gelir (app.settings).
-    from app.settings import placeholder_mi
+    # adresin YOKLUĞU kadar zararlıdır.
+    #
+    # Desen BURADA yeniden yazılır, `app.settings` İMPORT EDİLMEZ: bu script bilinçli olarak
+    # bağımsızdır (uygulama paketi olmayan bir makineden canlı URL'ye karşı koşabilmeli —
+    # ilk yazımda import eklenince script `ModuleNotFoundError: No module named 'app'` ile
+    # ÇÖKTÜ; yani kapının kendisi ölçülmeden yazılmıştı). İki listenin ayrışmaması
+    # `tests/test_placeholder_kapisi.py` ile teste bağlıdır (tek kaynak = sözleşme, import değil).
+    _PLACEHOLDER_IZLERI = ("replace", "changeme", "change_me", "<", ">", "example.com", "your-")
+    placeholder = bool(destek) and any(iz in destek.lower() for iz in _PLACEHOLDER_IZLERI)
     s.ekle("destek adresi tanımlı", "@" in destek,
            f"destek={destek!r} — SUPPORT_EMAIL set edilmemiş")
-    s.ekle("destek adresi placeholder değil", bool(destek) and not placeholder_mi(destek, "SUPPORT_EMAIL"),
+    s.ekle("destek adresi placeholder değil", bool(destek) and not placeholder,
            f"destek={destek!r} — .env.prod.example placeholder'ı canlıda")
     s.ekle("destek adresi şahsi değil",
            not re.search(r"@(gmail|hotmail|outlook|yahoo|yandex)\.", destek),

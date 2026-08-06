@@ -9,6 +9,10 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #234 fix (D15, kota birimi): sağlayıcıların GERÇEK istekleri artık kota ölçümüne
+  düşüyor. `LLMProvider.__init_subclass__` her somut sağlayıcının `_raw_chat`'ini otomatik
+  sarmalar (yeni sağlayıcı eklenince kanca unutulamaz — fail-closed); zincir sağlayıcısı
+  (FallbackProvider) kendi isteği yapmadığı için sarmalanmaz → çift sayım yok.
 - BUG #211 fix (H16, bayat kur): _maybe_market_block artık iki dilli — sağlayıcı düştüğünde
   fx_live son bilinen kuru `bayat=True` + `yas_dakika` ile döndürür; blok "SON BİLİNEN KUR
   (BAYAT: X saat Y dakika önce)" der ve "ŞU ANKİ GÜNCEL KUR" ifadesini KULLANMAZ. Grounding
@@ -99,6 +103,7 @@ import re
 import time
 import json
 import logging
+import functools
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from typing import List, Dict, Optional, Tuple
@@ -113,6 +118,9 @@ from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
 from app.grounding import check_grounding  # LLM-003: cikti dogrulama (grounding)
+# kota-exempt: motor rezervasyon yapmaz (uç yapar); buradan yalnız GERÇEK istek SAYIMI
+# kancası kullanılır — BUG #234 (D15).
+from app import llm_quota as _kota
 
 logger = logging.getLogger(__name__)
 
@@ -1399,6 +1407,34 @@ class LLMProvider(ABC):
     @abstractmethod
     def chat(self, system_prompt: str, messages: List[Dict], tools: List[Dict]) -> LLMResponse:
         pass
+
+    def __init_subclass__(cls, **kwargs):
+        """BUG #234 (D15): her GERÇEK sağlayıcı isteğini kota ölçümüne bağlar.
+
+        Muhasebe eskiden uçta (istek başına tek satır) tutuluyordu; oysa bir koç mesajı
+        iki-geçiş mimarisi + retry + fallback zinciri yüzünden 1-4 gerçek istek üretir →
+        ilan edilen maliyet tavanı gerçeğin 2-3 katına izin veriyordu.
+
+        Kanca `chat`'e değil `_raw_chat`'e takılır: sayılan şey ağa çıkan istektir
+        (retry denemeleri de sağlayıcının kotasını yer). `_raw_chat` tanımlamayan
+        FallbackProvider sarmalanmaz — o alt sağlayıcıyı çağırır, onlar zaten sayar.
+
+        Sarmalama sınıf yaratımında otomatik olduğu için yeni bir sağlayıcı eklendiğinde
+        kanca UNUTULAMAZ (L14 fail-closed); `tests/test_llm_kota_muhasebesi.py` statik
+        olarak da dayatır.
+        """
+        super().__init_subclass__(**kwargs)
+        ham = getattr(cls, "_raw_chat", None)
+        if ham is None or getattr(ham, "_kota_sarmali", False):
+            return
+
+        @functools.wraps(ham)
+        def _kota_sayan_raw_chat(self, *args, **kwargs):
+            _kota.cagri_kaydet(getattr(type(self), "NAME", type(self).__name__))
+            return ham(self, *args, **kwargs)
+
+        _kota_sayan_raw_chat._kota_sarmali = True
+        cls._raw_chat = _kota_sayan_raw_chat
 
 
 # ============================================================

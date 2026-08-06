@@ -716,7 +716,13 @@ SIDDET: kritik degil yuksek — kayip aktif bir sizinti degil, tetikleyici olay 
 
 ### D14 · [orta] "Paylasilan saglayici gunluk kotasi" fiilen KULLANICI-BASINA sayiliyor — 1500/gun korumasi olu, block dali matematiksel olarak erisilemez
 
-- **Boyut:** kota-maliyet · **Yer:** `app/routers/coach.py:213` · **Durum:** ⬜ AÇIK
+- **Boyut:** kota-maliyet · **Yer:** `app/routers/coach.py:213` · **Durum:** ✅ **KAPANDI — BUG #234**
+  (6 Ağu, D15 ile aynı commit — aynı kök: sayacın neyi saydığı). Paylaşılan sayaç artık
+  kullanıcı filtresizdir (`llm_quota.paylasilan_cagri_sayisi`) → %80 uyarısı ve %100 dalı
+  gerçekten erişilebilir, ölü UI canlandı. `block` alanının anlamı **"istek reddedilecek"**
+  olarak netleşti: yedekli zincirde tavan dolsa bile ürün kilitlenmez (L6), yalnız `warn`
+  ateşler; alternatifsiz kurulumda 429 döner. `GET /api/coach/usage` de artık kararlı
+  etiket kullanıyor (eskiden "Fallback(Gemini)" etiketiyle rozet sessizce ölüyordu).
 - **Neden yayın engeli / etki:** KULLANICI KAYBI + PARA KAYBI. Kapali betada tek API anahtari paylasiliyor. 20 kullanici x 80 mesaj = 1600 mesaj (asagidaki 3. bulguyla birlikte ~3200 gercek Gemini istegi) — ucretsiz kademe 1500/gun tavani sessizce asilir. Uygulamanin kendi korumasi (warn %80 rozeti + block) hicbir zaman ates etmedigi icin ne kullanici ne operator uyarilmaz; kullanicilar ard arda 'Koc su an cevap veremedi (saglayicilar mesgul olabilir)' (coach.py:482) jenerik mesajini alir. Beta kullanicisi icin bu 'urun bozuk' demektir ve sessiz terk sebebidir — P7/P8 metriklerinin cozmeye calistigi tam sorun. Guvenlik-review-publish.md'de kabul-edilen-risk olarak YAZILI DEGIL; aksine UsageInfo docstring'i ve ADR-041 bu korumanin CALISTIGINI iddia ediyor (KURAL R3: disk aksini gosteriyor).
 
 <details><summary>Kanıt</summary>
@@ -758,7 +764,13 @@ DISKTEN DOGRULANDI (curutulemedi). (1) app/routers/coach.py:207-220 `_today_call
 
 ### D15 · [orta] Kota tavani CAGRI degil MESAJ sayiyor — gercek LLM maliyeti ADR-041'in ilan ettiginin 2-3 kati
 
-- **Boyut:** kota-maliyet · **Yer:** `app/routers/coach.py:457` · **Durum:** ⬜ AÇIK
+- **Boyut:** kota-maliyet · **Yer:** `app/routers/coach.py:457` · **Durum:** ✅ **KAPANDI — BUG #234**
+  (6 Ağu, D14 ile aynı commit). Sayım noktası ağa çıkan isteğe taşındı: `LLMProvider.__init_subclass__`
+  her somut sağlayıcının `_raw_chat`'ini otomatik sarmalar (yeni sağlayıcı eklenince kanca
+  unutulamaz), ölçüm `llm_quota.cagri_olcumu()` kapsamında toplanır, istek sonunda
+  `ek_cagrilari_uzlastir` farkı sayaca yazar. **Sınıf taraması (L11) iki ek yol buldu:**
+  premortem ve aksiyon yansıması da tek satırla birden fazla gerçek isteği örtüyordu — üçü
+  de kapatıldı. ADR-041'in "80 çağrı ≈ 40 mesaj" sözleşmesi artık diskte DOĞRU.
 - **Neden yayın engeli / etki:** PARA KAYBI (yanlis kalibre edilmis maliyet tavani). Beta butcesi ADR-041'in rakamina gore planlaniyor; gercek harcama kullanici basina 2-3 kat. Ucretli kademeye gecildiginde fatura ongorusu dogrudan yanlis olur. Ayrica 2. bulguyla birlesince paylasilan ucretsiz kademe (1500/gun) ilan edilenden 2-3 kat erken tukenir — yani koc, operator hicbir uyari gormeden gun ortasinda tum kullanicilar icin oluyor. Bu bir stil/tercih meselesi degil: belgelenmis sayisal sozlesme ile calisan kod celisiyor (KURAL R3).
 
 <details><summary>Kanıt</summary>

@@ -76,12 +76,17 @@ class ProposedActionOut(BaseModel):
 
 
 class UsageInfo(BaseModel):
-    """Gunluk LLM cagri sayilari ve uyarilar."""
+    """Gunluk LLM cagri sayilari ve uyarilar.
+
+    BUG #234 (D14): `today_count` PAYLASILAN saglayici sayacidir — anahtari kullanan
+    HERKESIN bugunku gercek istekleri. Eskiden kullanici-basina filtreliydi, yani
+    sozlesmenin (asagidaki yorum) soyledigi seyi hic olcmuyordu.
+    """
     today_count: int
     daily_limit: int
     percentage: float
-    warn: bool                 # %80 ustunde mi?
-    block: bool                # %100 mi?
+    warn: bool                 # %80 ustunde mi? (operator gorunurlugu — her modda)
+    block: bool                # tavan doldu VE alternatif saglayici yok → istek reddedilir
     # BUG #188 (P3): KULLANICI-BASINA tavan. Yukaridakiler saglayicinin PAYLASILAN gunluk
     # kotasidir; tek kullanici onu tuketirse herkes kilitlenir. Bu iki alan kisisel tavandir.
     user_today_count: int = 0
@@ -206,19 +211,15 @@ def _muhasebe_saglayici_adi(engine: CoachEngine) -> str:
 
 
 def _today_call_count(db: Session, user_id: int, provider: str) -> int:
-    # BUG #133 fix (P1-7): ApiCallLog.called_at naive UTC. date.today() SUNUCU YEREL tarihi →
-    # TR (UTC+3) sunucuda sayaç yerel gece yarısında (21:00 UTC) sıfırlanıyor, 3 saat erken →
-    # Gemini günlük kotası aşılabilir. UTC gününü kullan (called_at ile aynı zaman ekseni).
-    today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
-    return (
-        db.query(func.count(ApiCallLog.id))
-        .filter(
-            ApiCallLog.user_id == user_id,
-            ApiCallLog.provider == provider,
-            ApiCallLog.called_at >= today_start,
-        )
-        .scalar() or 0
-    )
+    """Saglayicinin bugunku PAYLASILAN cagri sayisi (BUG #234 / D14).
+
+    `user_id` yalnizca geriye-uyum icin imzada durur — saglayici kotasi tek havuzdur,
+    kullanici basina filtrelenirse hic olculmez (govde: app/llm_quota).
+
+    BUG #133 (P1-7): sayac UTC gunune gore — `called_at` ile ayni zaman ekseni. Sunucu
+    yerel gunu kullanilirsa TR'de (UTC+3) sayac 3 saat erken sifirlanir.
+    """
+    return _kota.paylasilan_cagri_sayisi(db, provider)
 
 
 # BUG #228 (D07/D16): kota muhasebesi bu router'dan SÖKÜLDÜ → `app/llm_quota.py`.
@@ -229,7 +230,28 @@ coach_user_daily_limit = _kota.kullanici_gunluk_tavan
 _user_today_call_count = _kota.bugunku_cagri_sayisi
 
 
-def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
+def _alternatif_saglayici_var(engine: CoachEngine) -> bool:
+    """BUG #234 (D14 + L6): zincirde YEDEK sağlayıcı var mı?
+
+    Paylaşılan günlük tavan dolduğunda isteği reddetmek yalnız alternatifi olmayan
+    (tek-sağlayıcı) kurulumda doğrudur. Fallback zincirinde birincil 429 alınca
+    `FallbackProvider` bir sonraki sağlayıcıya geçer — ürün ÇALIŞIYORken uygulamanın
+    kendisini kilitlemesi gereksiz kesinti olur. Bu modda tavan yalnız `warn` ile
+    operatöre raporlanır.
+    """
+    from app.coach import FallbackProvider
+    provider = getattr(engine, "provider", None)
+    return isinstance(provider, FallbackProvider) and len(getattr(provider, "providers", [])) > 1
+
+
+def _build_usage_info(db: Session, user_id: int, provider: str,
+                      alternatif_var: bool = False) -> UsageInfo:
+    """BUG #234 (D14): `block` = "istek REDDEDİLECEK".
+
+    Yedekli zincirde paylaşılan tavan dolsa bile istek reddedilmez (bir sonraki sağlayıcı
+    devralır) → `block` False kalır, aksi halde arayüz çalışan ürünü kilitler (ölü UI'ın
+    tersi: yanlış-pozitif kilit). `warn` her modda ateşler — operatör tükenmeyi görsün.
+    """
     target = _daily_constrained_provider(provider)
     count = _today_call_count(db, user_id, target)
     limit = PROVIDER_DAILY_LIMITS.get(target)
@@ -244,7 +266,7 @@ def _build_usage_info(db: Session, user_id: int, provider: str) -> UsageInfo:
         daily_limit=limit,
         percentage=pct,
         warn=pct >= 80.0,
-        block=pct >= 100.0,
+        block=pct >= 100.0 and not alternatif_var,
         user_today_count=_user_today_call_count(db, user_id),
         user_daily_limit=coach_user_daily_limit(),
     )
@@ -379,7 +401,8 @@ def chat(
     model = engine.model
 
     # Pre-check: gunluk limit dolmussa cevap vermeden once uyar
-    pre_usage = _build_usage_info(db, user.id, provider_name)
+    yedek_var = _alternatif_saglayici_var(engine)
+    pre_usage = _build_usage_info(db, user.id, provider_name, alternatif_var=yedek_var)
     # BUG #188 (P3): KULLANICI-BASINA tavan — saglayici kotasindan BAGIMSIZ. Paylasilan
     # kotayi tek kisi tuketip digerlerini kilitleyemez; maliyet de kullanici basina sinirli.
     kisisel_tavan = coach_user_daily_limit()
@@ -389,6 +412,8 @@ def chat(
             detail="Bugunku koc kullanim hakkin doldu. Yarin yeniden sohbet edebilirsin — "
                    "paneller ve hesaplamalar calismaya devam ediyor.",
         )
+    # BUG #234 (D14): bu dal artik GERCEKTEN erisilebilir (paylasilan sayac olculuyor).
+    # `block` zaten yedegi hesaba katar (bkz. _build_usage_info) — zincirde kilitlenmez (L6).
     if pre_usage.block:
         # BUG #188: kullaniciya IC YAPILANDIRMA tavsiyesi verilmez (eskiden .env/saglayici
         # adi yaziyordu — son kullanici icin anlamsiz, ic mimariyi ifsa eder).
@@ -407,15 +432,19 @@ def chat(
     error_msg = None
     tool_calls_count = 0
 
+    # BUG #234 (D15): tavanin birimi ÇAĞRI'dır. Bir mesaj iki-geçiş + retry + zincir
+    # yüzünden 1-4 GERÇEK istek üretir; ölçüm kapsamı bunları sayar, aşağıda uzlaştırılır.
+    olcum: Dict[str, int] = {}
     try:
-        with workspace_scope(ws_id):  # M43: koç bağlamı (cockpit) aktif workspace'ten
-            result = engine.chat(
-                db=db,
-                user_id=user.id,
-                user_message=payload.message,
-                include_cockpit=payload.include_cockpit,
-                workspace_id=ws_id,
-            )
+        with _kota.cagri_olcumu() as olcum:
+            with workspace_scope(ws_id):  # M43: koç bağlamı (cockpit) aktif workspace'ten
+                result = engine.chat(
+                    db=db,
+                    user_id=user.id,
+                    user_message=payload.message,
+                    include_cockpit=payload.include_cockpit,
+                    workspace_id=ws_id,
+                )
         tool_calls_count = len(result.get("proposed_actions") or [])
     except Exception as e:
         # BE-009 fix: graceful degradation (chat UX için 200) AMA ham hata (str(e)) kullanıcıya
@@ -439,9 +468,12 @@ def chat(
         success=success, duration_ms=duration_ms,
         tool_calls_count=tool_calls_count, error_message=error_msg,
     )
+    # BUG #234 (D15): rezervasyon TEK satır yazar; gerçek istek sayısı ancak burada bilinir.
+    # Fark kadar ek satır, isteği fiilen yiyen sağlayıcı adına yazılır.
+    _kota.ek_cagrilari_uzlastir(db, user.id, olcum, rezervasyon, model)
 
     # Post-call usage (yeni log dahil)
-    post_usage = _build_usage_info(db, user.id, provider_name)
+    post_usage = _build_usage_info(db, user.id, provider_name, alternatif_var=yedek_var)
 
     return ChatResponse(
         reply=result["reply"],
@@ -575,5 +607,9 @@ def get_usage(
     'API kullanim: %42' rozetini bundan cekecek.
     """
     engine = _get_engine()
-    provider_name = engine.provider_name.replace("Provider", "").lower()
-    return _build_usage_info(db, user.id, provider_name)
+    # BUG #234: etiket calisma-ani durumundan degil yapilandirmadan turetilir — `provider_name`
+    # ilk basarili cagridan sonra "Fallback(Gemini)" doner, o etiket PROVIDER_DAILY_LIMITS'te
+    # yoktur ve rozet sessizce %0'a duserdi (BUG #212 ile ayni sinif).
+    provider_name = _muhasebe_saglayici_adi(engine)
+    return _build_usage_info(db, user.id, provider_name,
+                             alternatif_var=_alternatif_saglayici_var(engine))

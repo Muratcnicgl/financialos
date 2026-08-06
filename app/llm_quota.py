@@ -14,13 +14,29 @@ geçmesi gerekir (`tests/test_llm_kota_kapisi.py` bunu statik olarak dayatır).
 Rezervasyon deseni (BUG #212 / H17): satır çağrı ÖNCESİ yazılır, sonra "benden önce/benimle
 birlikte kaç satır var" (id sırası) sayılır. Sıra tavanı aşıyorsa rezervasyon geri alınır.
 "Oku → çağır → yaz" düzeninde eşzamanlı N istek aynı eski sayıyı okuyup hepsi geçiyordu.
+
+BUG #234 (D14+D15): sayacın BİRİMİ düzeltildi.
+- **D15 — birim ÇAĞRI'dır, mesaj değil.** Bir koç mesajı iki-geçiş mimarisi (plan + ana
+  cevap), retry dalları ve fallback zinciri yüzünden 1-4 GERÇEK sağlayıcı isteği üretir;
+  muhasebeye tek satır yazılıyordu → ADR-041'in ilan ettiği "80 çağrı ~40 mesaj" tavanı
+  gerçeğin 2-3 katı harcamaya izin veriyordu. Artık gerçek istekler `cagri_olcumu()`
+  kapsamında sayılır (kanca `app/coach.py`'de sağlayıcıların `_raw_chat`'ine otomatik
+  takılır) ve istek sonunda `ek_cagrilari_uzlastir` ile sayaca yansıtılır.
+- **D14 — paylaşılan sağlayıcı kotası kullanıcı-başına sayılıyordu** → `paylasilan_cagri_sayisi`
+  kullanıcı filtresizdir (sağlayıcı kotası fatura gibi tek havuzdur).
+
+Uzlaştırma çağrı SONRASI olur (gerçek sayı ancak o zaman bilinir): tavan en fazla bir
+mesaj kadar aşılabilir, bir sonraki istek rezervasyonda 429 alır. Eşzamanlılık koruması
+(rezervasyon) bozulmadığı için bu bilinçli ve sınırlı bir gecikmedir.
 """
 from __future__ import annotations
 
 import logging
 import os
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Iterator, Optional
 
 from fastapi import HTTPException
 from sqlalchemy import func
@@ -61,6 +77,99 @@ def bugunku_cagri_sayisi(db: Session, user_id: int) -> int:
         .filter(ApiCallLog.user_id == user_id, ApiCallLog.called_at >= _gun_baslangici())
         .scalar()
     ) or 0
+
+
+def paylasilan_cagri_sayisi(db: Session, provider: str) -> int:
+    """BUG #234 (D14): bir sağlayıcının bugünkü TOPLAM çağrısı — kullanıcı filtresi YOK.
+
+    Sağlayıcı günlük kotası (ör. Gemini ücretsiz kademe 1500/gün) tek bir havuzdur:
+    anahtarı paylaşan herkes aynı sayacı tüketir. Bu sorgu kullanıcı-başına filtreliyken
+    havuz hiç ölçülmüyordu; kişisel tavan (80) her zaman önce dolduğu için %80 uyarısı ve
+    %100 blok dalı matematiksel olarak erişilemezdi.
+
+    scope-exempt: kasten çapraz-kullanıcı — ölçülen şey kullanıcı verisi değil, paylaşılan
+    dış kaynağın (API anahtarı) tüketimi. Kişi-bazlı hiçbir alan okunmaz/dönmez.
+    """
+    return (
+        db.query(func.count(ApiCallLog.id))
+        .filter(ApiCallLog.provider == (provider or "?").lower(),
+                ApiCallLog.called_at >= _gun_baslangici())
+        .scalar()
+    ) or 0
+
+
+# ------------------------------------------------------------
+# GERÇEK ÇAĞRI ÖLÇÜMÜ (BUG #234 / D15)
+# ------------------------------------------------------------
+
+_olcum: ContextVar[Optional[Dict[str, int]]] = ContextVar("llm_cagri_olcumu", default=None)
+
+
+@contextmanager
+def cagri_olcumu() -> Iterator[Dict[str, int]]:
+    """Kapsam içinde yapılan GERÇEK sağlayıcı isteklerini sağlayıcı bazında toplar.
+
+    ContextVar kullanılır: iç içe/eşzamanlı isteklerin ölçümleri karışmaz (aynı süreçte
+    çalışan başka bir kullanıcının çağrısı bu kullanıcının kotasına yazılmaz).
+    """
+    olcum: Dict[str, int] = {}
+    token = _olcum.set(olcum)
+    try:
+        yield olcum
+    finally:
+        _olcum.reset(token)
+
+
+def cagri_kaydet(provider: str) -> None:
+    """Bir gerçek sağlayıcı isteğini ölçüme ekler (kapsam yoksa sessiz no-op).
+
+    Kapsam dışı yollar (cron, script, testler) muhasebe kancası olmadan da çalışmalıdır —
+    ölçüm eksikliği ürünü kilitleyemez (L6).
+    """
+    olcum = _olcum.get()
+    if olcum is None:
+        return
+    ad = (provider or "?").lower()
+    olcum[ad] = olcum.get(ad, 0) + 1
+
+
+def ek_cagrilari_uzlastir(db: Session, user_id: int, olcum: Dict[str, int],
+                          rezervasyon: Optional[ApiCallLog] = None,
+                          model: str = "?") -> int:
+    """Ölçülen gerçek istek sayısı ile yazılan satır sayısını eşitler (D15).
+
+    Rezervasyon TEK satır yazar (eşzamanlılık koruması); gerçek istek sayısı ancak çağrı
+    bittikten sonra bilinir. Fark kadar ek satır yazılır ve satırlar isteği FİİLEN yiyen
+    sağlayıcıya yazılır — böylece paylaşılan sağlayıcı sayacı da doğru dolar.
+
+    Ek satırlar tavanı aşsa bile burada 429 ÜRETİLMEZ: istek zaten yapılmıştır, kullanıcıya
+    yaptığı çağrının cevabı verilir; tavan bir sonraki istekte dayatılır.
+    """
+    toplam = sum(olcum.values())
+    if toplam <= 1:
+        return 0
+
+    kalan = {ad: adet for ad, adet in olcum.items() if adet > 0}
+    # Rezervasyon satırı ilk gerçek isteği temsil eder → dağılımdan bir tane düşülür.
+    rez_saglayici = (rezervasyon.provider if rezervasyon is not None else None)
+    dusulecek = rez_saglayici if rez_saglayici in kalan else next(iter(kalan))
+    kalan[dusulecek] -= 1
+
+    yazilan = 0
+    try:
+        for ad, adet in kalan.items():
+            for _ in range(adet):
+                db.add(ApiCallLog(user_id=user_id, provider=ad, model=model,
+                                  status=ApiCallStatus.success, tool_calls_count=0,
+                                  duration_ms=0))
+                yazilan += 1
+        if yazilan:
+            db.commit()
+    except Exception as e:  # noqa: BLE001 — muhasebe isteği kirletmez
+        logger.warning("ek LLM cagri satirlari yazilamadi: %s", e)
+        db.rollback()
+        return 0
+    return yazilan
 
 
 def rezerve_et(db: Session, user_id: int, provider: str, model: str,

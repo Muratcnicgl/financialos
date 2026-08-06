@@ -46,7 +46,7 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
   (Murat tüm işlemleri önceden onayladı) — **tek istisna §9 İNSAN-KAPISI**.
 - **GERİLEME YASAK.** Bu masterprompt yalnız ileri yönlü güncellenir (§12).
 
-### §1.3 DERS-KURALLARI L1-L10 (v2.0 — 41 bug'ın ardından, YALNIZ EKLENİR)
+### §1.3 DERS-KURALLARI L1-L15 (v2.0+ — YALNIZ EKLENİR)
 
 > Not: `D1` §1'de **sektör referansı** kuralıdır; karışmasın diye ders-kuralları **L** ile numaralanır.
 
@@ -69,6 +69,7 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L13 | **Kurulum adımını denetleyen bir kapı yoksa, o adım eninde sonunda atlanır.** "Runbook'ta yazıyor" bir kapı değildir. Kod ile ÇALIŞAN sistemin durumu (şema sürümü, uygulanmış migration, yapılandırma) arasına startup'ta fail-fast koy — aksi halde sistem yarım çalışır ve sağlık ucu yeşil kalır. | #222 (canlı DB 9 migration geride; koç onayı 500 verirken `/api/health` yeşildi) |
 | L12 | **Hata yolu da bir ürün yüzeyidir.** Panel/akış "veri yok" halinde test edilip "istek patladı" halinde test edilmiyorsa yarısı sınanmamıştır — çökme ve **istek döngüsü** oradan çıkar. | #218 (toast kimliği → sonsuz istek), #219 (hata → state null → panel çöktü) |
 | L14 | **Güvenlik varsayılanı fail-CLOSED olmalı; koruma "unutulması en kolay değişkene" bağlanamaz.** "Varsayılan kapalı + prod'da fail-fast" kalıbı, prod işaretini kimsenin set etmediği bir dağıtım yolu olduğu anda çöker. Doğru kalıp: korumayı aç, kapatmayı AÇIK BEYAN şartına bağla. Ayrıca dokümanın söylediği kurulum adımını **çalıştırıp sonucunu assert eden** bir test yaz (şablonu kopyala → kimlikli sunucu çıkıyor mu). | #227 (systemd yolu: `cp .env.example .env` → kimliksiz canlı sunucu; #171'in fail-fast'i bu yolda hiç tetiklenmiyordu), #225 (tv claim'i hiç taşınmadığı için sürüm kontrolü sessizce etkisiz kalırdı) |
+| L15 | **Bir sayacın BİRİMİNİ ve KAPSAMINI teste yazdır.** "Bu sayaç neyi sayıyor" sorusu koddan okunarak güvenilir biçimde cevaplanamaz: yorum "paylaşılan" derken sorgu filtreli, ADR "çağrı" derken satır "mesaj" olabilir. Bir eşik/tavan/kotanın sözleşmesi **iki kullanıcı** ve **gerçek alt-işlem sayısı** ile davranış testine bağlanmalı; aksi halde koruma dalı hiç ateşlemeden ölü kalır ve onu gösteren arayüz de ölü olduğu için kimse fark etmez. | #234 (paylaşılan kota kullanıcı-filtreli sayılıyordu → %80/%100 dalları matematiksel olarak erişilemezdi; tavan mesaj sayıyordu → gerçek maliyet 2-3 kat), #212 (muhasebe etiketi çalışma-anı durumundan türetiliyordu) |
 
 ---
 
@@ -480,6 +481,22 @@ ayrı commit + ledger + denetim raporu satırı. Sınıf taraması bu turda iki 
 
 ---
 
+#### 🟡 ORTA BULGU TURU — AÇILDI (6 Ağu, devam ediyor)
+
+| Bug | Denetim | Konu (tek cümle) |
+|---|---|---|
+| #234 | D14+D15 | LLM kota sayacı paylaşılan havuzu hiç ölçmüyordu (kullanıcı-filtreli sorgu → %80/%100 dalları matematiksel olarak ölü) ve tavan ÇAĞRI değil MESAJ sayıyordu (bir mesaj = 1-4 gerçek istek) → ilan edilen maliyet tavanı gerçeğin 2-3 katına izin veriyordu |
+
+**Ders (L15 adayı):** bir sayaç için "neyi sayıyor" sorusu koddan okunmakla cevaplanamaz —
+**birimini teste yazdır.** Buradaki iki defekt de sözleşme-kod uyuşmazlığıydı: yorum "PAYLAŞILAN"
+diyordu ama sorgu filtreliydi; ADR "80 çağrı ≈ 40 mesaj" diyordu ama satır sayısı mesajdı. İkisi
+de tek bir davranış testiyle (iki kullanıcı / gerçek çağrı sayısı) anında düşüyor.
+
+**Sınıf taraması (L11) işe yaradı:** aynı tek-satır defekti premortem ve aksiyon yansıması
+yollarında da vardı — denetim onları D14/D15 kapsamında görmemişti.
+
+---
+
 #### ⚠️ ÖNCE OKU — devam eden iki not
 
 **(a) CANLI DB — yapıldı (Murat onayıyla, 5 Ağu).** Yedek → `repair_null_workspace --uygula`
@@ -495,9 +512,8 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 
 #### SIRADAKİ İŞLER (öncelik sırasıyla)
 
-1. **Denetimin ORTA bulguları (16 adet: D14…D30, D16 kapandı).** Öne çıkanlar:
-   **D14/D15** (paylaşılan sağlayıcı kotası fiilen kullanıcı-başına sayılıyor; tavan ÇAĞRI
-   değil MESAJ sayıyor → gerçek maliyet ilanın 2-3 katı), **D17** (saat dilimi
+1. **Denetimin ORTA bulguları (14 adet kaldı: D17…D30; D14/D15/D16 kapandı).** Öne çıkanlar:
+   **D17** (saat dilimi
    kişiselleştirmesi yarım — ADR-042'nin kendi iddiası diskte yanlış), **D18** (kurucunun
    gerçek finansal verisi prod imajına giriyor), **D22** (Postgres RLS kapıları ne yerelde ne
    CI'da koşuyor — 6 skip'in 5'i), **D23** (yatırımda bayat fiyat işareti yok), **D24** (5
@@ -545,6 +561,7 @@ Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ i
 |---|---|---|---|
 | v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, ajan protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
 | v2.0 | 2026-08-05 | **§1.3 DERS-KURALLARI (L1-L10)** eklendi — 41 bug'dan çıkarılan, tekrar etmemesi gereken hata SINIFLARI. Faz kapıları KORUNDU, hiçbiri gevşetilmedi | Murat'ın 3. adımı: "masterprompt'u gerileme/duraksama yönü hariç, kaliteyi artırma amaçlı geliştir" |
+| v2.4 | 2026-08-06 | **§11.0: ORTA bulgu turu açıldı** — D14+D15 kapandı (BUG #234, 18 yeni kapı). §1.3'e **L15** adayı yazıldı (bir sayacın BİRİMİNİ teste yazdır: "neyi sayıyor" sorusu koddan okunarak cevaplanamaz — iki defekt de sözleşme↔kod uyuşmazlığıydı). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin ORTA turu: paylaşılan kota ölçülmüyordu (ölü koruma + ölü UI), tavan mesaj sayıyordu (gerçek maliyet 2-3 kat). Sınıf taraması aynı defekti premortem + yansıma yollarında da buldu |
 | v2.3 | 2026-08-05 | **§11.0 yenilendi: denetimin TÜM yüksek bulguları kapandı** (#223-#231, 9 commit). Sıradaki iş ORTA bulgular (D14…D30). §1.2'ye **H26** eklendi (beyan ↔ gerçek veri akışı arasına test koy). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | D03/D03b/D04/D05/D06/D07/D08/D09/D10/D11/D12/D13/D16 kapandı; dokuz yeni statik/davranışsal kapı üretildi, hepsi kapsam tabanı assert'li |
 | v2.2 | 2026-08-05 | **§11.0 devir-teslim yenilendi** (6 yüksek bulgu kapandı: #223-#228); sıradaki iş listesi D08 → D11/D12/D13+D09 → D10 olarak önceliklendi. **§1.3'e L14** eklendi (güvenlik varsayılanı fail-CLOSED olmalı: koruma 'unutulması en kolay değişkene' bağlanamaz — BUG #227 dersi). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin yüksek bulgu turu: workspace uç kapsamı (#223/#224), sıfırlama token'ı (#225), OAuth davet kapısı (#226), kimliksiz deploy (#227), LLM kotası (#228). Üçü de yeni STATİK kapı üretti (kapsam tabanı assert'li) |
 | v2.1 | 2026-08-05 | **§1.3'e L11 + L12**, **§1.2'ye H24 + H25** eklendi; §11 P0/P1/P3 kanıt satırları düzeltildi (P1'in "kapsam kilitli" iddiası BUG #217 ile GEÇERSİZ çıktı, yazıldı) | P3.2 turunda ölçülen 4 defekt: kapsam sessizce çöken kapılar (#217), hata yolunda sonsuz istek döngüsü (#218), hata yolunda panel çökmesi (#219), zamana bağlı flaky (#220). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) |

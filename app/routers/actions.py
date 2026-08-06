@@ -90,6 +90,9 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
 
     db = None
     rezervasyon = None
+    # BUG #234 (D15, sınıf taraması): yansıma iki modeli sırayla dener → tek rezervasyon
+    # satırı gerçek istek sayısını temsil etmiyordu; fark aşağıda uzlaştırılır.
+    olcum: dict = {}
     try:
         db = SessionLocal()
         payload = json.loads(payload_str) if payload_str else {}
@@ -137,37 +140,38 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
             return
 
         last_exc = None
-        for model in _REFLECTION_MODELS:
-            try:
-                provider = GroqProvider(api_key=groq_key, model=model.strip())
-                response = provider.chat(
-                    system_prompt=system_prompt,
-                    messages=[{"role": "user", "content": "Analiz et."}],
-                    tools=[SAVE_INSIGHT_SCHEMA],
-                )
-                for tc in response.tool_calls:
-                    if tc["name"] == "save_insight":
-                        inp = tc["input"]
-                        result = save_insight_action(
-                            db=db,
-                            user_id=user_id,
-                            content=inp["content"],
-                            category=inp.get("category", "pattern"),
-                            priority=inp.get("priority", "normal"),
-                            dedup_key=inp.get("dedup_key", ""),
-                            expires_at=inp.get("expires_at"),
-                        )
-                        logger.info(
-                            f"reflection insight [{result.dedup_key}]: {result.content[:60]}"
-                        )
-                _kota.tamamla(db, rezervasyon, provider="groq", success=True,
-                              tool_calls_count=len(response.tool_calls))
-                rezervasyon = None
-                return  # başarılı
-            except Exception as e:
-                last_exc = e
-                logger.warning(f"reflection model {model} hata: {e}")
-                continue
+        with _kota.cagri_olcumu() as olcum:
+            for model in _REFLECTION_MODELS:
+                try:
+                    provider = GroqProvider(api_key=groq_key, model=model.strip())
+                    response = provider.chat(
+                        system_prompt=system_prompt,
+                        messages=[{"role": "user", "content": "Analiz et."}],
+                        tools=[SAVE_INSIGHT_SCHEMA],
+                    )
+                    for tc in response.tool_calls:
+                        if tc["name"] == "save_insight":
+                            inp = tc["input"]
+                            result = save_insight_action(
+                                db=db,
+                                user_id=user_id,
+                                content=inp["content"],
+                                category=inp.get("category", "pattern"),
+                                priority=inp.get("priority", "normal"),
+                                dedup_key=inp.get("dedup_key", ""),
+                                expires_at=inp.get("expires_at"),
+                            )
+                            logger.info(
+                                f"reflection insight [{result.dedup_key}]: {result.content[:60]}"
+                            )
+                    _kota.tamamla(db, rezervasyon, provider="groq", success=True,
+                                  tool_calls_count=len(response.tool_calls))
+                    rezervasyon = None
+                    return  # başarılı
+                except Exception as e:
+                    last_exc = e
+                    logger.warning(f"reflection model {model} hata: {e}")
+                    continue
 
         if last_exc:
             # Çöken çağrı da sayılır (sağlayıcıya gitti) — koç yolundaki davranışla aynı.
@@ -184,6 +188,9 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
             # asılı kalmasın — kullanıcı yapılmamış bir çağrı için kotasından olmaz.
             if rezervasyon is not None:
                 _kota.iptal_et(db, rezervasyon)
+            # BUG #234 (D15): denenen HER model ayrı bir gerçek istektir; rezervasyon
+            # yalnız birini karşılar. (Rezervasyon iptal edildiyse ölçüm de boştur.)
+            _kota.ek_cagrilari_uzlastir(db, user_id, olcum, model="reflection")
             db.close()
 
 

@@ -448,7 +448,11 @@ function CoachInner({ onActionResolved }) {
           <div className="flex items-center gap-2 text-sm">
             <AlertTriangle className="w-4 h-4 text-negative-600 dark:text-negative-400 flex-shrink-0" />
             <span className="text-negative-700 dark:text-negative-300">
-              Günlük Gemini limiti doldu ({usage.today_count}/{usage.daily_limit}). Yarın tekrar deneyin.
+              {/* BUG #234 (D14): bu bant artık gerçekten görünebiliyor (sayaç ölçülüyor).
+                  Sayı PAYLAŞILAN kapasitedir — kullanıcı kendi kullanımı sanmasın; sağlayıcı
+                  adı da yazılmaz (iç yapılandırma son kullanıcıya ifşa edilmez, BUG #188). */}
+              Koç bugünlük kapasitesini doldurdu. Yarın tekrar dene — paneller ve hesaplamalar
+              çalışmaya devam ediyor.
             </span>
           </div>
         </div>
@@ -458,7 +462,8 @@ function CoachInner({ onActionResolved }) {
           <div className="flex items-center gap-2 text-sm">
             <AlertTriangle className="w-4 h-4 text-warn-600 dark:text-warn-400 flex-shrink-0" />
             <span className="text-warn-700 dark:text-warn-300">
-              Günlük limit %{usage.percentage.toFixed(0)} doldu. Bugün dikkatli kullan.
+              Koç kapasitesinin %{usage.percentage.toFixed(0)}'i doldu (paylaşılan günlük
+              kapasite). Bugün dikkatli kullan.
             </span>
           </div>
         </div>

@@ -61,6 +61,18 @@ def _cagrilar():
             yield yol, dugum.lineno, dugum.func.id, alanlar, yildiz, blok
 
 
+def test_kapsam_tabani_taranan_cagrilar():
+    """L23/L27 (BUG #252): kapı, model çağrısı BULAMAZSA hiçbir şey doğrulamadan geçer.
+    Taranan dosya ve bulunan çağrı sayısı assert edilir — AST/regex bir gün sessizce
+    bozulursa (ör. yeni bir yazım şekli) kapı yeşil kalmasın."""
+    dosyalar = [y for y in APP.rglob("*.py") if "__pycache__" not in str(y)]
+    cagrilar = list(_cagrilar())
+    assert len(dosyalar) >= 40, f"Yalnız {len(dosyalar)} dosya taranıyor — kapsam düşmüş"
+    assert len(cagrilar) >= 10, (
+        f"Yalnız {len(cagrilar)} workspace-modeli çağrısı bulundu — tarayıcı bozulmuş olabilir"
+    )
+
+
 def test_workspace_modelleri_models_pyden_turetiliyor():
     """Kapının kendisi: model listesi elle yazılmaz, şemadan türetilir (drift olmaz)."""
     modeller = _workspace_modelleri()

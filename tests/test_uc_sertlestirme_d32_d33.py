@@ -107,11 +107,21 @@ def test_gecersiz_para_birimi_reddedilir(client, gecersiz):
     assert r.status_code == 422, f"{gecersiz!r} kabul edildi ({r.status_code})"
 
 
-@pytest.mark.parametrize("gecerli", ["TRY", "usd", "EUR"])
-def test_gecerli_para_birimi_kabul_edilir(client, gecerli):
-    r = client.put("/api/user", json={"currency": gecerli})
+@pytest.mark.parametrize("gecerli", ["TRY", "try", " TRY "])
+def test_desteklenen_para_birimi_kabul_edilir(client, gecerli):
+    r = client.put("/api/user", json={"currency": gecerli.strip()})
     assert r.status_code == 200
-    assert r.json()["currency"] == gecerli.upper()
+    assert r.json()["currency"] == "TRY"
+
+
+@pytest.mark.parametrize("gosterilmeyen", ["USD", "EUR", "GBP"])
+def test_gosterilemeyen_para_birimi_kabul_EDILMEZ(client, gosterilmeyen):
+    """BUG #251: geçerli ISO kodu olması yetmez — arayüz her yerde TL yazıyor ve hiçbir
+    katman kur çevirmiyor. Kabul etmek, kullanıcıya "ayarladım" sandıran ama karşılığı
+    olmayan bir düğme vermektir (D33'ün ASIL şikâyeti). Küme ADR-042 ile büyüyecek."""
+    r = client.put("/api/user", json={"currency": gosterilmeyen})
+    assert r.status_code == 422
+    assert "ADR-042" in r.text or "kur" in r.text.lower()
 
 
 def test_gecersiz_locale_reddedilir(client):

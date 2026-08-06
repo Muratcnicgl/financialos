@@ -32,6 +32,13 @@ def _zincir() -> list[tuple[str, str | None, str]]:
     return kayitlar
 
 
+def test_kapsam_tabani_zincir_okunuyor():
+    """L23/L27 (BUG #252): `_zincir()` boş dönerse alttaki bütünlük testleri boş kümede
+    koşar ve HEPSİ yeşil olur — migration zinciri kırıkken bile."""
+    z = _zincir()
+    assert len(z) >= 15, f"Yalnız {len(z)} migration okundu — regex/dizin bozulmuş olabilir"
+
+
 def test_revision_idleri_benzersiz():
     """Aynı ID iki dosyada → alembic 'present more than once' + upgrade head HATA."""
     gorulen: dict[str, str] = {}

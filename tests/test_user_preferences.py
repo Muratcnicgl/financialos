@@ -79,12 +79,16 @@ def test_gecersiz_tz_sessizce_yanlis_tarih_uretmez():
 
 
 def test_tercihler_apiden_yazilir_ve_okunur(client):
-    r = client.put("/api/user", json={"timezone": "Europe/Berlin", "currency": "eur",
+    # BUG #251 (D33'ün ikinci yarısı): para birimi artık yalnız GÖSTERİLEBİLEN kümeden
+    # kabul ediliyor ("eur" 422). Gerekçe: tutarlar TL saklanır, kur çevrimi yoktur ve
+    # arayüz her yerde TL yazar → "EUR ayarladım" diyen kullanıcı yanlış okur. Normalize
+    # davranışı (küçük harf → ISO büyük harf) burada TRY ile korunur.
+    r = client.put("/api/user", json={"timezone": "Europe/Berlin", "currency": "try",
                                       "locale": "de-DE"})
     assert r.status_code == 200, r.text[:200]
     body = r.json()
     assert body["timezone"] == "Europe/Berlin"
-    assert body["currency"] == "EUR", "Para birimi ISO büyük harfe normalize edilmedi"
+    assert body["currency"] == "TRY", "Para birimi ISO büyük harfe normalize edilmedi"
     assert body["locale"] == "de-DE"
 
     assert client.get("/api/user").json()["timezone"] == "Europe/Berlin"

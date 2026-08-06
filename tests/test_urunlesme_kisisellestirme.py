@@ -127,6 +127,20 @@ _TARANAN_DOSYALAR = (
 )
 
 
+def test_kapsam_tabani_taranan_dosyalar():
+    """L23/L27 (BUG #252): tarama listesi boşalır ya da daralırsa kapı sessizce hep-yeşil
+    olur — "kişiye özel iz yok" cümlesi o an anlamını kaybeder ama kimse fark etmez.
+    Kapsamın kendisi assert edilir; ayrıca iki taraf (backend + arayüz) de temsil edilmeli."""
+    assert len(_TARANAN_DOSYALAR) >= 80, (
+        f"Yalnız {len(_TARANAN_DOSYALAR)} dosya taranıyor — kapsam düşmüş, kapı körleşir"
+    )
+    py = [f for f in _TARANAN_DOSYALAR if f.suffix == ".py"]
+    on = [f for f in _TARANAN_DOSYALAR if f.suffix in (".jsx", ".js")]
+    assert len(py) >= 40 and len(on) >= 20, (
+        f"Tek taraf taranıyor (py={len(py)}, arayüz={len(on)}) — kişiye özel iz diğerinde kalır"
+    )
+
+
 def _kod_satirlari(path: Path) -> list[tuple[int, str]]:
     """Dosyanın TÜM satırları (yorum/docstring dahil — H2 2. tur)."""
     if "__pycache__" in str(path) or ".test." in path.name or "node_modules" in str(path):

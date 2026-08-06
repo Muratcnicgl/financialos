@@ -21,9 +21,14 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.data_subject import disa_aktar  # BUG #243: KVKK export TEK KAYNAK
 
-# BUG #246 (D33): ISO-4217 kodları — uygulamanın gerçekten sunabildiği kümeyle sınırlı
-# (hepsi TL tabanlı gösterilse de kullanıcının seçimi kayıt altına alınır ve dışa aktarılır).
-DESTEKLENEN_PARA_BIRIMLERI = {"TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AUD", "CAD"}
+# BUG #251 (D33'ün ikinci yarısı): küme, uygulamanın GERÇEKTEN gösterebildiği para
+# birimidir — ISO-4217'nin tamamı değil. Gerekçe: tutarlar TL olarak saklanır, hiçbir
+# katman kur çevirmez ve arayüz her yerde "TL" yazar (`formatTL`, 139 çağrı). "USD"
+# kabul etmek, kullanıcıya AYARLADIĞINI sandıran ama hiçbir yerde karşılığı olmayan bir
+# düğme vermektir — denetimin (D33) asıl şikâyeti buydu; geçersiz kodu reddetmek onun
+# yalnız yarısını kapatır. Çok-para-birimi ADR-042 ile ayrıca ele alınacak (kur çevrimi +
+# görüntüleme + geçmiş değerleme); o iş bitince bu küme genişler ve kapı da onunla büyür.
+DESTEKLENEN_PARA_BIRIMLERI = {"TRY"}
 _LOCALE_DESENI = re.compile(r"^[a-z]{2}(-[A-Z]{2})?$")
 from app.models import (
     User, Account, Transaction, RecurringIncome, RecurringExpense, PersonalDebt,
@@ -146,8 +151,10 @@ def update_user(
         kod = payload.currency.strip().upper()
         if kod not in DESTEKLENEN_PARA_BIRIMLERI:
             raise HTTPException(
-                422, f"Gecersiz para birimi: {payload.currency!r}. "
-                     f"Desteklenenler: {', '.join(sorted(DESTEKLENEN_PARA_BIRIMLERI))}")
+                422, f"Desteklenmeyen para birimi: {payload.currency!r}. "
+                     f"Su an yalnizca {', '.join(sorted(DESTEKLENEN_PARA_BIRIMLERI))} "
+                     "gosterilebiliyor (tutarlar TL saklanir, kur cevrimi henuz yok - "
+                     "ADR-042). Ayarlanabilir olmasi, gosterilebildigi anlamina gelmemeli.")
         user.currency = kod
     if payload.locale is not None:
         yerel = payload.locale.strip()

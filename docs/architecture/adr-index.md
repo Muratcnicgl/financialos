@@ -53,6 +53,9 @@ tutarlılık turunda oluşturuldu ("ADR-index güncel mi" boşluğu kapandı).
 | 038 | PostgreSQL hibrit + RLS + dual-dialect Alembic | ✅ (Wave-7 M49-53) | dev SQLite / prod Postgres; RLS 2. savunma |
 | 039 | Deploy implementasyonu (Docker+Compose+nginx/HTTPS) | ✅ kod, canlı-deploy Murat bekliyor (Wave-8 MA1-4) | ADR-035'i somutlaştırır; statik-doğrulandı |
 | 040 | PWA + mobil-uyum (native yerine) | ✅ kod, canlı PWA-gate deploy bekliyor (Wave-8 MC1-2) | ADR-009/032'yi kesinleştirir; mobil=PWA |
+| 041 | Kullanıcı-başına LLM kotası | ✅ | BUG #188; muhasebe BUG #234 ile ağa çıkan isteğe taşındı |
+| 042 | Kullanıcı saat dilimi / para birimi / locale | ✅ (saat dilimi), 🟡 (para birimi ertelendi) | BUG #237 saat dilimini kapıya bağladı; para birimi gösterimi BUG #251 ile TRY'ye sınırlandı — çok-para-birimi bu ADR'nin açık kalan yarısı |
+| 043 | Oturum sabitlemesi + token yaşam döngüsü | ✅ | P2.1'in yazılı gerekçesi (6 Ağu 2026); kanıt tablosu `tests/auth/test_adr043_oturum_sozlesmesi.py` ile denetleniyor |
 
 ## Tutarlılık turu bulguları (M89)
 - **Superseded zincirleri tutarlı:** ADR-028 → 034 (dosyada "SUPERSEDED by ADR-034" notu var, M75); ADR-004 sıra

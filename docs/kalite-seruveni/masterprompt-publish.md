@@ -657,12 +657,12 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
 2. **Denetimin DÜŞÜK bulguları (D31…D40).** **D39** (health DB'ye dokunmuyor → rollback kapısı
    DB çökmüşken de yeşil) ve **D40** (runbook'taki davet komutu YANLIŞ DB'ye yazıyor) canlı
    deploy öncesi değerli.
-3. **P2.1** — session-fixation kararının yazılı gerekçesi.
-4. **Durum sayfası** (kimliksiz "sistem ayakta mı") — `/api/meta/durum` var, sayfa yok.
+3. ✅ **P2.1 — session-fixation kararının yazılı gerekçesi KAPANDI** (6 Ağu): ADR-043 + `tests/auth/test_adr043_oturum_sozlesmesi.py` (ADR'nin kanıt tablosu teste bağlı).
+4. ✅ **Durum sayfası KAPANDI** (6 Ağu, BUG #253): giriş ekranından açılan `SistemDurumu` (kimliksiz, `/api/ready`'yi okur, ayrıntı sızdırmaz).
 5. **H4 kalanı** (para birimi/locale görüntüleme, ADR-042) · **H9 kalanı** (prompt injection).
-6. **L11 taraması:** eski kapılara kapsam tabanı ekle (`test_scope_enforcement`, yasaklı-iz
-   kapısı, veri-işleyen envanteri). Bu turda dokuz yeni kapı taban assert'li yazıldı —
-   desen oturdu, eskilere uygulanması kaldı.
+6. ✅ **L11 taraması KAPANDI** (6 Ağu, BUG #252): `test_scope_enforcement`, ürünleşme/kişiye-iz
+   kapısı, workspace-insert kapısı ve alembic zinciri kapsam tabanı aldı; veri-işleyen envanteri
+   zaten yeni kapıyla (BUG #242) taban assert'li yazıldı.
 
 **İNSAN-KAPISI (Claude yapamaz, Murat'ta):** §9 — Oracle VM + domain/DNS + canlı sırlar,
 gerçek davetliler, gerçek trafik, duyuru. Canlı deploy olmadan P6/P7/P8/P9 kapanmaz.

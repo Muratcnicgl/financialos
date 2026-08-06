@@ -21,20 +21,17 @@ MIN_PARAMETRESIZ_GET = 25
 MIN_PARAMETRELI_YOL = 25
 
 
-# Testlerin global `app`'e enjekte ettiği uçlar. `tests/test_error_tracking.py` modül
-# yüklenirken bilerek-çöken bir router ekler (`/api/_test_hata/patla`) ve kaldırmaz —
-# `app` süreç-genelinde tek nesne olduğu için o rota süitin geri kalanında da durur.
-# Ürün yüzeyi DEĞİLDİR; envanterden elenir. Ön ek sabittir: `/api/_test`.
-TEST_ENJEKSIYON_ONEKI = "/api/_test"
+# BUG #235 (D21): burada bir zamanlar `/api/_test` ön ekli yolları eleyen bir filtre vardı.
+# `tests/test_error_tracking.py` modül yüklenirken global `app`'e bilerek-çöken bir uç
+# ekliyor ve kaldırmıyordu; filtre o kirliliği ENVANTER TARAFINDA gizliyordu. Kaynak
+# düzeltildi (uç artık fixture ömürlü + `include_in_schema=False`), filtre KALDIRILDI:
+# eleme burada dursaydı yeni bir test enjeksiyonu yine sessizce gizlenirdi (fail-closed).
+# Kirliliğin kendisi artık `tests/test_global_app_kirliligi.py` ile dayatılıyor.
 
 
 def tum_yollar(app) -> dict:
-    """OpenAPI'deki tüm yollar: {yol: {metot(küçük harf): işlem}} — test enjeksiyonları hariç."""
-    return {
-        yol: metotlar
-        for yol, metotlar in app.openapi()["paths"].items()
-        if not yol.startswith(TEST_ENJEKSIYON_ONEKI)
-    }
+    """OpenAPI'deki tüm yollar: {yol: {metot(küçük harf): işlem}}."""
+    return dict(app.openapi()["paths"])
 
 
 def parametresiz_get_uclari(app, haric: Iterable[str] = ()) -> list[str]:

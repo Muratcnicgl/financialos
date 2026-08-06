@@ -1040,7 +1040,16 @@ Baska katmanda kapali degil: middleware/dependency/migration/nginx hicbiri test 
 
 ### D21 · [orta] Bir test global FastAPI `app` nesnesine kalici cokme ucu ekliyor — suit su an 2 testte kirmizi (test kirliligi)
 
-- **Boyut:** test-kalitesi · **Yer:** `tests/test_error_tracking.py:42` · **Durum:** BUG #217 envanter filtresiyle KAPANDI (kök neden — testin global app'i kirletmesi — açık)
+- **Boyut:** test-kalitesi · **Yer:** `tests/test_error_tracking.py:42` · **Durum:** ✅ **KÖKTEN KAPANDI — BUG #235**
+  (6 Ağu). Önce BUG #217 turunda envanter tarafına `/api/_test` filtresi konmuştu — doğru ama
+  TÜKETİCİDE bir çözüm; OpenAPI okuyan yeni bir tarama aynı tuzağa düşerdi. Şimdi kaynak
+  düzeltildi: bilerek-çöken router fixture ömürlü (`yield` sonrası rota listesi geri yüklenir)
+  + `include_in_schema=False`; envanterdeki eleme filtresi KALDIRILDI (fail-closed — kirlilik
+  bir daha envanter tarafında gizlenmesin). Yeni kapı `tests/test_global_app_kirliligi.py`
+  hiçbir test modülünün global `app`'i modül seviyesinde değiştirmediğini AST ile dayatıyor
+  (meta-testli: tarayıcının hep-yeşil olmadığı ispatlı, fixture içi değişiklik yanlış-pozitif
+  vermiyor). **Mutasyon:** eski kalıp geri konduğunda boş-durum e2e kapısı denetimin
+  raporladığı hatanın aynısıyla (`RuntimeError: beklenmedik cokme`) kırmızıya düşüyor.
 - **Neden yayın engeli / etki:** Kapsam kilitleri (BUG #217) OpenAPI'ye tasinip gorusunu kazanir kazanmaz, bir test dosyasinin global durumu kirletmesi yuzunden ANINDA kalici kirmiziya dustuler. `.githooks/pre-commit` tum suiti `-x` ile kosuyor ve `.github/workflows/ci.yml` da oyle → su an hicbir Python commit'i hook'tan gecemez. Pratik sonuc: gelistirici `--no-verify` aliskanligi edinir ve test kapisi tumden islevsizlesir (BUG #061 dersinin aynen tekrari). Ayrica bu kalip, testlerin uretim `app` nesnesini kalicilastirilmis sekilde degistirebildigini gosteriyor — yarin bir test dosyasi kimlik dogrulamayi devre disi birakan bir override birakirsa hicbir sey uyarmaz.
 
 <details><summary>Kanıt</summary>

@@ -46,7 +46,7 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
   (Murat tüm işlemleri önceden onayladı) — **tek istisna §9 İNSAN-KAPISI**.
 - **GERİLEME YASAK.** Bu masterprompt yalnız ileri yönlü güncellenir (§12).
 
-### §1.3 DERS-KURALLARI L1-L15 (v2.0+ — YALNIZ EKLENİR)
+### §1.3 DERS-KURALLARI L1-L16 (v2.0+ — YALNIZ EKLENİR)
 
 > Not: `D1` §1'de **sektör referansı** kuralıdır; karışmasın diye ders-kuralları **L** ile numaralanır.
 
@@ -69,6 +69,7 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L13 | **Kurulum adımını denetleyen bir kapı yoksa, o adım eninde sonunda atlanır.** "Runbook'ta yazıyor" bir kapı değildir. Kod ile ÇALIŞAN sistemin durumu (şema sürümü, uygulanmış migration, yapılandırma) arasına startup'ta fail-fast koy — aksi halde sistem yarım çalışır ve sağlık ucu yeşil kalır. | #222 (canlı DB 9 migration geride; koç onayı 500 verirken `/api/health` yeşildi) |
 | L12 | **Hata yolu da bir ürün yüzeyidir.** Panel/akış "veri yok" halinde test edilip "istek patladı" halinde test edilmiyorsa yarısı sınanmamıştır — çökme ve **istek döngüsü** oradan çıkar. | #218 (toast kimliği → sonsuz istek), #219 (hata → state null → panel çöktü) |
 | L14 | **Güvenlik varsayılanı fail-CLOSED olmalı; koruma "unutulması en kolay değişkene" bağlanamaz.** "Varsayılan kapalı + prod'da fail-fast" kalıbı, prod işaretini kimsenin set etmediği bir dağıtım yolu olduğu anda çöker. Doğru kalıp: korumayı aç, kapatmayı AÇIK BEYAN şartına bağla. Ayrıca dokümanın söylediği kurulum adımını **çalıştırıp sonucunu assert eden** bir test yaz (şablonu kopyala → kimlikli sunucu çıkıyor mu). | #227 (systemd yolu: `cp .env.example .env` → kimliksiz canlı sunucu; #171'in fail-fast'i bu yolda hiç tetiklenmiyordu), #225 (tv claim'i hiç taşınmadığı için sürüm kontrolü sessizce etkisiz kalırdı) |
+| L16 | **Tüketici tarafında yapılan düzeltme kaynağı düzeltmez.** Bozuk bir üretici (kirli global durum, yanlış veri, sızan artefakt) tek bir tüketicide filtrelenerek kapatılırsa, aynı üreticiyi okuyan BİR SONRAKİ tüketici aynı tuzağa düşer — üstelik ilk filtre "çözüldü" görüntüsü verdiği için kimse kaynağa bakmaz. Kaynağı düzelt, sonra **filtreyi kaldır** (filtre kalırsa yeni kirlilik sessizce gizlenir). | #235 (test global `app`'e kalıcı uç ekliyordu; #217 turunda envanter tarafında elenmişti — OpenAPI okuyan yeni tarama aynı tuzağa düşerdi) |
 | L15 | **Bir sayacın BİRİMİNİ ve KAPSAMINI teste yazdır.** "Bu sayaç neyi sayıyor" sorusu koddan okunarak güvenilir biçimde cevaplanamaz: yorum "paylaşılan" derken sorgu filtreli, ADR "çağrı" derken satır "mesaj" olabilir. Bir eşik/tavan/kotanın sözleşmesi **iki kullanıcı** ve **gerçek alt-işlem sayısı** ile davranış testine bağlanmalı; aksi halde koruma dalı hiç ateşlemeden ölü kalır ve onu gösteren arayüz de ölü olduğu için kimse fark etmez. | #234 (paylaşılan kota kullanıcı-filtreli sayılıyordu → %80/%100 dalları matematiksel olarak erişilemezdi; tavan mesaj sayıyordu → gerçek maliyet 2-3 kat), #212 (muhasebe etiketi çalışma-anı durumundan türetiliyordu) |
 
 ---
@@ -486,6 +487,7 @@ ayrı commit + ledger + denetim raporu satırı. Sınıf taraması bu turda iki 
 | Bug | Denetim | Konu (tek cümle) |
 |---|---|---|
 | #234 | D14+D15 | LLM kota sayacı paylaşılan havuzu hiç ölçmüyordu (kullanıcı-filtreli sorgu → %80/%100 dalları matematiksel olarak ölü) ve tavan ÇAĞRI değil MESAJ sayıyordu (bir mesaj = 1-4 gerçek istek) → ilan edilen maliyet tavanı gerçeğin 2-3 katına izin veriyordu |
+| #235 | D21 | Bir test dosyası üretim `app`'ine kalıcı çöken uç ekliyordu; kapsam kilitleri görmeye başlayınca süit kalıcı kırmızıya düştü → commit kapısı fiilen ölmüştü. Önceki tur bunu ENVANTER tarafında elemişti (tüketici çözümü); kaynak düzeltildi + kirlilik AST kapısına bağlandı |
 
 **Ders (L15 adayı):** bir sayaç için "neyi sayıyor" sorusu koddan okunmakla cevaplanamaz —
 **birimini teste yazdır.** Buradaki iki defekt de sözleşme-kod uyuşmazlığıydı: yorum "PAYLAŞILAN"

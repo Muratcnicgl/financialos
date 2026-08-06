@@ -26,7 +26,13 @@ from app.error_tracking import temizle, parmak_izi
 
 
 # --- Test uçları: bilerek patlar ---
-_test_router = APIRouter(prefix="/api/_test_hata", tags=["test"])
+# BUG #235 (D21): bu router eskiden MODÜL YÜKLENİRKEN `app.include_router` ile eklenip
+# hiç kaldırılmıyordu. `app` süreç-genelinde TEK nesnedir → uç, süitin geri kalanında da
+# duruyordu ve uç envanterini tarayan kapılar (boş-durum e2e, izolasyon kapsam kilidi) onu
+# ÜRÜN ucu sanıp çağırıyor, bilerek-çöken uç yüzünden kırmızıya düşüyorlardı. Artık:
+# (1) yalnız bu dosyanın fixture'ı süresince eklenir ve kaldırılır (izolasyon),
+# (2) `include_in_schema=False` — kamu sözleşmesinde (OpenAPI) hiç görünmez (savunma derinliği).
+_test_router = APIRouter(prefix="/api/_test_hata", tags=["test"], include_in_schema=False)
 
 
 @_test_router.get("/patla")
@@ -39,7 +45,15 @@ def _pii():
     raise ValueError("kullanici ali.veli@example.com token eyJhbGciOiJIUzI1NiJ9.abcdefghijkl")
 
 
-app.include_router(_test_router)
+@pytest.fixture
+def cokme_uclari():
+    """Bilerek-çöken uçları YALNIZ bu testler süresince global app'e takar."""
+    onceki = list(app.router.routes)
+    app.include_router(_test_router)
+    app.openapi_schema = None          # şema önbelleği yeni rotayla kirlenmesin
+    yield
+    app.router.routes = onceki
+    app.openapi_schema = None
 
 
 @pytest.fixture
@@ -58,7 +72,7 @@ def db(monkeypatch):
 
 
 @pytest.fixture
-def client(db):
+def client(db, cokme_uclari):
     return TestClient(app, raise_server_exceptions=False)
 
 

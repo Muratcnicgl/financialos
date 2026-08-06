@@ -131,9 +131,12 @@ class EmailChangeConfirmIn(BaseModel):
     token: str
 
 
-def _sifre_dogrula(password: str) -> None:
-    """BUG #187: politika ihlalinde 422 (kayit + sifirlama ayni kurala tabi)."""
-    sorunlar = _auth.password_problems(password)
+def _sifre_dogrula(password: str, email: str | None = None, name: str | None = None) -> None:
+    """BUG #187: politika ihlalinde 422 (kayit + sifirlama ayni kurala tabi).
+
+    BUG #254: kullanicinin KENDI e-postasi/adi da politikaya girer — genel blocklist
+    kisiye ozel tahmini goremez ("ali@x.com" -> "ali12345" eskiden geciyordu)."""
+    sorunlar = _auth.password_problems(password, email=email, name=name)
     if sorunlar:
         raise HTTPException(422, "Sifre kabul edilmedi: " + "; ".join(sorunlar))
 
@@ -149,7 +152,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
     _rate_limit(request, "register", db=db)  # BUG #182: paylasilan sayac
     if not body.kvkk_consent:
         raise HTTPException(422, "KVKK açık rıza zorunlu (kvkk_consent=true).")
-    _sifre_dogrula(body.password)  # BUG #187: yaygin/zayif sifre reddi
+    _sifre_dogrula(body.password, email=body.email, name=getattr(body, 'name', None))  # BUG #187/#254
     email = body.email.lower().strip()
 
     # BUG #199 (P7): KAPALI BETA. Kayit ucu herkese acikti -> domain canliya cikar cikmaz

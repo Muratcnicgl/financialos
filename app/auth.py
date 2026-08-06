@@ -78,15 +78,31 @@ def verify_password(password: str, password_hash: Optional[str]) -> bool:
 # breach-listesi (HIBP) cevrimici sorgu gerektirir; kapali beta icin yerel liste +
 # desen kontrolu (tekrarli/ardisik karakter) yeterli, dis servise veri gitmez.
 _YAYGIN_SIFRELER = {
-    "12345678", "123456789", "1234567890", "password", "password1", "password123",
-    "qwerty123", "qwertyui", "11111111", "00000000", "abc12345", "iloveyou",
-    "admin123", "welcome1", "letmein1", "sunshine", "princess", "football",
-    "parola123", "sifre123", "parola12", "turkiye1", "galatasaray", "fenerbahce",
-    "besiktas", "trabzonspor", "ankara123", "istanbul", "deneme123", "asdasd123",
+    # global (sizinti listelerinin tepesi)
+    "12345678", "123456789", "1234567890", "123456789a", "1234567", "12341234",
+    "password", "password1", "password12", "password123", "passw0rd", "p@ssw0rd",
+    "qwerty123", "qwertyui", "qwertyuiop", "qwerty12", "1q2w3e4r", "1qaz2wsx",
+    "zaq12wsx", "qazwsxedc", "asdfghjk", "asdfghjkl", "zxcvbnm1", "abcd1234",
+    "11111111", "00000000", "22222222", "88888888", "aaaaaaaa", "abc12345",
+    "iloveyou", "iloveyou1", "sunshine", "princess", "football", "baseball",
+    "superman", "batman123", "trustno1", "starwars", "michael1", "jennifer",
+    "monkey12", "dragon123", "master123", "shadow12", "welcome1", "welcome123",
+    "letmein1", "letmein123", "admin123", "administrator", "root1234", "toor1234",
+    "changeme", "secret12", "computer", "internet", "whatever", "freedom1",
+    # Turkiye'ye ozgu yaygin secimler
+    "parola123", "parola12", "parola1234", "sifre123", "sifre1234", "sifrem123",
+    "turkiye1", "turkiye123", "istanbul", "istanbul1", "ankara123", "izmir123",
+    "galatasaray", "fenerbahce", "besiktas", "besiktas1", "trabzonspor", "cimbom1",
+    "deneme123", "deneme1234", "asdasd123", "qweqwe123", "merhaba1", "merhaba123",
+    "ahmet123", "mehmet123", "mustafa1", "fatma123", "ayse1234", "hasan123",
+    "seninle1", "askim123", "canim123", "bebegim1", "kanka123", "abicim1",
+    "banka123", "hesap123", "para1234", "kredi123", "maas1234", "bütçe123",
+    "12345678a", "a1234567", "1234abcd", "abcd12345", "gizli123", "guvenli1",
 }
 
 
-def password_problems(password: str) -> list[str]:
+def password_problems(password: str, email: str | None = None,
+                      name: str | None = None) -> list[str]:
     """BUG #187 (P2): sifre politikasi YALNIZ uzunluktu (>=8).
 
     '12345678' / 'parola123' gibi ilk-1000 listesindeki sifreler kabul ediliyordu; rate
@@ -103,6 +119,27 @@ def password_problems(password: str) -> list[str]:
         sorunlar.append("ayni karakterin tekrari (ornek: 11111111)")
     if p.isdigit():
         sorunlar.append("yalnizca rakamlardan olusamaz")
+    # BUG #254: KIMLIGIN KENDISI sifre olamaz. Saldirgan zaten e-postayi bilir; "ali@x.com"
+    # kullanicisinin "ali12345" sifresi, listede olmadigi icin eski politikadan GECIYORDU —
+    # oysa hedefli denemede ilk sirada denenen sey tam olarak budur (blocklist genel,
+    # bu kontrol KISIYE ozel). Ad icin de ayni: "mehmet2026".
+    # Olcut "iceriyor mu" DEGIL: "ali" parcasi "Kaliteli!9" icinde de gecer ve guclu bir
+    # sifreyi haksiz yere reddederdik (L6). Gercek zayif desen, kimligin sifrenin GOVDESI
+    # olmasidir: harf cekirdegi kimlikle basliyorsa (ali12345, mehmet2026, ayse!2026).
+    harf_cekirdek = "".join(ch for ch in p.lower() if ch.isalpha())
+    for kaynak in (email or "", name or ""):
+        parca = (kaynak.split("@")[0] if "@" in kaynak else kaynak).strip().lower()
+        parca = "".join(ch for ch in parca if ch.isalpha())
+        if len(parca) >= 3 and harf_cekirdek.startswith(parca):
+            sorunlar.append("kendi e-posta/adinla baslamamali (tahmin edilmesi kolay)")
+            break
+    # Ardisik karakter dizileri (klavye/sayi) — blocklist'e giremeyecek kadar cok varyant.
+    kucuk = p.lower()
+    for dizi in ("abcdefghijklmnopqrstuvwxyz", "0123456789", "qwertyuiop", "asdfghjkl"):
+        for i in range(len(dizi) - 5):
+            if dizi[i:i + 6] in kucuk:
+                sorunlar.append("ardisik karakter dizisi icermemeli (ornek: abcdef, 123456)")
+                return sorunlar
     return sorunlar
 
 

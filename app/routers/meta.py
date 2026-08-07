@@ -123,6 +123,16 @@ def hazir(db: Session = Depends(get_db)) -> dict:
     """
     sorunlar: list[dict] = []
 
+    # BUG #263 (P5.5): havuz DOLUYKEN `SELECT 1` denemek bu ucu `pool_timeout` kadar
+    # (varsayılan 30 sn) ASAR. Docker HEALTHCHECK o kadar beklemez → konteyner sağlıksız
+    # işaretlenir ve yeniden başlar; yani geçici bir yük dalgası KALICI kesintiye döner.
+    # Doygunluk bağlantı İSTEMEDEN ölçülür → hızlı ve dürüst 503.
+    from app.capacity import havuz_doygun_mu
+    if havuz_doygun_mu():
+        govde = {"hazir": False, "db": "havuz_dolu", "sema": "atlandi", "surum": APP_VERSION,
+                 "sorunlar": [{"ad": "db", "detay": "baglanti havuzu doygun"}]}
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=govde)
+
     db_ok = True
     try:
         db.execute(text("SELECT 1"))

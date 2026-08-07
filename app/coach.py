@@ -1443,6 +1443,24 @@ class LLMResponse:
         self.model_name = model_name  # "llama-3.3-70b-versatile" / "claude-..." / vs.
 
 
+def llm_timeout_saniye() -> float:
+    """Her LLM sağlayıcı istemcisi için AZAMİ bekleme (saniye) — tek kaynak.
+
+    BUG #263 (P5.5): sekiz sağlayıcıdan yalnız Ollama'nın timeout'u vardı; diğer yedisi
+    SDK varsayılanına bırakılmıştı (Anthropic/OpenAI ailesinde **600 sn**). Eşzamanlı LLM
+    tavanı 3 iken, asılı kalan üç sağlayıcı bağlantısı koçu on dakika boyunca tamamen
+    kapatır ve o süre boyunca üç DB bağlantısını da tutar — kapasite tavanı, tavanı tutan
+    çağrının bir sonu olduğu varsayımıyla anlamlıdır.
+
+    Varsayılan 60 sn, `docker-entrypoint.sh`'deki gunicorn `--timeout 60` ile bilinçli
+    olarak aynıdır: bir istek worker'ın hayat sinyalinden uzun sürmemelidir.
+    """
+    try:
+        return max(1.0, float(os.getenv("LLM_TIMEOUT", "60")))
+    except (TypeError, ValueError):
+        return 60.0
+
+
 class LLMProvider(ABC):
     @abstractmethod
     def chat(self, system_prompt: str, messages: List[Dict], tools: List[Dict]) -> LLMResponse:
@@ -1488,7 +1506,7 @@ class AnthropicProvider(LLMProvider):
 
     def __init__(self, api_key: str, model: Optional[str] = None):
         from anthropic import Anthropic
-        self.client = Anthropic(api_key=api_key)
+        self.client = Anthropic(api_key=api_key, timeout=llm_timeout_saniye())  # BUG #263
         self.model = model or self.DEFAULT_MODEL
 
     def _raw_chat(self, system_prompt, messages, tools):
@@ -1554,7 +1572,11 @@ class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str, model: Optional[str] = None):
         from google import genai
         from google.genai import types as genai_types
-        self.client = genai.Client(api_key=api_key)
+        # BUG #263: google-genai timeout'u MİLİSANİYE ister (diğer SDK'lar saniye).
+        self.client = genai.Client(
+            api_key=api_key,
+            http_options=genai_types.HttpOptions(timeout=int(llm_timeout_saniye() * 1000)),
+        )
         self.types = genai_types
         self.model = model or self.DEFAULT_MODEL
 
@@ -1706,7 +1728,7 @@ class GroqProvider(LLMProvider):
 
     def __init__(self, api_key: str, model: Optional[str] = None):
         from groq import Groq
-        self.client = Groq(api_key=api_key)
+        self.client = Groq(api_key=api_key, timeout=llm_timeout_saniye())  # BUG #263
         self.model = model or self.DEFAULT_MODEL
 
     def _raw_chat(self, system_prompt, messages, tools):
@@ -1775,7 +1797,8 @@ class CerebrasProvider(LLMProvider):
 
     def __init__(self, api_key: str, model: Optional[str] = None):
         from openai import OpenAI
-        self.client = OpenAI(api_key=api_key, base_url="https://api.cerebras.ai/v1")
+        self.client = OpenAI(api_key=api_key, base_url="https://api.cerebras.ai/v1",
+                             timeout=llm_timeout_saniye())  # BUG #263
         self.model = model or self.DEFAULT_MODEL
 
     def _raw_chat(self, system_prompt, messages, tools):
@@ -1859,7 +1882,8 @@ class TogetherProvider(_OpenAICompatMixin, LLMProvider):
 
     def __init__(self, api_key: str, model: Optional[str] = None):
         from openai import OpenAI
-        self.client = OpenAI(api_key=api_key, base_url=self.BASE_URL)
+        self.client = OpenAI(api_key=api_key, base_url=self.BASE_URL,
+                             timeout=llm_timeout_saniye())  # BUG #263
         self.model = model or self.DEFAULT_MODEL
 
 
@@ -1870,7 +1894,8 @@ class DeepInfraProvider(_OpenAICompatMixin, LLMProvider):
 
     def __init__(self, api_key: str, model: Optional[str] = None):
         from openai import OpenAI
-        self.client = OpenAI(api_key=api_key, base_url=self.BASE_URL)
+        self.client = OpenAI(api_key=api_key, base_url=self.BASE_URL,
+                             timeout=llm_timeout_saniye())  # BUG #263
         self.model = model or self.DEFAULT_MODEL
 
 
@@ -1891,6 +1916,7 @@ class OpenRouterProvider(LLMProvider):
                 "HTTP-Referer": "https://financialos.local",
                 "X-Title": "FinancialOS",
             },
+            timeout=llm_timeout_saniye(),  # BUG #263
         )
         self.model = model or self.DEFAULT_MODEL
 
@@ -1953,7 +1979,7 @@ class OllamaProvider(LLMProvider):
                          or self.DEFAULT_BASE_URL)
         # Yerel model yavaş olabilir → cömert timeout (env ile ayarlanabilir)
         try:
-            timeout = float(os.getenv("OLLAMA_TIMEOUT", "120"))
+            timeout = float(os.getenv("OLLAMA_TIMEOUT", str(llm_timeout_saniye() * 2)))
         except ValueError:
             timeout = 120.0
         self.client = OpenAI(api_key="ollama", base_url=self.base_url, timeout=timeout)

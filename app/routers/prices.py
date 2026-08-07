@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.dependencies import get_current_user
 from app.models import User
 from app.rate_limit import rate_limit
+from app import capacity as kapasite  # BUG #263 (P5.5): eşzamanlı dış-servis tavanı
 
 from app.price_providers.evds_client import fetch_currency_rate, fetch_gold_price
 
@@ -47,7 +48,11 @@ def currency_price(
     """Döviz kuru alış+satış (TCMB EVDS v3). Örn: /api/prices/currency/USD."""
     rate_limit(request, "prices")
     target = _parse_date(date_str)
-    rate = fetch_currency_rate(currency_code, target)
+    # BUG #263 (P5.5): EVDS çağrısı 30 sn timeout'lu SENKRON ağ isteğidir; süresince bu
+    # iş parçacığı meşguldür. Hız sınırı (30/dk) tekrarı sınırlar ama EŞZAMANLILIĞI değil —
+    # 30 istek aynı anda gelirse hepsi geçerlidir. Tavan dolunca beklemek yerine 503.
+    with kapasite.yavas_yol(kapasite.DIS_SERVIS):
+        rate = fetch_currency_rate(currency_code, target)
     if not rate or (rate.get("buy") is None and rate.get("sell") is None):
         raise HTTPException(
             status_code=502,
@@ -76,7 +81,8 @@ def gold_price(
     """
     rate_limit(request, "prices")
     target = _parse_date(date_str)
-    g = fetch_gold_price(gold_type, target)
+    with kapasite.yavas_yol(kapasite.DIS_SERVIS):  # BUG #263 (P5.5)
+        g = fetch_gold_price(gold_type, target)
     if not g:
         raise HTTPException(502, "Altın fiyatı alınamadı (EVDS erişilemedi). Yapılandırmayı kontrol edin.")
     return {"type": gold_type, "price": str(g["price"]), "date": g["date"], "source": g["source"]}

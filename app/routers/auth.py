@@ -49,6 +49,7 @@ KVKK_CONSENT_VERSION = "v3"  # BUG #231 (D10): koç aktarım kapsamı düzeltild
 # M21: rate limiter app/rate_limit.py'a taşındı (per-bucket production değerleri).
 # _rate_limit/_RATE alias'ları test uyumu için korunur (auth_mod._RATE.clear()).
 from app.rate_limit import rate_limit as _rate_limit, _RATE  # noqa: E402,F401
+from app import capacity as _kapasite  # BUG #263 (P5.5): dış-servis tavanı
 
 
 # --- Şemalar ---
@@ -618,11 +619,15 @@ def oauth_callback(
     if not _oauth.consume_state(state, db):
         raise HTTPException(400, "Geçersiz veya süresi geçmiş state (CSRF koruması).")
     verifier = request.cookies.get("fos_pkce")  # BUG #185 (b): PKCE
-    try:
-        info = _oauth.exchange_code(provider, code, code_verifier=verifier)
-    except Exception as e:  # noqa: BLE001 — dış OAuth hatası → 400
-        logger.warning("[oauth] %s code exchange başarısız: %s", provider, e)
-        raise HTTPException(400, f"OAuth doğrulama başarısız: {e}")
+    # BUG #263 (P5.5): sağlayıcıya 2-3 senkron HTTP çağrısı yapılır ve bu sırada DB
+    # oturumu AÇIKTIR. Google/GitHub yavaşladığında eşzamanlı girişler havuzu tüketip
+    # tüm uygulamayı düşürebilirdi. Aynı dış-servis tavanı; slot dolarsa nazik 503.
+    with _kapasite.yavas_yol(_kapasite.DIS_SERVIS):
+        try:
+            info = _oauth.exchange_code(provider, code, code_verifier=verifier)
+        except Exception as e:  # noqa: BLE001 — dış OAuth hatası → 400
+            logger.warning("[oauth] %s code exchange başarısız: %s", provider, e)
+            raise HTTPException(400, f"OAuth doğrulama başarısız: {e}")
 
     email = info["email"]
     now = datetime.now(timezone.utc).replace(tzinfo=None)

@@ -51,11 +51,17 @@ elif IS_POSTGRES:
     # yük altında "too many connections" ile düşer — ve bu ancak canlıda görülür.
     # Varsayılan: 2 worker × (5+10) + scheduler 15 = 45 < 100 (güvenli).
     # Küçük VM'de (Oracle Free 1GB) havuzu env ile küçültmek gerekebilir.
+    # BUG #263 (P5.5): yukarıdaki muhakeme YALNIZ Postgres `max_connections` tarafına
+    # bakıyordu. Uygulamanın KENDİ eşzamanlılığı (anyio iş parçacığı havuzu, varsayılan 40)
+    # bu 15'i kat kat aşıyordu → havuz uygulamanın içinde ÖNCE tükeniyordu. Hizalama ve
+    # yavaş-yol tavanları `app/capacity.py`'de; burada yalnız bekleme süresi AÇIK yazılır:
+    # örtük 30 sn, Docker HEALTHCHECK'ten uzun sürebilecek bir sessiz varsayılandı.
     _engine_kwargs.update(
         pool_pre_ping=True,
         pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
         max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
         pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "1800")),  # 30 dk: bayat bağlantı kesilir
+        pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "10")),    # BUG #263: örtük 30 sn yerine açık 10 sn
     )
 
 engine = create_engine(DATABASE_URL, **_engine_kwargs)

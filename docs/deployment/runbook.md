@@ -145,14 +145,62 @@ hicbir yere yazmaz (test ile kilitli: tests/test_live_gate_script.py).
 sonra anlamlidir (P6.3).
 
 ## Kapasite sınırları (P5)
-Havuz **process başınadır**; toplam bağlantı şu formülle hesaplanır:
+
+Kapasitenin **iki tarafı** vardır. Uzun süre yalnız biri hesaplanıyordu (BUG #263).
+
+### 1. Dışarı bakan taraf — Postgres `max_connections`
+Havuz **process başınadır**; toplam bağlantı:
 
     WEB_CONCURRENCY × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + scheduler(1 process)
 
 Varsayılan: `2 × (5 + 10) + 15 = 45` < Postgres `max_connections` (100) → güvenli.
 `WEB_CONCURRENCY`'yi yükseltirsen havuzu da küçült; aksi halde yük altında
 **"too many connections"** alırsın (ve bunu ancak canlıda görürsün).
-Küçük VM'de (Oracle Free 1GB) önerilen: `WEB_CONCURRENCY=2`, `DB_POOL_SIZE=3`, `DB_MAX_OVERFLOW=5`.
+
+### 2. İçeri bakan taraf — uygulamanın kendi eşzamanlılığı (BUG #263)
+Uçların **tamamı senkron** (`def`) → her istek anyio iş parçacığı havuzunda koşar ve
+`Depends(get_db)` oturumu **isteğin sonuna kadar** bağlantıyı tutar. Varsayılan iş
+parçacığı havuzu 40 iken DB havuzu 15'ti: havuz Postgres'e ulaşmadan **uygulamanın
+içinde** tükeniyordu. Koç isteği iki LLM çağrısı yapar ve 10-40 sn bağlantı işgal eder →
+15 eşzamanlı koç isteği her şeyi kilitler, `/api/ready` bile asılır ve **HEALTHCHECK
+konteyneri yeniden başlatır** (geçici yük dalgası → kalıcı kesinti).
+
+Uygulanan değişmez (`app/capacity.py`, açılışta denetlenir — production'da **fail-fast**):
+
+    yavaş yol tavanları + hızlı-yol rezervi ≤ DB havuz kapasitesi
+    iş parçacığı havuzu                     ≤ DB havuz kapasitesi
+
+| Ayar | Varsayılan | Ne yapar |
+|---|---|---|
+| `LLM_MAX_CONCURRENCY` | 3 | Aynı anda kaç koç isteği LLM'e gidebilir. Dolunca **beklemez**: 503 + `Retry-After`. |
+| `DIS_SERVIS_MAX_CONCURRENCY` | 3 | TCMB EVDS / OAuth sağlayıcısı gibi senkron dış çağrılar. |
+| `EPOSTA_MAX_CONCURRENCY` | 2 | SMTP gönderimi. **Ayrı yol:** EVDS çökmesi şifre-sıfırlama e-postasını engellememeli. |
+| `EPOSTA_BEKLEME_SANIYE` | 5 | Tek istisna: e-posta tavanı doluysa kısa beklenir (düşen sıfırlama e-postası kullanıcıyı hesabının dışında bırakır). Diğer yollar hiç beklemez. |
+| `MIN_HIZLI_SLOT` | 6 | Yavaş yollara ASLA verilmeyen, hızlı uçlara (cockpit, `/api/ready`) ayrılmış slot. |
+| `THREADPOOL_TOKENS` | (boş) | Boşsa DB havuzuna eşitlenir. Elle vermek gerekirse havuzdan büyük olamaz. |
+| `DB_POOL_TIMEOUT` | 10 | Havuz beklerken azami süre. Örtük 30 sn HEALTHCHECK'ten uzundu. |
+
+Tavan dolduğunda kullanıcı "Sistem şu an yoğun, birkaç saniye sonra tekrar dene" görür;
+**paneller ve hesaplamalar çalışmaya devam eder** (ADR-001: sayıları Rules Engine üretir,
+LLM yalnız anlatır).
+### Küçük VM tarifi (Oracle Free 1GB)
+Havuzu küçültürken **yavaş tavanlar ve hızlı-yol rezervi de küçülmelidir** — yalnız
+`DB_POOL_SIZE`/`DB_MAX_OVERFLOW` düşürmek değişmezi ihlal eder ve konteyner açılışta
+fail-fast eder (yani "biraz yavaş çalışır" değil, **hiç açılmaz**). Tutarlı takım:
+
+```sh
+WEB_CONCURRENCY=2
+DB_POOL_SIZE=3
+DB_MAX_OVERFLOW=5            # havuz kapasitesi = 3 + 5 = 8
+LLM_MAX_CONCURRENCY=2
+DIS_SERVIS_MAX_CONCURRENCY=2
+EPOSTA_MAX_CONCURRENCY=1
+MIN_HIZLI_SLOT=3             # 2 + 2 + 1 + 3 = 8 <= 8 ✔
+```
+
+Postgres tarafı: `2 × 8 + 8 = 24` < `max_connections` (100) ✔. Bu tarif
+`tests/test_kapasite_kapisi.py::test_runbook_kucuk_vm_tarifi_degismezi_saglar` ile
+kilitlidir — belge değişip tutarsızlaşırsa süit kırmızıya döner.
 
 Kontrol:
 ```sh

@@ -82,16 +82,30 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str) -> b
     msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
+    # BUG #263 (P5.5, sınıf taraması): SMTP el sıkışması + login + gönderim 20 sn'ye kadar
+    # sürebilen SENKRON bir dış çağrıdır. Kayıt akışında istek İÇİNDE koşar (DB oturumu
+    # açıkken), üç akışta ise `BackgroundTasks` ile iş parçacığı havuzundan slot tüketir —
+    # ve o havuz artık DB havuzuna eşitlendiği için (15) e-posta beklemesi doğrudan istek
+    # kapasitesinden yer. Kendi tavanı vardır; dolu olsa bile kısa süre BEKLENİR (bkz.
+    # `capacity._BEKLEME`), çünkü düşen bir şifre-sıfırlama e-postası kullanıcıyı hesabının
+    # dışında bırakır. Süre dolarsa `False` döner — bu fonksiyonun zaten var olan
+    # başarısızlık sözleşmesi; çağıranların hiçbiri değişmez.
+    from app import capacity as _kapasite
     try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP(c["host"], c["port"], timeout=20) as server:
-            server.ehlo()
-            server.starttls(context=context)
-            server.ehlo()
-            server.login(c["user"], c["password"])
-            server.sendmail(c["from_addr"], [to_email], msg.as_string())
+        with _kapasite.yavas_yol(_kapasite.EPOSTA):
+            context = ssl.create_default_context()
+            with smtplib.SMTP(c["host"], c["port"], timeout=20) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.ehlo()
+                server.login(c["user"], c["password"])
+                server.sendmail(c["from_addr"], [to_email], msg.as_string())
         logger.info("[email] SMTP email sent to %s (subject=%r) via %s:%s", _mask(to_email), subject, c["host"], c["port"])
         return True
+    except _kapasite.KapasiteDolu:
+        logger.error("[email] kapasite tavanı dolu — %s gönderilemedi (SMTP yavaş/askıda olabilir)",
+                     _mask(to_email))
+        return False
     except Exception as e:  # noqa: BLE001 — gönderim başarısızlığı akışı bozmamalı (BackgroundTask)
         logger.error("[email] SMTP gönderim hatası (%s): %s: %s", _mask(to_email), type(e).__name__, e)
         return False

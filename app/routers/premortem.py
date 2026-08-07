@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.cockpit_snapshot import build_cockpit_snapshot, compute_snapshot_hash
 from app.dependencies import get_db, get_current_user
+from app import capacity as kapasite  # BUG #263 (P5.5)
 from app.scope import workspace_scope  # BUG #224: aktif workspace kapsami
 from app import llm_quota as _kota  # BUG #228: LLM kotasi (tek kaynak)
 from app.workspace_deps import active_workspace_id  # BUG #224: uyelik dogrulama + ws cozumu
@@ -124,31 +125,37 @@ def run_premortem(
             cached=True,
         )
 
-    # BUG #228 (D07): kota ÇAĞRI ÖNCESİ rezerve edilir (önbellek dalından SONRA — cache
-    # LLM harcamaz). Tavan doluysa 429; koç sohbetiyle aynı kural, aynı sayaç.
-    rezervasyon = _kota.rezerve_et(db, current_user.id, provider="premortem",
-                                   model="premortem")
-    # BUG #234 (D15, sınıf taraması): tek rezervasyon satırı yalnız BİR gerçek isteği
-    # karşılar; zincir/retry birden fazla istek üretirse fark uzlaştırılır.
-    olcum: dict = {}
-    try:
-        with _kota.cagri_olcumu() as olcum:
-            result = generate_premortem(
-                action_id=action.id,
-                action_context=action_context,
-                cockpit_snapshot=snapshot,
+    # BUG #263 (P5.5) KAPASITE: bu uc da LLM cagirir (cok-saglayici zincir + retry) ve
+    # cagri boyunca DB baglantisini ELDE TUTAR. Sinif taramasi bulgusu: kocun `chat` ucu
+    # icin kurulan LLM tavani buradan TAMAMEN ATLANABILIYORDU — premortem istekleri
+    # tavansiz akip havuzu kilitleyebilirdi. AYNI slot kullanilir; slot kota
+    # rezervasyonundan ONCE alinir (reddedilen istek gunluk hakki yakmaz).
+    with kapasite.yavas_yol(kapasite.LLM):
+        # BUG #228 (D07): kota ÇAĞRI ÖNCESİ rezerve edilir (önbellek dalından SONRA — cache
+        # LLM harcamaz). Tavan doluysa 429; koç sohbetiyle aynı kural, aynı sayaç.
+        rezervasyon = _kota.rezerve_et(db, current_user.id, provider="premortem",
+                                       model="premortem")
+        # BUG #234 (D15, sınıf taraması): tek rezervasyon satırı yalnız BİR gerçek isteği
+        # karşılar; zincir/retry birden fazla istek üretirse fark uzlaştırılır.
+        olcum: dict = {}
+        try:
+            with _kota.cagri_olcumu() as olcum:
+                result = generate_premortem(
+                    action_id=action.id,
+                    action_context=action_context,
+                    cockpit_snapshot=snapshot,
+                )
+        except PremortemError as e:
+            # Çöken çağrı da sayılır (sağlayıcıya gitti) — koç yolundaki davranışla aynı.
+            _kota.tamamla(db, rezervasyon, success=False, error_message=str(e))
+            _kota.ek_cagrilari_uzlastir(db, current_user.id, olcum, rezervasyon, "premortem")
+            logger.error("premortem generation failed action_id=%s error=%s", action_id, e)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Premortem su anda cevap veremedi. Lutfen tekrar deneyin.",  # BUG #175
             )
-    except PremortemError as e:
-        # Çöken çağrı da sayılır (sağlayıcıya gitti) — koç yolundaki davranışla aynı.
-        _kota.tamamla(db, rezervasyon, success=False, error_message=str(e))
+        _kota.tamamla(db, rezervasyon, provider=result.provider_used, success=True)
         _kota.ek_cagrilari_uzlastir(db, current_user.id, olcum, rezervasyon, "premortem")
-        logger.error("premortem generation failed action_id=%s error=%s", action_id, e)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Premortem su anda cevap veremedi. Lutfen tekrar deneyin.",  # BUG #175
-        )
-    _kota.tamamla(db, rezervasyon, provider=result.provider_used, success=True)
-    _kota.ek_cagrilari_uzlastir(db, current_user.id, olcum, rezervasyon, "premortem")
 
     dj = persist_premortem(db, action, current_user.id, result, snapshot_hash)
 

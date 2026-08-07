@@ -294,7 +294,7 @@ uçtan uca dayatılıyor + kişiselleştirme alanları kullanıcı başına + s�
 2. Hata izleme (uygulama hatası sessizce kaybolmasın) + yapılandırılmış log + PII sızmaması.
 3. Sağlık/uptime uçları, scheduler canlılığı (cron çalıştı mı görünür olsun).
 4. Migration güvenliği: canlı veriyle `alembic upgrade` provası + geri alma yolu.
-5. Kapasite/limit: eşzamanlı kullanıcı, DB bağlantı havuzu, LLM eşzamanlılığı.
+5. Kapasite/limit: eşzamanlı kullanıcı, DB bağlantı havuzu, LLM eşzamanlılığı. ✅ **BUG #263 (P5.5)** — `app/capacity.py`: iş parçacığı havuzu DB havuzuna hizalandı, yavaş yollar (LLM/dış-servis/e-posta) tavanlı (dolunca 503 + `Retry-After`), değişmez açılışta denetlenir (production fail-fast), `/api/ready` havuz doygunken hızlı 503 (22 test).
 **Çıkış kapısı:** ✅ geri yükleme provası kanıtlı + hata izleme çalışıyor + migration provası kanıtlı.
 
 ---
@@ -477,8 +477,22 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 >   → insight). `app/prompt_safety.guvenli_metin` yapı taşıyan işaretleri nötrler, içeriği
 >   sansürlemez.
 > - **Taban:** 2105 passed / 18 skipped + 159 vitest (8'i yeni) + `npm run build` yeşil.
-> - **Kalan açık iş:** ~~onboarding rehberi (P3)~~ → **7 Ağu'da kapandı (BUG #262)**; kapasite sınırları (P5),
+> - **Kalan açık iş:** ~~onboarding rehberi (P3)~~ → **7 Ağu'da kapandı (BUG #262)**;
+>   ~~kapasite sınırları (P5)~~ → **7 Ağu'da kapandı (BUG #263, P5.5)**;
 >   H11 canlı SMTP (insan-kapısı), backlog'un 272 açık maddesi ve P6-P9 insan-kapısı.
+>
+> **📌 P5.5 — KAPASİTE SINIRLARI KAPANDI (BUG #263, 7 Ağu 2026).** Kapasitenin yalnız
+> **dışarı** bakan tarafı (Postgres `max_connections`) hesaplanmıştı; uygulamanın kendi
+> eşzamanlılığı (anyio iş parçacığı havuzu **40**) DB havuzunu (**15**) kat kat aşıyordu ve
+> havuz Postgres'e ulaşmadan uygulamanın İÇİNDE tükeniyordu. Koç isteği iki LLM çağrısı
+> boyunca (10-40 sn) bağlantıyı elde tutar → 15 eşzamanlı koç her şeyi kilitler, `/api/ready`
+> asılır, HEALTHCHECK konteyneri yeniden başlatır: **geçici yük dalgası kalıcı kesinti**.
+> `app/capacity.py` tek kaynak oldu (havuz hizalama + adlandırılmış yavaş-yol tavanları +
+> açılışta fail-fast değişmez). Sınıf taraması üç kör nokta daha buldu: premortem ucu koç
+> tavanını atlıyordu, sekiz LLM sağlayıcısından yedisi **timeout'suzdu** (SDK varsayılanı
+> 600 sn), OAuth çağrılarında hiç timeout yoktu. Belge tarafında runbook'un küçük-VM tarifi
+> yeni değişmezi ihlal ediyordu (uygulayan operatörün konteyneri açılmazdı) — tarif düzeltildi
+> ve artık **belgeden okunup koşuluyor**. 22 test + mutasyon 3/3. **Taban: 2173 passed / 18 skipped.**
 >
 > **📌 7 AĞUSTOS 2026 — DEVİR BELGESİ + ÜÇ YAZILI KARAR (önce bunları oku)**
 >

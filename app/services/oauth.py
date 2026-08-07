@@ -16,6 +16,22 @@ from typing import Optional
 
 from authlib.integrations.requests_client import OAuth2Session
 
+
+def _dis_cagri_timeout() -> float:
+    """Sağlayıcıya yapılan HTTP çağrılarının azami süresi (saniye).
+
+    BUG #263 (P5.5, sınıf taraması): burada HİÇBİR timeout yoktu. `requests`/authlib
+    timeout verilmediğinde bağlantı işletim sistemi TCP sınırlarına kadar (dakikalarca)
+    asılı kalabilir — ve bu sırada isteğin DB oturumu AÇIKTIR. Google/GitHub yavaşlarsa
+    her eşzamanlı giriş bir bağlantıyı süresiz tutar; havuz tükenir, uygulama düşer.
+    Sınırsız beklemenin kullanıcıya da faydası yok: 15 sn'de dönmeyen bir OAuth akışı
+    zaten başarısızdır, "tekrar dene" demek dürüst olandır.
+    """
+    try:
+        return max(1.0, float(os.getenv("OAUTH_TIMEOUT", "15")))
+    except (TypeError, ValueError):
+        return 15.0
+
 # provider → endpoint + scope + env anahtarları
 _PROVIDERS = {
     "google": {
@@ -162,12 +178,14 @@ def exchange_code(provider: str, code: str, code_verifier: Optional[str] = None)
         grant_type="authorization_code",
         **fetch_extra,
         headers={"Accept": "application/json"},
+        timeout=_dis_cagri_timeout(),  # BUG #263: sınırsız asılma → havuz tükenmesi
     )
     if not token or not token.get("access_token"):
         raise ValueError(f"{provider}: access_token alınamadı")
 
     if provider == "google":
-        info = sess.get(p["userinfo_url"], headers={"Accept": "application/json"}).json()
+        info = sess.get(p["userinfo_url"], headers={"Accept": "application/json"},
+                        timeout=_dis_cagri_timeout()).json()  # BUG #263
         email = (info.get("email") or "").lower().strip()
         if not email or not info.get("email_verified", True):
             raise ValueError("Google: doğrulanmış e-posta alınamadı")
@@ -175,11 +193,13 @@ def exchange_code(provider: str, code: str, code_verifier: Optional[str] = None)
                 "name": info.get("name") or info.get("given_name")}
 
     # github
-    info = sess.get(p["userinfo_url"], headers={"Accept": "application/vnd.github+json"}).json()
+    info = sess.get(p["userinfo_url"], headers={"Accept": "application/vnd.github+json"},
+                    timeout=_dis_cagri_timeout()).json()  # BUG #263
     email = (info.get("email") or "").lower().strip()
     if not email:
         # E-posta gizliyse /user/emails'ten birincil doğrulanmışı al
-        emails = sess.get(p["emails_url"], headers={"Accept": "application/vnd.github+json"}).json()
+        emails = sess.get(p["emails_url"], headers={"Accept": "application/vnd.github+json"},
+                          timeout=_dis_cagri_timeout()).json()  # BUG #263
         if isinstance(emails, list):
             primary = next((e for e in emails if e.get("primary") and e.get("verified")), None)
             verified = next((e for e in emails if e.get("verified")), None)

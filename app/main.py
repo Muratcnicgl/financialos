@@ -90,6 +90,14 @@ async def lifespan(app: FastAPI):
     from app.schema_guard import validate_schema_version
     validate_schema_version()
 
+    # P5.5 (BUG #263): kapasite tutarlılığı. Uygulamanın eşzamanlılığı (anyio iş parçacığı
+    # havuzu, varsayılan 40) DB havuzunu (process başına 15) kat kat aşıyordu → yük altında
+    # QueuePool zaman aşımı (500) ve /api/ready'nin asılması (konteyner yeniden başlar).
+    # Önce değişmez denetlenir (production'da fail-fast), sonra havuz hizalanır.
+    from app import capacity as _kapasite
+    _kapasite.dogrula()
+    _kapasite.uygula()
+
     # Startup: catch-up backfill (eksik gunleri doldur)
     # ADR-013: Schema yonetimi alembic ile, burada sadece runtime is mantigi.
     logger.info("Backend baslatildi. Schema: alembic upgrade head ile.")
@@ -211,6 +219,28 @@ app.add_middleware(_GovdeBoyutuMiddleware)
 from app.security_headers import GuvenlikBasliklariMiddleware as _GuvenlikBasliklari
 
 app.add_middleware(_GuvenlikBasliklari)
+
+
+# ============================================================
+# KAPASITE SIRT BASINCI (P5.5 / BUG #263)
+# ============================================================
+# Yavas yol tavani (LLM / dis servis) doluysa istek BEKLETILMEZ: beklemek is parcacigini
+# VE acik DB baglantisini tutmaya devam etmek demektir. 503 + Retry-After ile reddetmek
+# hem daha ucuz hem daha durust. Ayri handler sart: aksi halde genel `Exception`
+# yakalayicisina duser, `error_logs`'a "beklenmedik hata" yazilir ve gercek arizalar
+# gurultuye bogulur (bu bir arizadan degil, bilincli sirt basincindan ibarettir).
+from app.capacity import KapasiteDolu as _KapasiteDolu
+
+
+@app.exception_handler(_KapasiteDolu)
+async def _kapasite_dolu(request, exc: _KapasiteDolu):
+    from fastapi.responses import JSONResponse as _JR
+    return _JR(
+        status_code=503,
+        headers={"Retry-After": str(exc.tekrar_saniye)},
+        content={"detail": "Sistem şu an yoğun. Birkaç saniye sonra tekrar dene — "
+                           "panellerin ve hesaplamaların çalışmaya devam ediyor."},
+    )
 
 
 @app.exception_handler(_GovdeCokBuyuk)

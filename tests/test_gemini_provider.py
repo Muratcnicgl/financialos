@@ -15,11 +15,21 @@ import pytest
 from app.coach import GeminiProvider, ProviderEmptyResponseError
 
 
+# Üretim kodunun `genai_types` üzerinden kullandığı semboller — sahte modül bunları
+# OTOMATİK üretir. BUG #263 dersi: liste elle tutulunca, üretimde yeni bir SDK sembolü
+# (o turda `HttpOptions`) kullanmak sahteyi `AttributeError` ile kırıyor ve test, ölçmesi
+# gereken fallback mantığı yerine kendi sahtesinin eksikliğini raporluyordu. Gerçek SDK
+# yüzeyi ayrıca `test_kullanilan_genai_sembolleri_gercek_SDK_de_VAR` ile denetlenir.
 def _install_fake_genai(monkeypatch, fake_response):
-    types_mod = pytypes.ModuleType("google.genai.types")
-    for attr in ["GenerateContentConfig", "FunctionDeclaration", "Tool", "ToolConfig",
-                 "FunctionCallingConfig", "Content", "Part"]:
-        setattr(types_mod, attr, MagicMock(return_value=MagicMock()))
+    class _SahteTypes(pytypes.ModuleType):
+        def __getattr__(self, ad):   # yalnız bulunamayan adlar için çağrılır
+            if ad.startswith("__"):
+                raise AttributeError(ad)
+            sahte = MagicMock(return_value=MagicMock())
+            setattr(self, ad, sahte)   # aynı ad her seferinde aynı sahteyi versin
+            return sahte
+
+    types_mod = _SahteTypes("google.genai.types")
 
     genai_mod = pytypes.ModuleType("google.genai")
     genai_mod.types = types_mod
@@ -96,3 +106,21 @@ def test_bos_text_ve_tool_fallback(monkeypatch):
     p = GeminiProvider(api_key="k")
     with pytest.raises(ProviderEmptyResponseError):
         p._raw_chat("sys", [{"role": "user", "content": "x"}], tools=[])
+
+
+def test_kullanilan_genai_sembolleri_gercek_SDK_de_VAR():
+    """Sahte modül her adı üretir; o hâlde GERÇEK yüzeyi ayrıca denetlemek ŞART.
+
+    Aksi halde `genai_types.OlmayanSinif(...)` yazsak süit yeşil kalır ve hata yalnız
+    canlıda, gerçek bir koç isteğinde ortaya çıkar (KURAL R3: sessiz yanlış en pahalısı).
+    """
+    import re
+    from pathlib import Path
+
+    genai_types = pytest.importorskip("google.genai.types")   # kurulu değilse ölçme
+    kaynak = (Path(__file__).resolve().parents[1] / "app/coach.py").read_text(encoding="utf-8")
+    semboller = set(re.findall(r"\bgenai_types\.(\w+)", kaynak)) | \
+                set(re.findall(r"\bself\.types\.(\w+)", kaynak))
+    assert semboller, "app/coach.py'de genai types kullanımı bulunamadı (kapı ölçmüyor)"
+    eksik = sorted(a for a in semboller if not hasattr(genai_types, a))
+    assert not eksik, f"google.genai.types içinde OLMAYAN semboller kullanılıyor: {eksik}"

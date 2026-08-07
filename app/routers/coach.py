@@ -51,6 +51,7 @@ from app.rules_engine import workspace_scope  # M43
 from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus, PendingAction, ActionStatus, ReasoningTrace
 from app.coach import CoachEngine
 from app import llm_quota as _kota  # BUG #228: kota muhasebesinin tek kaynağı
+from app import capacity as kapasite  # BUG #263 (P5.5): eşzamanlı LLM tavanı
 
 router = APIRouter(prefix="/api/coach", tags=["coach"])
 
@@ -423,40 +424,48 @@ def chat(
                    "paneller ve hesaplamalar calismaya devam ediyor.",
         )
 
-    # BUG #212 (H17): sayaci CAGRI ONCESI rezerve et — eszamanli istekler tavani delmesin.
-    rezervasyon = _kota_rezerve_et(db, user.id, provider_name, model, kisisel_tavan)
+    # BUG #263 (P5.5) KAPASITE: eszamanli LLM cagrisi TAVANLI. Bir kocu mesaji iki-gecis
+    # mimarisi yuzunden 2 LLM cagrisi yapar ve bu sure boyunca (10-40 sn) DB baglantisini
+    # ELDE TUTAR; tavansiz birakilirsa 15 eszamanli koc istegi process'in TUM havuzunu
+    # kilitler ve /api/ready dahil her sey 500'e duser. Slot CAGRI ONCESI ve KOTA
+    # REZERVASYONUNDAN ONCE alinir — reddedilen istek kullanicinin gunluk hakkini YAKMAZ.
+    # `KapasiteDolu` bilerek asagidaki try'in DISINDA kalir: nazik 503'tur, "kocun cevap
+    # veremedi" degil (app/main.py'deki ozel handler).
+    with kapasite.yavas_yol(kapasite.LLM):
+        # BUG #212 (H17): sayaci CAGRI ONCESI rezerve et — eszamanli istekler tavani delmesin.
+        rezervasyon = _kota_rezerve_et(db, user.id, provider_name, model, kisisel_tavan)
 
-    # Asil cagri + sure olcumu
-    t_start = time.time()
-    success = True
-    error_msg = None
-    tool_calls_count = 0
+        # Asil cagri + sure olcumu
+        t_start = time.time()
+        success = True
+        error_msg = None
+        tool_calls_count = 0
 
-    # BUG #234 (D15): tavanin birimi ÇAĞRI'dır. Bir mesaj iki-geçiş + retry + zincir
-    # yüzünden 1-4 GERÇEK istek üretir; ölçüm kapsamı bunları sayar, aşağıda uzlaştırılır.
-    olcum: Dict[str, int] = {}
-    try:
-        with _kota.cagri_olcumu() as olcum:
-            with workspace_scope(ws_id):  # M43: koç bağlamı (cockpit) aktif workspace'ten
-                result = engine.chat(
-                    db=db,
-                    user_id=user.id,
-                    user_message=payload.message,
-                    include_cockpit=payload.include_cockpit,
-                    workspace_id=ws_id,
-                )
-        tool_calls_count = len(result.get("proposed_actions") or [])
-    except Exception as e:
-        # BE-009 fix: graceful degradation (chat UX için 200) AMA ham hata (str(e)) kullanıcıya
-        # SIZDIRILMAZ — güvenlik/profesyonellik. Gerçek hata error_msg olarak LOGLANIR (izlenebilir).
-        success = False
-        error_msg = str(e)
-        logger.error("coach chat başarısız user_id=%s: %s", user.id, e, exc_info=True)
-        result = {
-            "reply": "Koç şu an cevap veremedi (sağlayıcılar meşgul olabilir). Birazdan tekrar dene.",
-            "proposed_actions": [],
-            "cockpit_snapshot": None,
-        }
+        # BUG #234 (D15): tavanin birimi ÇAĞRI'dır. Bir mesaj iki-geçiş + retry + zincir
+        # yüzünden 1-4 GERÇEK istek üretir; ölçüm kapsamı bunları sayar, aşağıda uzlaştırılır.
+        olcum: Dict[str, int] = {}
+        try:
+            with _kota.cagri_olcumu() as olcum:
+                with workspace_scope(ws_id):  # M43: koç bağlamı (cockpit) aktif workspace'ten
+                    result = engine.chat(
+                        db=db,
+                        user_id=user.id,
+                        user_message=payload.message,
+                        include_cockpit=payload.include_cockpit,
+                        workspace_id=ws_id,
+                    )
+            tool_calls_count = len(result.get("proposed_actions") or [])
+        except Exception as e:
+            # BE-009 fix: graceful degradation (chat UX için 200) AMA ham hata (str(e)) kullanıcıya
+            # SIZDIRILMAZ — güvenlik/profesyonellik. Gerçek hata error_msg olarak LOGLANIR.
+            success = False
+            error_msg = str(e)
+            logger.error("coach chat başarısız user_id=%s: %s", user.id, e, exc_info=True)
+            result = {
+                "reply": "Koç şu an cevap veremedi (sağlayıcılar meşgul olabilir). Birazdan tekrar dene.",
+                "proposed_actions": [],
+                "cockpit_snapshot": None,
+            }
 
     duration_ms = int((time.time() - t_start) * 1000)
     # BE-025: nominal "fallback" yerine İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcıyı logla →

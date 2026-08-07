@@ -8,9 +8,12 @@ import {
 import { incomesApi, expensesApi, debtsApi, accountsApi, formatDate, todayLocalISO, currentYearMonthLocal, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
 
 const CURRENT_YEAR_MONTH = currentYearMonthLocal(); // "2026-05" — LOCAL (gece vardiyası TZ güvenliği)
-const EXPENSE_CATEGORIES = ['abonelik', 'fatura', 'kira', 'sigorta', 'internet', 'telefon', 'diger'];
+// BUG #264 (ADR-046): sabit `EXPENSE_CATEGORIES` KALDIRILDI. Bu liste İşlemler panelinin
+// listesinden farklıydı — aynı uygulama iki ayrı gerçeklik gösteriyordu. Artık kullanıcının
+// kendi kayıtları (tek kaynak: src/lib/categories.js).
 
 /**
  * IncomeDebt paneli — Iki sutunlu yonetim:
@@ -801,18 +804,18 @@ function IncomeFormModal({ income, onClose, onSave }) {
 
 function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
   const isNew = !expense;
+  // BUG #264: kategoriler kullanıcının kendi kayıtlarından. Liste henüz yüklenmemişken
+  // mevcut giderin kategorisi "bilinmiyor" sayılıp `diger`e düşürülmemeli — bu, kaydı
+  // AÇIP KAPATMAKLA kategorisinin sessizce değişmesi demek olurdu (L2).
+  const { kategoriler, yukleniyor: katYukleniyor } = useCategories();
   const [name, setName] = useState(expense?.name || '');
   const [amount, setAmount] = useState(expense?.amount?.toString() || '');
   const [accountId, setAccountId] = useState(expense?.account_id?.toString() || '');
   const [dayOfMonth, setDayOfMonth] = useState(expense?.day_of_month?.toString() || '1');
-  const [category, setCategory] = useState(
-    expense?.category
-      ? (EXPENSE_CATEGORIES.includes(expense.category) ? expense.category : 'diger')
-      : 'abonelik'
-  );
-  const [customCategory, setCustomCategory] = useState(
-    expense?.category && !EXPENSE_CATEGORIES.includes(expense.category) ? expense.category : ''
-  );
+  const [category, setCategory] = useState(expense?.category || 'abonelik');
+  const [customCategory, setCustomCategory] = useState('');
+  const kategoriBilinmiyor = !katYukleniyor && !!category && category !== 'diger'
+    && !kategoriler.some((k) => k.slug === category);
   const [isActive, setIsActive] = useState(expense?.is_active !== false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -869,8 +872,11 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
         <div>
           <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kategori</label>
           <select value={category} onChange={e => setCategory(e.target.value)} className="input">
-            {EXPENSE_CATEGORIES.map(c => (
-              <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+            {/* Kaydın mevcut kategorisi listede yoksa (silinmiş/gizlenmiş) yine de gösterilir
+                — açılır menü onu sessizce başka bir değere çeviremez. */}
+            {kategoriBilinmiyor && <option value={category}>{category}</option>}
+            {kategoriler.map(k => (
+              <option key={k.slug} value={k.slug}>{k.ad}</option>
             ))}
           </select>
         </div>

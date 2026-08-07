@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Base, User, Workspace, Account, Transaction, RecurringIncome, RecurringExpense,
-    PersonalDebt, Goal, GoalAllocation, GoalRule, Envelope, WishlistItem, Feedback,
+    PersonalDebt, Goal, GoalAllocation, GoalRule, Envelope, WishlistItem, Feedback, Category,
     DemoDataMarker, MasterCheckpoint, NetWorthSnapshot, CoachMemory, CoachInsight,
     PendingAction, ActionHistory, DecisionJournal, ReasoningTrace, ApiCallLog,
     WorkspaceMembership, BetaInvite, ErrorLog,
@@ -90,6 +90,10 @@ KAYIT: dict[str, TabloKaydi] = {
     "recurring_expenses": _u(RecurringExpense, "recurring_expenses"),
     "personal_debts": _u(PersonalDebt, "personal_debts"),
     "envelopes": _u(Envelope, "envelopes"),
+    # BUG #264 (ADR-046): kategori seti kullanıcının kendi verisidir — yeniden adlandırdığı
+    # adlar ve "kart varsayılanı" tercihi onun kararı. Dışa aktarımda yer alır, hesap
+    # silinince silinir (aksi halde defterin şeması kullanıcıdan sonra da yaşardı).
+    "categories": _u(Category, "categories"),
     "wishlist_items": _u(WishlistItem, "wishlist_items"),
     "master_checkpoints": _u(MasterCheckpoint, "master_checkpoints"),
     "net_worth_snapshots": _u(NetWorthSnapshot, "net_worth_snapshots"),

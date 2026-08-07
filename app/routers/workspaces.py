@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 import jwt
 
 from app.serializers import UtcDateTime
+from app.category_rules import kategorileri_tohumla  # BUG #264 (ADR-046)
 from app.dependencies import get_db, get_current_user
 from app.models import User, Workspace, WorkspaceMembership, WorkspaceRole
 from app.workspace_deps import require_workspace, get_active_membership
@@ -106,6 +107,9 @@ def create_workspace(
     db.add(ws)
     db.flush()
     db.add(WorkspaceMembership(workspace_id=ws.id, user_id=user.id, role=WorkspaceRole.owner))
+    # BUG #264 (ADR-046): paylaşılan defter de kendi kategori setiyle açılır — aile
+    # workspace'inde herkes aynı kümeyi kullanır (ortak defter, ortak kategoriler).
+    kategorileri_tohumla(db, user.id, ws.id)
     db.commit()
     db.refresh(ws)
     return WorkspaceOut(id=ws.id, name=ws.name, is_personal=ws.is_personal,

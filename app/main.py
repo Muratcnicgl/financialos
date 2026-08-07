@@ -57,6 +57,7 @@ from app.routers import prices as prices_router
 from app.routers import goals as goals_router
 from app.routers import subscriptions as subscriptions_router  # FEAT-006
 from app.routers import envelopes as envelopes_router  # FEAT-001
+from app.routers import categories as categories_router  # BUG #264 (ADR-046)
 from app.routers import wishlist as wishlist_router  # FEAT-032
 from app.routers import workspaces as workspaces_router  # M41 (ADR-036)
 from app.routers import feedback as feedback_router  # FEAT-033
@@ -327,6 +328,7 @@ app.include_router(debt_strategy_router.router)
 app.include_router(goals_router.router)
 app.include_router(subscriptions_router.router)  # FEAT-006
 app.include_router(envelopes_router.router)  # FEAT-001
+app.include_router(categories_router.router)  # BUG #264 (ADR-046): kategori seti kullanıcıya ait
 app.include_router(wishlist_router.router)  # FEAT-032
 # M11: Auth + Multi-user (ADR-033)
 app.include_router(auth_router.router)         # /api/auth

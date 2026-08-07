@@ -101,13 +101,13 @@ ACTION_TYPES: frozenset = frozenset({
 })
 
 
-# BUG #025/#026 fix: Kart kategorileri (QUICK_KEYWORDS'deki is_card=True olanlar)
-_CARD_CATEGORIES = {"yemek", "eglence", "sigara", "alisveris", "market"}
-# BUG #026: Türkçe karakter normalize.
-# BUG #167 fix (P3.5): hedef dizideki 'o' KİRİL 'о' (U+043E) idi → 'ö' harfi ASCII 'o' yerine
-# Kiril harfe çevriliyordu. Normalize edilen kategori DB'ye böyle yazıldığından ("оgle yemegi"),
-# sonraki kategori eşleşmeleri/gruplamaları sessizce kırılıyordu. Artık saf ASCII.
-_TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
+# BUG #264 fix (ADR-046): kart kategorileri artık SABİT KÜME DEĞİL. Eskiden burada
+# `_CARD_CATEGORIES = {"yemek","eglence","sigara","alisveris","market"}` vardı ve bir
+# harcamanın kredi kartına yazılıp yazılmayacağı bu beş Türkçe ADA bağlıydı — kendi
+# kategorisini adlandıran kullanıcıda kural sessizce ölüyordu. Karar artık kullanıcının
+# kategori kaydındaki `kart_varsayilani` bayrağında (tek kaynak: `app/category_rules.py`).
+# Normalize de oraya taşındı (BUG #026/#167 geçmişi docstring'inde korunuyor).
+from app.category_rules import TR_NORM as _TR_NORM, kart_varsayilani_mi, normalize as _cat_normalize
 
 # BUG #042 fix: Hesap anahtar kelimesi — word boundary + çekim eki, false-positive'siz
 import re as _re
@@ -161,17 +161,6 @@ _DATE_KEYWORD_RE = _re.compile(
 )
 
 
-def _cat_normalize(cat: str) -> str:
-    """BUG #026: 'Eğlence' → 'eglence' — büyük harf + Türkçe aksan normalize.
-
-    BUG #167 fix (P3.5): sıra TERSTİ. `lower()` önce koşunca `'İ'.lower()` == `'i' + U+0307`
-    (birleşik nokta) üretiyor ve çeviri tablosu bunu yakalayamıyordu → "yemeği" gibi
-    kategoriler ASCII-dışı karakterle DB'ye yazılıyordu. Artık önce çevir, sonra küçült;
-    artakalan birleşik işaretler de temizlenir.
-    """
-    return cat.translate(_TR_NORM).lower().replace("̇", "")
-
-
 def _fmt(x: float) -> str:
     """
     BUG #031 fix: Sayıyı Türkçe format ile döner: 1234.56 → '1.234,56'
@@ -196,11 +185,17 @@ def _fmt_lot(x) -> str:
 
 
 def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> Dict:
-    """BUG #025/#026: Kategori normalize et, kart listesindeyse account_id ve is_card_expense zorla."""
+    """BUG #025/#026: Kategori normalize et, kullanıcının KART VARSAYILANI kategorisiyse
+    account_id ve is_card_expense zorla.
+
+    BUG #264 (ADR-046): "kart kategorisi mi" sorusunun cevabı artık sabit beş Türkçe ada
+    değil, kullanıcının kendi kategori kaydındaki `kart_varsayilani` bayrağına bağlı.
+    """
     raw_category = payload.get("category", "")
     category = _cat_normalize(raw_category)
+    ws_id = _yazma_workspace_id(db, user_id)
 
-    if category not in _CARD_CATEGORIES:
+    if not kart_varsayilani_mi(db, user_id, category, ws_id):  # BUG #264: ada değil bayrağa bağlı
         return payload
 
     # BUG #039: LLM açıkça nakit/banka hesabı seçtiyse override etme.
@@ -209,7 +204,7 @@ def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> 
     if explicit_account_id is not None:
         explicit_account = db.query(Account).filter(
             Account.id == explicit_account_id,
-            scope_filter(Account, user_id, _yazma_workspace_id(db, user_id)),
+            scope_filter(Account, user_id, ws_id),
         ).first()
         if explicit_account and explicit_account.account_type != AccountType.credit_card:
             logger.info(
@@ -221,7 +216,7 @@ def _normalize_transaction_payload(payload: Dict, user_id: int, db: Session) -> 
     # BUG #241 sınıf taraması: varsayılan hesap seçimi TEK KAYNAK (emanet dışlanır — MC1 —
     # ve sıra deterministik). Eskiden kart kategorisi EMANET bir kartı varsayılan yapabiliyordu:
     # aksiyon üretilir, onaylandığında executor'ın emanet guard'ı reddeder (sessiz çıkmaz sokak).
-    card = varsayilan_hesap(db, user_id, _yazma_workspace_id(db, user_id),
+    card = varsayilan_hesap(db, user_id, ws_id,
                             tip=AccountType.credit_card)
     if not card:
         return payload

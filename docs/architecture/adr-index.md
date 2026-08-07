@@ -80,3 +80,9 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   bağlamının bölümlemesini değiştiremez (`app/prompt_safety.guvenli_metin`); sansür değil yapı
   nötrleme. Sınıf taraması kalıcı yolu da kapattı (insight → prompt → insight). Kapı:
   `tests/test_prompt_injection_kapisi.py` (kapsam tabanı + mutasyon).
+- **ADR-046 — Kategori kullanıcıya ait bir KAYITTIR (H4 kuyruğu / BUG #264):** kod hiçbir kararı
+  kategori ADINA bağlamaz; `kart_varsayilani` (harcama karta mı yazılsın) ve `sistem` (muhasebe
+  işlemi mi) bayrakları `app/category_rules.py` üzerinden okunur. `Transaction.category` bilinçli
+  olarak serbest metin kalır (FK, bilinmeyen kategoride kaydı reddetmeye zorlardı). Silme = hedefe
+  taşı ya da gizle; sistem kategorisi silinemez. Kapı: `tests/test_kategori_kapisi.py` (backend +
+  frontend aynası, kapsam tabanı + muafiyet tavanı).

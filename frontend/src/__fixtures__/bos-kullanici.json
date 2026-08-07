@@ -7,7 +7,7 @@
     "has_password": true,
     "id": 1,
     "is_active": true,
-    "kvkk_consent_at": "2026-08-07T06:39:08.610665",
+    "kvkk_consent_at": "2026-08-07T10:33:57.382635",
     "name": "Boş Durum",
     "oauth_provider": null
   },
@@ -573,6 +573,206 @@
       "total_receivable": 0.0
     }
   },
+  "/api/categories": [
+    {
+      "ad": "Abonelik",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 10,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "abonelik"
+    },
+    {
+      "ad": "Alışveriş",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 4,
+      "kart_varsayilani": true,
+      "sistem": false,
+      "slug": "alisveris"
+    },
+    {
+      "ad": "Diğer",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 14,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "diger"
+    },
+    {
+      "ad": "Eğlence",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 2,
+      "kart_varsayilani": true,
+      "sistem": false,
+      "slug": "eglence"
+    },
+    {
+      "ad": "Fatura",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 7,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "fatura"
+    },
+    {
+      "ad": "Kira",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 9,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "kira"
+    },
+    {
+      "ad": "Market",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 5,
+      "kart_varsayilani": true,
+      "sistem": false,
+      "slug": "market"
+    },
+    {
+      "ad": "Sağlık",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 8,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "saglik"
+    },
+    {
+      "ad": "Sigara",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 3,
+      "kart_varsayilani": true,
+      "sistem": false,
+      "slug": "sigara"
+    },
+    {
+      "ad": "Sigorta",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 11,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "sigorta"
+    },
+    {
+      "ad": "Telefon",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 13,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "telefon"
+    },
+    {
+      "ad": "Ulaşım",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 6,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "ulasim"
+    },
+    {
+      "ad": "Yemek",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 1,
+      "kart_varsayilani": true,
+      "sistem": false,
+      "slug": "yemek"
+    },
+    {
+      "ad": "İnternet",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 12,
+      "kart_varsayilani": false,
+      "sistem": false,
+      "slug": "internet"
+    },
+    {
+      "ad": "Borç",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 19,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "borc"
+    },
+    {
+      "ad": "Borç geri ödeme",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 17,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "borc_geri_odeme"
+    },
+    {
+      "ad": "Borç ödeme",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 16,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "borc_odeme"
+    },
+    {
+      "ad": "Borç ödemesi",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 22,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "debt_payment"
+    },
+    {
+      "ad": "Kredi",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 20,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "kredi"
+    },
+    {
+      "ad": "Kredi taksiti",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 18,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "kredi_taksiti"
+    },
+    {
+      "ad": "Kredi ödemesi",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 21,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "loan_payment"
+    },
+    {
+      "ad": "Transfer",
+      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "gizli": false,
+      "id": 15,
+      "kart_varsayilani": false,
+      "sistem": true,
+      "slug": "transfer"
+    }
+  ],
   "/api/checkpoints": [],
   "/api/coach/history": [],
   "/api/coach/usage": {
@@ -727,7 +927,7 @@
     "build": "bilinmiyor",
     "service": "FinancialOS",
     "status": "ok",
-    "timestamp": "2026-08-07T06:39:11.446517+00:00",
+    "timestamp": "2026-08-07T10:34:04.874607+00:00",
     "version": "0.2.0"
   },
   "/api/incomes": [],
@@ -972,7 +1172,7 @@
   },
   "/api/transactions": [],
   "/api/user": {
-    "created_at": "2026-08-07T06:39:08.612207+00:00",
+    "created_at": "2026-08-07T10:33:57.386832+00:00",
     "currency": null,
     "id": 1,
     "locale": null,
@@ -983,12 +1183,256 @@
     "accounts": [],
     "action_history": [],
     "api_call_log": [],
+    "categories": [
+      {
+        "ad": "Abonelik",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 10,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "abonelik",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Alışveriş",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 4,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "alisveris",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 19,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "borc",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç geri ödeme",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 17,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "borc_geri_odeme",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç ödeme",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 16,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "borc_odeme",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç ödemesi",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 22,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "debt_payment",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Diğer",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 14,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "diger",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Eğlence",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 2,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "eglence",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Fatura",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 7,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "fatura",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "İnternet",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 12,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "internet",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kira",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 9,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "kira",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kredi",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 20,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "kredi",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kredi taksiti",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 18,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "kredi_taksiti",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kredi ödemesi",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 21,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "loan_payment",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Market",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 5,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "market",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Sağlık",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 8,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "saglik",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Sigara",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 3,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "sigara",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Sigorta",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 11,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "sigorta",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Telefon",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 13,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "telefon",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Transfer",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 15,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "transfer",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Ulaşım",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 6,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "ulasim",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Yemek",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 1,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "yemek",
+        "user_id": 1,
+        "workspace_id": 1
+      }
+    ],
     "coach_insights": [],
     "coach_memory": [],
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-07T06:39:11.832049+00:00",
+    "exported_at": "2026-08-07T10:34:05.748058+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -998,7 +1442,7 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-07T06:39:11.344353",
+        "created_at": "2026-08-07T10:34:04.647011",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
@@ -1018,13 +1462,13 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-07T06:39:08.612207",
+      "created_at": "2026-08-07T10:33:57.386832",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-07T06:39:08.610665",
+      "kvkk_consent_at": "2026-08-07T10:33:57.382635",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
@@ -1037,7 +1481,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-07T06:39:08.617294",
+        "joined_at": "2026-08-07T10:33:57.403720",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1045,7 +1489,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-07T06:39:08.615210",
+        "created_at": "2026-08-07T10:33:57.393860",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1057,12 +1501,256 @@
     "accounts": [],
     "action_history": [],
     "api_call_log": [],
+    "categories": [
+      {
+        "ad": "Abonelik",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 10,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "abonelik",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Alışveriş",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 4,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "alisveris",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 19,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "borc",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç geri ödeme",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 17,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "borc_geri_odeme",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç ödeme",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 16,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "borc_odeme",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Borç ödemesi",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 22,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "debt_payment",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Diğer",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 14,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "diger",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Eğlence",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 2,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "eglence",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Fatura",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 7,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "fatura",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "İnternet",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 12,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "internet",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kira",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 9,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "kira",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kredi",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 20,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "kredi",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kredi taksiti",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 18,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "kredi_taksiti",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Kredi ödemesi",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 21,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "loan_payment",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Market",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 5,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "market",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Sağlık",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 8,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "saglik",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Sigara",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 3,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "sigara",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Sigorta",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 11,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "sigorta",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Telefon",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 13,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "telefon",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Transfer",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 15,
+        "kart_varsayilani": false,
+        "sistem": true,
+        "slug": "transfer",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Ulaşım",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 6,
+        "kart_varsayilani": false,
+        "sistem": false,
+        "slug": "ulasim",
+        "user_id": 1,
+        "workspace_id": 1
+      },
+      {
+        "ad": "Yemek",
+        "created_at": "2026-08-07T10:33:57.408935",
+        "gizli": false,
+        "id": 1,
+        "kart_varsayilani": true,
+        "sistem": false,
+        "slug": "yemek",
+        "user_id": 1,
+        "workspace_id": 1
+      }
+    ],
     "coach_insights": [],
     "coach_memory": [],
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-07T06:39:11.862308+00:00",
+    "exported_at": "2026-08-07T10:34:05.824003+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -1072,7 +1760,7 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-07T06:39:11.344353",
+        "created_at": "2026-08-07T10:34:04.647011",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
@@ -1092,13 +1780,13 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-07T06:39:08.612207",
+      "created_at": "2026-08-07T10:33:57.386832",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-07T06:39:08.610665",
+      "kvkk_consent_at": "2026-08-07T10:33:57.382635",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
@@ -1111,7 +1799,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-07T06:39:08.617294",
+        "joined_at": "2026-08-07T10:33:57.403720",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1119,7 +1807,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-07T06:39:08.615210",
+        "created_at": "2026-08-07T10:33:57.393860",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1141,7 +1829,7 @@
   },
   "/api/workspaces": [
     {
-      "created_at": "2026-08-07T06:39:08.615210+00:00",
+      "created_at": "2026-08-07T10:33:57.393860+00:00",
       "id": 1,
       "is_personal": true,
       "name": "Boş Durum (Kişisel)",
@@ -1150,13 +1838,13 @@
     }
   ],
   "/api/workspaces/1": {
-    "created_at": "2026-08-07T06:39:08.615210+00:00",
+    "created_at": "2026-08-07T10:33:57.393860+00:00",
     "id": 1,
     "is_personal": true,
     "members": [
       {
         "email": "bos.durum@example.com",
-        "joined_at": "2026-08-07T06:39:08.617294+00:00",
+        "joined_at": "2026-08-07T10:33:57.403720+00:00",
         "name": "Boş Durum",
         "role": "owner",
         "user_id": 1

@@ -2,6 +2,44 @@
 
 Her mimari/teknoloji kararı öncesi 2-3 sektör referansı; bulgular burada.
 
+## 2026-08-07 — Kullanıcı-tanımlı kategori modeli (H4 kuyruğu / BUG #264, ADR-046)
+**Soru:** Kategori seti kullanıcı başına olmalı (P3.5 ürünleşme). Şemaya dokunuyor, geri dönüşü
+pahalı (D1 tetiği #1) — sektör kategoriyi nasıl modelliyor? Özellikle: kod, kategori ADINA bakarak
+karar verebilir mi? (Bizde veriyor: `_CARD_CATEGORIES` = {"yemek","eglence","sigara","alisveris",
+"market"} bir harcamanın KART'a mı yazılacağını belirliyor.)
+
+**Bulgu 1 — sistem kategorisi ≠ kullanıcı kategorisi, ve bu bir BAYRAKTIR, ad değil.** YNAB API
+kategori/kategori-grubu kaynaklarına `internal: boolean` alanı taşıyor ("internally managed");
+Actual Budget'ta gelir grubu "can ever exist and it cannot be deleted". Yani muhasebe anlamı taşıyan
+kategoriler (transfer, açılış bakiyesi, gelir) kullanıcının serbestçe yeniden adlandırdığı kümeden
+AYRI tutuluyor ve silinemiyor. **Bizdeki karşılığı:** `_PATTERN_EXCLUDED_CATEGORIES`
+(`transfer`/`borc_odeme`/`kredi_taksiti`) fiilen bu `internal` bayrağının sabit-kodlu hâli —
+kullanıcı "borç ödeme"yi "borç kapama" diye adlandırdığı an dışlama sessizce ölür ve kişisel
+harcama paterni raporu muhasebe işlemini harcama sanır.
+
+**Bulgu 2 — silme, referans bütünlüğünü bozmadan YENİDEN ATAMA'dır.** Actual: "If the category
+you're deleting has a positive balance OR has been used for existing transactions you will be
+presented with a box to select which category the balance and/or transactions should be moved to"
+— birleştirme (merge) bu akışın kendisi. Ayrıca YNAB'da **gizleme (`hidden`) silmeden ayrı**: artık
+kullanılmayan kategori listeyi kirletmez ama geçmiş kayıt bozulmaz.
+
+**Bulgu 3 — varsayılan set tohumlanır, dayatılmaz.** Uygulamalar yaygın bir başlangıç seti verir
+(Food & Groceries, Rent/Mortgage, Utilities) ve tamamı özelleştirilebilir; göç rehberleri bile
+"önce en çok kullandığın 10 kategoriyi yeniden kur" diyor — yani set kullanıcının, uygulamanın değil.
+
+**Sonuç (karar):** Kategori bir **kayıt** olur (kullanıcı/workspace kapsamlı), `Transaction.category`
+serbest metin olarak KALIR ve kaydın `slug`'ıyla eşleşir (geriye dönük uyum + veri kaybı yok).
+Kod hiçbir kararı kategori ADINA bağlamaz; kararlar kayıttaki bayraklara bağlanır:
+`kart_varsayilani` (eski `_CARD_CATEGORIES`) ve `sistem` (eski `_PATTERN_EXCLUDED_CATEGORIES`).
+Mevcut kullanıcıların DB'sindeki ayırt edici kategori değerleri migration'da kayda dönüştürülür ve
+bayraklar eski sabit kümelerden türetilir → **davranış değişmez, sahiplik değişir.** Silme = hedefe
+taşı (merge) veya gizle. Ayrıntı ve gerekçe: `docs/architecture/adr-046-kullanici-kategorileri.md`.
+**Kaynaklar:** actualbudget.org/docs/budgeting/categories · api.ynab.com/v1 (Category `internal`/
+`hidden`/`deleted` alanları) · github.com/actualbudget/actual PR #4294 (nYNAB gizli kategori göçü) ·
+lunchmoney.app/blog/how-to-choose-the-right-budget-categories
+
+---
+
 ## 2026-07-12 — OpenRouter (koç sağlayıcı fallback, ADR-028)
 **Soru:** Gemini-only kısıtına (Groq/Cerebras TPM aşımı) alternatif fallback var mı?
 **Bulgu:** OpenRouter = birleşik LLM router (300+ model, 60+ sağlayıcı, tek API key). Ücretsiz katman: 20+ model (Llama 3.3 70B, GPT-OSS 120B, Qwen3 Coder, Nemotron); ücretsiz lineup rotasyonlu. **Rate limit istek-bazlı: 50/gün (kredisiz) veya 1000/gün ($10+), 20/dk — TPM sınırı YOK** → zengin koç prompt'u (~8000 token) için Groq/Cerebras'tan daha uygun. `openrouter/free` auto-router (Şub 2026) uygun ücretsiz modele yönlendirir. Fallback-faturalama: yalnız başarılı çağrı ücretlendirilir. PAYG %5.5 platform ücreti; BYOK opsiyonu.

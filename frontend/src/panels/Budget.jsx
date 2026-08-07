@@ -5,6 +5,8 @@ import { useToast } from '../components/Toast.jsx';
 import DetectedSubscriptions from '../components/DetectedSubscriptions.jsx';
 import Wishlist from '../components/Wishlist.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { useCategories } from '../lib/categories.js';      // BUG #264 (ADR-046)
+import CategoryManager from '../components/CategoryManager.jsx';
 
 /**
  * Bütçe Zarfları (FEAT-001) — kategori bazlı aylık bütçe. Her zarf: bütçe / bu-ay harcanan /
@@ -24,6 +26,7 @@ export default function Budget() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ category: '', monthly_amount: '' });
   const [saving, setSaving] = useState(false);
+  const { kategoriler } = useCategories();  // BUG #264: zarf kategorisi önerisi tek kaynaktan
 
   const load = useCallback(async () => {
     try {
@@ -126,8 +129,13 @@ export default function Budget() {
       <form onSubmit={add} className="card p-4 flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[140px]">
           <label className="text-xs text-zinc-500 dark:text-zinc-400">Kategori</label>
-          <input className="input w-full" placeholder="market, yemek, eğlence..."
+          {/* BUG #264: öneri listesi kullanıcının kendi kategorileri (sabit metin değil) */}
+          <input className="input w-full" list="butce-kategori-list"
+                 placeholder={kategoriler.slice(0, 3).map((k) => k.ad).join(', ') || 'kategori'}
                  value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+          <datalist id="butce-kategori-list">
+            {kategoriler.map((k) => <option key={k.slug} value={k.slug}>{k.ad}</option>)}
+          </datalist>
         </div>
         <div className="w-32">
           <label className="text-xs text-zinc-500 dark:text-zinc-400">Aylık bütçe ({paraEtiketi()})</label>
@@ -174,6 +182,9 @@ export default function Budget() {
           })}
         </div>
       )}
+
+      {/* BUG #264 (ADR-046): kategori seti kullanıcınındır — yönetimi zarfın yanında */}
+      <CategoryManager onDegisti={load} />
 
       {/* FEAT-006: tespit edilen abonelikler + düzenli gidere çevir */}
       <DetectedSubscriptions />

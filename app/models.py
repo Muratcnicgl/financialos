@@ -320,6 +320,44 @@ class Envelope(Base):
     )
 
 
+class Category(Base):
+    """
+    BUG #264 / ADR-046: harcama kategorisi KULLANICIYA aittir.
+
+    Önceden kategori yalnız `Transaction.category` serbest metniydi ve kod, kullanıcının
+    parasıyla ilgili kararları sabit Türkçe **adlara** bağlıyordu: `_CARD_CATEGORIES`
+    bir harcamanın kredi kartına yazılıp yazılmayacağını, `_PATTERN_EXCLUDED_CATEGORIES`
+    ise hangi harcamanın "artış" uyarısına gireceğini ada bakarak belirliyordu. Kendi
+    kategorisini adlandıran kullanıcıda iki kural da sessizce ölüyordu.
+
+    Artık karar ADDA değil BAYRAKTA: `kart_varsayilani` ve `sistem`. `Transaction.category`
+    bilinçli olarak serbest metin KALIR (FK yok) — koç/hızlı giriş metinden kategori türetir
+    ve bilinmeyen bir değer kaydı reddetmemelidir (ADR-046 madde 2). Eşleşme `slug` üzerinden.
+    """
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
+    slug = Column(String(50), nullable=False)              # Transaction.category ile eşleşen normalize değer
+    ad = Column(String(50), nullable=False)                # kullanıcıya görünen ad
+    # Kullanıcı hesap belirtmeden bu kategoride harcama bildirirse kredi kartına yönlendirilir
+    kart_varsayilani = Column(Boolean, default=False, nullable=False)
+    # Muhasebe işlemi (transfer/borç ödeme/kredi taksiti) — kişisel harcama paterni DEĞİL.
+    # Silinemez ve yeniden adlandırılamaz (YNAB `internal`, Actual "gelir grubu silinemez").
+    sistem = Column(Boolean, default=False, nullable=False)
+    gizli = Column(Boolean, default=False, nullable=False)  # listeden kalkar, geçmiş bozulmaz
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        # (user, workspace, slug) tekildir — kapsam defterin kendisidir: aynı kullanıcı
+        # hem kişisel hem aile workspace'inin sahibi olabilir ve ikisinde de "market"
+        # kategorisi bulunur. Aynı zamanda user_id prefix'li aramaların index'i
+        # (dual-index anti-pattern'den kaçınıldı — Envelope ile aynı gerekçe).
+        UniqueConstraint("user_id", "workspace_id", "slug", name="uq_category_user_ws_slug"),
+    )
+
+
 class WishlistItem(Base):
     """
     FEAT-032: 24-saat impuls bekleme / istek listesi. Büyük/plansız alımı HEMEN yapmak yerine

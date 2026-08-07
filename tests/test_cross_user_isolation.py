@@ -129,6 +129,17 @@ RESOURCES = [
         ],
     },
     {
+        # BUG #264 (ADR-046): kategori seti defter kapsamlı — B, A'nın kategorisini
+        # göremez/değiştiremez/silemez (silme akışı işlemleri TAŞIDIĞI için ele geçirme
+        # burada veri kaybı da demektir).
+        "ad": "categories",
+        "create": ("POST", "/api/categories", {"ad": "A'nın kategorisi"}),
+        "probes": [
+            ("PATCH", "/api/categories/{id}", {"ad": "ele geçirildi"}),
+            ("DELETE", "/api/categories/{id}", None),
+        ],
+    },
+    {
         "ad": "wishlist",
         "create": ("POST", "/api/wishlist", {"item": "A'nın isteği", "amount": 900}),
         "probes": [

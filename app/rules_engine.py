@@ -125,6 +125,10 @@ from app.models import (
 from app.money import D, ZERO, floatify  # ADR-030: iç aritmetik Decimal, public sınır float(floatify)
 from app.money_format import format_para as _para, tr_sayi, para_etiketi  # BUG #256 (H4): para etiketi tek kaynak
 from app.fund_tracker import is_price_stale, get_price_age_text  # BUG #239 (D23): tazelik kaynakta
+from app.category_rules import (  # BUG #264 (ADR-046): kategori kararları tek kaynak
+    sistem_slug_kumesi,
+    normalize as _cat_norm,
+)
 
 # ============================================================
 # M43 (ADR-036) — WORKSPACE SCOPING (contextvar köprüsü)
@@ -160,12 +164,13 @@ PATTERN_MIN_TRANSACTIONS: int = 3
 #   kredi_taksiti : kredi taksit ödeme (loan type action'dan)
 #   borc_odeme    : kişisel borç ödeme (mark_debt_paid'dan)
 #   transfer      : hesaplar arası transfer (add_transaction type=transfer'dan)
-_PATTERN_EXCLUDED_CATEGORIES: set = {
-    "kredi_taksiti", "loan_payment", "debt_payment", "borc_odeme",
-    "borc", "kredi", "transfer",
-}
-# SQL IN cümlesi — sabit set, güvenli string interpolasyon
-_EXCLUDED_SQL: str = ",".join(f"'{c}'" for c in _PATTERN_EXCLUDED_CATEGORIES)
+# BUG #264 fix (ADR-046): bu küme SABİT DEĞİL artık. Eskiden burada
+# `{"kredi_taksiti","loan_payment","debt_payment","borc_odeme","borc","kredi","transfer"}`
+# vardı ve dışlama kategorinin ADINA bağlıydı — kullanıcı "borç ödeme"yi kendi diliyle
+# adlandırdığı an dışlama sessizce ölüyor, borç ödemesi kişisel harcama artışı sayılıp
+# yanlış uyarı üretiyordu. Dışlama artık kullanıcının kategori kaydındaki `sistem`
+# bayrağından gelir (tek kaynak: `app/category_rules.sistem_slug_kumesi`) ve SQL'de değil
+# Python tarafında uygulanır (kullanıcıya özel küme → sorgu metnine gömülemez).
 
 
 # ============================================================
@@ -1021,7 +1026,6 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
           AND transaction_type = 'expense'
           AND transaction_date >= :prev_start
           AND transaction_date <= :today
-          AND (category NOT IN ({_EXCLUDED_SQL}) OR category IS NULL)
         GROUP BY category
         HAVING COUNT(CASE WHEN transaction_date >= :curr_start THEN 1 END) >= :min_count
         ORDER BY curr_30d DESC
@@ -1033,9 +1037,16 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
         "min_count": PATTERN_MIN_TRANSACTIONS,
     }).fetchall()
 
+    # BUG #264 (ADR-046): muhasebe işlemlerini dışla — küme kullanıcının kategori
+    # kayıtlarından gelir, sabit ad listesinden değil. Okuma yolu: tohumlama TETİKLEMEZ
+    # (rules_engine DB'ye yazmaz); kaydı olmayan kullanıcı belgeli varsayılana düşer.
+    sistem_slugs = sistem_slug_kumesi(db, user_id)
+
     patterns = []
     for row in rows:
         category, prev_30d, curr_30d, _ = row
+        if category is not None and _cat_norm(category) in sistem_slugs:
+            continue  # kişisel harcama paterni değil (transfer/borç ödeme/kredi taksiti)
         prev_30d = D(prev_30d or 0)
         curr_30d = D(curr_30d or 0)
         # division-by-zero koruması: prev=0 → yeni kategori, change_pct=None

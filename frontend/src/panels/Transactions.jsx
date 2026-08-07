@@ -7,6 +7,7 @@ import {
 import { transactionsApi, accountsApi, formatDate, signClass, todayLocalISO, parseTRNumber } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
 
 /**
  * Transactions paneli — islem listesi + hizli giris.
@@ -19,11 +20,9 @@ import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
  *  - Toplam toplama (gelirler + / giderler -)
  */
 
-// Yaygin kategori listesi (UI hint icin, backend zorunlu kilmaz)
-const COMMON_CATEGORIES = [
-  'yemek', 'ulasim', 'fatura', 'eglence', 'sigara',
-  'alisveris', 'saglik', 'borc_geri_odeme', 'diger',
-];
+// BUG #264 (ADR-046): sabit `COMMON_CATEGORIES` listesi KALDIRILDI — kategori seti
+// kullanıcınındır ve `useCategories()` ile kendi kayıtlarından gelir (tek kaynak:
+// src/lib/categories.js). Alan yine serbest metin; liste yalnız öneridir.
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -496,6 +495,7 @@ function TransactionRow({ txn, account, onEdit, onDelete }) {
 
 function TransactionFormModal({ txn, accounts, onClose, onSave }) {
   const isNew = !txn;
+  const { kategoriler } = useCategories();  // BUG #264: liste kullanıcının kendi kayıtları
   const [type, setType] = useState(txn?.transaction_type || 'expense');
   const [amount, setAmount] = useState(txn?.amount?.toString() || '');
   const [category, setCategory] = useState(txn?.category || '');
@@ -591,7 +591,8 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
             list="category-list"
           />
           <datalist id="category-list">
-            {COMMON_CATEGORIES.map(c => <option key={c} value={c} />)}
+            {/* BUG #264: kullanıcının kendi kategorileri (sabit liste değil) */}
+            {kategoriler.map(k => <option key={k.slug} value={k.slug}>{k.ad}</option>)}
           </datalist>
           {/* FEAT-034: kategori boşsa backend açıklamadan türetir (Migros → alışveriş). */}
           <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">

@@ -285,6 +285,18 @@ export const envelopesApi = {
   delete: (id) => request(`/api/envelopes/${id}`, { method: 'DELETE' }),
 };
 
+// BUG #264 (ADR-046): kategori seti kullanıcıya ait — panellerdeki sabit listelerin YERİNE.
+// Eskiden Transactions/IncomeDebt/Budget üç ayrı, birbirinden FARKLI liste kodluyordu.
+export const categoriesApi = {
+  list:   (tumu = false) => request('/api/categories', { params: tumu ? { tumu: true } : {} }),
+  create: (data) => request('/api/categories', { method: 'POST', body: data }),
+  update: (id, data) => request(`/api/categories/${id}`, { method: 'PATCH', body: data }),
+  // hedef: kullanılmış kategoriyi silerken işlemlerin taşınacağı slug (birleştirme)
+  remove: (id, hedef) => request(`/api/categories/${id}`, {
+    method: 'DELETE', params: hedef ? { hedef } : {},
+  }),
+};
+
 // FEAT-006/007: abonelik denetçisi
 export const subscriptionsApi = {
   list: () => request('/api/subscriptions'),                      // {abonelikler, aylik_toplam, ...}

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.category_rules import kategorileri_tohumla  # BUG #264 (ADR-046)
 from app.models import User, Workspace, WorkspaceMembership, WorkspaceRole
 
 
@@ -37,6 +38,13 @@ def ensure_personal_workspace(db: Session, user: User, commit: bool = True) -> W
     if not exists:
         db.add(WorkspaceMembership(workspace_id=ws.id, user_id=user.id,
                                    role=WorkspaceRole.owner))
+
+    # BUG #264 (ADR-046): yeni defter varsayılan kategori setiyle açılır. Idempotent —
+    # kullanıcının sonradan yaptığı düzenleme (yeniden adlandırma, kart varsayılanı
+    # çevirme) geri alınmaz. Tohumlama YAZMA yolunun işidir; okuma tarafı (rules_engine)
+    # DB'ye yazamayacağı için kaydı olmayan defterde belgeli varsayılana düşer.
+    kategorileri_tohumla(db, user.id, ws.id)
+
     if commit:
         db.commit()
         db.refresh(ws)

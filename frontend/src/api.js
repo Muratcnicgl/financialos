@@ -322,6 +322,10 @@ export const onboardingApi = {
   durum:  () => request('/api/onboarding/demo'),
   yukle:  () => request('/api/onboarding/demo', { method: 'POST' }),
   kaldir: () => request('/api/onboarding/demo', { method: 'DELETE' }),
+  // BUG #262 (P3.3): ilk kurulum rehberi — adımların "tamam" ölçütü BACKEND'de tek kaynak.
+  rehber: () => request('/api/onboarding/rehber'),
+  rehberGizle: (gizli) =>
+    request('/api/onboarding/rehber', { method: 'PATCH', body: { gizli } }),
 };
 
 // =============================================================

@@ -22,6 +22,15 @@ vi.mock('./api.js', () => ({
     exportData: vi.fn().mockResolvedValue({ user: { id: 1 }, transactions: [] }),
     deleteMe: vi.fn().mockResolvedValue(null),
   },
+  // BUG #262: panel rehberi geri açma yerini de barındırır (gizleme geri alınabilir olmalı).
+  onboardingApi: {
+    rehber: vi.fn().mockResolvedValue({
+      adimlar: [], tamamlanan: 1, toplam: 4, tamamlandi: false, gizli: true, gorunur: false,
+    }),
+    rehberGizle: vi.fn().mockResolvedValue({
+      adimlar: [], tamamlanan: 1, toplam: 4, tamamlandi: false, gizli: false, gorunur: true,
+    }),
+  },
 }));
 
 import Hesap from './panels/Hesap.jsx';

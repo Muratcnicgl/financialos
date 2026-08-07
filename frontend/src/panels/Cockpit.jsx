@@ -174,12 +174,13 @@ export default function Cockpit({ setActiveTab }) {
     borclarToplami > 0 ? `−${formatPara(borclarToplami)} kişisel borç` : null,
   ].filter(Boolean).join(', ');
 
-  // H20 (BUG #194): veri yoksa yeni kullanıcı yönlendirilir; verisi olanı rahatsız etmez.
-  const bosMu = (data?.accounts?.length || 0) === 0;
-
+  // H20 (BUG #194): yeni kullanıcı yönlendirilir; verisi olanı rahatsız etmez.
+  // BUG #262: "boş mu" ölçütü ARTIK burada değil — rehber 4 adımı backend'de sayar
+  // (`/api/onboarding/rehber`) ve hepsi bitene kadar görünür kalır. `setActiveTab`
+  // geçilmezse adım düğmeleri ölü bağlantıya döner, bu yüzden zorunlu.
   return (
     <div className="space-y-6 animate-fade-in">
-      <Onboarding bosMu={bosMu} onDegisti={handleRefresh} />
+      <Onboarding setActiveTab={setActiveTab} onDegisti={handleRefresh} />
 
       {/* Statu + Yenile */}
       <div className="flex items-start justify-between gap-4">

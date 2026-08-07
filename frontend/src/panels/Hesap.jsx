@@ -15,8 +15,8 @@
  *    (çıkmaz sokak). Artık `has_password` ile dallanır: şifresi yoksa "Şifre belirle".
  */
 import { useState, useEffect } from 'react';
-import { KeyRound, Mail, Download, Trash2, ShieldCheck } from 'lucide-react';
-import { authApi, userApi, clearTokens, ApiError } from '../api.js';
+import { KeyRound, Mail, Download, Trash2, ShieldCheck, Compass } from 'lucide-react';
+import { authApi, userApi, onboardingApi, clearTokens, ApiError } from '../api.js';
 
 const SILME_ONAY = 'HESABIMI SIL';
 
@@ -46,8 +46,12 @@ export default function Hesap() {
   const [silmeOnay, setSilmeOnay] = useState('');
   const [mesgul, setMesgul] = useState(false);
 
+  // BUG #262: rehberi gizlemek GERİ ALINABİLİR olmalı — geri açma yeri burasıdır.
+  const [rehber, setRehber] = useState(null);
+
   useEffect(() => {
     authApi.me().then(setProfil).catch(() => userApi.get().then(setProfil).catch(() => {}));
+    onboardingApi.rehber().then(setRehber).catch(() => setRehber(null));
   }, []);
 
   const calistir = async (is) => {
@@ -147,6 +151,31 @@ export default function Hesap() {
           </div>
         </dl>
       </Bolum>
+
+      {rehber && !rehber.tamamlandi && (
+        <Bolum
+          ikon={Compass}
+          baslik="İlk kurulum rehberi"
+          aciklama="Panelde gösterilen adım adım kurulum rehberi. Gizlersen buradan geri açabilirsin."
+        >
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {rehber.tamamlanan}/{rehber.toplam} adım tamam —{' '}
+              {rehber.gizli ? 'şu an gizli' : 'panelde görünüyor'}.
+            </p>
+            <button
+              type="button" disabled={mesgul}
+              onClick={() => calistir(async () => {
+                setRehber(await onboardingApi.rehberGizle(!rehber.gizli));
+                setDurum({ tip: 'ok', mesaj: rehber.gizli ? 'Rehber yeniden açıldı.' : 'Rehber gizlendi.' });
+              })}
+              className="btn btn-secondary flex-shrink-0"
+            >
+              {rehber.gizli ? 'Rehberi göster' : 'Rehberi gizle'}
+            </button>
+          </div>
+        </Bolum>
+      )}
 
       <Bolum
         ikon={Mail}

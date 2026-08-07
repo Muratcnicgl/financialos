@@ -7,22 +7,13 @@
     "has_password": true,
     "id": 1,
     "is_active": true,
-    "kvkk_consent_at": "2026-08-06T16:13:07.166163",
+    "kvkk_consent_at": "2026-08-07T06:39:08.610665",
     "name": "Boş Durum",
     "oauth_provider": null
   },
   "/api/cashflow/forecast": {
     "currency": "TRY",
     "days": [
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-06",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
       {
         "closing_balance": 0.0,
         "crunch": false,
@@ -553,20 +544,29 @@
         "inflows": 0.0,
         "opening_balance": 0.0,
         "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-05",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
       }
     ],
-    "end_date": "2026-10-04",
+    "end_date": "2026-10-05",
     "horizon_days": 60,
     "sankey": {
       "links": [],
       "nodes": []
     },
-    "start_date": "2026-08-06",
+    "start_date": "2026-08-07",
     "summary": {
       "crunch_count": 0,
       "crunch_dates": [],
       "lowest_balance": 0.0,
-      "lowest_date": "2026-08-06",
+      "lowest_date": "2026-08-07",
       "net_flow": 0.0,
       "opening_balance": 0.0,
       "total_payable": 0.0,
@@ -611,7 +611,7 @@
       "beklenen_gelir": 0.0,
       "bu_ayki_taksit": 0,
       "daily_limit": 0.0,
-      "days_remaining": 26,
+      "days_remaining": 25,
       "kart_borcu": 0.0,
       "nakit": 0.0,
       "reel_butce": 0.0
@@ -619,8 +619,8 @@
     "carried_forward": 0.0,
     "category_patterns": [],
     "daily_limit": 0.0,
-    "date": "2026-08-06",
-    "days_remaining": 26,
+    "date": "2026-08-07",
+    "days_remaining": 25,
     "emanet_kasa": 0.0,
     "faiz_sizintisi": {
       "aylik_toplam": 0.0,
@@ -675,8 +675,8 @@
     },
     "son_islemler": [],
     "sonraki_eylem": null,
-    "statu": "Ay sonuna 26 gün, günlük limit 0 TL. Sıkı dönem.",
-    "tarih_turkce": "6 Ağustos 2026 Perşembe",
+    "statu": "Ay sonuna 25 gün, günlük limit 0 TL. Sıkı dönem.",
+    "tarih_turkce": "7 Ağustos 2026 Cuma",
     "today_target": 0.0,
     "upcoming_payments": [],
     "upcoming_receivables": [],
@@ -727,7 +727,7 @@
     "build": "bilinmiyor",
     "service": "FinancialOS",
     "status": "ok",
-    "timestamp": "2026-08-06T16:13:10.118535+00:00",
+    "timestamp": "2026-08-07T06:39:11.446517+00:00",
     "version": "0.2.0"
   },
   "/api/incomes": [],
@@ -777,6 +777,43 @@
   "/api/onboarding/demo": {
     "satir_sayisi": 0,
     "yuklu": false
+  },
+  "/api/onboarding/rehber": {
+    "adimlar": [
+      {
+        "aciklama": "Vadesiz hesap, kredi kartı ya da yatırım hesabı — bakiyeni sen girersin, banka bağlantısı yoktur.",
+        "anahtar": "hesap",
+        "baslik": "Kendi hesabını ekle",
+        "sekme": "accounts",
+        "tamam": false
+      },
+      {
+        "aciklama": "Bir gelir ya da gider yaz; bütçe ve nakit akışı bu kayıtlardan hesaplanır.",
+        "anahtar": "islem",
+        "baslik": "İlk işlemini gir",
+        "sekme": "transactions",
+        "tamam": false
+      },
+      {
+        "aciklama": "Kırmızı çizgini tanımla (örnek: nakit tabanı). Kural tavsiye değildir — aksiyon öncesi kod seviyesinde uygulanır.",
+        "anahtar": "kural",
+        "baslik": "Kendi kuralını yaz",
+        "sekme": "redlines",
+        "tamam": false
+      },
+      {
+        "aciklama": "Koç yalnız senin verinden konuşur; hesabı kendisi yapmaz, panel neyse onu anlatır.",
+        "anahtar": "koc",
+        "baslik": "Koça ilk sorunu sor",
+        "sekme": "coach",
+        "tamam": false
+      }
+    ],
+    "gizli": false,
+    "gorunur": true,
+    "tamamlanan": 0,
+    "tamamlandi": false,
+    "toplam": 4
   },
   "/api/ops/scheduler": {
     "hic_calisma_yok": true,
@@ -906,7 +943,7 @@
     "days": 30,
     "items": [
       {
-        "date": "2026-08-06",
+        "date": "2026-08-07",
         "investment_value": 0.0,
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0
@@ -925,7 +962,7 @@
       "total_payable": 0,
       "total_receivable": 0
     },
-    "today": "2026-08-06"
+    "today": "2026-08-07"
   },
   "/api/subscriptions": {
     "abonelikler": [],
@@ -935,7 +972,7 @@
   },
   "/api/transactions": [],
   "/api/user": {
-    "created_at": "2026-08-06T16:13:07.168166+00:00",
+    "created_at": "2026-08-07T06:39:08.612207+00:00",
     "currency": null,
     "id": 1,
     "locale": null,
@@ -951,7 +988,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-06T16:13:10.450432+00:00",
+    "exported_at": "2026-08-07T06:39:11.832049+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -961,14 +998,14 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-06T16:13:10.045962",
+        "created_at": "2026-08-07T06:39:11.344353",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0,
         "receivables": 0.0,
-        "snapshot_date": "2026-08-06",
+        "snapshot_date": "2026-08-07",
         "user_id": 1,
         "workspace_id": 1
       }
@@ -981,17 +1018,18 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-06T16:13:07.168166",
+      "created_at": "2026-08-07T06:39:08.612207",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-06T16:13:07.166163",
+      "kvkk_consent_at": "2026-08-07T06:39:08.610665",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
       "oauth_provider": null,
+      "onboarding_dismissed_at": null,
       "timezone": null
     },
     "wishlist_items": [],
@@ -999,7 +1037,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-06T16:13:07.172167",
+        "joined_at": "2026-08-07T06:39:08.617294",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1007,7 +1045,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-06T16:13:07.170167",
+        "created_at": "2026-08-07T06:39:08.615210",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1024,7 +1062,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-06T16:13:10.479822+00:00",
+    "exported_at": "2026-08-07T06:39:11.862308+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -1034,14 +1072,14 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-06T16:13:10.045962",
+        "created_at": "2026-08-07T06:39:11.344353",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0,
         "receivables": 0.0,
-        "snapshot_date": "2026-08-06",
+        "snapshot_date": "2026-08-07",
         "user_id": 1,
         "workspace_id": 1
       }
@@ -1054,17 +1092,18 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-06T16:13:07.168166",
+      "created_at": "2026-08-07T06:39:08.612207",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-06T16:13:07.166163",
+      "kvkk_consent_at": "2026-08-07T06:39:08.610665",
       "kvkk_consent_version": "v3",
       "locale": null,
       "name": "Boş Durum",
       "oauth_provider": null,
+      "onboarding_dismissed_at": null,
       "timezone": null
     },
     "wishlist_items": [],
@@ -1072,7 +1111,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-06T16:13:07.172167",
+        "joined_at": "2026-08-07T06:39:08.617294",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1080,7 +1119,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-06T16:13:07.170167",
+        "created_at": "2026-08-07T06:39:08.615210",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1102,7 +1141,7 @@
   },
   "/api/workspaces": [
     {
-      "created_at": "2026-08-06T16:13:07.170167+00:00",
+      "created_at": "2026-08-07T06:39:08.615210+00:00",
       "id": 1,
       "is_personal": true,
       "name": "Boş Durum (Kişisel)",
@@ -1111,13 +1150,13 @@
     }
   ],
   "/api/workspaces/1": {
-    "created_at": "2026-08-06T16:13:07.170167+00:00",
+    "created_at": "2026-08-07T06:39:08.615210+00:00",
     "id": 1,
     "is_personal": true,
     "members": [
       {
         "email": "bos.durum@example.com",
-        "joined_at": "2026-08-06T16:13:07.172167+00:00",
+        "joined_at": "2026-08-07T06:39:08.617294+00:00",
         "name": "Boş Durum",
         "role": "owner",
         "user_id": 1

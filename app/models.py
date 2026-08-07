@@ -154,6 +154,10 @@ class User(Base):
     timezone = Column(String(40), nullable=True)     # ornek: "Europe/Istanbul", "Europe/Berlin"
     currency = Column(String(3), nullable=True)      # ISO-4217; None = TRY (asamali plan, ADR-042)
     locale = Column(String(10), nullable=True)       # ornek: "tr-TR
+    # P3.3 (BUG #262): ilk-kurulum rehberi gizlendi mi. NULL = gorunur. Rehber zaten
+    # 4 adim tamamlaninca kendini emekliye ayirir; bu alan "bitirmeden kapat" diyen
+    # kullaniciyi hatirlar. Geri acma: PATCH /api/onboarding/rehber {gizli:false} (Hesap paneli).
+    onboarding_dismissed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")

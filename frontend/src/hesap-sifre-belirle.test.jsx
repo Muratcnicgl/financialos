@@ -33,6 +33,15 @@ vi.mock('./api.js', () => ({
     exportData: vi.fn().mockResolvedValue({}),
     deleteMe: vi.fn().mockResolvedValue(null),
   },
+  // BUG #262: panel ilk kurulum rehberini de okur (gizleme geri alınabilir olmalı).
+  onboardingApi: {
+    rehber: vi.fn().mockResolvedValue({
+      adimlar: [], tamamlanan: 0, toplam: 4, tamamlandi: false, gizli: false, gorunur: true,
+    }),
+    rehberGizle: vi.fn().mockResolvedValue({
+      adimlar: [], tamamlanan: 0, toplam: 4, tamamlandi: false, gizli: true, gorunur: false,
+    }),
+  },
 }));
 
 import Hesap from './panels/Hesap.jsx';

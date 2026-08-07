@@ -11,11 +11,28 @@ Karar:
     `demo_data_markers` tablosunda tutulur. Silme, yalnız o satırları siler; kullanıcının
     kendi girdiği verilere ASLA dokunmaz (işaretsiz satır silinmez).
   - Veriler jeneriktir (kişi adı/banka markası yok — BUG #166/#168 ailesi).
+
+GUNCELLEMELER
+-------------
+BUG #262 fix (P3.3 — "ilk giriş rehberi"): iki defekt vardı.
+  (a) Rehber tek adımlıktı: `bosMu = accounts.length === 0` olduğu için kullanıcı İLK hesabını
+      ekler eklemez kart tümüyle kayboluyordu — kalan üç adım (işlem gir → kendi kuralını yaz →
+      koça sor) hiç yönlendirilmiyordu. Kart bir cümleydi, rehber değildi.
+  (b) Kartın birincil düğmesi ÖLÜYDÜ: `<a href="#accounts">` — uygulama hash-router kullanmıyor
+      (`App.jsx` `activeTab` state'i), yani yeni kullanıcının gördüğü ilk düğme hiçbir şey
+      yapmıyordu. Sessiz defekt: tarayıcı hata vermez, süit yeşil kalır (L28).
+  Çözüm: adım durumu ARTIK BACKEND'DE deterministik türetiliyor (`GET /api/onboarding/rehber`),
+  frontend yalnız çiziyor (ADR-001 ruhu: karar veri katmanında, arayüz açıklar). Adımlar
+  YALNIZ kullanıcının KENDİ verisini sayar — demo satırları dışlanır; aksi halde "örnek veriyle
+  gez" diyen kullanıcı için rehber anında 3/4 tamam görünüp kaybolurdu.
+  Ayrıca: `require_write()` router seviyesindeydi → OKUMA uçları da yazma yetkisi istiyordu
+  (paylaşılan workspace'te `viewer` üyenin rehberi/demo durumu 403 alıyor, frontend'de sessizce
+  yutuluyordu). Guard yalnız POST/DELETE/PATCH'e taşındı.
 """
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -29,13 +46,13 @@ from app.workspace_deps import active_workspace_id, scope_filter, require_write
 from app.money_format import format_para  # BUG #256 (H4): para etiketi tek kaynak
 from app.models import (
     User, Account, AccountType, Transaction, TransactionType, RecurringIncome,
-    MasterCheckpoint, CheckpointType, Goal, DemoDataMarker,
+    MasterCheckpoint, CheckpointType, CoachMemory, Goal, DemoDataMarker,
 )
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/onboarding", tags=["onboarding"],
-                   dependencies=[Depends(require_write())])
+# BUG #262: require_write ARTIK router seviyesinde DEĞİL — okuma uçlarını da kilitliyordu.
+router = APIRouter(prefix="/api/onboarding", tags=["onboarding"])
 
 # Silme sırası: çocuk → ebeveyn (FK ihlali olmasın)
 _SILME_SIRASI = ("transactions", "recurring_incomes", "goals", "master_checkpoints", "accounts")
@@ -63,7 +80,8 @@ def demo_durumu(db: Session = Depends(get_db), user: User = Depends(get_current_
     return DemoDurumu(yuklu=n > 0, satir_sayisi=n)
 
 
-@router.post("/demo", response_model=DemoDurumu, status_code=status.HTTP_201_CREATED)
+@router.post("/demo", response_model=DemoDurumu, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_write())])
 def demo_yukle(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -130,7 +148,8 @@ def demo_yukle(
     return DemoDurumu(yuklu=True, satir_sayisi=n)
 
 
-@router.delete("/demo", response_model=DemoDurumu)
+@router.delete("/demo", response_model=DemoDurumu,
+               dependencies=[Depends(require_write())])
 def demo_kaldir(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -161,3 +180,136 @@ def demo_kaldir(
     db.commit()
     logger.info("[onboarding] demo veri kaldirildi user_id=%s", user.id)
     return DemoDurumu(yuklu=False, satir_sayisi=0)
+
+
+# =============================================================================
+# İLK KURULUM REHBERİ (P3.3 / BUG #262)
+# =============================================================================
+#
+# Neden backend: adımın "tamam" olup olmadığı bir VERİ sorusudur, arayüz sorusu değil.
+# Frontend'e bırakılsaydı her panel kendi ölçütünü uydururdu (BUG #161/SBN-001 sınıfı:
+# aynı kural birden çok yerde ayrı kodlanır). Burada tek kaynak, tek test.
+
+
+class RehberAdimi(BaseModel):
+    anahtar: str        # kararlı kimlik (test/telemetri) — metin değişse de sabit
+    baslik: str
+    aciklama: str
+    sekme: str          # frontend tab id'si (App.jsx activeTab) — ölü link üretmemek için
+    tamam: bool
+
+
+class RehberDurumu(BaseModel):
+    adimlar: list[RehberAdimi]
+    tamamlanan: int
+    toplam: int
+    tamamlandi: bool
+    gizli: bool
+    gorunur: bool       # arayüzün tek bakacağı alan: çiz / çizme
+
+
+class RehberGizleIstegi(BaseModel):
+    gizli: bool
+
+
+# (anahtar, başlık, açıklama, sekme) — metinler jeneriktir (kişi adı / banka markası yok).
+_ADIM_TANIMLARI = (
+    ("hesap", "Kendi hesabını ekle",
+     "Vadesiz hesap, kredi kartı ya da yatırım hesabı — bakiyeni sen girersin, "
+     "banka bağlantısı yoktur.", "accounts"),
+    ("islem", "İlk işlemini gir",
+     "Bir gelir ya da gider yaz; bütçe ve nakit akışı bu kayıtlardan hesaplanır.",
+     "transactions"),
+    ("kural", "Kendi kuralını yaz",
+     "Kırmızı çizgini tanımla (örnek: nakit tabanı). Kural tavsiye değildir — "
+     "aksiyon öncesi kod seviyesinde uygulanır.", "redlines"),
+    ("koc", "Koça ilk sorunu sor",
+     "Koç yalnız senin verinden konuşur; hesabı kendisi yapmaz, panel neyse onu anlatır.",
+     "coach"),
+)
+
+
+def _demo_satir_idleri(db: Session, tablo: str) -> set[int]:
+    """O tabloda demo olarak işaretlenmiş satır id'leri.
+
+    Kullanıcıya göre DEĞİL tabloya göre okunur: bir satır kim yüklediyse yüklesin demodur.
+    Sızıntı riski yok — küme YALNIZ zaten kapsam-filtreli bir sorgudan DIŞLAMAK için kullanılır,
+    hiçbir id yanıta çıkmaz.
+    """
+    return {r[0] for r in db.query(DemoDataMarker.row_id)
+            .filter(DemoDataMarker.table_name == tablo).all()}
+
+
+def _kendi_satiri_var_mi(db: Session, model, tablo: str, user_id: int,
+                         ws_id: Optional[int]) -> bool:
+    """Kapsam içinde, DEMO OLMAYAN en az bir satır var mı.
+
+    Demo dışlaması şart: "örnek veriyle gez" diyen kullanıcı için rehber aksi halde anında
+    3/4 tamam görünür ve kaybolur — oysa kullanıcı henüz kendi kurulumuna hiç başlamamıştır.
+    """
+    q = db.query(model.id).filter(scope_filter(model, user_id, ws_id))
+    demo = _demo_satir_idleri(db, tablo)
+    if demo:
+        q = q.filter(~model.id.in_(demo))
+    return db.query(q.exists()).scalar() is True
+
+
+def _rehber_durumu(db: Session, user: User, ws_id: Optional[int]) -> RehberDurumu:
+    tamamlar = {
+        "hesap": _kendi_satiri_var_mi(db, Account, "accounts", user.id, ws_id),
+        "islem": _kendi_satiri_var_mi(db, Transaction, "transactions", user.id, ws_id),
+        "kural": _kendi_satiri_var_mi(db, MasterCheckpoint, "master_checkpoints",
+                                      user.id, ws_id),
+        # Koç geçmişi workspace'e değil kişiye bağlıdır (CoachMemory'de workspace_id yok).
+        "koc": db.query(
+            db.query(CoachMemory.id)
+              .filter(CoachMemory.user_id == user.id, CoachMemory.role == "user")
+              .exists()
+        ).scalar() is True,
+    }
+    adimlar = [
+        RehberAdimi(anahtar=a, baslik=b, aciklama=c, sekme=s, tamam=tamamlar[a])
+        for a, b, c, s in _ADIM_TANIMLARI
+    ]
+    tamamlanan = sum(1 for x in adimlar if x.tamam)
+    tamamlandi = tamamlanan == len(adimlar)
+    gizli = getattr(user, "onboarding_dismissed_at", None) is not None
+    return RehberDurumu(
+        adimlar=adimlar,
+        tamamlanan=tamamlanan,
+        toplam=len(adimlar),
+        tamamlandi=tamamlandi,
+        gizli=gizli,
+        gorunur=not tamamlandi and not gizli,
+    )
+
+
+@router.get("/rehber", response_model=RehberDurumu)
+def rehber(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),
+):
+    """İlk kurulum rehberi: hangi adım tamam, sırada ne var, kart çizilmeli mi."""
+    return _rehber_durumu(db, user, ws_id)
+
+
+# require_write YOK: gizleme workspace verisi değil KİŞİSEL tercihtir (users tablosu).
+# Paylaşılan bir workspace'te `viewer` üye de kendi rehberini kapatabilmeli.
+@router.patch("/rehber", response_model=RehberDurumu)
+def rehber_gizle(
+    istek: RehberGizleIstegi,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),
+):
+    """Rehberi gizle / yeniden göster.
+
+    Gizleme GERİ ALINABİLİR olmalı (Hesap panelinden) — geri dönüşü olmayan bir "kapat"
+    düğmesi kullanıcıyı kilitler.
+    """
+    user.onboarding_dismissed_at = datetime.utcnow() if istek.gizli else None
+    db.commit()
+    db.refresh(user)
+    logger.info("[onboarding] rehber gizli=%s user_id=%s", istek.gizli, user.id)
+    return _rehber_durumu(db, user, ws_id)

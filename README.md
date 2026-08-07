@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue)]()
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688)]()
 [![React](https://img.shields.io/badge/React-18-61dafb)]()
-[![License](https://img.shields.io/badge/license-MIT-green)]()
+[![License](https://img.shields.io/badge/license-proprietary-red)](LICENSE)
 
 🇹🇷 [Türkçe README](README.tr.md)
 
@@ -161,4 +161,6 @@ This is a personal project — built solo, primarily as a way to think through p
 
 ## License
 
-[MIT](LICENSE) — Murat İçgil
+**Tüm hakları saklıdır — Murat İçgil.** Bu depo görüntülenebilir ancak
+kopyalanamaz, değiştirilemez, dağıtılamaz veya kullanılamaz; ayrıntı: [LICENSE](LICENSE).
+*(6 May – 7 Ağu 2026 arasında MIT altındaydı; MIT o dönemde edinilen kopyalar için geri alınamaz.)*

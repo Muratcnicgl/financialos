@@ -268,7 +268,7 @@ export default function Transactions() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {/* Arama */}
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
             <input type="text" value={searchText}
               onChange={e => setSearchText(e.target.value)}
               placeholder="Açıklama, kategori, not..." className="input !pl-8 !text-xs" />
@@ -388,7 +388,7 @@ function QuickEntry({ onSubmit, accounts }) {
     <div className="card p-3">
       <form onSubmit={handleSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-numeric text-sm select-none">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 font-numeric text-sm select-none">
             ⚡
           </span>
           <input
@@ -595,7 +595,7 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
             {kategoriler.map(k => <option key={k.slug} value={k.slug}>{k.ad}</option>)}
           </datalist>
           {/* FEAT-034: kategori boşsa backend açıklamadan türetir (Migros → alışveriş). */}
-          <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+          <p className="mt-1 text-[11px] text-zinc-500">
             Boş bırakırsan açıklamadan otomatik atanır (ör. "Migros" → alışveriş).
           </p>
         </div>

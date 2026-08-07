@@ -261,7 +261,7 @@ export default function RedLines() {
       {/* MC kartlari */}
       {filtered.length === 0 ? (
         <div className="card p-8 text-center">
-          <ShieldAlert className="w-12 h-12 mx-auto text-zinc-400 mb-3" />
+          <ShieldAlert className="w-12 h-12 mx-auto text-zinc-500 dark:text-zinc-400 mb-3" />
           <h3 className="font-semibold mb-2">
             {checkpoints.length === 0 ? 'Henüz kural yok' : 'Filtreyle eşleşen kural yok'}
           </h3>
@@ -368,7 +368,7 @@ function CheckpointCard({ checkpoint, onEdit, onDelete, onToggleActive }) {
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <button
             onClick={onToggleActive}
-            className={`btn btn-ghost btn-icon !p-1.5 ${cp.is_active ? 'text-positive-600' : 'text-zinc-400'}`}
+            className={`btn btn-ghost btn-icon !p-1.5 ${cp.is_active ? 'text-positive-600' : 'text-zinc-500 dark:text-zinc-400'}`}
             title={cp.is_active ? 'Pasifleştir' : 'Aktifleştir'}
           >
             <Power className="w-3.5 h-3.5" />

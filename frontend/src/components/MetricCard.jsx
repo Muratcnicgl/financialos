@@ -88,7 +88,7 @@ export default function MetricCard({
               {prefix}{formatSayi(value)}{suffix}
             </p>
             {trend === 'up' && (
-              <TrendingUp className="w-4 h-4 text-positive-500 mb-1 flex-shrink-0" />
+              <TrendingUp className="w-4 h-4 text-positive-600 dark:text-positive-500 mb-1 flex-shrink-0" />
             )}
             {trend === 'down' && (
               <TrendingDown className="w-4 h-4 text-negative-500 mb-1 flex-shrink-0" />

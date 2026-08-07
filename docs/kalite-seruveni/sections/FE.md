@@ -45,7 +45,10 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [FE-008] Goals paneli tema-duyarlı değil — açık temada okunmaz
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Goals/DebtStrategy sabit koyu renkler dark: çifti yok
+- **Durum:** ✅ KAPANDI (BUG #265 / ADR-047, 7 Ağu 2026) — kapsam maddede yazılandan genişti
+  (`Workspace` + `Login` de koyu-varsayandı); 128 sınıf tema-duyarlı çifte çevrildi, `emerald/rose`
+  gibi ham tonlar açık zeminde 3:1 altına düştükleri yerde `-600` karşılığıyla eşlendi. Kalıcı
+  kapı `frontend/e2e/tema-mobil.spec.js` (render edilmiş kontrast ölçümü, mutasyon 3/3).
 - **Kanıt:** `Goals.jsx:13-19,44,55,141,153,229`; `DebtStrategy.jsx:21,117,127`
 - **Aksiyon:** `zinc-100/900`→`text-zinc-900 dark:text-zinc-100`+`card`; emerald/rose→positive/negative token.
 - **Etki:** Yüksek · **Efor:** M

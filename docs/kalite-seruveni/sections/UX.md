@@ -105,7 +105,9 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [UX-018] Swipe/gesture yok — mobilde küçük ikon butonları
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: swipe yok, ikon 44px altı
+- **Durum:** 🟡 KISMEN (BUG #265, 7 Ağu 2026) — maddenin **"ikon 44px altı"** yarısı kapandı ve
+  artık ölçülüyor (`frontend/e2e/tema-mobil.spec.js`; 390px'te her kontrol ≥44px). **Swipe/gesture
+  hâlâ yok** — ayrı iş.
 - **Kanıt:** `Transactions.jsx:481-488`, `IncomeDebt.jsx:602-617`
 - **Aksiyon:** Swipe-action (alacak sağa→ödendi, sola→hatırlat/sil); en azından 44px hit-target.
 - **Etki:** Orta · **Efor:** L
@@ -117,7 +119,11 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [UX-020] Goals/DebtStrategy açık temada bozuk
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: sabit koyu renkler açık temada bozuk (FE-008)
+- **Durum:** ✅ KAPANDI (BUG #265 / ADR-047, 7 Ağu 2026) — madde **eksik tarif ediyordu**: yalnız
+  Goals/DebtStrategy değil, `Workspace` ve `Login` de tamamen koyu-varsayan yazılmıştı (toplam 101
+  kullanım) ve açık temada başlıklar 1.05 kontrastla GÖRÜNMÜYORDU. 128 sınıf tema-duyarlı çifte
+  çevrildi. Kalıcı kapı: `frontend/e2e/tema-mobil.spec.js` (her panel × her tema render edilir,
+  kontrast ≥3:1). Mutasyon 3/3.
 - **Kanıt:** `Goals.jsx:55,141,229`; `DebtStrategy.jsx:21,55`
 - **Aksiyon:** Sabit koyu renkleri tema-duyarlı çiftlere çevir. (FE-008 ile aynı)
 - **Etki:** Orta · **Efor:** M
@@ -237,7 +243,12 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-040] Erişilebilirlik: dokunma hedefi, kontrast, klavye odağı zayıf
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: erişilebilirlik zayıf (küçük hedef, renk-only, focus yok)
+- **Durum:** 🟡 KISMEN (BUG #265 / ADR-047, 7 Ağu 2026) — **dokunma hedefi ve kontrast KAPANDI ve
+  ölçülüyor**: 390px'te her panel × her tema render edilir, hedef ≥44px (iki yazılı istisna) ve
+  metin kontrastı ≥3:1 (`frontend/e2e/tema-mobil.spec.js`, mutasyon 3/3). **Açık kalan iki ayak,
+  dürüst kayıt:** (a) eşik 3:1 — WCAG AA'nın *büyük metin* sınırı; gövde metni için 4.5 hedefi
+  ayrı iştir (bugünkü tabanda ikincil metinlerin bir kısmı 3–4.5 aralığında), (b) renk-only durum
+  göstergeleri ve `focus-visible` halkaları hâlâ ölçülmüyor.
 - **Kanıt:** `Transactions.jsx:482-487` (`!p-1`), `Cockpit.jsx:391` (`text-[9px]`), renk-only işaretler
 - **Aksiyon:** Min 44px, min 11px metin, durum göstergelerine ikon+renk, `focus-visible` halkaları.
 - **Etki:** Orta · **Efor:** M

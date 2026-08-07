@@ -160,7 +160,7 @@ function ToastItem({ toast, onDismiss }) {
         </div>
         <button
           onClick={handleClose}
-          className="flex-shrink-0 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+          className="flex-shrink-0 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
           title="Kapat"
         >
           <X className="w-4 h-4" />

@@ -53,7 +53,7 @@ export default function CashflowSankey({ sankey }) {
   if (!sankey.nodes.length || !sankey.links.length) {
     return (
       <div className="card p-6 flex flex-col items-center justify-center text-center gap-2 min-h-[160px]">
-        <GitMerge className="w-8 h-8 text-zinc-300 dark:text-zinc-600" />
+        <GitMerge className="w-8 h-8 text-zinc-700 dark:text-zinc-600" />
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Seçili filtrelerde akış verisi yok
         </p>

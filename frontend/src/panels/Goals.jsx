@@ -11,10 +11,10 @@ function getGoalIcon(goalType) {
 
 function getStatusColor(status) {
   const colors = {
-    active:    'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    achieved:  'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    paused:    'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
-    abandoned: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+    active:    'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+    achieved:  'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30',
+    paused:    'bg-zinc-500/20 text-zinc-700 dark:text-zinc-300 border-zinc-500/30',
+    abandoned: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30',
   };
   return colors[status] || colors.active;
 }
@@ -42,7 +42,7 @@ export default function Goals() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-zinc-400">
+      <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-zinc-400">
         <Loader2 className="w-6 h-6 animate-spin mr-2" /> Yükleniyor...
       </div>
     );
@@ -53,11 +53,11 @@ export default function Goals() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-            <Target className="w-6 h-6 text-brand-400" />
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <Target className="w-6 h-6 text-brand-600 dark:text-brand-400" />
             Hedefler
           </h2>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Tasarruf ve borç ödeme hedeflerini yönet. {goals.length} hedef.
           </p>
         </div>
@@ -73,8 +73,8 @@ export default function Goals() {
       {goals.length === 0 ? (
         <div className="card p-8 text-center">
           <Target className="w-10 h-10 mx-auto text-zinc-500 mb-3" />
-          <h3 className="text-lg text-zinc-200 mb-1">Hedef yok</h3>
-          <p className="text-sm text-zinc-400 mb-4">İlk hedefinizi oluşturmaya başlayın.</p>
+          <h3 className="text-lg text-zinc-800 dark:text-zinc-200 mb-1">Hedef yok</h3>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">İlk hedefinizi oluşturmaya başlayın.</p>
           <button
             onClick={() => setShowCreateWizard(true)}
             className="btn btn-secondary !text-xs"
@@ -139,8 +139,8 @@ function GoalCard({ goal, onSelect }) {
         <div className="flex items-center gap-2">
           <span className="text-2xl">{getGoalIcon(goal.goal_type)}</span>
           <div>
-            <h3 className="font-semibold text-zinc-100">{goal.title}</h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{goal.title}</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               {goal.goal_type === 'debt_freedom' ? 'Borç Ödeme' : 'Tasarruf'}
             </p>
           </div>
@@ -151,7 +151,7 @@ function GoalCard({ goal, onSelect }) {
       </div>
 
       {/* Progress bar — track + fill */}
-      <div className="mb-4 h-2 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="mb-4 h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
         <div
           className={`h-full bg-gradient-to-r ${color} rounded-full transition-all`}
           style={{ width: `${Math.min(progressPercent, 100)}%` }}
@@ -161,16 +161,16 @@ function GoalCard({ goal, onSelect }) {
 
       <div className="grid grid-cols-3 gap-2 text-center text-sm">
         <div>
-          <p className="text-zinc-400 text-xs">Mevcut</p>
-          <p className="font-semibold text-zinc-100">{formatSayi(goal.current_amount)}</p>
+          <p className="text-zinc-500 dark:text-zinc-400 text-xs">Mevcut</p>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{formatSayi(goal.current_amount)}</p>
         </div>
         <div>
-          <p className="text-zinc-400 text-xs">Hedef</p>
-          <p className="font-semibold text-zinc-100">{formatSayi(goal.target_amount)}</p>
+          <p className="text-zinc-500 dark:text-zinc-400 text-xs">Hedef</p>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{formatSayi(goal.target_amount)}</p>
         </div>
         <div>
-          <p className="text-zinc-400 text-xs">Tahmini Bitiş</p>
-          <p className="font-semibold text-zinc-100">
+          <p className="text-zinc-500 dark:text-zinc-400 text-xs">Tahmini Bitiş</p>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100">
             {goal.projected_completion_date ? formatDate(goal.projected_completion_date) : '—'}
           </p>
         </div>
@@ -178,7 +178,7 @@ function GoalCard({ goal, onSelect }) {
 
       {/* FEAT-003: sinking fund — target_date'li birikim hedefinde aylık gereken katkı */}
       {goal.sinking_fund && !goal.sinking_fund.tamamlandi && (
-        <div className={`mt-2 text-xs flex items-center justify-center gap-1.5 ${goal.sinking_fund.gecikmis ? 'text-negative-400' : 'text-zinc-400'}`}>
+        <div className={`mt-2 text-xs flex items-center justify-center gap-1.5 ${goal.sinking_fund.gecikmis ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
           <span>💧</span>
           {goal.sinking_fund.gecikmis
             ? `Vade geçti — kalan ${formatPara(goal.sinking_fund.aylik_gereken)} gerekli`
@@ -237,14 +237,14 @@ function GoalDetailModal({ goal, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-zinc-900 border border-zinc-700/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
-        <div className="border-b border-zinc-700/50 p-5 flex items-center justify-between gap-3">
+        <div className="border-b border-zinc-300 dark:border-zinc-700/50 p-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xl flex-shrink-0">{getGoalIcon(goal.goal_type)}</span>
-            <h3 className="text-lg font-semibold text-zinc-100 truncate">{goal.title}</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 truncate">{goal.title}</h3>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
@@ -256,22 +256,22 @@ function GoalDetailModal({ goal, onClose }) {
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Yenile
             </button>
-            <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
+            <button type="button" onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Tab bar */}
-        <div className="border-b border-zinc-700/50 flex">
+        <div className="border-b border-zinc-300 dark:border-zinc-700/50 flex">
           {['allocations', 'rules'].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 tab === t
-                  ? 'text-brand-400 border-brand-400'
-                  : 'text-zinc-400 border-transparent hover:text-zinc-200'
+                  ? 'text-brand-600 dark:text-brand-400 border-brand-400'
+                  : 'text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-800 dark:hover:text-zinc-200'
               }`}
             >
               {t === 'allocations' ? 'Allocations' : 'Kurallar'}
@@ -282,7 +282,7 @@ function GoalDetailModal({ goal, onClose }) {
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
-            <div className="flex items-center justify-center h-32 text-zinc-400">
+            <div className="flex items-center justify-center h-32 text-zinc-500 dark:text-zinc-400">
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> Yükleniyor...
             </div>
           ) : tab === 'allocations' ? (
@@ -312,12 +312,12 @@ function AllocationsTab({ allocations, onRefresh }) {
   return (
     <div className="space-y-3">
       {allocations.length === 0 ? (
-        <p className="text-sm text-zinc-400 text-center py-6">Henüz allocation yok.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-6">Henüz allocation yok.</p>
       ) : (
         allocations.map((a) => (
-          <div key={a.id} className="bg-zinc-800/50 p-3 rounded text-sm flex items-center justify-between gap-2">
-            <div className="text-zinc-300">
-              <span className={a.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+          <div key={a.id} className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded text-sm flex items-center justify-between gap-2">
+            <div className="text-zinc-700 dark:text-zinc-300">
+              <span className={a.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                 {a.amount >= 0 ? '+' : ''}{formatPara(a.amount)}
               </span>
               <span className="text-zinc-500 ml-2 text-xs">
@@ -326,7 +326,7 @@ function AllocationsTab({ allocations, onRefresh }) {
             </div>
             <button
               onClick={() => handleDelete(a.id)}
-              className="text-zinc-500 hover:text-rose-400 transition-colors min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2"
+              className="text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -359,12 +359,12 @@ function RulesTab({ rules, goalId, onRefresh }) {
   return (
     <div className="space-y-3">
       {rules.length === 0 ? (
-        <p className="text-sm text-zinc-400 text-center py-6">Henüz kural yok.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-6">Henüz kural yok.</p>
       ) : (
         rules.map((r) => (
-          <div key={r.id} className="bg-zinc-800/50 p-3 rounded flex items-start justify-between gap-2">
+          <div key={r.id} className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded flex items-start justify-between gap-2">
             <div className="text-sm">
-              <p className="text-zinc-200 font-medium">{r.name}</p>
+              <p className="text-zinc-800 dark:text-zinc-200 font-medium">{r.name}</p>
               <p className="text-zinc-500 text-xs mt-0.5">
                 {JSON.stringify(r.criteria)} → {allocationLabel(r)}
                 {!r.is_active && <span className="ml-2 text-zinc-600">(kapalı)</span>}
@@ -372,7 +372,7 @@ function RulesTab({ rules, goalId, onRefresh }) {
             </div>
             <button
               onClick={() => handleDelete(r.id)}
-              className="text-zinc-500 hover:text-rose-400 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] inline-flex items-center justify-center -my-2"
+              className="text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] inline-flex items-center justify-center -my-2"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -421,15 +421,15 @@ function GoalCreateWizard({ onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-zinc-900 border border-zinc-700/50 rounded-lg w-full max-w-md"
+        className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/50 rounded-lg w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="border-b border-zinc-700/50 p-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-zinc-100">
+        <div className="border-b border-zinc-300 dark:border-zinc-700/50 p-5 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
             {step === 1 ? 'Hedef Türü Seç' : 'Hedef Detayları'}
           </h3>
-          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
+          <button type="button" onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -438,18 +438,18 @@ function GoalCreateWizard({ onClose }) {
           {/* ADIM 1 — Tip Seçimi */}
           {step === 1 && (
             <div className="space-y-3">
-              <p className="text-sm text-zinc-400 mb-4">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
                 Ne tür bir hedef oluşturmak istiyorsunuz?
               </p>
               <button
                 onClick={() => { setGoalType('cash_target'); setStep(2); }}
-                className="w-full p-4 rounded-lg border border-zinc-700 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left"
+                className="w-full p-4 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🎯</span>
                   <div>
-                    <p className="font-semibold text-zinc-100">Tasarruf Hedefi</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">Tasarruf Hedefi</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                       Belirli bir miktar biriktirmek (acil fon, tatil vb.)
                     </p>
                   </div>
@@ -457,13 +457,13 @@ function GoalCreateWizard({ onClose }) {
               </button>
               <button
                 onClick={() => { setGoalType('debt_freedom'); setStep(2); }}
-                className="w-full p-4 rounded-lg border border-zinc-700 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left"
+                className="w-full p-4 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">💰</span>
                   <div>
-                    <p className="font-semibold text-zinc-100">Borç Ödeme Hedefi</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">Borç Ödeme Hedefi</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                       Tüm kredi ve borçları kapatmak
                     </p>
                   </div>
@@ -478,13 +478,13 @@ function GoalCreateWizard({ onClose }) {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
               >
                 ← Geri
               </button>
 
               <div>
-                <label className="block text-sm text-zinc-300 mb-1">Hedef Adı *</label>
+                <label className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">Hedef Adı *</label>
                 <input
                   type="text"
                   value={form.title}
@@ -497,7 +497,7 @@ function GoalCreateWizard({ onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-300 mb-1">Hedef Tutar ({paraEtiketi()}) *</label>
+                <label className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">Hedef Tutar ({paraEtiketi()}) *</label>
                 <input
                   type="number"
                   value={form.target_amount}
@@ -511,7 +511,7 @@ function GoalCreateWizard({ onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-300 mb-1">
+                <label className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">
                   Hedef Tarih <span className="text-zinc-500">(opsiyonel)</span>
                 </label>
                 <input
@@ -523,7 +523,7 @@ function GoalCreateWizard({ onClose }) {
               </div>
 
               {goalType === 'debt_freedom' && (
-                <p className="text-xs text-zinc-500 bg-zinc-800/50 rounded p-3">
+                <p className="text-xs text-zinc-500 bg-zinc-100 dark:bg-zinc-800/50 rounded p-3">
                   💡 Borç ödeme hedefinde mevcut toplam kredi + kart bakiyeniz otomatik olarak
                   başlangıç noktası alınır.
                 </p>

@@ -54,7 +54,7 @@ export default function DetectedSubscriptions() {
       <div className="flex items-center gap-2">
         <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
         <h3 className="text-sm font-semibold">Tespit edilen abonelikler</h3>
-        <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-auto">
+        <span className="text-xs text-zinc-500 ml-auto">
           {formatPara(subs.aylik_toplam)}/ay
         </span>
       </div>

@@ -86,3 +86,9 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   olarak serbest metin kalır (FK, bilinmeyen kategoride kaydı reddetmeye zorlardı). Silme = hedefe
   taşı ya da gizle; sistem kategorisi silinemez. Kapı: `tests/test_kategori_kapisi.py` (backend +
   frontend aynası, kapsam tabanı + muafiyet tavanı).
+- **ADR-047 — Uygulamanın İKİ görünümü vardır; ikisi de RENDER EDİLEREK ölçülür (BUG #265):**
+  koyu/açık tema ve 390px telefon genişliği tek bir kapıyla ölçülür — metin kontrastı ≥ 3:1,
+  yatay taşma yok, dokunma hedefi ≥ 44px (iki yazılı istisna), konsol hatası yok. Grafik renkleri
+  tek kaynakta (`frontend/src/lib/grafikRenkleri.js`) ve **iki temada da** ≥ 3:1. **ADR-010'un
+  "global class kalıcıdır" gerekçesini düzeltir:** kalıcılığı sağlayan sınıf değil, sınıfı
+  kullanmayanı da yakalayan ölçümdür. Kapı: `frontend/e2e/tema-mobil.spec.js` (mutasyon 3/3).

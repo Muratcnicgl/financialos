@@ -93,7 +93,7 @@ class CoachErrorBoundary extends Component {
             Sayfa kilitlendi ama veriniz güvende. Aşağıdaki butona basarak paneli yenileyebilirsiniz.
           </p>
           {this.state.error && (
-            <pre className="text-xs text-zinc-400 dark:text-zinc-500 max-w-md text-center mb-4 font-mono break-all">
+            <pre className="text-xs text-zinc-500 max-w-md text-center mb-4 font-mono break-all">
               {String(this.state.error?.message || this.state.error)}
             </pre>
           )}
@@ -104,7 +104,7 @@ class CoachErrorBoundary extends Component {
             <RefreshCw className="w-4 h-4" />
             Paneli yenile
           </button>
-          <p className="text-xs text-zinc-400 mt-3">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-3">
             Tarayıcıyı F5 ile de yenileyebilirsiniz, veriler kaybolmaz.
           </p>
         </div>
@@ -476,7 +476,7 @@ function CoachInner({ onActionResolved }) {
       >
         {!historyLoaded ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-500 dark:text-zinc-400" />
           </div>
         ) : messages.length === 0 ? (
           <EmptyState
@@ -495,7 +495,7 @@ function CoachInner({ onActionResolved }) {
                   <button
                     key={s}
                     onClick={() => setInput(s)}
-                    className="text-xs text-left p-3 card hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
+                    className="text-xs text-left p-3 min-h-[44px] card hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
                   >
                     {s}
                   </button>
@@ -553,7 +553,7 @@ function CoachInner({ onActionResolved }) {
         Koç yatırım/finans tavsiyesi vermez; ürettiği metin hatalı olabilir. Sayısal
         hesaplar kural motorundan gelir, kararların sorumluluğu sana aittir.{' '}
         <a href="/api/legal/kullanim-sartlari" target="_blank" rel="noreferrer"
-          className="underline hover:text-zinc-400">Kullanım şartları</a>
+          className="underline hover:text-zinc-500 dark:hover:text-zinc-400">Kullanım şartları</a>
       </p>
       {/* BUG #231 (D10): aktarımın KAPSAMI, aktarımın YAPILDIĞI yerde yazmalı — kullanıcı
           rıza metnini kayıtta bir kez okur, mesajı burada yazar. */}
@@ -562,7 +562,7 @@ function CoachInner({ onActionResolved }) {
         dahil)</strong> ve alacak/borç kayıtlarındaki <strong>kişi adları</strong> yapay
         zekâ sağlayıcısına gider (yurt dışı olabilir).{' '}
         <a href="/api/legal/veri-isleyenler" target="_blank" rel="noreferrer"
-          className="underline hover:text-zinc-400">Neler gönderiliyor?</a>
+          className="underline hover:text-zinc-500 dark:hover:text-zinc-400">Neler gönderiliyor?</a>
       </p>
     </div>
   );
@@ -625,7 +625,7 @@ function Message({ message, onActionResolved }) {
           )}
         </div>
         {time && (
-          <p className="text-[10px] text-zinc-400 mt-1 px-1">{time}</p>
+          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 px-1">{time}</p>
         )}
 
         {/* Propose actions */}

@@ -85,9 +85,9 @@ export default function Wishlist() {
       </form>
 
       {loading ? (
-        <div className="text-sm text-zinc-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Yükleniyor…</div>
+        <div className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Yükleniyor…</div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-zinc-400">Liste boş. İmpuls bir alım geldiğinde buraya ekle.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Liste boş. İmpuls bir alım geldiğinde buraya ekle.</p>
       ) : (
         <ul className="space-y-1.5">
           {items.map((w) => (
@@ -96,7 +96,7 @@ export default function Wishlist() {
             }`}>
               <div className="flex-1 min-w-0">
                 <span className="text-zinc-800 dark:text-zinc-100">{w.item}</span>
-                <span className="text-zinc-400 dark:text-zinc-500"> · {formatPara(w.amount)}</span>
+                <span className="text-zinc-500"> · {formatPara(w.amount)}</span>
                 {w.hazir && (
                   <span className="ml-1 inline-flex items-center gap-0.5 text-xs text-warn-600 dark:text-warn-400">
                     <Clock className="w-3 h-3" /> 24s doldu

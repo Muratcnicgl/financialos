@@ -143,7 +143,7 @@ function AuthGate() {
 
   if (phase === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-400 text-sm">
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400 text-sm">
         Yükleniyor…
       </div>
     );
@@ -280,12 +280,13 @@ function AppContent({ onLogout }) {
 
         <nav className="border-t border-zinc-200/60 dark:border-zinc-800/60">
           <div className="max-w-6xl mx-auto px-2 overflow-x-auto">
+            {/* BUG #265: sekme yuksekligi py-2.5 ile 42px cikiyordu — ADR-010 dokunma hedefi 44px. */}
             <div className="flex gap-1">
               {TABS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === id
                       ? 'text-brand-600 dark:text-brand-400 border-brand-500'
                       : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-zinc-200'

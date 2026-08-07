@@ -4,6 +4,8 @@ import {
 } from 'recharts';
 import { formatDate } from '../api.js';
 import { formatPara, formatSayi } from '../lib/money.js';
+// BUG #265: cizgi/nokta renkleri burada hex sabitiydi — tek kaynak lib/grafikRenkleri.js
+import { SERI, IZGARA, NOKTA_KENAR } from '../lib/grafikRenkleri.js';
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -75,18 +77,18 @@ export default function BalanceTrend({ days, today }) {
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
             x={today}
-            stroke="#94a3b8"
+            stroke={IZGARA}
             strokeDasharray="4 4"
             strokeWidth={1.5}
           />
-          <ReferenceLine y={0} stroke="#ef4444" strokeOpacity={0.3} strokeWidth={1} />
+          <ReferenceLine y={0} stroke={SERI.negatif} strokeOpacity={0.3} strokeWidth={1} />
           <Line
             type="monotone"
             dataKey="balance"
-            stroke="#3b82f6"
+            stroke={SERI.bakiye}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4, fill: '#3b82f6' }}
+            activeDot={{ r: 4, fill: SERI.bakiye }}
           />
           {crunchDays.map((d, i) => (
             <ReferenceDot
@@ -94,8 +96,8 @@ export default function BalanceTrend({ days, today }) {
               x={d.date}
               y={d.balance}
               r={5}
-              fill="#ef4444"
-              stroke="#fff"
+              fill={SERI.negatif}
+              stroke={NOKTA_KENAR}
               strokeWidth={1.5}
             />
           ))}

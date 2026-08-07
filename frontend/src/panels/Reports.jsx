@@ -13,14 +13,13 @@ import NetWorthAnalysis from '../components/NetWorthAnalysis.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import { formatPara } from '../lib/money.js';
+// BUG #265: renkler burada hex olarak yaziliydi ve TEK temaya gore secilmisti
+// (`#4f46e5` koyu kartta 2.82 → cizgi ve lejant metni varsayilan temada okunmuyordu).
+import { KATEGORIK, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK } from '../lib/grafikRenkleri.js';
 
-const COLORS = [
-  '#4f46e5', '#16a34a', '#ea580c', '#0891b2',
-  '#9333ea', '#ca8a04', '#e11d48', '#0d9488',
-  '#7c3aed', '#db2777',
-];
+const COLORS = KATEGORIK;
 
-const TICK_COLOR = '#71717a'; // zinc-500, hem light hem dark'ta okunabilir
+const TICK_COLOR = EKSEN; // iki temada da >= 3:1 (bkz. lib/grafikRenkleri.js)
 
 const TYPE_META = {
   expense: { label: 'Gider',  btnClass: 'btn-negative' },
@@ -306,7 +305,7 @@ export default function Reports() {
                   data={trendItems}
                   margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={IZGARA} strokeOpacity={IZGARA_OPAKLIK} />
                   <XAxis
                     dataKey="date"
                     tickFormatter={fmtXDate}
@@ -319,12 +318,12 @@ export default function Reports() {
                   />
                   <Tooltip content={<TrendTooltip />} />
                   <Legend />
-                  <ReferenceLine y={0} stroke="#71717a" strokeDasharray="4 2" />
+                  <ReferenceLine y={0} stroke={EKSEN} strokeDasharray="4 2" />
                   <Line
                     type="monotone"
                     dataKey="net_worth_seen"
                     name="Görülen"
-                    stroke="#4f46e5"
+                    stroke={SERI.marka}
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4 }}
@@ -333,7 +332,7 @@ export default function Reports() {
                     type="monotone"
                     dataKey="net_worth_full"
                     name="Tam"
-                    stroke="#16a34a"
+                    stroke={SERI.pozitif}
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4 }}
@@ -342,7 +341,7 @@ export default function Reports() {
                     type="monotone"
                     dataKey="investment_value"
                     name="Yatirim Degeri"
-                    stroke="#3b82f6"
+                    stroke={SERI.bakiye}
                     strokeWidth={2}
                     dot={false}
                     connectNulls
@@ -434,7 +433,7 @@ export default function Reports() {
 
             {/* Timeline */}
             <div className="card px-4 py-3">
-              <p className="text-xs text-zinc-400 mb-2">Zaman çizelgesi · bugün → +{cashflowDays} gün</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Zaman çizelgesi · bugün → +{cashflowDays} gün</p>
               <CashflowTimeline items={cashflowItems} days={cashflowDays} today={cashflowData.today} />
             </div>
 

@@ -16,9 +16,9 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react';
 
 const DURUMLAR = {
-  saglikli: { ikon: CheckCircle2, renk: 'text-positive-500', metin: 'Sistem çalışıyor' },
+  saglikli: { ikon: CheckCircle2, renk: 'text-positive-600 dark:text-positive-500', metin: 'Sistem çalışıyor' },
   sorunlu: { ikon: AlertTriangle, renk: 'text-negative-500', metin: 'Sistemde sorun var' },
-  bilinmiyor: { ikon: AlertTriangle, renk: 'text-warn-500', metin: 'Sunucuya ulaşılamıyor' },
+  bilinmiyor: { ikon: AlertTriangle, renk: 'text-warn-600 dark:text-warn-500', metin: 'Sunucuya ulaşılamıyor' },
 };
 
 async function durumOku() {
@@ -60,7 +60,7 @@ export default function SistemDurumu({ onClose }) {
         </div>
 
         {yukleniyor ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
             <Loader2 className="w-4 h-4 animate-spin" /> Kontrol ediliyor…
           </div>
         ) : (
@@ -69,7 +69,7 @@ export default function SistemDurumu({ onClose }) {
               <Ikon className="w-5 h-5" />
               <span className="font-semibold text-sm">{d.metin}</span>
             </div>
-            <ul className="text-xs text-zinc-400 space-y-1">
+            <ul className="text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
               <li>Uygulama sunucusu: {sonuc.api ? 'yanıt veriyor' : 'yanıt vermiyor'}</li>
               <li>
                 Veritabanı: {sonuc.veritabani === true ? 'yanıt veriyor'

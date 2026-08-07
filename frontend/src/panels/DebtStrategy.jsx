@@ -22,15 +22,15 @@ const fmtDate = (iso) => {
 function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById }) {
   if (!strategy) {
     return (
-      <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-5">
-        <div className="text-zinc-400 text-sm">Veri yok.</div>
+      <div className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/40 p-5">
+        <div className="text-zinc-500 dark:text-zinc-400 text-sm">Veri yok.</div>
       </div>
     );
   }
 
   const accentMap = {
-    warn:     { border: 'border-warn-600/50',     bg: 'bg-warn-950/30',     text: 'text-warn-300',     badge: 'bg-warn-600/20 text-warn-300'     },
-    positive: { border: 'border-positive-600/50', bg: 'bg-positive-950/30', text: 'text-positive-300', badge: 'bg-positive-600/20 text-positive-300' },
+    warn:     { border: 'border-warn-600/50',     bg: 'bg-warn-950/30',     text: 'text-warn-700 dark:text-warn-300',     badge: 'bg-warn-600/20 text-warn-700 dark:text-warn-300'     },
+    positive: { border: 'border-positive-600/50', bg: 'bg-positive-950/30', text: 'text-positive-700 dark:text-positive-300', badge: 'bg-positive-600/20 text-positive-700 dark:text-positive-300' },
   };
   const c = accentMap[accent] || accentMap.warn;
 
@@ -42,12 +42,12 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
         </div>
         <div>
           <h3 className={`text-lg font-semibold ${c.text}`}>{title}</h3>
-          <p className="text-xs text-zinc-400">{subtitle}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</p>
         </div>
       </div>
 
       <div>
-        <div className="text-xs text-zinc-400 mb-2 uppercase tracking-wide">Ödeme Sırası</div>
+        <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">Ödeme Sırası</div>
         <ol className="space-y-1">
           {strategy.order.map((accountId, i) => {
             const debt = debtsById[accountId];
@@ -56,7 +56,7 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
                 <span className={`w-6 h-6 rounded-full ${c.badge} flex items-center justify-center text-xs font-semibold flex-shrink-0`}>
                   {i + 1}
                 </span>
-                <span className="text-zinc-200 truncate min-w-0">{debt?.name || `Hesap #${accountId}`}</span>
+                <span className="text-zinc-800 dark:text-zinc-200 truncate min-w-0">{debt?.name || `Hesap #${accountId}`}</span>
                 {debt && (
                   <span className="text-xs text-zinc-500 ml-auto whitespace-nowrap flex-shrink-0">
                     {paraTam(debt.balance)} · %{debt.interest_rate_monthly.toFixed(2)}/ay
@@ -68,18 +68,18 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
         </ol>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-700/50">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-300 dark:border-zinc-700/50">
         <div>
-          <div className="text-xs text-zinc-400">Toplam Faiz</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">Toplam Faiz</div>
           <div className={`text-base font-semibold ${c.text}`}>{paraTam(strategy.total_interest_paid)}</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-400">Süre</div>
-          <div className="text-base font-semibold text-zinc-100">{strategy.months_to_freedom} ay</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">Süre</div>
+          <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{strategy.months_to_freedom} ay</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-400">Bitiş</div>
-          <div className="text-base font-semibold text-zinc-100 text-sm">{fmtDate(strategy.payoff_date)}</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">Bitiş</div>
+          <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{fmtDate(strategy.payoff_date)}</div>
         </div>
       </div>
     </div>
@@ -117,30 +117,30 @@ function ConsolidationSimulator({ debts }) {
     <div className="card p-5 space-y-4">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-md bg-brand-600/20 flex-shrink-0">
-          <Combine className="w-5 h-5 text-brand-300" />
+          <Combine className="w-5 h-5 text-brand-700 dark:text-brand-300" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-zinc-100">Konsolidasyon Simülatörü</h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Konsolidasyon Simülatörü</h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
             {debts.length} borç · toplam {paraTam(total)} · ağırlıklı ort. faiz{' '}
-            <span className="font-semibold text-zinc-200">%{weighted.toFixed(2)}/ay</span>.
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">%{weighted.toFixed(2)}/ay</span>.
             Konsolidasyon yalnız bu oranın <span className="font-semibold">altında</span> avantajlı. Nötr araç — tavsiye değil.
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <label className="text-xs text-zinc-400">
+        <label className="text-xs text-zinc-500 dark:text-zinc-400">
           Teklif oranı (%/ay)
           <input type="number" step="0.01" min="0" max="20" value={rate}
             onChange={(e) => setRate(e.target.value)}
-            className="block mt-1 w-32 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
+            className="block mt-1 w-32 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100" />
         </label>
-        <label className="text-xs text-zinc-400">
+        <label className="text-xs text-zinc-500 dark:text-zinc-400">
           Vade (ay)
           <input type="number" step="1" min="1" max="360" value={term}
             onChange={(e) => setTerm(e.target.value)}
-            className="block mt-1 w-28 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
+            className="block mt-1 w-28 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100" />
         </label>
         <button type="button" onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Combine className="w-3.5 h-3.5" />}
@@ -152,19 +152,19 @@ function ConsolidationSimulator({ debts }) {
         <div className={`rounded-lg border p-4 ${result.oran_avantajli ? 'border-positive-600/50 bg-positive-950/30' : 'border-warn-600/50 bg-warn-950/30'}`}>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <div className="text-xs text-zinc-400">Yeni taksit</div>
-              <div className="text-base font-semibold text-zinc-100">{paraTam(result.yeni_taksit)}/ay</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">Yeni taksit</div>
+              <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{paraTam(result.yeni_taksit)}/ay</div>
             </div>
             <div>
-              <div className="text-xs text-zinc-400">Toplam faiz</div>
-              <div className="text-base font-semibold text-zinc-100">{paraTam(result.yeni_toplam_faiz)}</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">Toplam faiz</div>
+              <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{paraTam(result.yeni_toplam_faiz)}</div>
             </div>
             <div>
-              <div className="text-xs text-zinc-400">Vade</div>
-              <div className="text-base font-semibold text-zinc-100">{result.vade_ay} ay</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">Vade</div>
+              <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{result.vade_ay} ay</div>
             </div>
           </div>
-          <p className={`text-sm mt-3 ${result.oran_avantajli ? 'text-positive-300' : 'text-warn-300'}`}>
+          <p className={`text-sm mt-3 ${result.oran_avantajli ? 'text-positive-700 dark:text-positive-300' : 'text-warn-700 dark:text-warn-300'}`}>
             {result.oran_avantajli
               ? `Teklif %${result.yeni_oran.toFixed(2)} < eşik %${result.agirlikli_ort_oran.toFixed(2)} — faiz olarak avantajlı. Vade uzarsa toplam faiz yine de artabilir; süre + taksit birlikte değerlendir.`
               : `Teklif %${result.yeni_oran.toFixed(2)} ≥ eşik %${result.agirlikli_ort_oran.toFixed(2)} — faiz olarak avantaj yok.`}
@@ -202,11 +202,11 @@ function OpportunityCost({ hasDebt }) {
     <div className="card p-5 space-y-4">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-md bg-warn-600/20 flex-shrink-0">
-          <ShoppingCart className="w-5 h-5 text-warn-300" />
+          <ShoppingCart className="w-5 h-5 text-warn-700 dark:text-warn-300" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-zinc-100">Harcama Fırsat Maliyeti</h3>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Harcama Fırsat Maliyeti</h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
             Bir harcamayı en yüksek faizli borcuna ödemek yerine yapmanın gerçek maliyeti —
             borçsuzluk ne kadar gecikir, ne kadar fazla faiz. Nötr araç, harcama önerisi değil.
           </p>
@@ -214,11 +214,11 @@ function OpportunityCost({ hasDebt }) {
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <label className="text-xs text-zinc-400">
+        <label className="text-xs text-zinc-500 dark:text-zinc-400">
           Harcama tutarı ({paraEtiketi()})
           <input type="number" step="100" min="0" value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="block mt-1 w-40 rounded-md bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-100" />
+            className="block mt-1 w-40 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100" />
         </label>
         <button type="button" onClick={run} disabled={busy} className="btn btn-secondary !text-xs">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5" />}
@@ -227,16 +227,16 @@ function OpportunityCost({ hasDebt }) {
       </div>
 
       {result && (
-        <div className="rounded-lg border border-warn-600/50 bg-warn-950/30 p-4 text-sm text-zinc-200 space-y-1">
+        <div className="rounded-lg border border-warn-600/50 bg-warn-950/30 p-4 text-sm text-zinc-800 dark:text-zinc-200 space-y-1">
           <div>
             <span className="font-semibold">{paraTam(result.harcama)}</span> harcarsan, bu parayı{' '}
             <span className="font-semibold">{result.hedef_borc}</span> borcuna ödemek yerine:
           </div>
           <div>
-            → <span className="font-semibold text-warn-300">{paraTam(result.faiz_tasarrufu)}</span> fazla faiz ödersin
+            → <span className="font-semibold text-warn-700 dark:text-warn-300">{paraTam(result.faiz_tasarrufu)}</span> fazla faiz ödersin
             {result.ay_kazanci > 0 && <> ve borçsuzluk <span className="font-semibold">{result.ay_kazanci} ay</span> gecikir</>}.
           </div>
-          <div className="text-xs text-zinc-400">
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">
             Öde: {result.odersen_ay} ay / {paraTam(result.odersen_faiz)} faiz · Harca: {result.baseline_ay} ay / {paraTam(result.baseline_faiz)} faiz
           </div>
         </div>
@@ -282,7 +282,7 @@ export default function DebtStrategy() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-zinc-400">
+      <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-zinc-400">
         <Loader2 className="w-6 h-6 animate-spin mr-2" /> Yükleniyor…
       </div>
     );
@@ -292,9 +292,9 @@ export default function DebtStrategy() {
   if (error && !data) {
     return (
       <div className="card p-8 text-center">
-        <AlertTriangle className="w-10 h-10 mx-auto text-warn-400 mb-3" />
-        <h3 className="text-lg text-zinc-200 mb-1">Borç stratejisi yüklenemedi</h3>
-        <p className="text-sm text-zinc-400 mb-4">{error}</p>
+        <AlertTriangle className="w-10 h-10 mx-auto text-warn-600 dark:text-warn-400 mb-3" />
+        <h3 className="text-lg text-zinc-800 dark:text-zinc-200 mb-1">Borç stratejisi yüklenemedi</h3>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{error}</p>
         <button type="button" onClick={() => fetchData(extraMonthly)} className="btn btn-secondary !text-xs">
           <RefreshCw className="w-3.5 h-3.5" /> Tekrar dene
         </button>
@@ -306,8 +306,8 @@ export default function DebtStrategy() {
     return (
       <div className="card p-8 text-center">
         <CreditCard className="w-10 h-10 mx-auto text-zinc-500 mb-3" />
-        <h3 className="text-lg text-zinc-200 mb-1">Aktif borç yok</h3>
-        <p className="text-sm text-zinc-400">Strateji karşılaştırması için en az bir borç hesabı gerekli.</p>
+        <h3 className="text-lg text-zinc-800 dark:text-zinc-200 mb-1">Aktif borç yok</h3>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Strateji karşılaştırması için en az bir borç hesabı gerekli.</p>
       </div>
     );
   }
@@ -317,11 +317,11 @@ export default function DebtStrategy() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-brand-400" />
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <CreditCard className="w-6 h-6 text-brand-600 dark:text-brand-400" />
             Borç Stratejisi
           </h2>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Snowball ve Avalanche stratejilerini karşılaştır. {data.debts.length} aktif borç.
           </p>
         </div>
@@ -340,7 +340,7 @@ export default function DebtStrategy() {
       {data.warnings?.length > 0 && (
         <div className="rounded-lg border border-warn-600/50 bg-warn-950/30 p-4">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-5 h-5 text-warn-300 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-warn-700 dark:text-warn-300 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               {data.warnings.map((w, i) => (
                 <p key={i} className="text-sm text-warn-200">{w}</p>
@@ -353,10 +353,10 @@ export default function DebtStrategy() {
       {/* Ekstra ödeme slider */}
       <div className="card p-4">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm text-zinc-300 font-medium">
+          <label className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">
             Opsiyonel ekstra aylık ödeme
           </label>
-          <span className="text-base font-semibold font-numeric text-brand-400">{paraTam(extraMonthly)}</span>
+          <span className="text-base font-semibold font-numeric text-brand-600 dark:text-brand-400">{paraTam(extraMonthly)}</span>
         </div>
         <input
           type="range"
@@ -401,20 +401,20 @@ export default function DebtStrategy() {
         <div className="card p-5 border-brand-700/50 bg-brand-950/20">
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-md bg-brand-600/20 flex-shrink-0">
-              <Info className="w-5 h-5 text-brand-300" />
+              <Info className="w-5 h-5 text-brand-700 dark:text-brand-300" />
             </div>
             <div className="flex-1 space-y-2">
               <h3 className="text-base font-semibold text-brand-200">Karşılaştırma</h3>
-              <p className="text-sm text-zinc-300">{data.comparison.recommendation_note}</p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">{data.comparison.recommendation_note}</p>
               <div className="flex flex-wrap gap-6 text-sm pt-2">
                 <div>
-                  <span className="text-zinc-400">Avalanche ile faiz tasarrufu: </span>
-                  <span className="font-semibold font-numeric text-positive-300">{paraTam(data.comparison.interest_saved_with_avalanche)}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">Avalanche ile faiz tasarrufu: </span>
+                  <span className="font-semibold font-numeric text-positive-700 dark:text-positive-300">{paraTam(data.comparison.interest_saved_with_avalanche)}</span>
                 </div>
                 {data.comparison.months_difference !== 0 && (
                   <div>
-                    <span className="text-zinc-400">Süre farkı: </span>
-                    <span className="font-semibold font-numeric text-zinc-100">{Math.abs(data.comparison.months_difference)} ay</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">Süre farkı: </span>
+                    <span className="font-semibold font-numeric text-zinc-900 dark:text-zinc-100">{Math.abs(data.comparison.months_difference)} ay</span>
                   </div>
                 )}
               </div>

@@ -26,10 +26,10 @@ function BudgetBreakdown({ dokum }) {
   if (!dokum) return null;
   const Row = ({ label, value, sign, muted }) => (
     <div className="flex items-center justify-between py-0.5">
-      <span className={muted ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-600 dark:text-zinc-300'}>
+      <span className={muted ? 'text-zinc-500' : 'text-zinc-600 dark:text-zinc-300'}>
         {label}
       </span>
-      <span className={`font-numeric ${muted ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-200'}`}>
+      <span className={`font-numeric ${muted ? 'text-zinc-500' : 'text-zinc-700 dark:text-zinc-200'}`}>
         {sign}{formatPara(Math.abs(value))}
       </span>
     </div>
@@ -39,7 +39,7 @@ function BudgetBreakdown({ dokum }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1"
+        className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1 min-h-[44px]"
       >
         {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
         Günlük limit nasıl hesaplandı?
@@ -63,7 +63,7 @@ function BudgetBreakdown({ dokum }) {
             </span>
           </div>
           {dokum.alacak_haric > 0 && (
-            <p className="mt-1.5 text-zinc-400 dark:text-zinc-500 leading-snug">
+            <p className="mt-1.5 text-zinc-500 leading-snug">
               Not: Alacaklar ({formatPara(dokum.alacak_haric)}) bütçeye dahil DEĞİL — tahsilat
               muhatabın kontrolünde. Kredinin yalnız <b>bu ayki taksiti</b> düşülür; bakiyenin
               tamamı değil.
@@ -312,7 +312,7 @@ export default function Cockpit({ setActiveTab }) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Finansal Sağlık</span>
               <span className={`font-numeric font-bold text-2xl ${txtCls}`}>
-                {sk.skor}<span className="text-sm text-zinc-400 dark:text-zinc-500">/100</span>
+                {sk.skor}<span className="text-sm text-zinc-500">/100</span>
               </span>
             </div>
             <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
@@ -371,7 +371,7 @@ export default function Cockpit({ setActiveTab }) {
               <span className={`font-numeric font-semibold ${data.nakit_runway_gun >= 30 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
                 {data.nakit_runway_gun} gün
               </span>
-              <span className="text-zinc-400 dark:text-zinc-500"> (gelirsiz, 30g harcama hızıyla)</span>
+              <span className="text-zinc-500"> (gelirsiz, 30g harcama hızıyla)</span>
             </p>
           )}
         </div>
@@ -387,7 +387,7 @@ export default function Cockpit({ setActiveTab }) {
           <span className="text-zinc-600 dark:text-zinc-300">
             {data.abonelik_yuku.adet} abonelik ·{' '}
             <span className="font-numeric font-semibold">{formatPara(data.abonelik_yuku.aylik)}</span>/ay
-            <span className="text-zinc-400 dark:text-zinc-500"> ({formatPara(data.abonelik_yuku.yillik)}/yıl)</span>
+            <span className="text-zinc-500"> ({formatPara(data.abonelik_yuku.yillik)}/yıl)</span>
           </span>
         </div>
       )}
@@ -400,8 +400,8 @@ export default function Cockpit({ setActiveTab }) {
             {data.borc_ozgurluk.asla_bitmez
               ? 'Minimum ödemelerle borç makul sürede kapanmıyor — ek ödeme şart.'
               : <>Borçsuzluk: <span className="font-semibold">{data.borc_ozgurluk.kalan_ay} ay</span>
-                  {data.borc_ozgurluk.borcsuz_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (≈{formatDate(data.borc_ozgurluk.borcsuz_tarih)})</span>}
-                  <span className="text-zinc-400 dark:text-zinc-500"> · kalan faiz {formatPara(data.borc_ozgurluk.toplam_faiz)}</span></>}
+                  {data.borc_ozgurluk.borcsuz_tarih && <span className="text-zinc-500"> (≈{formatDate(data.borc_ozgurluk.borcsuz_tarih)})</span>}
+                  <span className="text-zinc-500"> · kalan faiz {formatPara(data.borc_ozgurluk.toplam_faiz)}</span></>}
           </span>
         </div>
       )}
@@ -413,7 +413,7 @@ export default function Cockpit({ setActiveTab }) {
           <span className="text-zinc-600 dark:text-zinc-300">
             Faize giden:{' '}
             <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatPara(data.faiz_sizintisi.aylik_toplam)}</span>/ay
-            <span className="text-zinc-400 dark:text-zinc-500"> ({formatPara(data.faiz_sizintisi.yillik_toplam)}/yıl · günde {formatPara(data.faiz_sizintisi.gunluk)})</span>
+            <span className="text-zinc-500"> ({formatPara(data.faiz_sizintisi.yillik_toplam)}/yıl · günde {formatPara(data.faiz_sizintisi.gunluk)})</span>
           </span>
         </div>
       )}
@@ -432,7 +432,7 @@ export default function Cockpit({ setActiveTab }) {
               <span className="text-zinc-600 dark:text-zinc-300">
                 Kart kullanımı{' '}
                 <span className={`font-numeric font-semibold ${txtColor}`}>%{ku.oran}</span>
-                <span className="text-zinc-400 dark:text-zinc-500"> ({formatSayi(ku.toplam_borc)} / {formatPara(ku.toplam_limit)})</span>
+                <span className="text-zinc-500"> ({formatSayi(ku.toplam_borc)} / {formatPara(ku.toplam_limit)})</span>
               </span>
               {tr && (
                 <span className={`ml-auto text-xs font-numeric ${tr.iyilesme ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
@@ -454,15 +454,15 @@ export default function Cockpit({ setActiveTab }) {
       {/* FEAT-027: alacak yaşlandırma — gecikmiş alacakları vade-yaşına göre önceliklendir */}
       {data.alacak_yaslanma?.gecikmis_adet > 0 && (
         <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
-          <Users className="w-4 h-4 text-warn-500 shrink-0 mt-0.5" />
+          <Users className="w-4 h-4 text-warn-600 dark:text-warn-500 shrink-0 mt-0.5" />
           <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
             <div>
               <span className="font-semibold">{data.alacak_yaslanma.gecikmis_adet} gecikmiş alacak</span>{' '}
               <span className="font-numeric font-semibold text-warn-600 dark:text-warn-400">{formatPara(data.alacak_yaslanma.toplam_gecikmis)}</span>
-              <span className="text-zinc-400 dark:text-zinc-500"> / {data.alacak_yaslanma.adet} alacak</span>
+              <span className="text-zinc-500"> / {data.alacak_yaslanma.adet} alacak</span>
             </div>
             {data.alacak_yaslanma.en_riskli?.length > 0 && (
-              <div className="text-zinc-400 dark:text-zinc-500 text-xs">
+              <div className="text-zinc-500 text-xs">
                 Önce kovala: {data.alacak_yaslanma.en_riskli.map((k) => `${k.kim} ${formatPara(k.tutar)} (${k.gecikme_gun}g)`).join(' · ')}
               </div>
             )}
@@ -473,7 +473,7 @@ export default function Cockpit({ setActiveTab }) {
       {/* FEAT-015: kart asgari-ödeme tuzağı — sadece asgari ödeme senaryosu (görünmez maliyet) */}
       {data.asgari_tuzagi?.kartlar?.length > 0 && (
         <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
-          <AlertTriangle className="w-4 h-4 text-warn-500 shrink-0 mt-0.5" />
+          <AlertTriangle className="w-4 h-4 text-warn-600 dark:text-warn-500 shrink-0 mt-0.5" />
           <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
             {data.asgari_tuzagi.kartlar.slice(0, 2).map((k, i) => (
               <div key={i}>
@@ -481,10 +481,10 @@ export default function Cockpit({ setActiveTab }) {
                   ? <><span className="font-semibold">{k.ad}</span>: yalnız asgariyle <span className="font-semibold text-negative-600 dark:text-negative-400">asla kapanmaz</span> (asgari &lt; faiz)</>
                   : <><span className="font-semibold">{k.ad}</span> asgari-ödeme tuzağı: <span className="font-semibold">{k.ay} ay</span> · faiz{' '}
                       <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatPara(k.toplam_faiz)}</span>
-                      {k.payoff_tarih && <span className="text-zinc-400 dark:text-zinc-500"> (biter ≈{formatDate(k.payoff_tarih)})</span>}</>}
+                      {k.payoff_tarih && <span className="text-zinc-500"> (biter ≈{formatDate(k.payoff_tarih)})</span>}</>}
               </div>
             ))}
-            <div className="text-zinc-400 dark:text-zinc-500 text-xs">Asgarinin üstüne her ek ödeme süreyi ve toplam faizi hızla düşürür.</div>
+            <div className="text-zinc-500 text-xs">Asgarinin üstüne her ek ödeme süreyi ve toplam faizi hızla düşürür.</div>
           </div>
         </div>
       )}
@@ -528,7 +528,7 @@ export default function Cockpit({ setActiveTab }) {
           ))}
           {/* #126: sığmayan uyarılar — alert yorgunluğu için gizlenenlerin sayısı */}
           {data.gizli_uyari_sayisi > 0 && (
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center pt-1">
+            <p className="text-xs text-zinc-500 text-center pt-1">
               +{data.gizli_uyari_sayisi} düşük öncelikli uyarı daha
             </p>
           )}
@@ -603,7 +603,7 @@ export default function Cockpit({ setActiveTab }) {
             {setActiveTab && (
               <button
                 onClick={() => setActiveTab('cashflow')}
-                className="flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:underline"
+                className="flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:underline min-h-[44px] px-1"
               >
                 Detay <ArrowRight className="w-3 h-3" />
               </button>
@@ -615,7 +615,7 @@ export default function Cockpit({ setActiveTab }) {
               <p className={`font-numeric font-semibold text-sm ${flowSummary.lowest_balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
                 {formatPara(flowSummary.lowest_balance)}
               </p>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{formatDate(flowSummary.lowest_date)}</p>
+              <p className="text-[10px] text-zinc-500">{formatDate(flowSummary.lowest_date)}</p>
             </div>
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Net Akış</p>
@@ -625,7 +625,7 @@ export default function Cockpit({ setActiveTab }) {
             </div>
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Sıkışma Günü</p>
-              <p className={`font-numeric font-semibold text-sm ${flowSummary.crunch_count > 0 ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+              <p className={`font-numeric font-semibold text-sm ${flowSummary.crunch_count > 0 ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-500'}`}>
                 {flowSummary.crunch_count}
               </p>
             </div>
@@ -772,7 +772,7 @@ export default function Cockpit({ setActiveTab }) {
                 <span className="text-zinc-700 dark:text-zinc-300">
                   {item.name}
                   {item.is_emanet && (
-                    <Lock className="inline w-3 h-3 ml-1 text-warn-500" />
+                    <Lock className="inline w-3 h-3 ml-1 text-warn-600 dark:text-warn-500" />
                   )}
                 </span>
                 <span

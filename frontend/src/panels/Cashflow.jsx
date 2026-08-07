@@ -91,7 +91,7 @@ export default function Cashflow() {
               <button
                 key={d}
                 onClick={() => setHorizon(d)}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 min-h-[44px] text-xs font-medium transition-colors ${
                   horizon === d
                     ? 'bg-brand-500 text-white'
                     : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
@@ -117,10 +117,10 @@ export default function Cashflow() {
           <button
             key={key}
             onClick={() => toggleFilter(key)}
-            className={`chip transition-colors ${
+            className={`chip transition-colors min-h-[44px] px-3 ${
               include.has(key)
                 ? 'chip-positive'
-                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
             }`}
           >
             {label}
@@ -141,7 +141,7 @@ export default function Cashflow() {
             placeholder="0"
             title="Sıkışma eşiği ({paraEtiketi()})"
           />
-          <span className="text-xs text-zinc-400">{paraEtiketi()}</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">{paraEtiketi()}</span>
         </div>
       </div>
 

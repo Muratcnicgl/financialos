@@ -117,7 +117,7 @@ export default function Onboarding({ setActiveTab, onDegisti }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium ${adim.tamam
-                  ? 'text-zinc-500 dark:text-zinc-500 line-through'
+                  ? 'text-zinc-500 line-through'
                   : 'text-zinc-900 dark:text-zinc-100'}`}>
                   {adim.baslik}
                 </p>

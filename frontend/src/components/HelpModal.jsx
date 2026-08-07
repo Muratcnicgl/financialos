@@ -55,7 +55,7 @@ export default function HelpModal({ onClose }) {
             ))}
           </tbody>
         </table>
-        <p className="text-[11px] text-zinc-400 mt-4">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-4">
           Y/N/E → input dışındayken bekleyen aksiyona uygulanır · Cmd+1..6 → her zaman aktif
         </p>
       </div>

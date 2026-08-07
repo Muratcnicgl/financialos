@@ -4,7 +4,9 @@
 
 > **Düzeltme (7 Ağu 2026):** bu dosya yıllardır "520" diyordu; `sections/` altındaki gerçek madde
 > sayısı **521**'dir (FEAT 40 değil **41**). Ölçüm: her boyut dosyasında `### [KOD-NNN]` blok sayımı.
-> **Güncel durum dağılımı (6 Ağu 2026 ölçümü):** 145 KAPALI · 272 AÇIK · 79 KISMEN · 25 DURUMSUZ.
+> **Güncel durum dağılımı (7 Ağu 2026 ölçümü, akşam):** 152 KAPALI · **262 AÇIK** · 82 KISMEN · 25 DURUMSUZ.
+> (Ölçüm: `sections/*.md` içinde `- **Durum:** 🔲/🟡` sayımı. Ara noktalar: 6 Ağu 145/272/79 →
+> SEC turu 150/267 → BUG #265 turu 152/262/82.)
 **Yöntem:** Gerçek kod denetimi (`file:line`) + en iyi uygulamalar / benzer ürünler / akademik kaynak. Kopyalama değil entegrasyon. Her madde bir geliştirici tarafından ek araştırma olmadan uygulanabilir.
 
 ## Kök vizyon (bağlam)

@@ -312,7 +312,7 @@ export default function IncomeDebt() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
               activeTab === id
                 ? 'text-brand-600 dark:text-brand-400 border-brand-500'
                 : 'text-zinc-500 border-transparent hover:text-zinc-800 dark:hover:text-zinc-200'
@@ -518,7 +518,7 @@ function IncomeRow({ income, onToggle, onEdit, onDelete }) {
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
             <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
-              <Power className={`w-3 h-3 ${income.is_active ? 'text-positive-500' : 'text-zinc-400'}`} />
+              <Power className={`w-3 h-3 ${income.is_active ? 'text-positive-600 dark:text-positive-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
             </button>
             <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />
@@ -566,7 +566,7 @@ function ExpenseRow({ expense, accounts, onToggle, onEdit, onDelete }) {
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
             <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
-              <Power className={`w-3 h-3 ${expense.is_active ? 'text-positive-500' : 'text-zinc-400'}`} />
+              <Power className={`w-3 h-3 ${expense.is_active ? 'text-positive-600 dark:text-positive-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
             </button>
             <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
               <Pencil className="w-3 h-3" />

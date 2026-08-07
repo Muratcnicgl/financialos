@@ -92,7 +92,7 @@ function HorizonCard({ snap, meta, frame }) {
                   {formatPara(value ?? 0)}
                 </span>
                 {dText && (
-                  <p className={`text-[10px] font-numeric ${dVal < 0 ? 'text-negative-500' : 'text-positive-500'}`}>
+                  <p className={`text-[10px] font-numeric ${dVal < 0 ? 'text-negative-500' : 'text-positive-600 dark:text-positive-500'}`}>
                     Δ {dText}
                   </p>
                 )}
@@ -310,7 +310,7 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
                     <li key={i} className="text-xs text-zinc-500 dark:text-zinc-400 font-numeric">{ev}</li>
                   ))}
                   {result.event_log.length > 5 && (
-                    <li className="text-xs text-zinc-400 dark:text-zinc-500">
+                    <li className="text-xs text-zinc-500">
                       +{result.event_log.length - 5} daha
                     </li>
                   )}

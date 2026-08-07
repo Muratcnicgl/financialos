@@ -92,7 +92,7 @@ export default function Workspace() {
   };
 
   if (loading) {
-    return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-zinc-400" /></div>;
+    return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-zinc-500 dark:text-zinc-400" /></div>;
   }
 
   const isOwner = detail?.role === 'owner';
@@ -100,7 +100,7 @@ export default function Workspace() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-2 text-zinc-100">
+      <div className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
         <Users size={20} /><h2 className="text-lg font-semibold">Aile Hesabı / Workspace</h2>
       </div>
 
@@ -110,10 +110,10 @@ export default function Workspace() {
           <button
             key={w.id}
             onClick={() => selectWs(w.id)}
-            className={`px-3 py-2 rounded-lg text-sm border transition ${
+            className={`px-3 py-2 min-h-[44px] rounded-lg text-sm border transition ${
               String(w.id) === String(activeId)
                 ? 'bg-blue-600 border-blue-500 text-white'
-                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:border-zinc-500'
             }`}
           >
             {w.name}
@@ -128,23 +128,23 @@ export default function Workspace() {
         <input
           value={newName} onChange={(e) => setNewName(e.target.value)}
           placeholder="Yeni workspace adı (örn. Aile Bütçesi)"
-          className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm"
+          className="input flex-1 text-sm"
         />
-        <button disabled={busy} className="px-3 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 text-sm flex items-center gap-1">
+        <button disabled={busy} className="px-3 py-2 min-h-[44px] rounded-lg bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 text-sm flex items-center gap-1">
           <Plus size={16} /> Oluştur
         </button>
       </form>
 
       {/* Üyeler */}
       {detail && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 space-y-3">
-          <div className="text-sm font-medium text-zinc-200">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-4 space-y-3">
+          <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
             {detail.name} — Üyeler ({detail.members.length})
           </div>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {detail.members.map((m) => (
               <li key={m.user_id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-zinc-300">
+                <span className="text-zinc-700 dark:text-zinc-300">
                   {m.name || m.email || `Kullanıcı #${m.user_id}`}
                   <span className="ml-2 text-xs text-zinc-500">{ROLE_TR[m.role]}</span>
                 </span>
@@ -160,27 +160,27 @@ export default function Workspace() {
 
           {/* Davet formu — sadece owner + paylaşımlı workspace */}
           {isOwner && canShare && (
-            <form onSubmit={sendInvite} className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800">
+            <form onSubmit={sendInvite} className="flex flex-wrap gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
               <input
                 type="email" value={invite.email}
                 onChange={(e) => setInvite({ ...invite, email: e.target.value })}
                 placeholder="Davet edilecek e-posta"
-                className="flex-1 min-w-[180px] px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm"
+                className="input flex-1 min-w-[180px] text-sm"
               />
               <select
                 value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}
-                className="px-2 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm"
+                className="input w-auto text-sm"
               >
                 <option value="viewer">Görüntüleyici</option>
                 <option value="editor">Düzenleyici</option>
               </select>
-              <button disabled={busy} className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm flex items-center gap-1">
+              <button disabled={busy} className="btn btn-primary text-sm">
                 <Mail size={15} /> Davet et
               </button>
             </form>
           )}
           {detail.is_personal && (
-            <p className="text-xs text-zinc-500 pt-2 border-t border-zinc-800">
+            <p className="text-xs text-zinc-500 pt-2 border-t border-zinc-200 dark:border-zinc-800">
               Kişisel workspace paylaşılamaz. Aile paylaşımı için yeni bir workspace oluşturun.
             </p>
           )}
@@ -215,13 +215,13 @@ export function WorkspaceJoin({ token, onDone }) {
   }, [token]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-100 p-4">
-      <div className="max-w-sm w-full rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-center space-y-4">
-        <Users className="mx-auto text-blue-400" size={28} />
+    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 p-4">
+      <div className="max-w-sm w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 text-center space-y-4">
+        <Users className="mx-auto text-blue-600 dark:text-blue-400" size={28} />
         <h1 className="text-lg font-semibold">Workspace Daveti</h1>
-        {state === 'loading' && <Loader2 className="animate-spin mx-auto text-zinc-400" />}
+        {state === 'loading' && <Loader2 className="animate-spin mx-auto text-zinc-500 dark:text-zinc-400" />}
         {state === 'done' && (
-          <p className="text-sm text-emerald-400 flex items-center justify-center gap-1">
+          <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
             <Check size={16} /> {msg}
           </p>
         )}

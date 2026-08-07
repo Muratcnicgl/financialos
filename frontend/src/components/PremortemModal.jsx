@@ -97,7 +97,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
         {/* HEADER */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-2.5">
-            <Brain className="w-6 h-6 text-warn-500 flex-shrink-0" />
+            <Brain className="w-6 h-6 text-warn-600 dark:text-warn-500 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
                 Premortem Analizi
@@ -172,7 +172,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
                       </span>
                     </p>
                     <div className="flex items-start gap-2 bg-zinc-100 dark:bg-zinc-800/60 rounded p-2">
-                      <ShieldCheck className="w-3.5 h-3.5 text-positive-500 flex-shrink-0 mt-0.5" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-positive-600 dark:text-positive-500 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-zinc-700 dark:text-zinc-300">
                         <span className="font-medium">Önleme:</span> {s.mitigation}
                       </p>
@@ -183,7 +183,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
             })}
 
             {/* Provider bilgisi */}
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 text-right">
+            <p className="text-xs text-zinc-500 text-right">
               {result.provider_used} / {result.model_name}
             </p>
           </div>

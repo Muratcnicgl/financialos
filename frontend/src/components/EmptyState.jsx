@@ -24,7 +24,7 @@ export default function EmptyState({
       <div className="h-full flex flex-col items-center justify-center text-center px-4">
         {Icon && (
           <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
-            <Icon className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+            <Icon className="w-6 h-6 text-zinc-500" />
           </div>
         )}
         <h3 className="font-medium text-base mb-1">{title}</h3>
@@ -43,7 +43,7 @@ export default function EmptyState({
     <div className="card py-12 px-8 text-center">
       {Icon && (
         <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-3">
-          <Icon className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+          <Icon className="w-6 h-6 text-zinc-500" />
         </div>
       )}
       <h3 className="font-medium text-base mb-1">{title}</h3>

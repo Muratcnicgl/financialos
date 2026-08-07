@@ -107,7 +107,7 @@ export default function TracePanel({ memoryId, fetchTrace }) {
               {trace.steps.map((step) => (
                 <TraceStep key={step.id} step={step} />
               ))}
-              <div className="text-[10px] text-zinc-400 dark:text-zinc-500 pt-1 font-mono">
+              <div className="text-[10px] text-zinc-500 pt-1 font-mono">
                 trace_id: {trace.trace_id}
               </div>
             </>
@@ -178,14 +178,14 @@ function TraceStep({ step }) {
         )}
 
         {step.latency_ms != null && (
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+          <span className="text-[10px] text-zinc-500 font-mono">
             {step.latency_ms}ms
           </span>
         )}
 
         {(step.usage_input_tokens != null || step.usage_output_tokens != null) && (
           <span
-            className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono"
+            className="text-[10px] text-zinc-500 font-mono"
             title="Girdi + çıktı token sayısı"
           >
             {(step.usage_input_tokens || 0) + (step.usage_output_tokens || 0)}t
@@ -194,9 +194,9 @@ function TraceStep({ step }) {
 
         {hasDetails && (
           expanded ? (
-            <ChevronDown className="w-3 h-3 text-zinc-400" />
+            <ChevronDown className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
           ) : (
-            <ChevronRight className="w-3 h-3 text-zinc-400" />
+            <ChevronRight className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
           )
         )}
       </button>
@@ -212,7 +212,7 @@ function TraceStep({ step }) {
             </div>
           ))}
           {(step.provider_system || step.model_name) && (
-            <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono pt-1">
+            <div className="text-[10px] text-zinc-500 font-mono pt-1">
               {step.provider_system && <span>{step.provider_system}</span>}
               {step.provider_system && step.model_name && <span> · </span>}
               {step.model_name && <span>{step.model_name}</span>}

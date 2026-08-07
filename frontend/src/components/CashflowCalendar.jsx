@@ -70,7 +70,7 @@ export default function CashflowCalendar({ days }) {
       {/* Gün isimleri */}
       <div className="grid grid-cols-7 mb-1">
         {TR_DAYS_SHORT.map(d => (
-          <div key={d} className="text-center text-[10px] text-zinc-400 dark:text-zinc-500 py-1 font-medium">
+          <div key={d} className="text-center text-[10px] text-zinc-500 py-1 font-medium">
             {d}
           </div>
         ))}
@@ -128,12 +128,12 @@ export default function CashflowCalendar({ days }) {
             <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
               {selected.date} olayları
             </p>
-            <button type="button" onClick={() => setSelected(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
+            <button type="button" onClick={() => setSelected(null)} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
           {selected.day.events.length === 0 ? (
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Bu gün için kayıt yok.</p>
+            <p className="text-xs text-zinc-500">Bu gün için kayıt yok.</p>
           ) : (
             <div className="space-y-1">
               {selected.day.events.map((ev, i) => (

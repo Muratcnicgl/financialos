@@ -70,7 +70,7 @@ export default function NetWorthAnalysis() {
                 Enflasyona göre reel ({Math.round(real.yillik_enflasyon * 100)}%/yıl · {real.gun} gün)
               </h3>
               <div className="flex items-center gap-2 mb-1">
-                {real.reel_degisim >= 0 ? <TrendingUp className="w-4 h-4 text-positive-500" /> : <TrendingDown className="w-4 h-4 text-negative-500" />}
+                {real.reel_degisim >= 0 ? <TrendingUp className="w-4 h-4 text-positive-600 dark:text-positive-500" /> : <TrendingDown className="w-4 h-4 text-negative-500" />}
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
                   Nominal {real.nominal_degisim >= 0 ? '+' : ''}{formatSayi(real.nominal_degisim)} → Reel{' '}
                   <span className={real.reel_degisim >= 0 ? 'text-positive-600 dark:text-positive-400 font-semibold' : 'text-negative-600 dark:text-negative-400 font-semibold'}>

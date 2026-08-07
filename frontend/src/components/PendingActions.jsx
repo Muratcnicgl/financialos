@@ -162,7 +162,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
       </table>
       <div className="flex items-center gap-2 mt-1.5">
         <button type="button" onClick={startEdit}
-          className="btn btn-ghost !text-xs hover:!text-brand-600 dark:hover:!text-brand-400">
+          className="btn btn-ghost !text-xs hover:!text-brand-600 dark:hover:!text-brand-600 dark:text-brand-400">
           <Pencil className="w-3 h-3" /> Düzenle
         </button>
         {edited && (

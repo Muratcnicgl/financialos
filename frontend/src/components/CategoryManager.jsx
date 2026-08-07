@@ -132,7 +132,7 @@ export default function CategoryManager({ onDegisti }) {
         {kategoriler.map((k) => (
           <li key={k.id} className="py-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              {k.sistem && <Lock className="w-3.5 h-3.5 text-zinc-400 shrink-0"
+              {k.sistem && <Lock className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 shrink-0"
                                  title="Sistem kategorisi — muhasebe işlemi" />}
               {duzenlenen?.id === k.id ? (
                 <input
@@ -140,7 +140,7 @@ export default function CategoryManager({ onDegisti }) {
                   onChange={(e) => setDuzenlenen({ ...duzenlenen, ad: e.target.value })}
                 />
               ) : (
-                <span className={`truncate ${k.gizli ? 'text-zinc-400 line-through' : ''}`}>{k.ad}</span>
+                <span className={`truncate ${k.gizli ? 'text-zinc-500 dark:text-zinc-400 line-through' : ''}`}>{k.ad}</span>
               )}
               {k.kart_varsayilani && (
                 <CreditCard className="w-3.5 h-3.5 text-brand-500 shrink-0" title="Kart varsayılanı" />
@@ -159,7 +159,7 @@ export default function CategoryManager({ onDegisti }) {
                     <Check className="w-4 h-4" />
                   </button>
                   <button type="button" title="Vazgeç"
-                          className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-400"
+                          className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400"
                           onClick={() => setDuzenlenen(null)}>
                     <X className="w-4 h-4" />
                   </button>
@@ -175,19 +175,19 @@ export default function CategoryManager({ onDegisti }) {
                   )}
                   {!k.sistem && (
                     <button type="button" title="Yeniden adlandır"
-                            className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-400 hover:text-brand-500"
+                            className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-500"
                             onClick={() => setDuzenlenen({ id: k.id, ad: k.ad })}>
                       <Pencil className="w-4 h-4" />
                     </button>
                   )}
                   <button type="button" title={k.gizli ? 'Göster' : 'Gizle'}
-                          className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-400 hover:text-brand-500"
+                          className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-500"
                           onClick={() => guncelle(k.id, { gizli: !k.gizli })}>
                     {k.gizli ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                   {!k.sistem && (
                     <button type="button" title="Sil"
-                            className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-400 hover:text-negative-500"
+                            className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-negative-500"
                             onClick={() => sil(k)}>
                       <Trash2 className="w-4 h-4" />
                     </button>

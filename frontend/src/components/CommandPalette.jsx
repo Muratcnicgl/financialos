@@ -56,7 +56,7 @@ export default function CommandPalette({ onClose, setActiveTab }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-200 dark:border-zinc-700">
-          <Search className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+          <Search className="w-4 h-4 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -65,7 +65,7 @@ export default function CommandPalette({ onClose, setActiveTab }) {
             placeholder="Komut ara..."
             className="flex-1 bg-transparent outline-none text-sm placeholder-zinc-400 min-h-0"
           />
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1 text-zinc-400">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1 text-zinc-500 dark:text-zinc-400">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -84,12 +84,12 @@ export default function CommandPalette({ onClose, setActiveTab }) {
                 }`}
               >
                 <span>{cmd.label}</span>
-                <kbd className="text-[10px] text-zinc-400 font-mono">{cmd.hint}</kbd>
+                <kbd className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">{cmd.hint}</kbd>
               </button>
             ))
           )}
         </div>
-        <div className="px-4 py-2 border-t border-zinc-100 dark:border-zinc-800 text-[10px] text-zinc-400">
+        <div className="px-4 py-2 border-t border-zinc-100 dark:border-zinc-800 text-[10px] text-zinc-500 dark:text-zinc-400">
           ↑↓ seç · Enter uygula · Esc kapat
         </div>
       </div>

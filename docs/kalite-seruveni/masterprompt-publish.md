@@ -82,6 +82,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L26 | **Bir yasağın (dokunulmaz hesap, salt-okunur kayıt, korumalı kaynak) gücü, onu uygulayan guard'ın değil KAYNAĞI SEÇEN kodun sayısı kadardır.** Guard tek yerde olabilir ve doğru çalışabilir; ama korunan kaynağı "varsayılan" olarak seçen beş ayrı sorgu varsa yasak ya delinir ya da her onayda patlayan sessiz çıkmaz sokaklar üretir. Seçimi tek kaynağa topla ve "kendi seçim sorgusunu yazan var mı" diye **statik** kapı koy. | #241 sınıf taraması (5 ayrı "varsayılan nakit/kart hesabı" sorgusu; hiçbiri `is_emanet` dışlamıyordu, üçü sırasızdı → `app/account_rules.py` + `test_varsayilan_hesap_kapisi.py`) |
 | L27 | **Bir kapı, ölçtüğünü iddia ettiği listeyi ELLE taşıyorsa ölçmüyordur — listeyi kaynaktan türet.** Bu oturumda AYNI defekt dört ayrı yerde çıktı: veri-işleyen envanteri 4 sağlayıcı adını sabit kodluyordu (yeni ikisi üç hafta beyansız kaldı), export tamlık testi model adlarını fonksiyon KAYNAK METNİNDE arıyordu (yanlış fonksiyonu doğruluyordu), silme yalnız `user_id` kolonlu tabloları geziyordu (farklı isimli kolon = ıskalanan kişisel veri), migration geri-alınabilirlik kapısı elle yazılmış 9 revizyona bakıyordu. Ölçüt: kapı **şemayı / sınıf ağacını / dosya sistemini** gezmeli ve kapsam tabanını assert etmeli; elle liste ancak GEREKÇELİ İSTİSNA olarak, bayatlığı ayrıca ölçülerek kalabilir. | #242 (envanter), #243 (export+silme), #248 (migration) |
 | L28 | **"Çökmedim" başarı değildir; "atlandı" da geçti değildir.** Kendi başarısızlığını `skip`'e çeviren test ve tek bir iş bile yapamadığı hâlde `ok=True` kaydeden cron, koruma YOKLUĞUNDAN daha kötüdür: sayıya dahil olurlar, panelde yeşil görünürler, kimse bakmaz. Aynı aile: bağımlılığına hiç dokunmayan sağlık ucu (DB ölüyken 200 döner → otomatik rollback tetiklenmez). Başarı ölçütünü **işin amacına** bağla (kaç hesap güncellendi, hook çağrıldı mı, DB yanıt veriyor mu) ve başarısızlığı görünür kıl (kayıt detayına mesajı yaz, 503 dön). | #248 (D36 ölü test + D37 hep-başarılı cron), #247 (D39 kör sağlık ucu) |
+| L29 | **Bir ürünün İKİ görünümü varsa (koyu/açık tema, dil, telefon/masaüstü genişliği) ve yalnız biri render edilerek ölçülüyorsa, ölçülmeyen görünüm YOKTUR.** Sınıf listesini statik taramak bunu kapatmaz — üstelik "taradım, temiz" diyerek kapatmış gibi yapar. İkinci görünüm ancak açılıp ölçülünce vardır; ölçüt de görünen şey olmalıdır (kontrast oranı), onun vekili değil (sınıf adı). | #265 (ilk statik tarayıcı 128 koyu-varsayan kullanımın **123'ünü** kaçırdı ve 5 bulgu raporladı; tarayıcıda render edilince açık temada başlıklar 1.05 kontrastla GÖRÜNMÜYORDU, koyu temada net-değer grafiği 2.82 ile okunmuyordu) |
+| L30 | **"Global bir sınıfla çözdük" bir İDDİADIR: o sınıfı KULLANMAYAN kodu ölçmedikçe standart yoktur.** Bir sınıf yalnız onu yazanı bağlar; ham utility ile kurulan her yeni kontrol standardın dışında doğar ve hiçbir şey bunu görmez. Standardı kalıcı yapan sınıf değil, sınıfı kullanmayanı da yakalayan ölçümdür. | #265 / ADR-010 ("global `.btn` gelecekteki butonları da 44px yapar" — ölçünce `.btn` kullanmayan kontroller 42/35/28/20/13px çıktı, 3 aydır kimse görmedi) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -479,7 +481,27 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 > - **Taban:** 2105 passed / 18 skipped + 159 vitest (8'i yeni) + `npm run build` yeşil.
 > - **Kalan açık iş:** ~~onboarding rehberi (P3)~~ → **7 Ağu'da kapandı (BUG #262)**;
 >   ~~kapasite sınırları (P5)~~ → **7 Ağu'da kapandı (BUG #263, P5.5)**;
->   H11 canlı SMTP (insan-kapısı), backlog'un 272 açık maddesi ve P6-P9 insan-kapısı.
+>   ~~açık tema / mobil yüzey~~ → **7 Ağu'da kapandı (BUG #265 / ADR-047)**;
+>   H11 canlı SMTP (insan-kapısı), backlog'un **262** açık maddesi ve P6-P9 insan-kapısı.
+>
+> **📌 İKİ TEMA + TELEFON YÜZEYİ ÖLÇÜLDÜ (BUG #265 / ADR-047, 7 Ağu 2026).** Uygulama
+> `darkMode:'class'` ile **iki ayrı sayfa** üretir ve varsayılanı koyudur; 168 vitest + 4 e2e'nin
+> hiçbiri **açık temayı** ya da **telefon genişliğini** render etmiyordu. 390×844'te 13 panel × 2
+> tema ölçülünce: dört panel tamamen koyu-varsayan yazılmıştı (`Goals`/`DebtStrategy`/`Workspace`/
+> `Login`) → açık temada "Hedefler" başlığı **1.05** kontrastla **görünmüyordu**, boş-durum
+> yazıları 1.27, Aile üye satırları 1.22/1.42. Ters yönde **varsayılan (koyu) temada** net-değer
+> grafiğinin serisi ve Recharts lejant metni `#4f46e5` ile **2.82** — okunmuyordu. Renk kararı
+> temayı bilmiyordu. **Statik tarama bunu bulamadı** (128 kullanımın 123'ünü kaçırdı, "temiz"
+> dedi → **L29**). **ADR-010 çürütüldü:** "global `.btn` gelecekteki butonları da 44px yapar"
+> gerekçesi ölçülünce yanlış çıktı — `.btn` kullanmayan kontroller 42/35/28/20/13px (**L30**).
+> Kalıcı kapı `frontend/e2e/tema-mobil.spec.js`: her panel × her tema, kontrast ≥3:1 + taşma yok
+> + dokunma hedefi ≥44px (iki YAZILI istisna) + konsol temiz. Grafik renkleri tek kaynakta ve
+> **iki temada da** ≥3:1 (`lib/grafikRenkleri.js`). **Yan bulgu:** BUG #241'in kapanış kanıtı
+> (`e2e/tahsilat-nakde-gecer.spec.js`) **kimliksiz** yazılmıştı → CI'nin `AUTH_ENABLED=true`
+> ortamında 401 alıp ilk adımda ölüyordu; eklendiği 6 Ağu'dan beri **hiç yeşil olmamış**.
+> Kapanış kanıtı koşmuyorsa kanıt değildir → spec kendi kullanıcısıyla izole edildi.
+> **Taban: 2452 passed / 18 skipped + 168 vitest + 6 e2e (4→6) + `npm run build` OK.**
+> Mutasyon 3/3.
 >
 > **📌 P3.5.3 — KATEGORİ SETİ KULLANICIYA GEÇTİ (BUG #264 / ADR-046, 7 Ağu 2026).**
 > Kod, kullanıcının parasıyla ilgili iki kararı **sabit Türkçe kategori adlarına** bağlıyordu:

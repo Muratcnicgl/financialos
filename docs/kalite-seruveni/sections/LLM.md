@@ -46,7 +46,13 @@
 - **Etki:** Yüksek · **Efor:** S · **Not:** LLM-005/006'nın ön koşulu.
 
 ### [LLM-008] Tool-call şema doğrulaması yok — args sessizce {}
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: tool-call args Pydantic yok
+- **Durum:** 🟡 KISMEN (BUG #266 / ADR-048, 7 Ağu 2026) — **`propose_action` yolu KAPANDI:**
+  payload artık Pydantic ile onay ÖNCESİNDE doğrulanır (`app/action_schema.py`, `extra=forbid`),
+  eksik tool argümanı adlandırılmış hataya döner ve mevcut retry yoluna düşer; ek olarak
+  özet↔payload tutarlılığı denetlenir ve red kullanıcıya görünür mesajla söylenir. Prompt
+  şablonları şemadan üretilir. Kapı: `tests/test_aksiyon_payload_kapisi.py` (mutasyon 3/3).
+  **Açık kalan:** `save_insight` argümanları hâlâ ham indeksleniyor; sağlayıcı tarafında
+  `strict:true` + `additionalProperties:false` (Anthropic/OpenAI) uygulanmadı.
 - **Kanıt:** `coach.py:1006-1009,1060-1063,1110-1114,911-913`; `:1659-1662`
 - **Aksiyon:** PROPOSE/SAVE şemalarını Pydantic'e bağla; tool-call sonrası `model_validate`, hata→retry; Anthropic'te `strict:true`+`additionalProperties:false`.
 - **Etki:** Yüksek · **Efor:** M

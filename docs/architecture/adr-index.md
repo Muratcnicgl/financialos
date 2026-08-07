@@ -92,3 +92,10 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   tek kaynakta (`frontend/src/lib/grafikRenkleri.js`) ve **iki temada da** ≥ 3:1. **ADR-010'un
   "global class kalıcıdır" gerekçesini düzeltir:** kalıcılığı sağlayan sınıf değil, sınıfı
   kullanmayanı da yakalayan ölçümdür. Kapı: `frontend/e2e/tema-mobil.spec.js` (mutasyon 3/3).
+- **ADR-048 — LLM'in ürettiği aksiyon payload'ı ONAY ÖNCESİNDE doğrulanır (BUG #266):**
+  `propose_action` yalnız `action_type`'ı doğruluyordu; payload'ın şekli prompt'a bırakılmıştı.
+  Ölçüm: metin tutar (`"uc yuz yirmi"`) onaya sunuluyor ve onaydan sonra hiçbir şey yazılmıyordu;
+  `summary` "320 TL" iken `payload` 3200 olabiliyordu. Tek kaynak `app/action_schema.py`
+  (Pydantic + `extra=forbid` + özet↔payload tutarlılığı); prompt şablonları şemadan ÜRETİLİR.
+  Kapı: `tests/test_aksiyon_payload_kapisi.py` + `frontend/src/bekleyen-aksiyon-gorunurluk.test.jsx`
+  (mutasyon 3/3).

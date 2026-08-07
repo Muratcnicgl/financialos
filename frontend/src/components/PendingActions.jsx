@@ -26,6 +26,45 @@ function safeParsePayload(payload) {
   try { return JSON.parse(payload); } catch { return {}; }
 }
 
+// BUG #266: add_transaction DIŞINDAKİ altı türde payload KAPALI bir <details> içinde ham
+// JSON'du — yani kart ödemesi, bakiye düzeltmesi, yatırım satışı gibi PARA HAREKETLERİNDE
+// kullanıcı pratikte yalnız özeti görüp onaylıyordu. Onayladığın şey görünür olmalı.
+// Alan adları burada Türkçeleştirilir; sözlükte olmayan ad HAM haliyle gösterilir (sessiz
+// kayıp yok — eksik çeviri okunaksızdır ama görünmezlik yanıltıcıdır).
+const ALAN_ADLARI = {
+  amount: 'Tutar', new_balance: 'Yeni bakiye', new_price: 'Yeni fiyat',
+  actual_price: 'Gerçekleşen fiyat', lots_to_sell: 'Satılan lot',
+  account_id: 'Hesap', card_account_id: 'Kart hesabı', source_account_id: 'Ödeme kaynağı',
+  credit_to_account_id: 'Nakit geçecek hesap', investment_id: 'Yatırım', debt_id: 'Kayıt',
+  paid_date: 'Ödeme tarihi', transaction_date: 'Tarih', category: 'Kategori',
+  description: 'Açıklama', transaction_type: 'Tip', title: 'Başlık',
+  checkpoint_type: 'Kural türü', priority: 'Öncelik',
+  is_card_expense: 'Karta yazılsın', auto_update_balance: 'Bakiye güncellensin',
+};
+const PARA_ALANLARI = ['amount', 'new_balance', 'new_price', 'actual_price'];
+
+function PayloadOzeti({ payload, accounts }) {
+  const p = safeParsePayload(payload);
+  const satirlar = Object.entries(p).filter(([, v]) => v !== null && v !== undefined && v !== '');
+  if (!satirlar.length) return null;
+  const hesapAdi = (id) => accounts?.find(a => a.id === id)?.name || `#${id}`;
+  return (
+    <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+      {satirlar.map(([k, v]) => (
+        <div key={k} className="contents">
+          <dt className="text-zinc-500">{ALAN_ADLARI[k] || k}</dt>
+          <dd className="font-numeric text-zinc-800 dark:text-zinc-200">
+            {PARA_ALANLARI.includes(k) ? formatPara(Number(v))
+              : k.endsWith('_account_id') || k === 'account_id' ? hesapAdi(v)
+              : typeof v === 'boolean' ? (v ? 'evet' : 'hayır')
+              : String(v)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: setParentEditing, editRequestedAt = 0 }) {
   const p = safeParsePayload(payload); // W3-009
   const todayISO = todayLocalISO();   // LOCAL bugün (UTC slice gece vardiyasında bir gün kayardı)
@@ -307,14 +346,18 @@ export default function PendingActions({ actions, onResolved, accounts }) {
                     }}
                   />
                 ) : (
-                  <details className="mt-2">
-                    <summary className="text-[11px] text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 select-none">
-                      Detay
-                    </summary>
-                    <pre className="mt-2 text-[11px] bg-zinc-100 dark:bg-zinc-800/50 p-2 rounded font-numeric overflow-x-auto">
-                      {payload}
-                    </pre>
-                  </details>
+                  <>
+                    {/* BUG #266: onaylanacak alanlar AÇIK gösterilir; ham JSON teşhis için kalır */}
+                    <PayloadOzeti payload={currentPayload} accounts={accounts} />
+                    <details className="mt-2">
+                      <summary className="text-[11px] text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 select-none min-h-[44px] inline-flex items-center">
+                        Ham veri
+                      </summary>
+                      <pre className="mt-2 text-[11px] bg-zinc-100 dark:bg-zinc-800/50 p-2 rounded font-numeric overflow-x-auto">
+                        {payload}
+                      </pre>
+                    </details>
+                  </>
                 )}
 
                 {a.warning && (

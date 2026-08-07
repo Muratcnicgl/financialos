@@ -162,7 +162,7 @@ def test_acik_verilen_tarih_korunur(db, tz):
         db=db, user_id=u.id, action_type="add_transaction",
         payload={"transaction_type": "expense", "amount": 50.0,
                  "account_id": acc.id, "transaction_date": istenen.isoformat()},
-        summary="geçmiş tarihli gider",
+        summary="50 TL geçmiş tarihli gider",   # BUG #266: özet tutarı söylemeli
     )
     db.commit()
     assert execute_pending_action(db, pending.id, u.id)["success"]
@@ -182,7 +182,7 @@ def test_saat_dilimi_tanimsizsa_davranis_degismez(db):
     pending = propose_action(
         db=db, user_id=u.id, action_type="add_transaction",
         payload={"transaction_type": "income", "amount": 100.0, "account_id": acc.id},
-        summary="gelir",
+        summary="100 TL gelir",   # BUG #266: özet tutarı söylemeli
     )
     db.commit()
     assert execute_pending_action(db, pending.id, u.id)["success"]

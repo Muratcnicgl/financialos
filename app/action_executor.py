@@ -109,6 +109,12 @@ ACTION_TYPES: frozenset = frozenset({
 # Normalize de oraya taşındı (BUG #026/#167 geçmişi docstring'inde korunuyor).
 from app.category_rules import TR_NORM as _TR_NORM, kart_varsayilani_mi, normalize as _cat_normalize
 
+# BUG #266: payload sözleşmesi tek kaynak (şema + özet-payload tutarlılığı + prompt şablonu)
+from app.action_schema import (
+    dogrula as _payload_dogrula,
+    ozet_payload_celiskisi as _ozet_payload_celiskisi,
+)
+
 # BUG #042 fix: Hesap anahtar kelimesi — word boundary + çekim eki, false-positive'siz
 import re as _re
 # BUG #168 fix (P3.5, ürünleşme): banka MARKALARI (`enpara`, `ziraat`) koda gömülüydü —
@@ -288,6 +294,21 @@ def propose_action(
     # M82: tek kaynak — yeniden listelenmez, ACTION_TYPES'tan türetilir (BUG #161 drift kökü kapandı)
     if action_type not in ACTION_TYPES:
         raise ValueError(f"Bilinmeyen aksiyon türü: {action_type}")
+
+    # BUG #266 fix: payload'ın ŞEKLİ hiç doğrulanmıyordu — kural yalnız PROMPT'taydı
+    # ("PAYLOAD ŞABLONLARINA uygun yaz"), oysa bu modülün ilkesi LLM'in prompt'una
+    # güvenmemektir. Doğrulama execute'ta VARDI ama YANLIŞ TARAFTAYDI: onaydan SONRA.
+    # Ölçüm: `amount: "uc yuz yirmi"` onaya sunuluyor, kullanıcı "kaydedildi" özetini
+    # okuyup onaylıyor ve hiçbir şey yazılmıyordu. Artık uygulanamayacak öneri DOĞMAZ.
+    payload = _payload_dogrula(action_type, payload)
+
+    # BUG #266 fix: kullanıcının OKUDUĞU tutar ile UYGULANACAK tutar aynı olmalı. Ölçüm:
+    # summary="320 TL ... kaydedildi" + payload amount=3200 onaya gidiyordu; add_transaction
+    # dışındaki altı türde payload arayüzde kapalı `<details>` içinde ham JSON olduğu için
+    # kullanıcı pratikte yalnız özeti görür. (grounding ilkesinin onay yolundaki karşılığı.)
+    _celiski = _ozet_payload_celiskisi(action_type, payload, summary)
+    if _celiski:
+        raise ValueError(f"OZET_PAYLOAD_CELISKISI: {_celiski}")
 
     warning = None
     if action_type == "add_transaction":

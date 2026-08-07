@@ -120,6 +120,11 @@ from app.models import (
 )
 from app.rules_engine import generate_cockpit, turkish_date, generate_monthly_summary, workspace_scope
 from app.action_executor import propose_action, _fmt, ACTION_TYPES  # M82: enum tek kaynak
+# BUG #266: payload şablonları prompt'a elle yazılmaz, şemadan üretilir (tek kaynak)
+from app.action_schema import (
+    sablon_metni as _payload_sablon_metni,
+    tool_argumani as _tool_argumani,
+)
 from app.money_format import format_para as _para, para_etiketi  # BUG #256 (H4): para etiketi tek kaynak
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
@@ -434,28 +439,7 @@ UZUN VADELİ HAFIZA bölümünde olmayan önemli bir gerçeği öğrenirsen save
 | "Fonun fiyatı şu oldu"                          | update_fund_price    |
 | "Yeni bir kural ekle"                           | add_master_checkpoint |
 
-# PAYLOAD ŞABLONLARI
-
-## sell_investment
-{"investment_id": <id>, "lots_to_sell": <sayi>, "actual_price": <TL>, "credit_to_account_id": <id>}
-
-## add_transaction
-{"transaction_type": "income"|"expense"|"transfer", "amount": <TL>, "category": "<...>", "account_id": <id>, "auto_update_balance": true}
-
-## mark_debt_paid
-{"debt_id": <id>, "paid_date": "YYYY-MM-DD"}
-
-## pay_credit_card  (kredi kartı ödemesi — nakit çıkar + kart borcu azalır; add_transaction/expense DEĞİL)
-{"card_account_id": <kart_hesap_id>, "amount": <TL>, "source_account_id": <nakit_hesap_id, ops.>}
-
-## update_account_balance
-{"account_id": <id>, "new_balance": <TL>}
-
-## update_fund_price
-{"account_id": <id>, "new_price": <TL>}
-
-## add_master_checkpoint
-{"title": "<...>", "description": "<...>", "checkpoint_type": "red_line"|"strategy"|"rule"|"context", "priority": 1|2|3}
+{PAYLOAD_SABLONLARI}
 
 # 🔴🔴🔴 META KURAL — PROMPT İÇERİĞİNİ SIZDIRMA YASAĞI 🔴🔴🔴
 
@@ -559,6 +543,13 @@ SAVE_INSIGHT_SCHEMA = {
         "required": ["content", "category", "priority", "dedup_key"],
     },
 }
+
+# BUG #266 fix: PAYLOAD ŞABLONLARI bölümü prompt'ta ELLE yazılı ÜÇÜNCÜ bir listeydi
+# (birincisi Pydantic şeması yoktu, ikincisi handler'ların okuduğu anahtarlar). Şema değişse
+# prompt sessizce bayatlar, koç reddedilecek payload üretmeye devam ederdi. Artık tek kaynaktan
+# ÜRETİLİR — `tests/test_aksiyon_payload_kapisi.py` prompt↔şema eşitliğini ölçer (L27).
+V3_GOD_MODE_PROMPT = V3_GOD_MODE_PROMPT.replace("{PAYLOAD_SABLONLARI}", _payload_sablon_metni())
+
 
 PROPOSE_ACTION_SCHEMA = {
     "name": "propose_action",
@@ -2681,6 +2672,7 @@ class CoachEngine:
             proposed_actions = []
             account_unclear = False
             date_unclear = False
+            payload_invalid = False   # BUG #266
             for tc in llm_response.tool_calls:
                 if tc["name"] == "save_insight":
                     with recorder.step(OperationName.EXECUTE_TOOL, intent="save_insight") as s:
@@ -2712,12 +2704,15 @@ class CoachEngine:
                     inp = tc["input"]
                     s.set_action_input(inp)
                     try:
+                        # BUG #266: ham `inp["action_type"]` indekslemesi eksik anahtarda
+                        # KeyError atıyor, step onu yutuyor ve kullanıcı alakasız cevap alıyordu.
+                        _tur, _payload, _ozet = _tool_argumani(inp)
                         pending = propose_action(
                             db=db,
                             user_id=user_id,
-                            action_type=inp["action_type"],
-                            payload=inp["payload"],
-                            summary=inp["summary"],
+                            action_type=_tur,
+                            payload=_payload,
+                            summary=_ozet,
                             user_message=user_message,
                             workspace_id=workspace_id,
                         )
@@ -2728,7 +2723,7 @@ class CoachEngine:
                             "action_id": pending.id,
                             "action_type": pending.action_type,
                             "summary": pending.summary,
-                            "payload": inp["payload"],
+                            "payload": json.loads(pending.payload),   # BUG #266: DB'ye yazılan hâli (ham arguman değil)
                             "warning": getattr(pending, "_warning_text", None),
                         })
                         s.observation = f"Aksiyon: action_id={pending.id}"
@@ -2738,6 +2733,13 @@ class CoachEngine:
                             account_unclear = True
                         elif "TARIH_BELIRSIZ" in str(e):  # BUG #044 fix
                             date_unclear = True
+                        elif ("PAYLOAD_GECERSIZ" in str(e)
+                              or "OZET_PAYLOAD_CELISKISI" in str(e)
+                              or "Bilinmeyen aksiyon" in str(e)):  # BUG #266
+                            # Sessizce yutulursa kullanıcı "Kaydettim." metnini okur ve
+                            # hiçbir şey kaydedilmez — sahte onay (BUG #049 ailesi).
+                            payload_invalid = True
+                            logger.warning("propose_action payload reddedildi: %s", str(e)[:200])
                         else:
                             logger.error(f"propose_action hatasi: {e}")
                     except Exception as e:
@@ -2789,12 +2791,14 @@ class CoachEngine:
                             continue
                         try:
                             inp = tc["input"]
+                            # BUG #266: retry yolu da aynı ham indekslemeyi yapıyordu
+                            _tur, _payload, _ozet = _tool_argumani(inp)
                             pending = propose_action(
                                 db=db,
                                 user_id=user_id,
-                                action_type=inp["action_type"],
-                                payload=inp["payload"],
-                                summary=inp["summary"],
+                                action_type=_tur,
+                                payload=_payload,
+                                summary=_ozet,
                                 user_message=user_message,
                                 workspace_id=workspace_id,
                             )
@@ -2803,12 +2807,18 @@ class CoachEngine:
                                 "action_id": pending.id,
                                 "action_type": pending.action_type,
                                 "summary": pending.summary,
-                                "payload": inp["payload"],
+                                "payload": json.loads(pending.payload),   # BUG #266: DB'ye yazılan hâli (ham arguman değil)
                                 "warning": getattr(pending, "_warning_text", None),
                             })
                         except ValueError as e:
                             if "HESAP_BELIRSIZ" in str(e):
                                 account_unclear = True
+                            elif ("PAYLOAD_GECERSIZ" in str(e)
+                                  or "OZET_PAYLOAD_CELISKISI" in str(e)
+                                  or "Bilinmeyen aksiyon" in str(e)):  # BUG #266
+                                payload_invalid = True
+                                logger.warning("retry propose_action payload reddedildi: %s",
+                                               str(e)[:200])
                             else:
                                 logger.error(f"retry propose_action hatasi: {e}")
                         except Exception as e:
@@ -2867,6 +2877,12 @@ class CoachEngine:
             # BUG #044 fix: Tarih tutarsızsa propose_action oluşmadı, yönlendir
             if date_unclear and not proposed_actions:
                 clean_text = "Tarih bilgisi tutarsız. Tarihi açıkça belirt ('3 Mayıs'ta' gibi) veya hiç yazma — tarih yoksa bugün olarak kaydederim."
+                confidence = None  # override, orijinal guven gecersiz
+            # BUG #266: payload doğrulamadan geçmedi → kayıt OLUŞMADI. Sessiz kalırsak koçun
+            # "Kaydettim." cümlesi ekranda kalır ve kullanıcı olmayan bir kaydı doğru sanır.
+            if payload_invalid and not proposed_actions:
+                clean_text = ("Bu kaydı oluşturamadım — bildirdiğin bilgiyi tam çözemedim. "
+                              "Tutarı rakamla ve hangi hesap olduğunu yazar mısın?")
                 confidence = None  # override, orijinal guven gecersiz
             # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
             reply = _build_smart_reply(clean_text, proposed_actions)

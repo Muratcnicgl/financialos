@@ -51,6 +51,9 @@ MUAF_ENVANTER: dict[str, tuple[int, str]] = {
     "app/premortem.py": (2, "LLM prompt talimatı ('somut TL etki tahmin et') — konuşma metni"),
     "app/auth.py": (2, "yanlış-pozitif: 'ACCESS_TTL_MIN'/'REFRESH_TTL_DAYS' içindeki TTL"),
     "app/routers/user.py": (1, "422 mesajı: para birimi kilidinin GEREKÇESİNİ anlatır (ADR-042)"),
+    # BUG #266: payload şablonundaki `<TL>` LLM'e gösterilen YER TUTUCUDUR — kullanıcıya
+    # tutar basmaz, biçimlendirme yapmaz. Prompt metni (app/coach.py muafiyetiyle aynı sınıf).
+    "app/action_schema.py": (1, "prompt şablonu yer tutucusu `<TL>` — kullanıcıya tutar basmaz"),
 }
 
 BACKEND_TABAN_DOSYA = 60      # app/ altında taranması beklenen en az .py dosyası

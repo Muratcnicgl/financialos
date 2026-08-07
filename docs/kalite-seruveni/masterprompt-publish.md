@@ -484,6 +484,23 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 >   ~~açık tema / mobil yüzey~~ → **7 Ağu'da kapandı (BUG #265 / ADR-047)**;
 >   H11 canlı SMTP (insan-kapısı), backlog'un **262** açık maddesi ve P6-P9 insan-kapısı.
 >
+> **📌 AKSİYON PAYLOAD SÖZLEŞMESİ (BUG #266 / ADR-048, 7 Ağu 2026) — backlog LLM turu başladı.**
+> `app/action_executor.py`'nin kendi ilkesi "LLM'in prompt'una güvenilmez, kod seviyesinde
+> bloklanır" derken `propose_action` yalnız `action_type`'ı doğruluyordu; payload'ın ŞEKLİ
+> tamamen LLM'e bırakılmıştı (tek kural prompt'taki "PAYLOAD ŞABLONLARINA uy" cümlesi).
+> **Ölçüm (FakeProvider ile gerçek koç akışı):** `amount: "uc yuz yirmi"` onaya sunuluyor,
+> kullanıcı "320 TL kaydedildi" özetini okuyup onaylıyor ve **hiçbir şey yazılmıyordu** —
+> doğrulama vardı ama ONAYDAN SONRA. Ayrıca `summary="320 TL"` + `payload={"amount": 3200}`
+> onaya gidiyordu (kullanıcının okuduğu ile uygulanacak tutar 10 kat farklı, denetim yok);
+> `add_transaction` dışındaki altı türde payload arayüzde KAPALI `<details>` içinde ham JSON
+> olduğu için kullanıcı pratikte yalnız özeti görüyordu. Eksik anahtarlı tool argümanı da
+> sessizce yutuluyor, kullanıcıya alakasız soru dönüyordu. **Fix:** tek kaynak
+> `app/action_schema.py` (Pydantic + `extra=forbid` + özet↔payload tutarlılığı + reddi
+> kullanıcıya söyleyen mesaj); prompt şablonları artık şemadan ÜRETİLİR (elle yazılı üçüncü
+> listeydi). Kapı: `tests/test_aksiyon_payload_kapisi.py` (23, iki yönlü AST drift kilidi) +
+> `frontend/src/bekleyen-aksiyon-gorunurluk.test.jsx` (4). **Mutasyon 3/3.**
+> **Taban: 2478 passed / 18 skipped + 172 vitest + 6 e2e + `npm run build` OK.**
+>
 > **📌 İKİ TEMA + TELEFON YÜZEYİ ÖLÇÜLDÜ (BUG #265 / ADR-047, 7 Ağu 2026).** Uygulama
 > `darkMode:'class'` ile **iki ayrı sayfa** üretir ve varsayılanı koyudur; 168 vitest + 4 e2e'nin
 > hiçbiri **açık temayı** ya da **telefon genişliğini** render etmiyordu. 390×844'te 13 panel × 2

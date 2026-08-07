@@ -1,0 +1,17 @@
+# SIR TARAMASI — KABUL EDİLMİŞ GEÇMİŞ BULGULARI (SEC-018 / BUG #261)
+#
+# Git geçmişi yeniden yazılamaz. `# secret-ornek:` muafiyet işaretleri bir dosyaya SONRADAN
+# eklendiğinde, o dosyanın ESKİ blob'ları işaretsiz olarak geçmişte durur ve tarama sonsuza
+# dek onları bulur. Bu liste o durumu — ve YALNIZ onu — kabul eder.
+#
+# KURAL: buraya bir satır eklemek, "bu gerçek bir sır değil" demektir ve GEREKÇE ZORUNLUDUR.
+# Gerçek bir anahtar bulunursa yapılacak iş listeye eklemek DEĞİL: anahtarı iptal etmek,
+# rotasyona sokmak ve geçmişi temizlemektir.
+#
+# Biçim: <yol>@<kısa-sha>:<satır>   # gerekçe
+
+tests/security/test_db_rol_fail_fast.py@40b09ece:85          # BUG #157 testi: 'REPLACE_WITH_...' placeholder şifresi (uydurma)
+tests/security/test_kalici_hata_maskeleme.py@15e726a9:34     # BUG #258 maskeleme testi: uydurma Google anahtarı
+tests/security/test_kalici_hata_maskeleme.py@15e726a9:35     # BUG #258 maskeleme testi: uydurma OpenAI anahtarı
+tests/security/test_kalici_hata_maskeleme.py@15e726a9:36     # BUG #258 maskeleme testi: uydurma Groq anahtarı
+tests/security/test_kalici_hata_maskeleme.py@15e726a9:39     # BUG #258 maskeleme testi: uydurma Brevo anahtarı

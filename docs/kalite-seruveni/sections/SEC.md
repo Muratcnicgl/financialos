@@ -106,7 +106,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [SEC-018] `.env` diskte mevcut — sızma denetimi yap
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: .env diskte, gitleaks kanıtı yok
+- **Durum:** ✅ KAPANDI — **BUG #261 (7 Ağu 2026):** iddia değil ÖLÇÜM yapıldı. `.env` git geçmişinde HİÇ commit edilmemiş (`git log --all -- .env` boş) ve **tüm geçmiş blob'ları** tarandı → sır izi yok. `scripts/sir_taramasi.py` (çalışma ağacı + `--gecmis`, ~8 sn) CI'da her push + haftalık koşar; muafiyet `# secret-ornek:` işaretiyle ve geçmiş için gerekçeli baseline dosyasıyla. Kapı: `tests/security/test_sir_taramasi_kapisi.py` (7 test — yakalıyor mu, yanlış-pozitif üretiyor mu, CI'a bağlı mı)
 - **Kanıt:** `ls`: `.env` 698 byte
 - **Aksiyon:** `git log --all -- .env`; sızmışsa anahtar rotasyonu; pre-commit `gitleaks`.
 - **Etki:** Orta · **Efor:** S

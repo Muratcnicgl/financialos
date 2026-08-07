@@ -82,6 +82,7 @@ def test_normal_rol_temiz_gecer(prod):
 
 def test_placeholder_sifre_reddedilir(prod):
     """MA3/BUG #157 sınıfı: git'teki `.env.prod.example` şifresiyle deploy edilemez."""
+    # secret-ornek: sahte placeholder sifre (sir taramasi muafiyeti — SEC-018)
     prod.setenv("DATABASE_URL", "postgresql://fos_app:REPLACE_WITH_STRONG_APP_ROLE_PASSWORD@db/f")
     _rol_sonucu(prod, _SahteSonuc(False, False))
     assert any("placeholder" in s for s in database_role_problems())

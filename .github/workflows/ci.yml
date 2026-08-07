@@ -76,6 +76,13 @@ jobs:
       - name: npm audit (frontend, yüksek/kritik)
         working-directory: frontend
         run: npm audit --audit-level=high
+      # BUG #261 (SEC-018): sızmış anahtar taraması. `.gitignore` doğru olsa bile tek bir
+      # `git add -f` ya da örneğe yapıştırılmış gerçek bir anahtar yeter; ve git geçmişi
+      # silinmez — repo bir gün açılırsa geçmiş de açılır. Geçmiş taraması ~8 sn.
+      - name: Sır taraması (çalışma ağacı + git geçmişi)
+        run: |
+          python -m scripts.sir_taramasi
+          python -m scripts.sir_taramasi --gecmis
 
   e2e:
     runs-on: ubuntu-latest

@@ -28,15 +28,16 @@ from app.error_tracking import temizle
 
 # ------------------------------------------------------- 1. değerin şekli tanınıyor mu
 
+# secret-ornek: asagidaki anahtarlar UYDURMA — maskeleme testi bunsuz yazilamaz (SEC-018 muafiyeti)
 @pytest.mark.parametrize("ham,gizlenmeli", [
-    ("Gemini 400: https://generativelanguage.googleapis.com/v1/models?key=AIzaSyD1234567890abcdefghij",
-     "AIzaSyD1234567890abcdefghij"),
-    ("openai auth failed: sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345", "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"),
-    ("groq 401 gsk_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123", "gsk_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123"),
-    ("cerebras: csk-ABCDEFGHIJKLMNOPQRSTUVWX0123456", "csk-ABCDEFGHIJKLMNOPQRSTUVWX0123456"),
+    ("Gemini 400: https://generativelanguage.googleapis.com/v1/models?key=AIzaSyD1234567890abcdefghij",  # secret-ornek: uydurma
+     "AIzaSyD1234567890abcdefghij"),  # secret-ornek: uydurma
+    ("openai auth failed: sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345", "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"),  # secret-ornek: uydurma
+    ("groq 401 gsk_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123", "gsk_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123"),  # secret-ornek: uydurma
+    ("cerebras: csk-ABCDEFGHIJKLMNOPQRSTUVWX0123456", "csk-ABCDEFGHIJKLMNOPQRSTUVWX0123456"),  # secret-ornek: uydurma
     ("smtp baglanti hatasi: smtp://kullanici:GizliParola123@smtp-relay.example.com",
      "GizliParola123"),
-    ("brevo: xsmtpsib-ABCDEFGHIJKLMNOPQRSTUVWXYZ01", "xsmtpsib-ABCDEFGHIJKLMNOPQRSTUVWXYZ01"),
+    ("brevo: xsmtpsib-ABCDEFGHIJKLMNOPQRSTUVWXYZ01", "xsmtpsib-ABCDEFGHIJKLMNOPQRSTUVWXYZ01"),  # secret-ornek: uydurma
 ])
 def test_anahtar_sekli_etiketsiz_de_maskelenir(ham, gizlenmeli):
     temiz = temizle(ham)
@@ -60,11 +61,11 @@ def test_apicalllog_error_message_maskeli_yazilir(db_session, test_user):
     log = llm_quota.rezerve_et(db_session, test_user.id, "gemini", "test-model")
     llm_quota.tamamla(
         db_session, log, provider="gemini", success=False,
-        error_message="401 https://api.example.com/v1?key=AIzaSyD1234567890abcdefghij",
+        error_message="401 https://api.example.com/v1?key=AIzaSyD1234567890abcdefghij",  # secret-ornek: uydurma
     )
     db_session.refresh(log)
     kayit = db_session.query(ApiCallLog).filter(ApiCallLog.id == log.id).one()
-    assert "AIzaSyD1234567890abcdefghij" not in (kayit.error_message or "")
+    assert "AIzaSyD1234567890abcdefghij" not in (kayit.error_message or "")  # secret-ornek: uydurma
     assert "401" in (kayit.error_message or ""), "teşhis bilgisi tamamen silinmemeli"
 
 
@@ -124,8 +125,8 @@ def test_scheduler_detail_maskeli_yazilir(monkeypatch):
             pass
 
     monkeypatch.setattr(sch, "SessionLocal", lambda: _SahteDB())
-    sch._kayit_bitir(1, True, "fiyat cekildi: https://x/api?key=AIzaSyD1234567890abcdefghij")
-    assert "AIzaSyD1234567890abcdefghij" not in (yazilan.get("detail") or kayit.detail or "")
+    sch._kayit_bitir(1, True, "fiyat cekildi: https://x/api?key=AIzaSyD1234567890abcdefghij")  # secret-ornek: uydurma
+    assert "AIzaSyD1234567890abcdefghij" not in (yazilan.get("detail") or kayit.detail or "")  # secret-ornek: uydurma
 
 
 def test_reasoning_trace_hatasi_maskeli(db_session, test_user):

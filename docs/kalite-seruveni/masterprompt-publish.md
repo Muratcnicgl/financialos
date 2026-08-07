@@ -436,6 +436,20 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
 
+> **7 AĞUSTOS 2026 — GÜVENLİK TURU (backlog SEC boyutu) + LİSANS.**
+> - **BUG #258** kalıcı hata metni maskesizdi: `ApiCallLog.error_message` (KVKK export'una girer),
+>   `reasoning_traces.error`, `scheduler_runs.detail` yalnız KISALTIYORDU. Maske artık yazma
+>   sınırında + desenler anahtarın ŞEKLİNE bakıyor. Mutasyon 3/3.
+> - **BUG #259** güvenlik başlıkları yalnız nginx'teydi (**H22 ihlali**) → `app/security_headers.py`;
+>   HSTS yalnız HTTPS'te, vekilin başlığı ezilmez, nginx↔uygulama küme eşitliği teste bağlı.
+> - **BUG #260** CI'da bağımlılık taraması YOKTU (P2'deki 23→0 tek seferlik insan koşumuydu) →
+>   `dependency-audit` job'ı (pip-audit --strict + npm audit) her push + haftalık cron.
+> - **BUG #261** sır sızma denetimi hiç yapılmamıştı → `scripts/sir_taramasi.py` (ağaç + tüm git
+>   geçmişi, 8 sn); **ölçüm: `.env` hiç commit edilmemiş, sır izi YOK.**
+> - Backlog SEC: 5 madde kapandı (SEC-005/008/009/018/020), toplam **150 kapalı / 267 açık**.
+> - **LİSANS:** MIT → "Tüm Hakları Saklıdır" (ileriye dönük; MIT geri alınamaz olduğu LICENSE'ta yazılı).
+> - **Taban:** 2139 passed / 18 skipped + 159 vitest.
+>
 > **7 AĞUSTOS 2026 — H4 ve H9 KAPANDI (§11 açık listesinin 5. ve 6. maddeleri).**
 > - **BUG #256 / ADR-044 — para birimi tek kaynak.** Biçimlendirme yedi ayrı yerde kodluydu;
 >   167 backend + 91 frontend ham "TL" sabiti kalktı. **Asıl bulgu:** `grounding` deseni "TL"

@@ -637,66 +637,21 @@ def _to_anthropic_messages(messages: List[Dict]) -> List[Dict]:
 # 3. RETRY YARDIMCI
 # ============================================================
 
-RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
-RETRYABLE_KEYWORDS = ("503", "502", "504", "UNAVAILABLE", "overloaded", "timeout")
-
-QUOTA_EXCEEDED_KEYWORDS = (
-    "RESOURCE_EXHAUSTED",
-    "quota exceeded",
-    "credit balance too low",
-    "insufficient_quota",
-    "billing",
-    "exceeded your current quota",
-    "rate limit",
-    "429",
+# BUG #269 fix (LLM-012): bu üç sınıflandırma ALT-DİZİ taramasıyla yapılıyordu ve sayısal
+# kodlar da düz metin gibi aranıyordu. Ölçüm (10 gerçekçi sağlayıcı hatası): 3'ü yanlış —
+# `token count (8504) exceeds the maximum` içindeki **8504**'ün "504"ü yüzünden GEÇİCİ
+# sayılıyor (kalıcı bir hata sonsuza kadar retry ediliyor, devre kesici hiç açılmıyordu),
+# `request_id=req_8429fa1c` ve `took 4290 ms` ise "429" içerdiği için KOTA sayılıyordu.
+# Gövde `app/provider_errors.py`ye taşındı: önce yapı (durum kodu), sonra SAYISIZ metin
+# desenleri, öncelik KALICI > KOTA > GEÇİCİ. İsimler geriye uyumlu.
+from app.provider_errors import (  # noqa: E402
+    bekleme_suresi as _bekleme_suresi,
+    is_quota_exceeded as _is_quota_exceeded,
+    is_request_too_large as _is_request_too_large,
+    is_retryable_error as _is_retryable_error,
+    siniflandir as _hata_siniflandir,
 )
 
-
-def _is_retryable_error(exc: Exception) -> bool:
-    msg = str(exc).lower()
-    for kw in RETRYABLE_KEYWORDS:
-        if kw.lower() in msg:
-            return True
-    code = getattr(exc, "status_code", None)
-    if code in RETRYABLE_STATUS_CODES:
-        return True
-    return False
-
-
-def _is_quota_exceeded(exc: Exception) -> bool:
-    msg = str(exc)
-    for kw in QUOTA_EXCEEDED_KEYWORDS:
-        if kw.lower() in msg.lower():
-            return True
-    code = getattr(exc, "status_code", None)
-    if code == 429:
-        return True
-    return False
-
-
-# RESIL-008: "request too large / context limit" — SABİT-boyut prompt için KALICI hata.
-# 429 (geçici kota, dakika başı sıfırlanır) ile KARIŞTIRILMAMALI: bu, isteğin TEK BAŞINA
-# model/tier limitini aşması → aynı prompt her çağrıda aynı hatayı verir. Circuit breaker
-# bu sağlayıcıyı process boyunca atlar (bkz. FallbackProvider). Groq free tier TPM 8000 <
-# Türkçe koç prompt'u (~8400 tok) tipik örnek (memory: reference_groq_tpm_limiti).
-REQUEST_TOO_LARGE_KEYWORDS = (
-    "request too large",
-    "reduce your message size",
-    "too large for model",
-    "context length exceeded",
-    "maximum context length",
-    "string too long",
-)
-
-
-def _is_request_too_large(exc: Exception) -> bool:
-    msg = str(exc).lower()
-    for kw in REQUEST_TOO_LARGE_KEYWORDS:
-        if kw in msg:
-            return True
-    if getattr(exc, "status_code", None) == 413:
-        return True
-    return False
 
 
 def _openai_compat_usage(response) -> Optional[Dict]:
@@ -726,7 +681,9 @@ def _call_with_retry(fn, *args, max_attempts: int = 3, base_delay: float = 1.0, 
             retryable = _is_retryable_error(e)
             if not retryable or attempt >= max_attempts:
                 raise
-            wait = base_delay * (2 ** (attempt - 1))
+            # BUG #269 (LLM-011): sabit üstel bekleme, aynı anda düşen istekleri AYNI anda
+            # uyandırıp sağlayıcıyı ikinci kez birlikte dövüyordu (thundering herd).
+            wait = _bekleme_suresi(attempt, base_delay)
             logger.warning(
                 f"LLM gecici hata ({attempt}/{max_attempts}): {e}. {wait:.1f}sn sonra tekrar..."
             )

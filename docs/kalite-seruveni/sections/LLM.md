@@ -93,13 +93,25 @@
   görünüyor, "direktif tarz" uyarısı haksız tetiklenebiliyordu.
 
 ### [LLM-011] Retry backoff'ta jitter yok — thundering herd
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: retry backoff jitter yok
+- **Durum:** ✅ KAPANDI (BUG #269 / ADR-051, 8 Ağu 2026) — tam-jitter
+  (`app/provider_errors.bekleme_suresi`: `[0, min(tavan, taban·2^(n-1))]`, tavan 30 sn).
+  Rastgelelik enjekte edilebilir → kapı beklemeyi deterministik ölçer.
 - **Kanıt:** `coach.py:489`
 - **Aksiyon:** Full jitter `random.uniform(0, base*2^n)` + max_delay; retry sayısını logla.
 - **Etki:** Düşük · **Efor:** S
 
 ### [LLM-012] Retryable/quota sınıflandırması kırılgan string-match
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: status_code var ama tipli exception yok
+- **Durum:** ✅ KAPANDI (BUG #269 / ADR-051, 8 Ağu 2026). **Ölçüm: 10 gerçekçi sağlayıcı hata
+  metninin 3'ü yanlış sınıflandırılıyordu** — hepsi alt-dizi tuzağı: `token count (8504)
+  exceeds` içindeki **8504**'ün "504"ü yüzünden GEÇİCİ sayılıyordu (kalıcı hata her istekte
+  3 kez retry, devre kesici HİÇ açılmıyor, her denemede kullanıcının kotası yazılıyor);
+  `request_id=req_8429fa1c` ve `took 4290 ms` ise "429" içerdiği için KOTA sayılıyordu.
+  Tek kaynak `app/provider_errors.py`: **önce yapı** (durum kodu alanı ya da metnin
+  BAŞI/açık etiket), sonra **sayısız** metin desenleri, öncelik **KALICI > KOTA > GEÇİCİ**.
+  Sonuç 3/10 → **0/10**. Kapı `tests/test_saglayici_hata_kapisi.py` (39, mutasyon 5/5).
+  **Tipli sağlayıcı istisnaları bilinçli olarak REDDEDİLDİ** (ADR-051): sekiz sağlayıcının
+  SDK'sını motor katmanına sızdırır ve jenerik OpenAI-uyumlu sağlayıcılarda zaten çalışmaz —
+  durum kodu bu SDK'ların ortak paydasıdır.
 - **Kanıt:** `coach.py:437-471`
 - **Aksiyon:** Tipli exception (Anthropic RateLimitError, status_code); 400 retry EDİLMEZ, 5xx/429 edilir; string fallback.
 - **Etki:** Orta · **Efor:** M

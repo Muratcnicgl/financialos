@@ -120,3 +120,13 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   kaybetme, davranışı değiştiren etiketi sessizce kabul etme). Önem merdiveni tek ölçek,
   sırası gerçek çıkarıcı sabitlerinden türetilerek kilitli. Kapı: `tests/test_icgoru_kapisi.py`
   (mutasyon 5/5).
+- **ADR-051 — Sağlayıcı hataları ÖNCE YAPIDAN sınıflandırılır; metin deseni sayı içermez
+  (BUG #269):** fallback zincirinin üç kararı (tekrar dene / sağlayıcıyı atla / kara listeye al)
+  hata metninde ALT-DİZİ arıyordu ve sayısal kodlar da düz metin gibiydi. Ölçüm (10 gerçekçi
+  hata metni) 3'ünü yanlış buldu: `token count (8504) exceeds` içindeki **8504**'ün "504"ü
+  yüzünden GEÇİCİ sayılıyor → kalıcı hata her istekte 3 kez retry ediliyor ve devre kesici hiç
+  açılmıyordu; `request_id=req_8429fa1c` ve `took 4290 ms` ise "429" içerdiği için KOTA
+  sayılıyordu. Tek kaynak `app/provider_errors.py`: önce durum kodu (yapı), sonra SAYISIZ metin
+  desenleri, öncelik **KALICI > KOTA > GEÇİCİ** (yanlış tarafa düşmenin bedeli asimetrik).
+  Geri çekilmeye tam-jitter eklendi (LLM-011). Kapı: `tests/test_saglayici_hata_kapisi.py`
+  (kaynak-türetimli "desende çıplak sayı yasak" kilidi dahil; mutasyon 5/5).

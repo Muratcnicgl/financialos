@@ -88,6 +88,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L32 | **Kısmi telafi, telafinin unutulduğu yeri GİZLER.** Bir desende `bugün|bugun` gibi ikiz yazım görüyorsan sorun BİLİNİYOR demektir — ve elle taşınan telafi her zaman eksik kalır. Telafi listeye değil GİRİŞE konur (normalize et, sonra eşleştir). Bunun en sinsi hâli, platformun sorunu YARIM çözmesidir: `re.IGNORECASE` ı↔i'yi katlar, ç/ş/ğ/ö/ü'yü katlamaz → defekt harfe göre değişir ve test edilen örnekte tesadüfen çalışır. | #267 (`_DATE_KEYWORD_RE` `dün/bugün/geçen` için ASCII ikizi yazmış, ay adları için yazmamıştı → "agustosta" görülmüyor, işlem SESSİZCE bugüne yazılıyordu; toplam 20 kırık token) |
 | L33 | **Bir vaadi PROMPT'ta vermek, onu SİSTEMDE vermek değildir.** Tool açıklamasında LLM'e "critical: asla unutulmamalı" demek, sıralamayı yapan SORGUNUN baktığı alana o değeri yazmadıkça yalandır — ve bu yalanı ne test ne kullanıcı görür, çünkü her iki taraf da kendi içinde tutarlıdır. Tool/prompt metninde geçen her davranış vaadi, onu uygulayan kod yolunda ÖLÇÜLMELİDİR. | #268 (`save_insight` `sort_priority`/`last_evidence_at` yazmıyordu; ölçümde kullanıcının "asla kredi çekmem" beyanı enjekte edilen hafızada HİÇ YOKTU, yerini beş rutin gözlem almıştı — `InsightPriority` enum'u yazılıp hiç okunmuyordu) |
 | L34 | **Yükün ve etiketin başarısızlık yönü AYNI OLAMAZ.** Aynı sistemde bir yol için doğru olan katılık ("uygulanamayacak öneri doğmasın" — ADR-048) başka bir yol için veri kaybı üretir: kullanıcının söylediği gerçeği bir etiket tanınmadı diye çöpe atmak, korumanın kendisi zarar verir. Kural: **yükü metadata yüzünden kaybetme, davranışı değiştiren metadata'yı da sessizce kabul etme** (aşağı yönde düş + düşüşü raporla). | #268 (içerik yoksa RED, `dedup_key` yoksa içerikten TÜRET, tanınmayan `priority` AŞAĞI düşer, bozuk `expires_at` süreyi düşürür gerçeği tutar) |
+| L35 | **Bir kararı metin İÇİNDEKİ SAYIYA bağlamak, kararı hatayla ilgisi olmayan bir kimliğe bağlamaktır.** Alt-dizi araması sayıda özellikle sinsidir: `"504"` her `8504`'ün, `"429"` her `4290`'ın ve her `req_8429…`'ın içindedir. Sınır (``) eklemek vakayı kurtarır ama kararı hâlâ metne bağlı bırakır — sağlayıcı hata metnini değiştirdiği gün sessizce yanlışa döner. Karar YAPIDAN okunur (durum kodu alanı), metin ikinci yoldur ve o desen sayı içermez. | #269 (10 gerçekçi sağlayıcı hatasının 3'ü yanlış sınıflanıyordu; `token count (8504) exceeds` KALICI iken GEÇİCİ sayıldığı için her istekte 3 kez retry ediliyor, devre kesici hiç açılmıyordu) |
+| L36 | **Yanlış tarafa düşmenin bedeli asimetrikse, sınıflandırma sırası bedeli KÜÇÜK olan tarafa eğilmelidir.** "Hangisi daha doğru?" sorusundan önce "hangi yanlış daha pahalı?" sorulur: kalıcı bir hatayı geçici sanmak SONSUZ tekrar üretir, geçiciyi kalıcı sanmak yalnız bir denemeyi kaçırır. Bu yüzden sıra KALICI > KOTA > GEÇİCİ'dir — çok işaret taşıyan metinde de. | #269 (Groq'un 413'ü "Limit 8000, Requested 8429" der; iki sınıfa birden uyar) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -441,6 +443,37 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 8 AĞUSTOS 2026 (3) — FALLBACK ZİNCİRİNİN KARARINI İLGİSİZ BİR SAYININ RAKAMLARI
+> VERİYORDU (BUG #269 / ADR-051, backlog LLM-012 + LLM-011).** Canlı yapılandırma
+> `LLM_PROVIDER=fallback`; zincirin üç kararı (tekrar dene / sağlayıcıyı atla / kara listeye
+> al) hata metninde **alt-dizi** arıyordu ve sayısal durum kodları da düz metin gibi
+> aranıyordu. **Ölçüm (10 gerçekçi sağlayıcı hata metni): 3'ü yanlış.** En ağırı:
+> `The input token count (8504) exceeds the maximum` — içindeki **8504**'ün "504"ü yüzünden
+> GEÇİCİ sayılıyordu. Oysa bu KALICI bir hatadır (aynı prompt hep aynı hatayı verir):
+> `_call_with_retry` onu 1+2 sn bekleyerek üç kez deniyor, `_is_request_too_large` metni
+> tanımadığı için `_oversized_providers` devre kesicisi **hiç açılmıyor** → sağlayıcı HER koç
+> isteğinde yeniden deneniyor, her denemede kullanıcının LLM kotası yazılıyor, cevap üç saniye
+> geç geliyordu. Diğer ikisi ters yönde: `request_id=req_8429fa1c` ve `took 4290 ms` "429"
+> içerdiği için KOTA sayılıp **sağlıklı sağlayıcı** devre dışı bırakılıyordu (**L35**).
+> **Fix:** tek kaynak `app/provider_errors.py` — önce YAPI (durum kodu alanı ya da metnin
+> BAŞI/açık etiket), sonra **sayısız** metin desenleri, öncelik **KALICI > KOTA > GEÇİCİ**
+> (**L36**: yanlış tarafa düşmenin bedeli asimetrik). Geri çekilmeye tam-jitter eklendi
+> (LLM-011) ve rastgelelik enjekte edilebilir. Sonuç **3/10 → 0/10**. Tipli sağlayıcı
+> istisnaları gerekçelendirilerek reddedildi (ADR-051: sekiz SDK'yı motor katmanına sızdırır,
+> jenerik OpenAI-uyumlu sağlayıcılarda zaten çalışmaz). Kapı
+> `tests/test_saglayici_hata_kapisi.py` (39 test; "desende çıplak sayı yasak" drift kilidi
+> kaynaktan türetilir). **Mutasyon 5/5.**
+> **Taban: 2716 passed / 18 skipped + 172 vitest + 6 e2e.** (2675 + 39 yeni kapı + 2 —
+> kategori kapısı `provider_errors.py`'yi de kendiliğinden kapsama aldı.)
+>
+> **Not — LLM-002 (prompt caching) bilinçli olarak ERTELENDİ:** canlı sağlayıcı Gemini
+> (`gemini-2.5-flash-lite`), Anthropic anahtarı devrede değil; caching kazancının tek kanıtı
+> `usage.cache_read_input_tokens` ve o gerçek çağrı ister → bu turda **ölçülemez** (KURAL R3).
+> Yapısal ön bulgu kaydedildi: Anthropic'te cache **prefix eşleşmesidir ve `tools` pozisyon
+> 0'da render edilir**; bizim KURAL SIFIR kapımız `propose_action`'ı mesaja göre ekleyip
+> çıkardığı için tool kümesi her istekte değişiyor — caching açılsa bile prefix her seferinde
+> geçersiz olurdu. Caching işine girildiğinde kapatılacak ilk yapısal engel budur.
 
 > **📌 8 AĞUSTOS 2026 (2) — KOÇ, "ASLA UNUTMA" DENEN ŞEYİ UNUTUYORDU (BUG #268 / ADR-050,
 > backlog LLM-008 kalanı).** ADR-048 koçun birinci tool'unu sözleşmeye bağlamıştı; ikincisi

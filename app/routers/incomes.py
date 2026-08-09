@@ -137,6 +137,7 @@ def trigger_due_incomes(
     """
     from app.action_executor import propose_action
     from app.action_executor import _fmt
+    from app.action_errors import AksiyonReddi   # BUG #273: sinyal tipten okunur
 
     today = user_today(user)  # BUG #197
     year_month = f"{today.year}-{today.month:02d}"
@@ -146,7 +147,12 @@ def trigger_due_incomes(
     # HER ZAMAN başarısız olan bir gelir aksiyonu üretiliyordu (sessiz çıkmaz sokak).
     cash_acc = varsayilan_nakit_hesap(db, user.id, ws_id)
     if not cash_acc:
-        return {"triggered": []}
+        # BUG #273: sessiz boş liste, kullanıcıya "vadesi gelen gelirin yok" der — oysa
+        # gelir VAR, yazılacak hesap yok. Atlama nedeni artık cevabın içindedir.
+        return {"triggered": [], "atlanan": [{
+            "id": None, "ad": None,
+            "neden": "Nakit hesabın yok — gelirin hangi hesaba geçtiği belirlenemedi.",
+        }]}
 
     # BUG #071 fix (P0-16): day_of_month'u ay uzunluğuna clamp'le (kısa aylarda 31 atlanmasın).
     import calendar
@@ -158,6 +164,7 @@ def trigger_due_incomes(
     ).all()
 
     triggered = []
+    atlanan = []   # BUG #273: atlanan kayıt SESSİZ kalmaz — nedeni cevapta döner
     for inc in incomes:
         effective_day = min(inc.day_of_month, last_day)
         if effective_day > today.day:
@@ -202,10 +209,19 @@ def trigger_due_incomes(
                 "payload": json.loads(pending.payload),
                 "warning": getattr(pending, "_warning_text", None),
             })
-        except Exception as e:
-            logger.error(f"trigger_due_incomes: {inc.name} hata: {e}")
+        except AksiyonReddi as red:
+            # BUG #273: bu yol sinyali metinden okumaz, TİPTEN okur — ve artık YUTMAZ.
+            # Ret sessiz kalırsa düzenli gelir her gün yeniden denenip her gün sessizce
+            # düşer (last_triggered yazılmadığı için) ve kullanıcı hiçbir şey görmez.
+            logger.warning("trigger_due_incomes: %s reddedildi (%s)", inc.id, red.kod)
+            atlanan.append({"id": inc.id, "ad": inc.name, "neden": red.kullanici_mesaji})
+        except Exception as e:  # noqa: BLE001 — bir kayıt patlarsa diğerleri tetiklensin
+            logger.error("trigger_due_incomes: %s hata (%s)", inc.id, type(e).__name__,
+                         exc_info=True)
+            atlanan.append({"id": inc.id, "ad": inc.name,
+                            "neden": "Bu düzenli gelir için öneri oluşturulamadı."})
 
-    return {"triggered": triggered}
+    return {"triggered": triggered, "atlanan": atlanan}
 
 
 @router.delete("/{income_id}", status_code=status.HTTP_204_NO_CONTENT)

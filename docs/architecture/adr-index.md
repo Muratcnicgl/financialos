@@ -130,3 +130,15 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   desenleri, öncelik **KALICI > KOTA > GEÇİCİ** (yanlış tarafa düşmenin bedeli asimetrik).
   Geri çekilmeye tam-jitter eklendi (LLM-011). Kapı: `tests/test_saglayici_hata_kapisi.py`
   (kaynak-türetimli "desende çıplak sayı yasak" kilidi dahil; mutasyon 5/5).
+- **ADR-052 — Aksiyon reddi: karar TİPTE, teşhis AYRI alanda (BUG #273):** ADR-051'in aynı
+  sınıfı, bu kez para yolunda — `raise ValueError("HESAP_BELIRSIZ")` + `if "HESAP_BELIRSIZ"
+  in str(e)`. Ölçüm: 4 sinyal × 2 koç tüketicisi matrisinin 1 hücresi yanlıştı (retry yolu
+  `TARIH_BELIRSIZ` dalını hiç taşımıyordu → işlem kaydedilmiyor VE tarih sorusu sorulmuyordu);
+  dört sinyalin dördü de ham kod hâliyle kullanıcıya görünen trace "Gözlem" satırına
+  yazılıyordu; sinyal-teşhis füzyonu yüzünden iki log satırı kullanıcının TUTARLARINI
+  yazıyordu (BUG #180 ihlali). Tek kaynak `app/action_errors.py`: `AksiyonReddi` tabanı +
+  5 alt sınıf; kullanıcı cümlesi, iz gerekçesi ve retry kararı sınıfın üzerinde, değer taşıyan
+  teşhis `str(e)`ye hiç girmez. Koçun iki propose gövdesi tek yardımcıya indi (BE-005).
+  Recurring tetikleyiciler artık `atlanan` döner (sessizlik yasağı). Kapı:
+  `tests/test_aksiyon_sinyali_kapisi.py` (AST: metne bakan karar yasak + her tüketici
+  `AksiyonReddi`yi yakalar; mutasyon 6/6).

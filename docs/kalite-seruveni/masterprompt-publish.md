@@ -97,6 +97,8 @@ Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satı
 | L39 | **Sayarak kurulan bir koruma (kelime/fiil listesi) asla "kapandı" sayılamaz; yanına DURUM-TABANLI bir güvence koy.** Liste kaçırdığında kullanıcı hiçbir şey görmez; durumdan türeyen not ise ifadeden ve biçimden bağımsızdır. Listeyi de ölçülen korpusla kapıya bağla ki bir sonraki eş anlamlı sessiz delik değil kırmızı test olsun. | #271 (fiil listesi üç BUG boyunca büyümüş, hâlâ 12 cümlenin 6'sını kaçırıyordu; "kullanıcı saf bildirim yaptı ve hiç kayıt oluşmadı" notu fiilden bağımsız çalışır) |
 | L40 | **Bir mutasyonun kırmızısı SÖZDİZİMİ hatasından geliyorsa, o kırmızı SAHTEDİR.** Mutasyon testi "kapı ölçüyor mu" sorusuna cevap verir; dosyayı bozan bir mutasyon yalnız "Python çalışıyor mu"yu ölçer ve kapıya güven verir gibi görünür. Mutasyon çıktısında `SyntaxError` ayrı sınıflandırılmalı ve mutasyon geçerli biçimde yeniden yazılmalıdır. | #272 (M3'ün kırmızısı `unterminated string literal`di; kaçışsız yeniden yazılınca gerçek kırmızı oldu — skor 4/4'e ancak o zaman ulaştı) |
 | L41 | **Aynı turda iki kez çağrılan bir sözleşme, iki çağrıda AYNI olmalıdır — yönlendirme sözleşmeye değil mesaja yazılır.** Retry/plan gibi "bir kez daha dene" yolları, talimatı system prompt'a eklemeye çok müsaittir; oysa system prompt yetki yüzeyidir ve prefix'tir: değişince hem yetki metni deterministik olmaktan çıkar hem de prefix eşleşmesiyle çalışan her cache baştan yazar. | #272 (aynı dosyada doğrusu zaten vardı: soru retry'ı nudge'ı messages'a ekliyordu; propose retry'ı ve iç plan system'e yazıyordu — üstelik plan, modelin O TURDA ürettiği metindi) |
+| L42 | **Bir sinyal başına `if/elif` dalı yazan tasarımda, tüketici sayısı arttıkça bir dal MUTLAKA unutulur — sinyali dala değil TİPE bağla.** Ana akış ile retry (ya da uç ile cron) aynı kararı elle kopyaladığında kopya bir gün ayrışır ve ayrıştığı yer sessizdir: eksik dal `else`e düşüp log'a yazılır, kullanıcı hiçbir şey görmez. Kararın tamamını (kullanıcıya söylenecek cümle, tekrar denenmeli mi, ize ne yazılacak) sinyalin SINIFINA koy; tüketici tek base'i yakalasın — o zaman unutulacak dal kalmaz. | #273 (retry yolu `TARIH_BELIRSIZ`i hiç ele almıyordu: özette tarih olup payload'da olmayan harcama kaydedilmiyor VE kullanıcıya tarih sorusu da sorulmuyordu; matris 8 hücrenin 1'inde yanlıştı) |
+| L43 | **Sinyal ile teşhis AYNI string'se, sinyali loglayan her satır teşhisi de yayınlar.** `raise ValueError("KOD: ozetteki tutar [3200.0] ile payload 320.0 uyusmuyor")` yazıldığı anda, o hatayı ele alan hiç kimse "yalnız kodu logla" diyemez — `str(e)` bir bütündür. Ayrıca `str(e)` teşhis için biçimlendirilmişse kullanıcıya görünen yüzeye (trace/Gözlem satırı) düştüğünde iç kod da ekrana çıkar. Kod, kullanıcı-dostu gerekçe ve değer taşıyan teşhis ÜÇ AYRI alandır. | #273 (iki log satırı kullanıcının tutarlarını yazıyordu — BUG #180 ihlali; dört sinyalin dördü de `Belirsizlik: HESAP_BELIRSIZ` olarak `TracePanel`'de render ediliyordu) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -450,6 +452,30 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 9 AĞUSTOS 2026 — İŞ KURALI SİNYALİ İSTİSNA STRING'İYLE TAŞINIYORDU (BUG #273,
+> backlog BE-006 + RESIL-019 + BE-005).** `propose_action` dört ret sinyalini serbest metinle
+> yayıyor (`raise ValueError("HESAP_BELIRSIZ")`), tüketiciler de metni **tarayarak** karar
+> veriyordu (`if "HESAP_BELIRSIZ" in str(e)`) — BUG #269'un sınıfı, bu kez **para yolunda**.
+> **Ölçüm (gerçek koç akışı, 4 sinyal × 2 tüketici):** ① matrisin **1 hücresi yanlıştı** —
+> retry yolu `TARIH_BELIRSIZ` dalını hiç taşımıyordu (ana akıştan elle kopyalanırken düşmüş):
+> özette tarih olup payload'da olmayan harcama **kaydedilmiyor VE kullanıcıya tarih sorusu
+> sorulmuyordu**; hata `else`e düşüp log'a yazılıyordu. ② **dört sinyalin dördü de** ham kod
+> hâliyle (`Belirsizlik: HESAP_BELIRSIZ`) `reasoning_traces.observation`'a yazılıyor ve
+> `TracePanel.jsx` bunu kullanıcıya "Gözlem" satırı olarak **render ediyordu**. ③ **KVKK:**
+> sinyal ile teşhis aynı string olduğu için iki log satırı kullanıcının **tutarlarını**
+> yazıyordu (`[3200.0] ile payload amount=320.0`) — BUG #180 ilkesi, sinyalin BİÇİMİ yüzünden
+> delinmişti. **Fix:** tek kaynak `app/action_errors.py` — karar **tipe** bakar, metne değil;
+> kullanıcı cümlesi + iz gerekçesi + retry kararı sınıfın üzerindedir (**L42**), değer taşıyan
+> teşhis `str(e)`ye hiç girmez (**L43**). İki koç tüketicisi tek yardımcıya indi (BE-005 de
+> aynı kopyayı işaret ediyordu). **Sessiz kalan iki tüketici daha kapandı:** recurring
+> gelir/gider tetikleyicileri reddi `logger.error`a yazıp `{"triggered": []}` dönüyordu →
+> artık `atlanan` alanı ve Cockpit'te uyarı kartı var (`last_triggered` yazılmadığı için o
+> ret her gün yeniden denenip her gün sessizce düşüyordu). Kapı
+> `tests/test_aksiyon_sinyali_kapisi.py` (30) + `atlanan-duzenli-kayit.test.jsx` (3).
+> **Mutasyon 6/6 — ve altıncı mutasyon kapının kendi kör noktasını buldu:** kullanıcı mesajı
+> satıra bölünüp örtük birleştirmeyle kopyalandığında ham metin taraması görmüyordu → kopya
+> kapısı AST'ye taşındı.
 
 > **📌 8 AĞUSTOS 2026 (6) — YÖNLENDİRME, SÖZLEŞMENİN KENDİSİNİ DEĞİŞTİRİYORDU (BUG #272,
 > backlog LLM-021).** Ölçüm (sağlayıcının gördüğü `system_prompt` kaydedilerek): `propose`

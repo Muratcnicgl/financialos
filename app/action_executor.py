@@ -115,6 +115,14 @@ from app.action_schema import (
     dogrula as _payload_dogrula,
     ozet_payload_celiskisi as _ozet_payload_celiskisi,
 )
+# BUG #273 (BE-006/RESIL-019): is kurali sinyalleri artik STRING degil TIP. Kullaniciya
+# gosterilecek cumle, iz gerekcesi ve retry karari sinifin uzerindedir (app/action_errors.py).
+from app.action_errors import (
+    BilinmeyenAksiyon,
+    HesapBelirsiz,
+    OzetPayloadCeliskisi,
+    TarihBelirsiz,
+)
 
 # BUG #042 fix: Hesap anahtar kelimesi — word boundary + çekim eki, false-positive'siz
 import re as _re
@@ -307,7 +315,7 @@ def propose_action(
     """
     # M82: tek kaynak — yeniden listelenmez, ACTION_TYPES'tan türetilir (BUG #161 drift kökü kapandı)
     if action_type not in ACTION_TYPES:
-        raise ValueError(f"Bilinmeyen aksiyon türü: {action_type}")
+        raise BilinmeyenAksiyon(f"Bilinmeyen aksiyon türü: {action_type}")  # BUG #273: tipli sinyal
 
     # BUG #266 fix: payload'ın ŞEKLİ hiç doğrulanmıyordu — kural yalnız PROMPT'taydı
     # ("PAYLOAD ŞABLONLARINA uygun yaz"), oysa bu modülün ilkesi LLM'in prompt'una
@@ -322,7 +330,8 @@ def propose_action(
     # kullanıcı pratikte yalnız özeti görür. (grounding ilkesinin onay yolundaki karşılığı.)
     _celiski = _ozet_payload_celiskisi(action_type, payload, summary)
     if _celiski:
-        raise ValueError(f"OZET_PAYLOAD_CELISKISI: {_celiski}")
+        # BUG #273: gerekçe TUTAR içerir → `teshis`e konur, `str(e)`ye değil (KVKK/#180).
+        raise OzetPayloadCeliskisi(teshis=_celiski)
 
     warning = None
     if action_type == "add_transaction":
@@ -330,12 +339,12 @@ def propose_action(
         if (payload.get("transaction_type") == "expense"
                 and user_message
                 and not _mentions_account(user_message, db, user_id)):  # BUG #168: kullanıcının kendi hesap adları da sayılır
-            raise ValueError("HESAP_BELIRSIZ")
+            raise HesapBelirsiz()  # BUG #273: tipli sinyal (metin taramasi yok)
         # BUG #044 fix: Summary'de tarih var ama payload'da yok → tutarsızlık
         if (summary
                 and _tarih_ifadesi_var_mi(summary)   # BUG #267: yazımdan bağımsız
                 and not payload.get("transaction_date")):
-            raise ValueError("TARIH_BELIRSIZ")
+            raise TarihBelirsiz()  # BUG #273: tipli sinyal (retry yolu bu dali KAÇIRIYORDU)
         
         # M43: normalization işlemi workspace scope'unda olmalı ki doğru hesapları bulabilsin
         from app.rules_engine import workspace_scope

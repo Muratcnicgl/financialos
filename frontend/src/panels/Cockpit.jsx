@@ -95,6 +95,10 @@ export default function Cockpit({ setActiveTab }) {
   const [refreshing, setRefreshing] = useState(false);
   const [priceUpdateAccount, setPriceUpdateAccount] = useState(null);
   const [flowSummary, setFlowSummary] = useState(null);
+  // BUG #273: vadesi gelip de ÖNERİYE DÖNÜŞEMEYEN düzenli gelir/gider. Eskiden bu durum
+  // yalnız sunucu log'una düşüyordu; kullanıcı kirasının önerilmediğini ay sonunda,
+  // bakiyesi tutmayınca fark ederdi.
+  const [atlananlar, setAtlananlar] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -114,6 +118,8 @@ export default function Cockpit({ setActiveTab }) {
       const existingIds = new Set((pending || []).map(a => a.id));
       const merged = [...(pending || []), ...dueActions.filter(a => !existingIds.has(a.id))];
       setPendingActions(merged);
+      // BUG #273: atlanan kayıtlar sessiz kalmaz
+      setAtlananlar([...(dueIncome?.atlanan || []), ...(dueExpense?.atlanan || [])]);
     } catch (e) {
       setError(e.message || 'Cockpit yuklenemedi');
     } finally {
@@ -223,6 +229,32 @@ export default function Cockpit({ setActiveTab }) {
           </div>
         );
       })()}
+
+      {/* BUG #273: vadesi geldiği hâlde öneriye dönüşemeyen düzenli kayıtlar */}
+      {atlananlar.length > 0 && (
+        <div
+          data-testid="atlanan-duzenli-kayitlar"
+          className="card p-4 border-warn-500 dark:border-warn-600 bg-warn-50 dark:bg-warn-950/30"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-warn-600 dark:text-warn-400 flex-shrink-0" />
+            <div className="min-w-0">
+              {/* BUG #265 kapısı: her iki temada da ≥3:1 kontrast */}
+              <h3 className="font-semibold text-sm text-warn-700 dark:text-warn-300">
+                Vadesi gelen {atlananlar.length} düzenli kayıt öneriye dönüşemedi
+              </h3>
+              <ul className="mt-1 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+                {atlananlar.map((a, i) => (
+                  <li key={a.id ?? `atlanan-${i}`}>
+                    {a.ad ? <span className="font-medium">{a.ad}: </span> : null}
+                    {a.neden}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bekleyen aksiyonlar */}
       {pendingActions.length > 0 && (

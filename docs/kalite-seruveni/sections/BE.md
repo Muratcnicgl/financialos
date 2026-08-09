@@ -29,16 +29,24 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [BE-005] `propose_action` tool döngüsü ana akış ile retry bloğunda kopyalanmış
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: propose tool döngüsü ana+retry kopya
-- **Kanıt:** `app/coach.py:1652-1685` ve `1716-1743`
-- **Aksiyon:** `_run_propose_tool_calls(...)` tek helper.
+- **Durum:** ✅ KAPANDI (9 Ağu 2026, BUG #273) — kopya SADECE teorik borç değildi: kopyalanırken
+  `TARIH_BELIRSIZ` dalı düşmüştü ve retry yolunda sinyal ele alınmıyordu (ölçüldü).
+- **Kanıt:** `CoachEngine._propose_tek_cagri` tek kaynak; ana akış ve retry aynı metodu çağırır.
+- **Doğrulama:** `tests/test_aksiyon_sinyali_kapisi.py::test_koc_yardimcisi_tek_kaynaktir`
+  (gövde `chat()` içine geri kopyalanamaz).
 - **Etki:** Orta · **Efor:** S
 
 ### [BE-006] İş kuralı sinyalleri istisna string'iyle taşınıyor (`"HESAP_BELIRSIZ"`)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: HESAP_BELIRSIZ str kontrolü, exceptions.py yok
-- **Sorun:** `raise ValueError("HESAP_BELIRSIZ")` + `if "HESAP_BELIRSIZ" in str(e)`; refactor'da sessizce bozulur.
-- **Kanıt:** `app/action_executor.py:173,177`; tüketim `app/coach.py:1677-1680,1738`
-- **Aksiyon:** `app/exceptions.py`'de `AccountUnclearError`, `DateUnclearError`.
+- **Durum:** ✅ KAPANDI (9 Ağu 2026, BUG #273 / ADR-052)
+- **Sorun:** `raise ValueError("HESAP_BELIRSIZ")` + `if "HESAP_BELIRSIZ" in str(e)`.
+  "Refactor'da sessizce bozulur" öngörüsü **zaten gerçekleşmişti**: 4 sinyal × 2 tüketici
+  matrisinin 1 hücresi yanlıştı (retry `TARIH_BELIRSIZ`i hiç ele almıyordu). İki yan bulgu:
+  iç sinyal adı kullanıcıya görünen trace "Gözlem" satırına yazılıyordu; sinyal-teşhis
+  füzyonu yüzünden iki log satırı kullanıcının tutarlarını içeriyordu (BUG #180 ihlali).
+- **Kanıt/fix:** `app/action_errors.py` (`AksiyonReddi` + 5 alt sınıf; kullanıcı mesajı,
+  iz gerekçesi ve retry kararı sınıfın üzerinde, teşhis `str(e)`ye girmez).
+- **Doğrulama:** `tests/test_aksiyon_sinyali_kapisi.py` (30; AST kapıları + davranış matrisi;
+  mutasyon 6/6). Ölçüm 1/8 → 0/8, iz sızıntısı 4 → 0, tutar içeren log 2 → 0.
 - **Etki:** Orta · **Efor:** S
 
 ### [BE-007] Async scheduler job'ları event loop içinde bloklayan sync DB çağrısı yapıyor

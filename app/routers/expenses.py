@@ -169,6 +169,7 @@ def trigger_due_expenses(
     """
     from app.action_executor import propose_action
     from app.action_executor import _fmt
+    from app.action_errors import AksiyonReddi   # BUG #273: sinyal tipten okunur
 
     today = user_today(user)  # BUG #197
     year_month = f"{today.year}-{today.month:02d}"
@@ -185,6 +186,7 @@ def trigger_due_expenses(
     ).all()
 
     triggered = []
+    atlanan = []   # BUG #273: atlanan kayıt SESSİZ kalmaz — nedeni cevapta döner
     for exp in exps:
         effective_day = min(exp.day_of_month, last_day)
         if effective_day > today.day:
@@ -231,7 +233,16 @@ def trigger_due_expenses(
                 "payload": json.loads(pending.payload),
                 "warning": getattr(pending, "_warning_text", None),
             })
-        except Exception as e:
-            logger.error(f"trigger_due_expenses: {exp.name} hata: {e}")
+        except AksiyonReddi as red:
+            # BUG #273: ret sessiz kalırsa düzenli gider her gün yeniden denenip her gün
+            # sessizce düşer (last_triggered yazılmaz) — kullanıcı kirasının önerilmediğini
+            # ancak ay sonunda, bakiyesi tutmayınca fark ederdi.
+            logger.warning("trigger_due_expenses: %s reddedildi (%s)", exp.id, red.kod)
+            atlanan.append({"id": exp.id, "ad": exp.name, "neden": red.kullanici_mesaji})
+        except Exception as e:  # noqa: BLE001 — bir kayıt patlarsa diğerleri tetiklensin
+            logger.error("trigger_due_expenses: %s hata (%s)", exp.id, type(e).__name__,
+                         exc_info=True)
+            atlanan.append({"id": exp.id, "ad": exp.name,
+                            "neden": "Bu düzenli gider için öneri oluşturulamadı."})
 
-    return {"triggered": triggered}
+    return {"triggered": triggered, "atlanan": atlanan}

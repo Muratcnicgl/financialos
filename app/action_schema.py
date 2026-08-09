@@ -141,9 +141,10 @@ PARA_ALANLARI: Dict[str, str] = {
 }
 
 
-class PayloadGecersiz(ValueError):
-    """Kullaniciya ONAYA SUNULAMAZ payload. `propose_action` bunu ValueError olarak yayar;
-    koc akisi HESAP_BELIRSIZ/TARIH_BELIRSIZ ile ayni retry yoluna duser."""
+# BUG #273: sinyal artik metinle degil TIPLE tasinir; sinif `app/action_errors.py`de yasar
+# (HESAP_BELIRSIZ/TARIH_BELIRSIZ ile ayni aile). Ad buradan da ithal edilebilsin diye
+# yeniden disa vurulur — cagiranlar (ve testler) kirilmaz.
+from app.action_errors import PayloadGecersiz  # noqa: E402  (dongusel ithal yok: action_errors bagimsiz)
 
 
 #: `propose_action` tool cagrisinin zorunlu argumanlari (LLM'e verilen sema ile ayni kume).
@@ -160,12 +161,11 @@ def tool_argumani(inp) -> tuple:
     donuyordu. Artik eksiklik ADLANDIRILMIS bir hataya donusur ve retry yoluna duser.
     """
     if not isinstance(inp, dict):
-        raise PayloadGecersiz(
-            f"PAYLOAD_GECERSIZ: tool argumani nesne olmali, {type(inp).__name__} geldi"
-        )
+        # BUG #273: kod adi metne ELLE yazilmaz — `AksiyonReddi` onu `str(e)`nin basina koyar.
+        raise PayloadGecersiz(f"tool argumani nesne degil ({type(inp).__name__})")
     eksik = [a for a in TOOL_ZORUNLU_ALANLAR if a not in inp]
     if eksik:
-        raise PayloadGecersiz(f"PAYLOAD_GECERSIZ: tool argumaninda eksik alan: {', '.join(eksik)}")
+        raise PayloadGecersiz(f"tool argumaninda eksik alan: {', '.join(eksik)}")
     return inp["action_type"], inp["payload"], inp["summary"]
 
 
@@ -176,18 +176,27 @@ def dogrula(action_type: str, payload) -> dict:
     """
     sema = PAYLOAD_SEMALARI.get(action_type)
     if sema is None:
-        raise PayloadGecersiz(f"PAYLOAD_GECERSIZ: {action_type} icin sema tanimli degil")
+        raise PayloadGecersiz(f"{action_type} icin sema tanimli degil")
     if not isinstance(payload, dict):
-        raise PayloadGecersiz(
-            f"PAYLOAD_GECERSIZ: payload bir nesne olmali, {type(payload).__name__} geldi"
-        )
+        raise PayloadGecersiz(f"payload bir nesne degil ({type(payload).__name__})")
     try:
         model = sema.model_validate(payload)
     except ValidationError as e:
+        # BUG #273: gorunur gerekce yalniz ALAN ADLARINI tasir. Pydantic mesaji gecersiz
+        # DEGERI de yankilayabilir (`Invalid isoformat string: '...'`) ve bu gerekce hem
+        # kullaniciya gorunen ize hem log'a giderdi (KVKK, BUG #180 ilkesi). Deger artik
+        # yalnizca `teshis` alanindadir: loglanmaz, persist edilmez.
+        alanlar = []
+        for h in e.errors()[:4]:
+            ad = ".".join(str(x) for x in h["loc"]) or "payload"
+            if ad not in alanlar:
+                alanlar.append(ad)
         detay = "; ".join(
             f"{'.'.join(str(x) for x in h['loc']) or 'payload'}: {h['msg']}" for h in e.errors()[:4]
         )
-        raise PayloadGecersiz(f"PAYLOAD_GECERSIZ: {detay}") from e
+        raise PayloadGecersiz(
+            f"islem verisi sozlesmeye uymuyor ({', '.join(alanlar)})", teshis=detay
+        ) from e
     return model.model_dump(exclude_none=True)
 
 

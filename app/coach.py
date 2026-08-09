@@ -133,6 +133,9 @@ from app.action_schema import (
     sablon_metni as _payload_sablon_metni,
     tool_argumani as _tool_argumani,
 )
+# BUG #273 (BE-006/RESIL-019): ret sinyalleri metinle değil TİPLE taşınır. Kullanıcıya
+# gösterilecek cümle, iz gerekçesi ve retry kararı sınıfın üzerindedir — burada elle yazılmaz.
+from app.action_errors import AksiyonReddi, en_oncelikli as _en_oncelikli_red
 from app.money_format import format_para as _para, para_etiketi  # BUG #256 (H4): para etiketi tek kaynak
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
@@ -2537,6 +2540,67 @@ class CoachEngine:
         db.add(mem)
         db.commit()
 
+    def _propose_tek_cagri(
+        self,
+        tc: Dict,
+        *,
+        db: Session,
+        user_id: int,
+        user_message: str,
+        workspace_id: Optional[int],
+        recorder,
+        iz_niyeti: str,
+    ) -> tuple[Optional[Dict], Optional[AksiyonReddi]]:
+        """Tek bir `propose_action` tool çağrısını işler → (aksiyon, ret).
+
+        BUG #273 (BE-006 + BE-005): ana akış ile retry akışı bu gövdeyi ELLE kopyalıyordu
+        ve kopya zaten ayrışmıştı — retry, `TARIH_BELIRSIZ` dalını hiç taşımıyordu. İki
+        tüketici artık aynı kodu koşar; bir sinyalin "bir yerde ele alınıp diğerinde
+        unutulması" yapısal olarak mümkün değildir.
+
+        Ret sinyali `AksiyonReddi` alt sınıfıdır: kullanıcıya söylenecek cümleyi, ize
+        yazılacak (tutarsız, kodsuz) gerekçeyi ve retry kararını KENDİSİ taşır.
+        """
+        with recorder.step(OperationName.EXECUTE_TOOL, intent=iz_niyeti) as s:
+            inp = tc.get("input")
+            s.set_action_input(inp)
+            try:
+                # BUG #266: ham `inp["action_type"]` indekslemesi eksik anahtarda KeyError
+                # atıyor, step onu yutuyor ve kullanıcı alakasız cevap alıyordu.
+                _tur, _payload, _ozet = _tool_argumani(inp)
+                pending = propose_action(
+                    db=db,
+                    user_id=user_id,
+                    action_type=_tur,
+                    payload=_payload,
+                    summary=_ozet,
+                    user_message=user_message,
+                    workspace_id=workspace_id,
+                )
+                s.observation = f"Aksiyon: action_id={pending.id}"
+                # BUG #017 fix: Hem 'id' hem 'action_id' iceriyor (geriye uyumlu)
+                # BUG #027: _warning_text instance attr → SQLAlchemy expire'dan bağımsız
+                return {
+                    "id": pending.id,
+                    "action_id": pending.id,
+                    "action_type": pending.action_type,
+                    "summary": pending.summary,
+                    "payload": json.loads(pending.payload),   # BUG #266: DB'ye yazılan hâli
+                    "warning": getattr(pending, "_warning_text", None),
+                }, None
+            except AksiyonReddi as red:
+                # Sessizce yutulursa kullanıcı "Kaydettim." metnini okur ve hiçbir şey
+                # kaydedilmez — sahte onay (BUG #049 ailesi).
+                # BUG #273: ize ve log'a giden metin TUTAR İÇERMEZ (KVKK, BUG #180 ilkesi);
+                # değer taşıyan teşhis yalnız `red.teshis` alanında, süreç içinde kalır.
+                s.observation = red.iz_gozlemi
+                logger.warning("propose_action reddedildi: %s", red.kod)
+                return None, red
+            except Exception as e:  # noqa: BLE001 — beklenmeyen hata cevabı kilitlemesin
+                s.observation = f"Hata: {type(e).__name__}"
+                logger.error("propose_action hatasi: %s", type(e).__name__, exc_info=True)
+                return None, None
+
     def chat(
         self,
         db: Session,
@@ -2680,9 +2744,11 @@ class CoachEngine:
             # STEP D: Tool call isleme
             # --------------------------------------------------------
             proposed_actions = []
-            account_unclear = False
-            date_unclear = False
-            payload_invalid = False   # BUG #266
+            # BUG #273: üç ayrı bayrak (account_unclear/date_unclear/payload_invalid) yerine
+            # TEK ret listesi. Bayrak başına bir `if/elif` dalı demek, o dalı kopyalayan her
+            # tüketicinin birini unutabilmesi demekti — retry yolu TARIH_BELIRSIZ'i tam olarak
+            # böyle kaybetmişti. Artık sinyalin kendisi taşınır, dalı yoktur.
+            redler: list[AksiyonReddi] = []
             insight_invalid = False   # BUG #268
             for tc in llm_response.tool_calls:
                 if tc["name"] == "save_insight":
@@ -2725,51 +2791,14 @@ class CoachEngine:
                     continue
                 if tc["name"] != "propose_action":
                     continue
-                with recorder.step(OperationName.EXECUTE_TOOL, intent="propose_action") as s:
-                    inp = tc["input"]
-                    s.set_action_input(inp)
-                    try:
-                        # BUG #266: ham `inp["action_type"]` indekslemesi eksik anahtarda
-                        # KeyError atıyor, step onu yutuyor ve kullanıcı alakasız cevap alıyordu.
-                        _tur, _payload, _ozet = _tool_argumani(inp)
-                        pending = propose_action(
-                            db=db,
-                            user_id=user_id,
-                            action_type=_tur,
-                            payload=_payload,
-                            summary=_ozet,
-                            user_message=user_message,
-                            workspace_id=workspace_id,
-                        )
-                        # BUG #017 fix: Hem 'id' hem 'action_id' iceriyor (geriye uyumlu)
-                        # BUG #027: _warning_text instance attr → SQLAlchemy expire'dan bağımsız
-                        proposed_actions.append({
-                            "id": pending.id,
-                            "action_id": pending.id,
-                            "action_type": pending.action_type,
-                            "summary": pending.summary,
-                            "payload": json.loads(pending.payload),   # BUG #266: DB'ye yazılan hâli (ham arguman değil)
-                            "warning": getattr(pending, "_warning_text", None),
-                        })
-                        s.observation = f"Aksiyon: action_id={pending.id}"
-                    except ValueError as e:
-                        s.observation = f"Belirsizlik: {str(e)[:200]}"
-                        if "HESAP_BELIRSIZ" in str(e):  # BUG #042 fix
-                            account_unclear = True
-                        elif "TARIH_BELIRSIZ" in str(e):  # BUG #044 fix
-                            date_unclear = True
-                        elif ("PAYLOAD_GECERSIZ" in str(e)
-                              or "OZET_PAYLOAD_CELISKISI" in str(e)
-                              or "Bilinmeyen aksiyon" in str(e)):  # BUG #266
-                            # Sessizce yutulursa kullanıcı "Kaydettim." metnini okur ve
-                            # hiçbir şey kaydedilmez — sahte onay (BUG #049 ailesi).
-                            payload_invalid = True
-                            logger.warning("propose_action payload reddedildi: %s", str(e)[:200])
-                        else:
-                            logger.error(f"propose_action hatasi: {e}")
-                    except Exception as e:
-                        s.observation = f"Hata: {str(e)[:200]}"
-                        logger.error(f"propose_action hatasi: {e}")
+                _aksiyon, _red = self._propose_tek_cagri(
+                    tc, db=db, user_id=user_id, user_message=user_message,
+                    workspace_id=workspace_id, recorder=recorder, iz_niyeti="propose_action",
+                )
+                if _aksiyon:
+                    proposed_actions.append(_aksiyon)
+                if _red:
+                    redler.append(_red)
 
             # --------------------------------------------------------
             # STEP E: Retry (BUG #043/#045 ve BUG #049)
@@ -2787,7 +2816,11 @@ class CoachEngine:
                 not (llm_response.text or "").strip()
                 or bool(_FAKE_NIYET_RE.search(llm_response.text or ""))
             )
-            if (not proposed_actions and not account_unclear and not date_unclear
+            # BUG #273: "retry'ın anlamı var mı?" kararı da sinyalin ÜZERİNDEDİR. Eksik olan
+            # KULLANICI bilgisiyse (hesap/tarih) modeli yeniden çağırmak aynı eksikle aynı
+            # öneriyi ürettirir; eksik olan modelin payload'ıysa ikinci deneme değerlidir.
+            _bilgi_bekleniyor = any(r.kullanicidan_bilgi_ister for r in redler)
+            if (not proposed_actions and not _bilgi_bekleniyor
                     and offer_propose
                     and (_orig_empty_or_fake or has_realized_action(user_message))):
                 logger.warning("BUG #045/#043 retry tetiklendi (mesaj uzunlugu=%d)", len(user_message))  # BUG #180: ham finansal metin loglanmaz (KVKK)
@@ -2810,48 +2843,26 @@ class CoachEngine:
                         except Exception as exc:
                             s.observation = f"Retry basarisiz: {type(exc).__name__}"
                             raise
+                    # BUG #273: retry gövdesi ana akıştan KOPYALANMIŞTI ve kopya ayrışmıştı
+                    # (TARIH_BELIRSIZ dalı hiç yoktu → tarih tutarsız işlem sessizce kayboluyor,
+                    # kullanıcıya soru da sorulmuyordu). Artık iki yol AYNI kaynağı koşar.
                     retry_actions = []
                     for tc in retry_response.tool_calls:
                         if tc["name"] != "propose_action":
                             continue
-                        try:
-                            inp = tc["input"]
-                            # BUG #266: retry yolu da aynı ham indekslemeyi yapıyordu
-                            _tur, _payload, _ozet = _tool_argumani(inp)
-                            pending = propose_action(
-                                db=db,
-                                user_id=user_id,
-                                action_type=_tur,
-                                payload=_payload,
-                                summary=_ozet,
-                                user_message=user_message,
-                                workspace_id=workspace_id,
-                            )
-                            retry_actions.append({
-                                "id": pending.id,
-                                "action_id": pending.id,
-                                "action_type": pending.action_type,
-                                "summary": pending.summary,
-                                "payload": json.loads(pending.payload),   # BUG #266: DB'ye yazılan hâli (ham arguman değil)
-                                "warning": getattr(pending, "_warning_text", None),
-                            })
-                        except ValueError as e:
-                            if "HESAP_BELIRSIZ" in str(e):
-                                account_unclear = True
-                            elif ("PAYLOAD_GECERSIZ" in str(e)
-                                  or "OZET_PAYLOAD_CELISKISI" in str(e)
-                                  or "Bilinmeyen aksiyon" in str(e)):  # BUG #266
-                                payload_invalid = True
-                                logger.warning("retry propose_action payload reddedildi: %s",
-                                               str(e)[:200])
-                            else:
-                                logger.error(f"retry propose_action hatasi: {e}")
-                        except Exception as e:
-                            logger.error(f"retry propose_action hatasi: {e}")
+                        _aksiyon, _red = self._propose_tek_cagri(
+                            tc, db=db, user_id=user_id, user_message=user_message,
+                            workspace_id=workspace_id, recorder=recorder,
+                            iz_niyeti="propose_action (retry)",
+                        )
+                        if _aksiyon:
+                            retry_actions.append(_aksiyon)
+                        if _red:
+                            redler.append(_red)
                     if retry_actions:
                         proposed_actions = retry_actions
                         llm_response = retry_response
-                    elif not account_unclear and _orig_empty_or_fake:
+                    elif not redler and _orig_empty_or_fake:
                         # BUG #127: Generic "hazırlanamadı" yönlendirmesini SADECE orijinal cevap
                         # boş/sahte-niyet iken yaz. has_realized_action ile tetiklenip orijinal
                         # metin substantif ise onu KORU → aşağıdaki _postprocess_report sahte-
@@ -2894,19 +2905,13 @@ class CoachEngine:
             confidence = _parse_confidence(clean_text)
             clean_text = _strip_confidence_marker(clean_text)
 
-            # BUG #042 fix: Hesap belirsizse propose_action oluşmadı, soru sor
-            if account_unclear and not proposed_actions:
-                clean_text = "Hangi hesaptan? 'kartla' veya 'nakitten' eklersen hemen kaydederim."
-                confidence = None  # override, orijinal guven gecersiz
-            # BUG #044 fix: Tarih tutarsızsa propose_action oluşmadı, yönlendir
-            if date_unclear and not proposed_actions:
-                clean_text = "Tarih bilgisi tutarsız. Tarihi açıkça belirt ('3 Mayıs'ta' gibi) veya hiç yazma — tarih yoksa bugün olarak kaydederim."
-                confidence = None  # override, orijinal guven gecersiz
-            # BUG #266: payload doğrulamadan geçmedi → kayıt OLUŞMADI. Sessiz kalırsak koçun
-            # "Kaydettim." cümlesi ekranda kalır ve kullanıcı olmayan bir kaydı doğru sanır.
-            if payload_invalid and not proposed_actions:
-                clean_text = ("Bu kaydı oluşturamadım — bildirdiğin bilgiyi tam çözemedim. "
-                              "Tutarı rakamla ve hangi hesap olduğunu yazar mısın?")
+            # BUG #042/#044/#266 → BUG #273: üç ayrı `if` bloğu ve üç elle yazılmış cümle
+            # yerine TEK yol. Kayıt oluşmadıysa kullanıcı bunu ÖĞRENMEK zorundadır; sessizlik
+            # koçun "Kaydettim." cümlesini ekranda bırakır (BUG #049 ailesi). Hangi cümlenin
+            # yazılacağı sinyalin kendi üzerindedir — burada elle seçilmez.
+            _red = _en_oncelikli_red(redler)
+            if _red is not None and not proposed_actions:
+                clean_text = _red.kullanici_mesaji
                 confidence = None  # override, orijinal guven gecersiz
             # BUG #268: içgörü kaydedilemedi. Cevabın KENDİSİ geçerli olabilir (kullanıcı bir
             # şey sormuş, koç doğru cevaplamış) — bu yüzden cevap DEĞİŞTİRİLMEZ, sonuna tek
@@ -2944,10 +2949,8 @@ class CoachEngine:
                     s.confidence_score = confidence
                 if not grounding["ok"]:
                     s.inference = f"grounding_violation: {grounding['unverified']}"
-                elif account_unclear:
-                    s.inference = "account_unclear override"
-                elif date_unclear:
-                    s.inference = "date_unclear override"
+                elif _red is not None:
+                    s.inference = _red.iz_ciktisi   # BUG #273: etiket de sinyalin üzerinde
 
             # --------------------------------------------------------
             # STEP 6: DB yazimi (CoachMemory)

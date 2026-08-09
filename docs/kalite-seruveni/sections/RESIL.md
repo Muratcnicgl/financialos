@@ -117,9 +117,10 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [RESIL-019] `propose_action` ValueError string-sözleşmesi kırılırsa akış bozulur
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: stringly-typed HESAP_BELIRSIZ ValueError (action_executor.py:214)
-- **Kanıt:** `app/action_executor.py:173,177`; `coach.py:1677-1680`
-- **Aksiyon:** Tipli exception (BE-006); kırılgan string-match yerine sağlam hata iletimi.
+- **Durum:** ✅ KAPANDI (9 Ağu 2026, BUG #273 / ADR-052) — BE-006 ile aynı düzeltme.
+- **Kanıt:** Sözleşme artık tipli (`app/action_errors.AksiyonReddi`); `propose_action` çağıran
+  her `try` bloğunun `AksiyonReddi`yi adıyla yakaladığı AST kapısıyla kilitli. Sessiz kalan
+  iki tüketici (recurring gelir/gider tetikleyicileri) `atlanan` alanıyla konuşur oldu.
 - **Etki:** Orta · **Efor:** S
 
 ### [RESIL-020] Rate-limit/quota'da kullanıcıya net "yarın dene" degrade yok

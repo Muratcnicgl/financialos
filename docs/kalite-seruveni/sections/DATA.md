@@ -66,7 +66,16 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DATA-011] `GoalAllocation`/`GoalRule`'da `user_id` yok — izolasyon join'e bağımlı
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: GoalAllocation/GoalRule user_id yok, Goal join'e bağımlı (models.py:820)
+- **Durum:** 🟡 KISMEN — **durum düzeltmesi (8 Ağu 2026, R3 ile ölçüldü).** Maddenin kendi
+  aksiyonu iki şıklıydı ("denormalize `user_id` ekle **veya** zorunlu Goal join disiplinini
+  testle garanti et"); **ikinci şık UYGULANMIŞ**: her iki model AST tabanlı kapsam kapısında
+  (`tests/test_scope_enforcement.py:98`, BUG #162 dersiyle eklendi) — `app/` ağacının tamamı
+  taranır, kapsamsız sorgu testi KIRAR, istisna ancak yazılı `# scope-exempt: <sebep>` ile
+  mümkündür. Ölçüm: bugün bu tabloları okuyan altı yolun hepsi ya Goal join'i + `scope_filter`
+  ile kapsanmış (`goal_rules.py`) ya da ebeveyn-goal sahipliği çağıranda doğrulanıp gerekçesi
+  yazılmış. Yani risk **canlı değil, gizli**. **Açık kalan:** yalnız denormalizasyon şıkkı
+  (savunma derinliği + FK index'i, DATA-012 ile birlikte yapılmalı) — şema değişikliği
+  gerektirir, izolasyon bugün kapıyla korunuyor.
 - **Kanıt:** `app/models.py:717-745`, `:795-831`
 - **Aksiyon:** Denormalize `user_id` ekle veya zorunlu Goal join disiplinini testle garanti et.
 - **Etki:** Orta · **Efor:** M

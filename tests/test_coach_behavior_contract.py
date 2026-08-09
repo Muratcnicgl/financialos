@@ -46,10 +46,12 @@ class SequencedProvider:
         self.responses = responses          # [(text, tool_calls), ...]
         self.calls = 0
         self.systems = []                    # her çağrının system_prompt'u
+        self.messages_per_call = []          # BUG #272: her çağrının messages'ı
         self.received_tools_per_call = []    # her çağrıda sunulan tool isimleri
 
     def chat(self, system_prompt, messages, tools):
         self.systems.append(system_prompt)
+        self.messages_per_call.append([dict(m) for m in messages])
         self.received_tools_per_call.append([t.get("name") for t in (tools or [])])
         idx = min(self.calls, len(self.responses) - 1)
         text, tcs = self.responses[idx]
@@ -265,7 +267,7 @@ def test_bos_cevap_retry_ile_propose_uretir(db):
     """
     Gerçekleşmiş eylem bildirildi (offer_propose=True) ama 1. LLM çağrısı BOŞ döndü →
     retry tetiklenir → 2. çağrı propose_action döner → pending oluşur.
-    2. çağrının system_prompt'unda [RETRY ...] talimatı bulunmalı.
+    2. çağrının MESSAGES sonunda [RETRY ...] nudge'ı bulunmalı (BUG #272: system sabit).
     """
     session, u = db
     cash = session.query(Account).filter_by(
@@ -283,7 +285,10 @@ def test_bos_cevap_retry_ile_propose_uretir(db):
     res = CoachEngine(provider=prov).chat(session, u.id, "500 TL yemek harcadım nakitten", include_cockpit=False)
     assert prov.calls == 2                               # retry gerçekten çalıştı
     assert len(res["proposed_actions"]) == 1
-    assert "[RETRY" in prov.systems[1]                   # 2. çağrı retry prompt'u aldı
+    # BUG #272: yönlendirme artık SİSTEM sözleşmesine değil `messages` sonuna yazılır —
+    # sözleşme tur içinde sabit kalmalı (tests/test_sistem_sozlesmesi_kapisi.py).
+    assert "[RETRY" in prov.messages_per_call[1][-1]["content"]
+    assert prov.systems[0] == prov.systems[1], "system prompt tur icinde degisti"
 
 
 def test_gerceklesmis_eylem_duz_metinle_gecistirilirse_retry(db):
@@ -312,7 +317,9 @@ def test_gerceklesmis_eylem_duz_metinle_gecistirilirse_retry(db):
     res = CoachEngine(provider=prov).chat(session, u.id, "240 TL market aldım kartla", include_cockpit=False)
     assert prov.calls == 2                               # BUG #127: retry düz-metinde de tetiklendi
     assert len(res["proposed_actions"]) == 1
-    assert "[RETRY" in prov.systems[1]
+    # BUG #272: aynı sözleşme değişikliği (yönlendirme messages'ta).
+    assert "[RETRY" in prov.messages_per_call[1][-1]["content"]
+    assert prov.systems[0] == prov.systems[1], "system prompt tur icinde degisti"
 
 
 def test_notr_cumlede_duz_metin_retry_tetiklemez(db):

@@ -2189,6 +2189,26 @@ _FAKE_CONFIRM_RE = re.compile(
     r'\[[^\]]*(?:kaydedildi|kaydettim|i[sş]lendi|eklendi|hesaba\s*ge[cç]irildi|yap[iı]ld[iı]|al[iı]nd[iı])[^\]]*\]',
     re.IGNORECASE,
 )
+# BUG #272 (LLM-021): YÖNLENDİRME SİSTEM SÖZLEŞMESİNİ DEĞİŞTİRMEZ — `messages` sonuna eklenir.
+# Ölçüm: `propose` retry'ı `[RETRY: ...]`i system prompt'a ekliyordu (denemeler arası system
+# DEĞİŞİYOR, messages sabit kalıyordu); soru retry'ı ise aynı işi doğru şekilde messages'a
+# nudge olarak yapıyordu — aynı dosyada, bir çağrı arayla İKİ farklı teknik (BUG #270 sınıfı).
+# Gerekçe iki katmanlı: (a) prefix eşleşmesiyle çalışan her cache retry'da prefix'i baştan
+# yazar, (b) system prompt koçun YETKİ yüzeyidir (ADR-045) — aynı turun iki çağrısında
+# farklı olamaz. Kazanç iddiası LLM-002'ye aittir ve orada ölçülemediği için ertelendi;
+# burada yapılan yalnız yapısal ön koşulu ve sözleşme tutarlılığını sağlamaktır.
+_RETRY_NUDGE_PROPOSE = {
+    "role": "user",
+    "content": "[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]",
+}
+_RETRY_NUDGE_SORU = {
+    "role": "user",
+    "content": "[RETRY: Kullanıcı bir soru sordu. Lütfen Türkçe kısa bir analiz yaz, tool çağırma.]",
+}
+# İç plan da yönlendirmedir ve aynı kurala tabidir.
+_PLAN_MESAJ_BASI = ("[İÇ PLAN — kullanıcıya GÖSTERME; cevabını buna göre TEK bütün, sade ve "
+                    "jargonsuz yaz]\n")
+
 _CLARIFY_MSG = "Hangi hesaptan harcadın? Yazına 'kartla' veya 'nakitten' eklersen hemen kaydederim."
 # BUG #043 iter2: Gelecek zaman sahte niyet pattern'ları — retry trigger'ı
 _FAKE_NIYET_RE = re.compile(
@@ -2593,9 +2613,12 @@ class CoachEngine:
             if include_cockpit and not has_realized_action(user_message):
                 with recorder.step(OperationName.LLM_CALL, intent="İç plan (deliberasyon)") as plan_step:
                     try:
+                        # BUG #272: plan TALİMATI da yönlendirmedir → system'e değil messages'a.
+                        # Böylece değişmez tek cümleye iner: bir turdaki HER sağlayıcı çağrısı
+                        # AYNI system prompt'u görür (kapı bunu ölçer).
                         plan_resp = self.provider.chat(
-                            system_prompt=f"{system_prompt}\n\n{_PLAN_INSTRUCTION}",
-                            messages=messages,
+                            system_prompt=system_prompt,
+                            messages=messages + [{"role": "user", "content": _PLAN_INSTRUCTION}],
                             tools=[],
                         )
                         plan_text = (plan_resp.text or "").strip()
@@ -2604,10 +2627,12 @@ class CoachEngine:
                         plan_text = ""
                         plan_step.observation = f"plan uretilemedi ({type(e).__name__}) → tek-gecis"
                 if plan_text:
-                    system_prompt = (
-                        f"{system_prompt}\n\n# UYGULANACAK İÇ PLAN (kullanıcıya GÖSTERME; "
-                        f"cevabını buna göre TEK bütün, sade ve jargonsuz yaz):\n{plan_text}"
-                    )
+                    # BUG #272: plan SİSTEM sözleşmesine yazılmaz — sabit önekten SONRA,
+                    # messages'a eklenir. İçerik ve etki aynı; değişen tek şey KONUM.
+                    # Ölçüm: ana çağrının system prompt'u modelin O TURDA ürettiği plan
+                    # metnini taşıyordu (21.117 karakterin son 648'i her turda farklı).
+                    messages = messages + [{"role": "user",
+                                            "content": _PLAN_MESAJ_BASI + plan_text}]
 
             # --------------------------------------------------------
             # STEP C: Ana LLM cagrisi
@@ -2767,13 +2792,13 @@ class CoachEngine:
                     and (_orig_empty_or_fake or has_realized_action(user_message))):
                 logger.warning("BUG #045/#043 retry tetiklendi (mesaj uzunlugu=%d)", len(user_message))  # BUG #180: ham finansal metin loglanmaz (KVKK)
                 try:
-                    retry_prompt = system_prompt + "\n\n[RETRY: Kullanıcı gerçekleşmiş bir eylemi bildirdi. propose_action çağırman gerekiyor.]"
+                    # BUG #272 (LLM-021): yönlendirme SİSTEM sözleşmesine yazılmaz.
                     with recorder.step(OperationName.LLM_CALL, intent="Retry: propose_action zorla",
                                        parent_step_id=first_llm_step_db_id) as s:
                         try:
                             retry_response = self.provider.chat(
-                                system_prompt=retry_prompt,
-                                messages=messages,
+                                system_prompt=system_prompt,   # BUG #272: SÖZLEŞME SABİT
+                                messages=messages + [_RETRY_NUDGE_PROPOSE],
                                 tools=active_tools,
                             )
                             s.observation = (retry_response.text or "")[:500]
@@ -2842,13 +2867,12 @@ class CoachEngine:
             elif (is_q and not (llm_response.text or "").strip()):
                 logger.warning("BUG #049 soru retry tetiklendi (mesaj uzunlugu=%d)", len(user_message))  # BUG #180: ham finansal metin loglanmaz (KVKK)
                 try:
-                    nudge = {"role": "user", "content": "[RETRY: Kullanıcı bir soru sordu. Lütfen Türkçe kısa bir analiz yaz, tool çağırma.]"}
                     with recorder.step(OperationName.LLM_CALL, intent="Retry: soru yaniti",
                                        parent_step_id=first_llm_step_db_id) as s:
                         try:
                             retry_response = self.provider.chat(
                                 system_prompt=system_prompt,
-                                messages=messages + [nudge],
+                                messages=messages + [_RETRY_NUDGE_SORU],
                                 tools=[],  # save_insight dahil hiç tool yok — sadece saf metin
                             )
                             s.observation = (retry_response.text or "")[:500]

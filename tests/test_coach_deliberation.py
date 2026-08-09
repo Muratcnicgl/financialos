@@ -27,7 +27,9 @@ class RecordingProvider:
         self.calls = []
 
     def chat(self, system_prompt, messages, tools):
-        self.calls.append({"sys": system_prompt, "tools": [t.get("name") for t in (tools or [])]})
+        self.calls.append({"sys": system_prompt,
+                           "msgs": [dict(m) for m in messages],   # BUG #272
+                           "tools": [t.get("name") for t in (tools or [])]})
         text = "PLAN: iç plan" if not tools else "Kullanıcıya giden cevap."
         return LLMResponse(
             text=text, tool_calls=[], usage={"input_tokens": 1, "output_tokens": 1},
@@ -48,14 +50,18 @@ def db():
 
 
 def test_soru_yolunda_iki_gecis_plan_sonra_yaz(db):
-    """Soru → önce plan (tool'suz) sonra cevap (tool'lu); plan 2. çağrının promptuna enjekte."""
+    """Soru → önce plan (tool'suz) sonra cevap (tool'lu); plan 2. çağrının MESSAGES'ına eklenir (BUG #272: system sabit)."""
     eng = CoachEngine(provider=RecordingProvider())
     res = eng.chat(db, 1, "karta ne kadar ödeyeyim")
     calls = eng.provider.calls
     assert len(calls) == 2, "soru yolunda iki geçiş (plan + cevap) beklenir"
     assert calls[0]["tools"] == [], "1. çağrı plan → tool sunulmaz"
-    assert "İÇ PLAN ÜRET" in calls[0]["sys"], "1. çağrı plan talimatını içermeli"
-    assert "UYGULANACAK İÇ PLAN" in calls[1]["sys"], "plan 2. çağrıya enjekte edilmeli"
+    # BUG #272: plan talimatı da üretilen plan da SİSTEM sözleşmesine değil `messages`
+    # sonuna yazılır — sözleşme tur içinde sabittir (tests/test_sistem_sozlesmesi_kapisi.py).
+    assert "İÇ PLAN ÜRET" in calls[0]["msgs"][-1]["content"], "1. çağrı plan talimatını içermeli"
+    assert "İÇ PLAN" in calls[1]["msgs"][-1]["content"], "plan 2. çağrıya messages ile gitmeli"
+    assert "PLAN: iç plan" in calls[1]["msgs"][-1]["content"], "üretilen plan metni taşınmalı"
+    assert calls[0]["sys"] == calls[1]["sys"], "system prompt tur içinde değişti"
     # kullanıcıya giden metin cevap-geçişinin çıktısı, plan DEĞİL
     assert "PLAN" not in res.get("reply", "")
 
@@ -75,7 +81,9 @@ def test_eylem_bildiriminde_plan_gecisi_yok(db):
     calls = eng.provider.calls
     assert "propose_action" in calls[0]["tools"], "eylem yolunda ilk çağrı doğrudan tool'lu olmalı"
     # plan talimatı hiçbir çağrıda olmamalı
+    # BUG #272: talimat artık messages'ta — kontrol her iki yüzeyi de kapsar
     assert all("İÇ PLAN ÜRET" not in c["sys"] for c in calls), "eylem yolunda plan-geçişi olmamalı"
+    assert all("İÇ PLAN ÜRET" not in str(c["msgs"]) for c in calls), "eylem yolunda plan-geçişi olmamalı"
 
 
 def test_plan_bos_donerse_cevap_yine_uretilir(db):

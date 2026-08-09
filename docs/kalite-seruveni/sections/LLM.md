@@ -196,7 +196,22 @@ Harcamanı kaydettim."`
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-021] Retry "[RETRY:...]" system'e enjekte ediyor — cache kırar
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: propose retry system_prompt cache kirar
+- **Durum:** ✅ KAPANDI (BUG #272, 8 Ağu 2026). **Ölçüm (sağlayıcının gördüğü `system_prompt`
+  kaydedilerek):** `propose` retry'ında denemeler arası system **DEĞİŞİYOR** (`[RETRY: ...]`
+  ekleniyor, messages sabit); soru retry'ı ise aynı işi doğru şekilde messages'a nudge olarak
+  yapıyordu — **aynı dosyada, bir çağrı arayla iki farklı teknik** (BUG #270 sınıfı).
+  **Sınıf taraması iki yer daha buldu:** iç plan TALİMATI kendi çağrısının system'ine, ÜRETİLEN
+  plan metni ise ANA çağrının system'ine ekleniyordu (21.117 karakterin son 648'i her turda
+  farklı — yani sözleşme, modelin o turda ürettiği metni taşıyordu). **Fix:** değişmez tek
+  cümleye indi — *bir `chat()` turundaki HER sağlayıcı çağrısı AYNI system prompt'u görür*;
+  yönlendirme `messages` sonuna eklenir ve üç yönlendirme tek yerde tanımlı. Kapı
+  `tests/test_sistem_sozlesmesi_kapisi.py` (10, mutasyon 4/4 — bir mutasyonun kırmızısı
+  sözdizimi kazasıydı, SAHTE kırmızı olarak elendi ve geçerli biçimde yeniden yazıldı).
+  **Gerekçe abartılmadı:** ölçülen şey kazanç değil **yapısal ön koşul + sözleşme
+  tutarlılığı**; cache kazancı LLM-002'ye aittir ve orada ölçülemediği için ertelendi.
+  **Yan bulgu (meşru çıktı):** `system_prompt += _mkt_block` (FEAT-032 canlı döviz) ilk
+  çağrıdan ÖNCE kurulan bağlamdır — kilit "ilk çağrıdan SONRA mutasyon yok" olarak daraltıldı;
+  bağlamın system'de olup olmaması LLM-002 kapsamı.
 - **Kanıt:** `coach.py:1697,1759,1691-1778`
 - **Aksiyon:** Retry talimatını system'e değil messages sonuna ekle (cache prefix korunur); iki retry bloğunu tek `_retry_once(mode)`'da birleştir.
 - **Etki:** Orta · **Efor:** M

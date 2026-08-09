@@ -95,6 +95,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 
 Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satırlık aynı cümle temizleniyordu) |
 | L39 | **Sayarak kurulan bir koruma (kelime/fiil listesi) asla "kapandı" sayılamaz; yanına DURUM-TABANLI bir güvence koy.** Liste kaçırdığında kullanıcı hiçbir şey görmez; durumdan türeyen not ise ifadeden ve biçimden bağımsızdır. Listeyi de ölçülen korpusla kapıya bağla ki bir sonraki eş anlamlı sessiz delik değil kırmızı test olsun. | #271 (fiil listesi üç BUG boyunca büyümüş, hâlâ 12 cümlenin 6'sını kaçırıyordu; "kullanıcı saf bildirim yaptı ve hiç kayıt oluşmadı" notu fiilden bağımsız çalışır) |
+| L40 | **Bir mutasyonun kırmızısı SÖZDİZİMİ hatasından geliyorsa, o kırmızı SAHTEDİR.** Mutasyon testi "kapı ölçüyor mu" sorusuna cevap verir; dosyayı bozan bir mutasyon yalnız "Python çalışıyor mu"yu ölçer ve kapıya güven verir gibi görünür. Mutasyon çıktısında `SyntaxError` ayrı sınıflandırılmalı ve mutasyon geçerli biçimde yeniden yazılmalıdır. | #272 (M3'ün kırmızısı `unterminated string literal`di; kaçışsız yeniden yazılınca gerçek kırmızı oldu — skor 4/4'e ancak o zaman ulaştı) |
+| L41 | **Aynı turda iki kez çağrılan bir sözleşme, iki çağrıda AYNI olmalıdır — yönlendirme sözleşmeye değil mesaja yazılır.** Retry/plan gibi "bir kez daha dene" yolları, talimatı system prompt'a eklemeye çok müsaittir; oysa system prompt yetki yüzeyidir ve prefix'tir: değişince hem yetki metni deterministik olmaktan çıkar hem de prefix eşleşmesiyle çalışan her cache baştan yazar. | #272 (aynı dosyada doğrusu zaten vardı: soru retry'ı nudge'ı messages'a ekliyordu; propose retry'ı ve iç plan system'e yazıyordu — üstelik plan, modelin O TURDA ürettiği metindi) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -448,6 +450,24 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 8 AĞUSTOS 2026 (6) — YÖNLENDİRME, SÖZLEŞMENİN KENDİSİNİ DEĞİŞTİRİYORDU (BUG #272,
+> backlog LLM-021).** Ölçüm (sağlayıcının gördüğü `system_prompt` kaydedilerek): `propose`
+> retry'ında denemeler arası system **DEĞİŞİYOR**; soru retry'ı ise aynı işi doğru şekilde
+> `messages`'a nudge olarak yapıyordu — **aynı dosyada, bir çağrı arayla iki farklı teknik**
+> (BUG #270 sınıfı, doğrusu zaten oradaydı). Sınıf taraması iki yer daha buldu: iç plan
+> TALİMATI kendi çağrısının system'ine, **ÜRETİLEN plan metni ise ANA çağrının system'ine**
+> yazılıyordu (21.117 karakterin son 648'i her turda farklı — sözleşme, modelin o turda
+> ürettiği metni taşıyordu). **Fix:** değişmez tek cümleye indi — *bir turdaki HER sağlayıcı
+> çağrısı AYNI system prompt'u görür* (**L41**); üç yönlendirme tek yerde tanımlı ve
+> `messages` sonuna eklenir. **Gerekçe abartılmadı:** ölçülen şey kazanç değil yapısal ön
+> koşul + sözleşme tutarlılığı (ADR-045 yetki yüzeyi); cache kazancı LLM-002'ye ait ve orada
+> ölçülemediği için ertelendi. Kapı `tests/test_sistem_sozlesmesi_kapisi.py` (10).
+> **Mutasyon 4/4 — ama dürüst kayıt:** ilk turda M3'ün kırmızısı **sözdizimi hatasıydı**,
+> sahte kırmızı olarak elendi ve geçerli biçimde yeniden yazıldı (**L40**). Drift kilidi
+> üçüncü bir yeri de gösterdi (`system_prompt += _mkt_block`, FEAT-032 canlı döviz):
+> ölçüldü, **ilk çağrıdan ÖNCE kurulan bağlam** olduğu için meşru — kilit "ilk çağrıdan
+> SONRA mutasyon yok" olarak daraltıldı.
 
 > **📌 8 AĞUSTOS 2026 (5) — "KAYDETTİM" GÜVENCESİ ÜÇ AYRI YERDEN DELİKTİ (BUG #271,
 > backlog LLM-020).** `_postprocess_report`'un işi tek cümlede: aksiyon oluşmadıysa koç

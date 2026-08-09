@@ -40,6 +40,30 @@ lunchmoney.app/blog/how-to-choose-the-right-budget-categories
 
 ---
 
+## 2026-08-08 — Ajan belleğinde ÖNEM ve TAHLİYE politikası (BUG #268 / save_insight)
+**Soru:** Koçun kalıcı hafızası prompt'a enjekte edilirken hangi kayıt düşer, hangisi kalır?
+Bizde `limit(5)` + `sort_priority DESC` var; kullanıcının "asla unutma" dediği gerçek düşüyordu.
+Sektör bu tahliyeyi neye göre yapıyor?
+**Bulgu:** 2026 pratiği belleği bir **politika katmanı** olarak kuruyor ve dört kaldıraç sayıyor:
+**önem (importance) · birleştirme (merge) · çürüme (decay) · tahliye (eviction)** — Mem0 / Zep /
+Letta / LangMem / Hindsight karşılaştırmalarının ortak çerçevesi bu. Önem skorlaması için kanonik
+desen Generative Agents'ın 1-10 "importance" puanı: yazma anında hesaplanır, SAKLANIR ve geri
+getirmede ağırlık olarak kullanılır; bilinen maliyeti her yazmada bir model çağrısı ve model
+sürümleri arası kayma. Üçüncü lineage "curated working view + öncelikli Evictor" (PEEK) — yani
+sınırlı bir pencereyi ÖNEM sırasına göre elde tutmak; bizim `limit(5)`imiz tam olarak budur,
+eksik olan tarafı önem sinyalinin yazma yolunda hiç set edilmemesiydi.
+**Karar (bize uyarlaması):** Ayrı bir LLM "importance" çağrısı EKLENMİYOR (maliyet + kayma +
+ADR-001: karar kuralda, LLM'de değil). Zaten var olan önem merdiveni (`sort_priority`, 1..15)
+tek kaynağa alınıyor ve koçun `save_insight`'ının BEYAN ETTİĞİ öncelik bu merdivene bağlanıyor —
+yani skoru üretmek için yeni bir mekanizma değil, var olan skoru YAZMAYAN yolu kapatmak.
+Kullanıcının kendi sözüyle beyan edilen gerçek, desen gözlemlerinin üstünde ama deterministik
+kırmızı-çizgi çıkarımının (15) altında konumlanır.
+**Kaynaklar:** mem0.ai/blog/state-of-ai-agent-memory-2026 · hindsight.vectorize.io/blog/2026/05/21/agent-memory-consolidation ·
+vectorize.io/articles/best-ai-agent-memory-systems · arxiv.org/pdf/2606.12945 (çok-faktörlü değer modeli) ·
+maidul-haque.vercel.app/blog/agent-memory-architectures-2026
+
+---
+
 ## 2026-07-12 — OpenRouter (koç sağlayıcı fallback, ADR-028)
 **Soru:** Gemini-only kısıtına (Groq/Cerebras TPM aşımı) alternatif fallback var mı?
 **Bulgu:** OpenRouter = birleşik LLM router (300+ model, 60+ sağlayıcı, tek API key). Ücretsiz katman: 20+ model (Llama 3.3 70B, GPT-OSS 120B, Qwen3 Coder, Nemotron); ücretsiz lineup rotasyonlu. **Rate limit istek-bazlı: 50/gün (kredisiz) veya 1000/gün ($10+), 20/dk — TPM sınırı YOK** → zengin koç prompt'u (~8000 token) için Groq/Cerebras'tan daha uygun. `openrouter/free` auto-router (Şub 2026) uygun ücretsiz modele yönlendirir. Fallback-faturalama: yalnız başarılı çağrı ücretlendirilir. PAYG %5.5 platform ücreti; BYOK opsiyonu.

@@ -155,6 +155,11 @@ logger = logging.getLogger(__name__)
 #   (2) Desenler yalnız diakritikli yazımı tanıyordu ("odedim"/"dusunuyorum"/
 #       "degerlendir" eşleşmiyordu; 20 token).
 # İsimler geriye uyumlu bırakıldı — çağıranlar ve mevcut testler değişmedi.
+from app.insight_schema import (  # BUG #268: içgörü sözleşmesi tek kaynak
+    IcgoruGecersiz,
+    ayikla as _icgoru_ayikla,
+    tool_semasi as _icgoru_tool_semasi,
+)
 from app.intent_rules import (  # noqa: E402  (modül üstündeki import bloğuyla aynı seviye)
     gelecek_niyet_mi as is_future_or_intent,
     gerceklesmis_eylem_var_mi as has_realized_action,
@@ -469,42 +474,12 @@ Yalnız planı yaz. Cevap metnini SONRAKİ adımda yazacaksın."""
 # 2. TOOL ŞEMASI
 # ============================================================
 
-SAVE_INSIGHT_SCHEMA = {
-    "name": "save_insight",
-    "description": (
-        "Kullanıcının söylediği önemli bir gerçeği, planı, tercihi veya davranış kalıbını "
-        "kalıcı hafızaya kaydet. UZUN VADELİ HAFIZA listesinde ZATEN VARSA ÇAĞIRMA — "
-        "dedup_key aynı kalıp olmalı. Tarihli olaylar için expires_at ver."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "content": {
-                "type": "string",
-                "description": "Tek Türkçe cümle: ne hatırlanmalı.",
-            },
-            "category": {
-                "type": "string",
-                "enum": ["preference", "event", "pattern", "goal"],
-                "description": "preference: tercih/red. event: tarihli olay. pattern: davranış kalıbı. goal: plan/hedef.",
-            },
-            "priority": {
-                "type": "string",
-                "enum": ["critical", "high", "normal"],
-                "description": "critical: asla unutulmamalı. high: stratejik. normal: genel bağlam.",
-            },
-            "dedup_key": {
-                "type": "string",
-                "description": "Kısa snake_case slug: konu+zaman+kategori özetle. Örn: fon_satisi_seyahat, yakin_kisi_odemeleri_2026q3, haftalik_market. Aynı gerçek için daima aynı key kullan.",
-            },
-            "expires_at": {
-                "type": "string",
-                "description": "YYYY-MM-DD — tarihli olaylar için (seyahat, ödeme). Opsiyonel.",
-            },
-        },
-        "required": ["content", "category", "priority", "dedup_key"],
-    },
-}
+# BUG #268 fix: bu sema ELLE yazili IKINCI listeydi ("required" alanlari `save_insight`
+# handler'inin gercekte okuduklariyla uyusmuyordu: sema `category`/`priority`'yi ZORUNLU
+# sayarken kod ikisini de opsiyonel okuyup sessizce varsayilana dusuruyor, `content` ise
+# HAM indeksleniyordu). Artik sozlesmeden URETILIR — izin verilen degerler, uzunluk siniri
+# ve zorunlu alanlar `app/insight_schema.py` ile birlikte yasar (L27).
+SAVE_INSIGHT_SCHEMA = _icgoru_tool_semasi()
 
 # BUG #266 fix: PAYLOAD ŞABLONLARI bölümü prompt'ta ELLE yazılı ÜÇÜNCÜ bir listeydi
 # (birincisi Pydantic şeması yoktu, ikincisi handler'ların okuduğu anahtarlar). Şema değişse
@@ -2410,9 +2385,28 @@ def save_insight_action(
     dedup_key: str,
     expires_at: Optional[str] = None,
 ) -> CoachInsight:
-    """CoachInsight upsert: dedup_key varsa UPDATE, yoksa INSERT. Wave-3 aktivasyonun kodu."""
+    """CoachInsight upsert: dedup_key varsa UPDATE, yoksa INSERT. Wave-3 aktivasyonun kodu.
+
+    BUG #268 fix — İKİ ayrı defekt:
+
+    (1) **Beyan edilen öncelik enjeksiyona hiç ulaşmıyordu.** Tool açıklaması LLM'e
+        "critical: asla unutulmamalı" diyor, ama `format_insights_for_prompt`
+        `sort_priority` (int) + `last_evidence_at` ile sıralayıp `limit(5)` uyguluyor.
+        Bu fonksiyon ikisini de YAZMIYORDU → kullanıcının kendi beyanı varsayılan 5 ile,
+        `last_evidence_at` NULL olduğu için eşitlikte de en sonda kalıyordu. Ölçüm: 6 rutin
+        gözlem + 1 "asla kredi çekmeyeceğim" beyanı → beyan enjekte edilen blokta YOK.
+        `InsightPriority` enum'u yazılıp hiç okunmuyordu (dekoratif alan).
+    (2) **Başarısız yazma session'ı zehirliyordu.** Çağıran `except`'e düşüyor ama session
+        rollback edilmemiş kalıyor; sonraki `commit()` `PendingRollbackError` fırlatıyor ve
+        kullanıcının o koç mesajı KOMPLE hata dönüyordu. Yazma artık `begin_nested()`
+        savepoint'i içinde (projenin anti-pattern kuralı) — içgörü düşse bile sohbet ayakta.
+    """
     from datetime import date as _date
+    from app.insight_schema import ONEM_MERDIVENI, VARSAYILAN_ONCELIK
+
     pri = InsightPriority(priority) if priority in [e.value for e in InsightPriority] else InsightPriority.normal
+    # Enjeksiyonun GERÇEKTEN baktığı alan: aynı ölçek çıkarıcılarla paylaşılır (ADR-050).
+    onem = ONEM_MERDIVENI.get(pri.value, ONEM_MERDIVENI[VARSAYILAN_ONCELIK])
     exp = _date.fromisoformat(expires_at) if expires_at else None
 
     existing = None
@@ -2422,25 +2416,35 @@ def save_insight_action(
             CoachInsight.dedup_key == dedup_key,
         ).first()
 
-    if existing:
-        existing.content = content
-        existing.priority = pri
-        existing.category = category
-        if exp is not None:
-            existing.expires_at = exp
-        db.commit()
-        db.refresh(existing)
-        return existing
-
-    insight = CoachInsight(
-        user_id=user_id,
-        content=content,
-        category=category,
-        priority=pri,
-        dedup_key=dedup_key,
-        expires_at=exp,
-    )
-    db.add(insight)
+    with db.begin_nested():   # BUG #268 (2): hata session'ı zehirlemesin
+        if existing:
+            existing.content = content
+            existing.priority = pri
+            existing.category = category
+            existing.sort_priority = onem
+            existing.title = existing.title or dedup_key    # prompt basligi "(baslik yok)" kalmasin
+            existing.last_evidence_at = datetime.utcnow()   # eşitlikte NULLS LAST'a düşmesin
+            existing.status = "active"                      # daha önce düşürülmüşse geri gelir
+            if exp is not None:
+                existing.expires_at = exp
+            insight = existing
+        else:
+            insight = CoachInsight(
+                user_id=user_id,
+                content=content,
+                category=category,
+                priority=pri,
+                dedup_key=dedup_key,
+                expires_at=exp,
+                sort_priority=onem,
+                last_evidence_at=datetime.utcnow(),
+                # Prompt her içgörünün başına [TİP | GÜVEN] yazar; bu yol için ikisi de
+                # NULL'dı ve kullanıcının kendi beyanı "GENEL | unknown" görünüyordu.
+                insight_type="kullanici_beyani",
+                title=dedup_key,
+                confidence_basis="user_stated",
+            )
+            db.add(insight)
     db.commit()
     db.refresh(insight)
     return insight
@@ -2644,20 +2648,28 @@ class CoachEngine:
             account_unclear = False
             date_unclear = False
             payload_invalid = False   # BUG #266
+            insight_invalid = False   # BUG #268
             for tc in llm_response.tool_calls:
                 if tc["name"] == "save_insight":
                     with recorder.step(OperationName.EXECUTE_TOOL, intent="save_insight") as s:
                         inp = tc["input"]
                         s.set_action_input(inp)
                         try:
+                            # BUG #268: argümanlar HAM indeksleniyordu (`inp["content"]`).
+                            # Eksik anahtar KeyError, metin-olmayan içerik ise session'ı
+                            # zehirleyip TÜM koç isteğini çökertiyordu. Artık sözleşme:
+                            # içerik yoksa reddet, metadata'yı belgeli varsayılana düşür.
+                            _ayik = _icgoru_ayikla(inp)
+                            if _ayik.duzeltmeler:
+                                s.inference = "Duzeltme: " + "; ".join(_ayik.duzeltmeler)
                             result = save_insight_action(
                                 db=db,
                                 user_id=user_id,
-                                content=inp["content"],
-                                category=inp.get("category", "general"),
-                                priority=inp.get("priority", "normal"),
-                                dedup_key=inp.get("dedup_key", ""),
-                                expires_at=inp.get("expires_at"),
+                                content=_ayik.content,
+                                category=_ayik.category,
+                                priority=_ayik.priority,
+                                dedup_key=_ayik.dedup_key,
+                                expires_at=_ayik.expires_at,
                             )
                             # BUG #244 (D29): içgörü METNİ kullanıcının finansal/kişisel
                             # verisidir — log'a düşmez (BUG #180 ilkesi). Teşhis için
@@ -2665,7 +2677,14 @@ class CoachEngine:
                             logger.info("save_insight: [%s] %d karakter",
                                         result.dedup_key, len(result.content or ""))
                             s.observation = "Insight kaydedildi"
+                        except IcgoruGecersiz as e:
+                            # BUG #268: sessiz kalırsa koçun "Not aldım." cümlesi ekranda
+                            # kalır ve hafıza boş olur (BUG #049 ailesi: sahte onay).
+                            insight_invalid = True
+                            s.observation = f"Icgoru reddedildi: {str(e)[:200]}"
+                            logger.warning("save_insight reddedildi: %s", str(e)[:200])
                         except Exception as e:
+                            insight_invalid = True
                             s.observation = f"Hata: {str(e)[:200]}"
                             logger.error(f"save_insight hatasi: {e}")
                     continue
@@ -2855,6 +2874,14 @@ class CoachEngine:
                 clean_text = ("Bu kaydı oluşturamadım — bildirdiğin bilgiyi tam çözemedim. "
                               "Tutarı rakamla ve hangi hesap olduğunu yazar mısın?")
                 confidence = None  # override, orijinal guven gecersiz
+            # BUG #268: içgörü kaydedilemedi. Cevabın KENDİSİ geçerli olabilir (kullanıcı bir
+            # şey sormuş, koç doğru cevaplamış) — bu yüzden cevap DEĞİŞTİRİLMEZ, sonuna tek
+            # cümlelik dürüst not eklenir. Sessizlik, koçun hatırlamadığı bir şeyi hatırlıyor
+            # sanmak demektir ve bu ancak aylar sonra fark edilir.
+            if insight_invalid:
+                clean_text = (clean_text or "").rstrip() + (
+                    "\n\n_(Not: bunu kalıcı hafızaya kaydedemedim — tekrar söylersen kaydederim.)_"
+                )
             # BUG #018 fix: Akilli placeholder yerine "(bos cevap)"
             reply = _build_smart_reply(clean_text, proposed_actions)
 

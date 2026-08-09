@@ -51,8 +51,16 @@
   eksik tool argümanı adlandırılmış hataya döner ve mevcut retry yoluna düşer; ek olarak
   özet↔payload tutarlılığı denetlenir ve red kullanıcıya görünür mesajla söylenir. Prompt
   şablonları şemadan üretilir. Kapı: `tests/test_aksiyon_payload_kapisi.py` (mutasyon 3/3).
-  **Açık kalan:** `save_insight` argümanları hâlâ ham indeksleniyor; sağlayıcı tarafında
-  `strict:true` + `additionalProperties:false` (Anthropic/OpenAI) uygulanmadı.
+  **`save_insight` yolu da KAPANDI (BUG #268 / ADR-050, 8 Ağu 2026):** argümanlar ham
+  indeksleniyordu — eksik `content` sessizce yutuluyor, metin-olmayan `content` ise
+  session'ı zehirleyip **tüm koç isteğini çökertiyordu**; `expires_at` serbest metinse ve
+  `dedup_key` boşsa gerçek kayboluyordu. En sessiz yarısı: tool açıklaması "critical: asla
+  unutulmamalı" derken enjeksiyon `sort_priority` + `limit(5)` ile sıralıyor ve bu yol o
+  alanı hiç yazmıyordu → kullanıcının "asla kredi çekmem" beyanı hafızaya HİÇ girmiyordu.
+  Tek kaynak `app/insight_schema.py` (tool şeması ÜRETİLİR), yazma savepoint içinde, red
+  kullanıcıya söylenir. Kapı `tests/test_icgoru_kapisi.py` (34, mutasyon 5/5).
+  **Açık kalan:** sağlayıcı tarafında `strict:true` + `additionalProperties:false`
+  (Anthropic/OpenAI) uygulanmadı — sağlayıcıya bağlı, ayrı iş.
 - **Kanıt:** `coach.py:1006-1009,1060-1063,1110-1114,911-913`; `:1659-1662`
 - **Aksiyon:** PROPOSE/SAVE şemalarını Pydantic'e bağla; tool-call sonrası `model_validate`, hata→retry; Anthropic'te `strict:true`+`additionalProperties:false`.
 - **Etki:** Yüksek · **Efor:** M

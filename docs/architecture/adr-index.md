@@ -109,3 +109,14 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   tek kaynaklar `app/intent_rules.py` + `app/tr_text.py`. Sınıf taraması: tarih anahtar
   kelimeleri (sessizce yanlış güne yazma) ve koçun açık-soru sayacı (MI oranı düşük görünüyordu).
   Kapı: `tests/test_niyet_kapisi.py` (davranış × iki yazım + kaynak-türetimli drift kilidi).
+- **ADR-050 — Kalıcı hafızada içerik YÜK, geri kalanı ETİKET; beyan edilen önem sıralamaya
+  BAĞLANIR (BUG #268):** `save_insight` argümanları ham indeksleniyordu — eksik `content`
+  sessizce yutuluyor, metin-olmayan `content` ise session'ı zehirleyip **tüm koç isteğini
+  çökertiyordu** (projenin kendi savepoint anti-pattern maddesi). En sessiz yarısı: tool
+  açıklaması "critical: asla unutulmamalı" derken enjeksiyon `sort_priority` + `limit(5)` ile
+  sıralıyor ve bu yol o alanı hiç yazmıyordu → kullanıcının "asla kredi çekmem" beyanı
+  hafızaya HİÇ girmiyordu (6 rutin gözlem sırayı dolduruyordu). Sözleşme `app/insight_schema.py`;
+  başarısızlık yönü ADR-048'in TERSİ (içerik yük, metadata etiket: yükü etiket yüzünden
+  kaybetme, davranışı değiştiren etiketi sessizce kabul etme). Önem merdiveni tek ölçek,
+  sırası gerçek çıkarıcı sabitlerinden türetilerek kilitli. Kapı: `tests/test_icgoru_kapisi.py`
+  (mutasyon 5/5).

@@ -86,6 +86,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L30 | **"Global bir sınıfla çözdük" bir İDDİADIR: o sınıfı KULLANMAYAN kodu ölçmedikçe standart yoktur.** Bir sınıf yalnız onu yazanı bağlar; ham utility ile kurulan her yeni kontrol standardın dışında doğar ve hiçbir şey bunu görmez. Standardı kalıcı yapan sınıf değil, sınıfı kullanmayanı da yakalayan ölçümdür. | #265 / ADR-010 ("global `.btn` gelecekteki butonları da 44px yapar" — ölçünce `.btn` kullanmayan kontroller 42/35/28/20/13px çıktı, 3 aydır kimse görmedi) |
 | L31 | **Tek bir bayrak İKİ bağımsız soruyu cevaplıyorsa, kapı er ya da geç yanlış olanı vetolar.** Karar, bayrağın kendisine değil bayrakları birleştiren SÖZLEŞMEYE yazılır — çünkü gerçek dünyada iki nitelik aynı anda doğru olabilir. Yan fayda: sözleşme ayrılınca tespit listesini genişletmek de ucuzlar (yanlış-pozitifin bedeli kalkar). | #267 (`if is_question: return False` — "320 TL harcadım, bütçem ne durumda?" mesajında harcama HİÇ kaydedilmiyor, üstelik soru harcama-öncesi rakamlarla yanıtlanıyordu; uçtan uca 3/4 yanlış) |
 | L32 | **Kısmi telafi, telafinin unutulduğu yeri GİZLER.** Bir desende `bugün|bugun` gibi ikiz yazım görüyorsan sorun BİLİNİYOR demektir — ve elle taşınan telafi her zaman eksik kalır. Telafi listeye değil GİRİŞE konur (normalize et, sonra eşleştir). Bunun en sinsi hâli, platformun sorunu YARIM çözmesidir: `re.IGNORECASE` ı↔i'yi katlar, ç/ş/ğ/ö/ü'yü katlamaz → defekt harfe göre değişir ve test edilen örnekte tesadüfen çalışır. | #267 (`_DATE_KEYWORD_RE` `dün/bugün/geçen` için ASCII ikizi yazmış, ay adları için yazmamıştı → "agustosta" görülmüyor, işlem SESSİZCE bugüne yazılıyordu; toplam 20 kırık token) |
+| L33 | **Bir vaadi PROMPT'ta vermek, onu SİSTEMDE vermek değildir.** Tool açıklamasında LLM'e "critical: asla unutulmamalı" demek, sıralamayı yapan SORGUNUN baktığı alana o değeri yazmadıkça yalandır — ve bu yalanı ne test ne kullanıcı görür, çünkü her iki taraf da kendi içinde tutarlıdır. Tool/prompt metninde geçen her davranış vaadi, onu uygulayan kod yolunda ÖLÇÜLMELİDİR. | #268 (`save_insight` `sort_priority`/`last_evidence_at` yazmıyordu; ölçümde kullanıcının "asla kredi çekmem" beyanı enjekte edilen hafızada HİÇ YOKTU, yerini beş rutin gözlem almıştı — `InsightPriority` enum'u yazılıp hiç okunmuyordu) |
+| L34 | **Yükün ve etiketin başarısızlık yönü AYNI OLAMAZ.** Aynı sistemde bir yol için doğru olan katılık ("uygulanamayacak öneri doğmasın" — ADR-048) başka bir yol için veri kaybı üretir: kullanıcının söylediği gerçeği bir etiket tanınmadı diye çöpe atmak, korumanın kendisi zarar verir. Kural: **yükü metadata yüzünden kaybetme, davranışı değiştiren metadata'yı da sessizce kabul etme** (aşağı yönde düş + düşüşü raporla). | #268 (içerik yoksa RED, `dedup_key` yoksa içerikten TÜRET, tanınmayan `priority` AŞAĞI düşer, bozuk `expires_at` süreyi düşürür gerçeği tutar) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -439,6 +441,27 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 8 AĞUSTOS 2026 (2) — KOÇ, "ASLA UNUTMA" DENEN ŞEYİ UNUTUYORDU (BUG #268 / ADR-050,
+> backlog LLM-008 kalanı).** ADR-048 koçun birinci tool'unu sözleşmeye bağlamıştı; ikincisi
+> (`save_insight`) aynı işlemden geçmemişti. **(A)** Argümanlar ham indeksleniyordu: eksik
+> `content` yutuluyor (kayıt yok ama koç "Not aldım." diyor), metin-olmayan `content` ise
+> session'ı zehirleyip **TÜM koç isteğini çökertiyordu** (`PendingRollbackError`) — bu,
+> projenin **kendi anti-pattern listesindeki** savepoint maddesidir ve bu yol onu
+> uygulamıyordu. Bozuk `expires_at` ve boş `dedup_key` de gerçeği sessizce kaybediyordu.
+> **(B) EN SESSİZ YARISI:** tool açıklaması LLM'e *"critical: asla unutulmamalı"* diyor, ama
+> enjeksiyon `sort_priority` + `last_evidence_at` ile sıralayıp `limit(5)` uyguluyor ve bu yol
+> **iki alanı da yazmıyordu**. Ölçüm: 6 rutin çıkarıcı gözlemi + kullanıcının *"asla kredi
+> çekmeyeceğim"* beyanı → **beyan enjekte edilen blokta YOK** (**L33**). Tek kaynak
+> `app/insight_schema.py`; başarısızlık yönü ADR-048'in **tersi** ve bilinçli: içerik YÜK,
+> gerisi ETİKET (**L34**). Önem merdiveni tek ölçek, sırası `coach_insights`'ın gerçek
+> sabitlerinden türetilerek kilitli. Yazma savepoint içinde; red kullanıcıya söylenir ama
+> cevap değiştirilmez. **D1 araştırması yapıldı ve kaydedildi** (research-log 2026-08-08:
+> ajan belleği = önem/birleştirme/çürüme/tahliye; ayrı LLM önem çağrısı EKLENMEDİ — eksik olan
+> skoru üretmek değil, var olan skoru yazmayan yoldu). Kapı `tests/test_icgoru_kapisi.py`
+> (34 test). **Mutasyon 5/5.**
+> **Taban: 2675 passed / 18 skipped + 172 vitest + 6 e2e.** (2639 + 34 yeni kapı + 2 —
+> kategori kapısı `insight_schema.py`'yi de kendiliğinden kapsama aldı.)
 
 > **📌 8 AĞUSTOS 2026 — MESAJ NİYETİ TEK KAYNAĞA İNDİ (BUG #267 / ADR-049, backlog LLM-010).**
 > KURAL SIFIR'ın deterministik ön-filtresi `if is_question(msg): return False` diyordu — yani

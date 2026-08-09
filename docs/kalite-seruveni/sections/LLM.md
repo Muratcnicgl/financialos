@@ -66,7 +66,19 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [LLM-009] premortem.py kırılgan JSON parse — structured output kullan
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: premortem json.loads manuel
+- **Durum:** ✅ KAPANDI (BUG #270, 8 Ağu 2026). **Ölçüm (9 gerçekçi sarmalama biçimi):
+  5'i düşüyordu** — hepsi JSON'un ETRAFINDAKI düz metin ("Elbette, işte analiz:",
+  "Umarım yardımcı olur.", kalın başlık); JSON'un kendisi kusursuzdu, kusur ZARFTAYDI.
+  `_parse_and_validate` fence'i yalnız **metnin tamamı** fence ise soyuyordu. Her düşüş
+  iki deneme hakkından birini yakıyor; zayıf model alışkanlığını tekrarlarsa kullanıcı
+  premortem'i HİÇ göremiyordu. **Sınıf taraması:** aynı sorunun kod tabanında ZATEN daha
+  dayanıklı bir cevabı vardı (`coach_insights._erl_k2_parse_llm_json`) — iki cevap tek
+  kaynağa indi (`app/llm_json.py`), ve yedeğin sessiz zayıflığı da kapandı (tarama artık
+  **dizge-duyarlı**: metin içindeki `{` dengeyi bozmaz). Sözleşme: **zarfa toleranslı,
+  içeriğe katı**. Sonuç 5/9 → **0/9**. Kapı `tests/test_llm_json_kapisi.py` (32,
+  mutasyon 5/5). **Structured output (provider `response_schema`) UYGULANMADI:** sekiz
+  sağlayıcının API'sine dağılır ve jenerik OpenAI-uyumlu sağlayıcılarda yok — zarf
+  toleransı sağlayıcıdan bağımsız çalışır; şema doğrulaması zaten Pydantic'te.
 - **Kanıt:** `app/premortem.py:167-189,225-262`
 - **Aksiyon:** Provider'a `output_schema` param (Anthropic json_schema, Gemini response_schema, OpenAI response_format); fallback'te mevcut parse.
 - **Etki:** Orta · **Efor:** M

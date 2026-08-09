@@ -90,6 +90,7 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L34 | **Yükün ve etiketin başarısızlık yönü AYNI OLAMAZ.** Aynı sistemde bir yol için doğru olan katılık ("uygulanamayacak öneri doğmasın" — ADR-048) başka bir yol için veri kaybı üretir: kullanıcının söylediği gerçeği bir etiket tanınmadı diye çöpe atmak, korumanın kendisi zarar verir. Kural: **yükü metadata yüzünden kaybetme, davranışı değiştiren metadata'yı da sessizce kabul etme** (aşağı yönde düş + düşüşü raporla). | #268 (içerik yoksa RED, `dedup_key` yoksa içerikten TÜRET, tanınmayan `priority` AŞAĞI düşer, bozuk `expires_at` süreyi düşürür gerçeği tutar) |
 | L35 | **Bir kararı metin İÇİNDEKİ SAYIYA bağlamak, kararı hatayla ilgisi olmayan bir kimliğe bağlamaktır.** Alt-dizi araması sayıda özellikle sinsidir: `"504"` her `8504`'ün, `"429"` her `4290`'ın ve her `req_8429…`'ın içindedir. Sınır (``) eklemek vakayı kurtarır ama kararı hâlâ metne bağlı bırakır — sağlayıcı hata metnini değiştirdiği gün sessizce yanlışa döner. Karar YAPIDAN okunur (durum kodu alanı), metin ikinci yoldur ve o desen sayı içermez. | #269 (10 gerçekçi sağlayıcı hatasının 3'ü yanlış sınıflanıyordu; `token count (8504) exceeds` KALICI iken GEÇİCİ sayıldığı için her istekte 3 kez retry ediliyor, devre kesici hiç açılmıyordu) |
 | L36 | **Yanlış tarafa düşmenin bedeli asimetrikse, sınıflandırma sırası bedeli KÜÇÜK olan tarafa eğilmelidir.** "Hangisi daha doğru?" sorusundan önce "hangi yanlış daha pahalı?" sorulur: kalıcı bir hatayı geçici sanmak SONSUZ tekrar üretir, geçiciyi kalıcı sanmak yalnız bir denemeyi kaçırır. Bu yüzden sıra KALICI > KOTA > GEÇİCİ'dir — çok işaret taşıyan metinde de. | #269 (Groq'un 413'ü "Limit 8000, Requested 8429" der; iki sınıfa birden uyar) |
+| L37 | **Aynı soruya kod tabanında İKİ cevap varsa, kullanıcıya görünen özelliği taşıyanın zayıf olan olduğunu varsay — ve önce onu ölç.** İki uygulama yan yana durduğunda hangisinin dayanıklı olduğu koda bakmakla anlaşılmaz; ölçüm gösterir. Birleştirirken de "iyi olanı kopyala" yetmez: iyi olanın kendi sessiz zayıflığı da tek kaynağa taşınır. | #270 (premortem fence'i yalnız metnin TAMAMI fence ise soyuyordu → 9 sarmalamanın 5'i düşüyor ve kullanıcı premortem'i hiç göremiyordu; `coach_insights` aynı soruyu daha dayanıklı çözmüştü ama onun "ilk `{` … son `}`" yedeği de metin içindeki süslü parantezi ayırt etmiyordu) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -443,6 +444,24 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 8 AĞUSTOS 2026 (4) — PREMORTEM, MODELİN NEZAKET CÜMLESİ YÜZÜNDEN KAYBOLUYORDU
+> (BUG #270, backlog LLM-009).** `premortem._parse_and_validate` fence'i yalnız **metnin
+> tamamı** fence ise soyuyordu. **Ölçüm (9 gerçekçi sarmalama biçimi): 5'i düşüyordu** —
+> hepsi JSON'un ETRAFINDAKİ düz metin ("Elbette, işte analiz:", "Umarım yardımcı olur.",
+> kalın başlık, "Not: tutarlar tahminidir."). JSON'un kendisi kusursuzdu, kusur ZARFTAYDI.
+> Her düşüş iki deneme hakkından birini yakıyor; zayıf model alışkanlığını tekrarlarsa
+> (olağan) kullanıcı premortem'i **hiç göremiyordu**. **Sınıf taraması asıl bulguyu verdi:**
+> aynı sorunun kod tabanında ZATEN daha dayanıklı bir cevabı vardı
+> (`coach_insights._erl_k2_parse_llm_json`) — iki yol aynı soruya iki farklı cevap veriyordu
+> ve **kırılgan olan, kullanıcıya görünen özelliği taşıyordu** (**L37**). Tek kaynak
+> `app/llm_json.py`; sözleşme **zarfa toleranslı, içeriğe katı** (ADR-050 ayrımının bu
+> yoldaki karşılığı). Dayanıklı olanın sessiz zayıflığı da kapandı: tarama artık
+> **dizge-duyarlı** (`"a{b"` dengeyi bozmaz). Sağlayıcı `response_schema` uygulanmadı —
+> sekiz sağlayıcıya dağılır, jenerik OpenAI-uyumlularda yok, ADR-002'yi zedeler.
+> Sonuç **5/9 → 0/9**. Kapı `tests/test_llm_json_kapisi.py` (32). **Mutasyon 5/5.**
+> **Taban: 2750 passed / 18 skipped + 172 vitest + 6 e2e.** (2716 + 32 yeni kapı + 2 —
+> kategori kapısı `llm_json.py`'yi de kendiliğinden kapsama aldı.)
 
 > **📌 8 AĞUSTOS 2026 (3) — FALLBACK ZİNCİRİNİN KARARINI İLGİSİZ BİR SAYININ RAKAMLARI
 > VERİYORDU (BUG #269 / ADR-051, backlog LLM-012 + LLM-011).** Canlı yapılandırma

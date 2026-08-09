@@ -245,7 +245,12 @@ def test_parse_strips_bare_fence():
 
 
 def test_parse_invalid_json_raises_jsondecodeerror():
-    with pytest.raises(json.JSONDecodeError):
+    """BUG #270: ayrıştırılamayan metin hâlâ FAIL-LOUD, ama artık ADLANDIRILMIŞ hatayla
+    (`JsonZarfiCozulemedi`, `ValueError` alt sınıfı) — `generate_premortem` ikisini de
+    yakalayıp retry yoluna düşer. Davranış aynı, hatanın adı sözleşmeye bağlandı."""
+    from app.llm_json import JsonZarfiCozulemedi
+
+    with pytest.raises(JsonZarfiCozulemedi):
         _parse_and_validate("bu bir JSON degil {")
 
 

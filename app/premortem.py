@@ -38,6 +38,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.coach import LLMProvider, build_provider
+from app.llm_json import JsonZarfiCozulemedi, cikar as _json_cikar  # BUG #270 (LLM-009)
 from app.models import DecisionJournal, PendingAction
 from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 from app.prompt_safety import guvenli_metin as _guvenli  # BUG #257 (H9): kullanici metni yapiyi bozamaz
@@ -198,16 +199,17 @@ _RETRY_REMINDER = (
 
 
 def _parse_and_validate(raw_text: str) -> List[PremortemScenario]:
-    """LLM serbest metnini JSON'a cevirip Pydantic ile validate eder."""
-    text = raw_text.strip()
-    # Bazi modeller ```json ... ``` blogu donduruyor; fence'i soy.
-    if text.startswith("```"):
-        lines = text.split("\n")
-        lines = lines[1:] if lines[0].startswith("```") else lines
-        lines = lines[:-1] if lines and lines[-1].startswith("```") else lines
-        text = "\n".join(lines).strip()
+    """LLM serbest metnini JSON'a cevirip Pydantic ile validate eder.
 
-    payload = json.loads(text)  # JSONDecodeError -> caller yakalar
+    BUG #270 fix (LLM-009): zarf ayristirmasi yalniz METNIN TAMAMI fence ise calisiyordu.
+    Olcum (9 gercekci sarmalama): 5'i dusuyordu — hepsi JSON'un ETRAFINDAKI duz metin
+    ("Elbette, iste analiz:", "Umarim yardimci olur.", kalin baslik). Her dusus premortem'in
+    iki deneme hakkindan birini yakiyor; model ayni aliskanligi tekrarlarsa (zayif modellerde
+    olagan) kullanici premortem'i HIC goremiyordu. Ayni sorunun kod tabaninda ZATEN daha
+    dayanikli bir cevabi vardi (`coach_insights._erl_k2_parse_llm_json`) — iki cevap tek
+    kaynaga indi: `app/llm_json.cikar` (zarfa toleransli), dogrulama burada KATI kaliyor.
+    """
+    payload = _json_cikar(raw_text)  # JsonZarfiCozulemedi -> caller yakalar
     raw_list = payload.get("scenarios")
     if not isinstance(raw_list, list):
         raise PremortemValidationError(
@@ -276,7 +278,8 @@ def generate_premortem(
                 model_name=response.model_name,
             )
 
-        except (json.JSONDecodeError, ValidationError, PremortemValidationError) as e:
+        except (json.JSONDecodeError, JsonZarfiCozulemedi, ValidationError,
+                PremortemValidationError) as e:   # BUG #270: zarf hatasi da retry yolu
             last_error = e
             logger.warning("premortem: parse/validate hatasi attempt=%d hata=%s",
                            attempt, str(e)[:200])

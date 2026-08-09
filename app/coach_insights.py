@@ -61,6 +61,7 @@ from app.rules_engine import _scope  # M73: extractor'lar aktif workspace kapsam
 from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 from app.prompt_safety import guvenli_metin as _guvenli  # BUG #257 (H9)
 from app.tr_text import normalize as tr_normalize  # BUG #267: yazımdan bağımsız eşleşme
+from app.llm_json import JsonZarfiCozulemedi, cikar as _json_cikar  # BUG #270 (LLM-009)
 
 logger = logging.getLogger(__name__)
 
@@ -1991,25 +1992,15 @@ def _erl_k2_parse_llm_json(text: str) -> dict | None:
     if not text:
         return None
 
-    # 1) Markdown code fence icinden JSON cikar
-    fence_match = re.search(
-        r"```(?:json)?\s*(\{.*?\})\s*```",
-        text,
-        re.DOTALL | re.IGNORECASE,
-    )
-    if fence_match:
-        json_str = fence_match.group(1)
-    else:
-        # Fallback: ilk { ile son } arasini al
-        first = text.find("{")
-        last = text.rfind("}")
-        if first == -1 or last == -1 or last <= first:
-            return None
-        json_str = text[first:last+1]
-
+    # BUG #270 fix (LLM-009 sınıf taraması): burada "LLM cevabından JSON çıkar" sorusunun
+    # kod tabanındaki İKİ ayrı cevabından DAYANIKLI olanı duruyordu (fence regex + ilk `{`
+    # / son `}` yedeği); premortem'deki ikinci cevap kırılgandı ve ölçümde 9 sarmalamanın
+    # 5'ini düşürüyordu. İki cevap tek kaynağa indi. Yedeğin sessiz zayıflığı da kapandı:
+    # "ilk `{` … son `}`" metin İÇİNDEKİ süslü parantezi ayırt etmiyordu (`"a{b"`),
+    # `llm_json` taraması dizge-duyarlıdır.
     try:
-        data = json.loads(json_str)
-    except (json.JSONDecodeError, ValueError):
+        data = _json_cikar(text)
+    except JsonZarfiCozulemedi:
         return None
 
     # 2) Manuel schema validation

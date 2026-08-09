@@ -91,6 +91,10 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L35 | **Bir kararı metin İÇİNDEKİ SAYIYA bağlamak, kararı hatayla ilgisi olmayan bir kimliğe bağlamaktır.** Alt-dizi araması sayıda özellikle sinsidir: `"504"` her `8504`'ün, `"429"` her `4290`'ın ve her `req_8429…`'ın içindedir. Sınır (``) eklemek vakayı kurtarır ama kararı hâlâ metne bağlı bırakır — sağlayıcı hata metnini değiştirdiği gün sessizce yanlışa döner. Karar YAPIDAN okunur (durum kodu alanı), metin ikinci yoldur ve o desen sayı içermez. | #269 (10 gerçekçi sağlayıcı hatasının 3'ü yanlış sınıflanıyordu; `token count (8504) exceeds` KALICI iken GEÇİCİ sayıldığı için her istekte 3 kez retry ediliyor, devre kesici hiç açılmıyordu) |
 | L36 | **Yanlış tarafa düşmenin bedeli asimetrikse, sınıflandırma sırası bedeli KÜÇÜK olan tarafa eğilmelidir.** "Hangisi daha doğru?" sorusundan önce "hangi yanlış daha pahalı?" sorulur: kalıcı bir hatayı geçici sanmak SONSUZ tekrar üretir, geçiciyi kalıcı sanmak yalnız bir denemeyi kaçırır. Bu yüzden sıra KALICI > KOTA > GEÇİCİ'dir — çok işaret taşıyan metinde de. | #269 (Groq'un 413'ü "Limit 8000, Requested 8429" der; iki sınıfa birden uyar) |
 | L37 | **Aynı soruya kod tabanında İKİ cevap varsa, kullanıcıya görünen özelliği taşıyanın zayıf olan olduğunu varsay — ve önce onu ölç.** İki uygulama yan yana durduğunda hangisinin dayanıklı olduğu koda bakmakla anlaşılmaz; ölçüm gösterir. Birleştirirken de "iyi olanı kopyala" yetmez: iyi olanın kendi sessiz zayıflığı da tek kaynağa taşınır. | #270 (premortem fence'i yalnız metnin TAMAMI fence ise soyuyordu → 9 sarmalamanın 5'i düşüyor ve kullanıcı premortem'i hiç göremiyordu; `coach_insights` aynı soruyu daha dayanıklı çözmüştü ama onun "ilk `{` … son `}`" yedeği de metin içindeki süslü parantezi ayırt etmiyordu) |
+| L38 | **Bir korumanın yanlış-pozitifini önlemek için kapsamını daraltmak, korumayı sessizce KALDIRMAYA dönüşebilir.** "Raporu bozmasın" diye konan `if not is_structured_report` dalı, pratikte "çok satırlıysa hiç bakma" demekti — kaygı haklıydı, çözüm koruma-yok'tu. Doğru hamle kapsamı daraltmak değil, MÜDAHALEYİ inceltmektir (cümle yerine satır at, iskeleti koru). | #271 (aksiyon yokken `## Durum
+
+Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satırlık aynı cümle temizleniyordu) |
+| L39 | **Sayarak kurulan bir koruma (kelime/fiil listesi) asla "kapandı" sayılamaz; yanına DURUM-TABANLI bir güvence koy.** Liste kaçırdığında kullanıcı hiçbir şey görmez; durumdan türeyen not ise ifadeden ve biçimden bağımsızdır. Listeyi de ölçülen korpusla kapıya bağla ki bir sonraki eş anlamlı sessiz delik değil kırmızı test olsun. | #271 (fiil listesi üç BUG boyunca büyümüş, hâlâ 12 cümlenin 6'sını kaçırıyordu; "kullanıcı saf bildirim yaptı ve hiç kayıt oluşmadı" notu fiilden bağımsız çalışır) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -444,6 +448,28 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 8 AĞUSTOS 2026 (5) — "KAYDETTİM" GÜVENCESİ ÜÇ AYRI YERDEN DELİKTİ (BUG #271,
+> backlog LLM-020).** `_postprocess_report`'un işi tek cümlede: aksiyon oluşmadıysa koç
+> "kaydettim" izlenimi vermemeli. **Ölçüm üç eksende de delik gösterdi:** ① sahte tamamlama
+> fiilleri **6/12 kaçıyordu** (liste #041 → #085 → #094 boyunca büyümüş, hâlâ "işleme aldım /
+> kayda geçirdim / not olarak girdim / sisteme yazdım / hallettim / düştüm"i kaçırıyor);
+> ② **çok satırlı yanıtta koruma HİÇ çalışmıyordu** — `is_structured_report` dalı taramayı
+> komple atlıyor, `"## Durum
+
+Harcamanı kaydettim."` aksiyon yokken **hiçbir uyarı
+> olmadan** kullanıcıya gidiyordu (**L38**); ③ EMANET silicisi bölümün **numaralanmış**
+> olmasını şart koşuyordu → `## EMANET KASA` uydurma tutarla geçiyordu (3/6). Yanlış-pozitif
+> 0/5 — filtre hassastı ama **kapsamı varsayımdı**. **Fix:** güvence artık **ifadeye değil
+> DURUMA** bağlı — kullanıcı SAF BİLDİRİM yaptıysa (BUG #267'nin `intent_rules` sözleşmesi:
+> gerçekleşmiş VE soru değil) ve hiçbir aksiyon doğmadıysa dürüst not eklenir; fiilden ve
+> biçimden bağımsız (**L39**). Fiil listesi ikinci savunma olarak kaldı, katlanmış yazılıyor
+> ve ölçülen korpusla kapıya bağlandı. Çok satırlı yanıtta iddia içeren SATIR atılır (rapor
+> iskeleti korunur). EMANET eşleşmesi numaraya değil YAPIYA bağlı. Sonuç: yanıltan
+> **6/12 → 0/12**, çok satırlı **korumasız → 0/6**, EMANET **3/6 → 0/6**, yanlış-pozitif
+> **0/5**. Kapı `tests/test_sahte_tamamlama_kapisi.py` (50). **Mutasyon 5/5** — biri kapının
+> KENDİ kör noktasını buldu (durum-notu satır taramasını gölgeliyordu; karışık-mesaj
+> vakasıyla izole edildi).
 
 > **📌 8 AĞUSTOS 2026 (4) — PREMORTEM, MODELİN NEZAKET CÜMLESİ YÜZÜNDEN KAYBOLUYORDU
 > (BUG #270, backlog LLM-009).** `premortem._parse_and_validate` fence'i yalnız **metnin

@@ -160,10 +160,12 @@ from app.insight_schema import (  # BUG #268: içgörü sözleşmesi tek kaynak
     ayikla as _icgoru_ayikla,
     tool_semasi as _icgoru_tool_semasi,
 )
+from app.tr_text import normalize as _tr_normalize  # BUG #271: yazımdan bağımsız eşleşme
 from app.intent_rules import (  # noqa: E402  (modül üstündeki import bloğuyla aynı seviye)
     gelecek_niyet_mi as is_future_or_intent,
     gerceklesmis_eylem_var_mi as has_realized_action,
     niyet_cikar,
+    niyet_cikar as _niyet_cikar,
     propose_sunulsun_mu as should_offer_propose_tool,
     soru_mu as is_question,
 )
@@ -2163,7 +2165,13 @@ def _trim_history_to_size(messages: List[Dict]) -> List[Dict]:
 # Prompt kural 13 markdown başlık (`## 5. Emanet Kasa`) istediği için o format sızıyordu.
 # Artık başlık işaretçilerini (#, [, *, >, -) tolere eder: `## 5. Emanet Kasa`,
 # `### 5. EMANET`, `**5. Emanet Kasa**`, `[5. EMANET KASA]`, `5. EMANET KASA`.
-_EMANET_HEADER_RE = re.compile(r'^[\s\[#*>\-]*5\s*[\.\)\:]?\s*EMANET\s*KASA', re.IGNORECASE)
+# BUG #271 fix: eski desen bölümün NUMARALANMIŞ olmasını şart koşuyordu
+# (`^[\s\[#*>\-]*5\s*...`). Ölçüm: altı gerçekçi başlık biçiminden **üçü** kaçıyordu —
+# `## EMANET KASA`, `**EMANET KASA**`, `### Emanet Kasa` uydurma tutarla birlikte
+# kullanıcıya ulaşıyordu. Model prompt'a her zaman uymadığı için bu koruma zaten VAR;
+# korumanın kendisi modelin biçimine bağlıysa koruma değildir. Artık numara opsiyonel ve
+# eşleşme `tr_text.normalize`'dan geçmiş satırla yapılır (yazımdan bağımsız — L32).
+_EMANET_HEADER_RE = re.compile(r'^[\s\[#*>\-]*(?:\d+\s*[\.\)\:]?\s*)?emanet\s*kasa')
 # Bir sonraki bölüm sınırı: markdown başlık (## ...) veya köşeli-parantez bölüm.
 _SECTION_BOUNDARY_RE = re.compile(r'^\s*(?:#{1,4}\s|\[)')
 # BUG #033 iter2: \d*\.? ile numaralı varyantları da yakala ([6. YENİ CHECKPOINT] vb.)
@@ -2203,17 +2211,36 @@ _FAKE_NIYET_RE = re.compile(
 # GEÇMİŞİNİ betimleyen meşru cümlelerde doğal geçiyor ("3 fatura işlendi", "maaş hesaba
 # geçirildi") ve raporu bozuyordu (yanlış-pozitif). Edilgen sahte-tamamlama zaten köşeli
 # parantezli ise _FAKE_CONFIRM_RE ile yakalanır. "kaydetmissin/kaydettin/kaydettigin" DOKUNULMAZ.
+# BUG #271: desen artık KATLANMIŞ yazılır ve cümle `tr_text.normalize`'dan geçirilerek
+# eşleştirilir (elle taşınan `[iı]`/`[uü]` ikizleri kalktı — L32). Ölçüm: liste #041 →
+# #085 → #094 boyunca büyümesine rağmen 12 gerçekçi sahte-tamamlama cümlesinin **6'sını**
+# kaçırıyordu ("isleme aldim", "kayda gecirdim", "not olarak girdim", "sisteme yazdim",
+# "hallettim", "dustum"). Ölçülen altısı eklendi ve korpus KAPIYA yazıldı: bir sonraki
+# eş anlamlı artık sessiz delik değil, kırmızı testtir.
+# NOT (dürüst kayıt): bu liste doğası gereği SAYMAYA dayanır ve kapanmış sayılamaz —
+# asıl güvence aşağıdaki DURUM-TABANLI nottur (`_KAYIT_YOK_NOTU`), fiilden ve yanıtın
+# biçiminden bağımsız çalışır.
 _FAKE_PASTTENSE_RE = re.compile(
     r'\b('
-    r'kaydett[iı]m'
-    r'|i[sş]led[iı]m'
-    r'|ekled[iı]m'
-    r'|g[uü]ncelled[iı]m'
-    r'|hesab[ıi]na\s*ge[cç]ird[iı]m'
-    r'|kay[ıi]t\s*alt[ıi]na\s*ald[ıi]m'
-    r')\b',
-    re.IGNORECASE,
+    r'kaydettim'
+    r'|isledim'
+    r'|isleme aldim'
+    r'|ekledim'
+    r'|guncelledim'
+    r'|hesabina gecirdim'
+    r'|kayit altina aldim'
+    r'|kayda gecirdim'
+    r'|not olarak girdim'
+    r'|sisteme yazdim'
+    r'|hallettim'
+    r'|dustum'
+    r')\b'
 )
+
+# BUG #271: fiilden ve yanıtın biçiminden BAĞIMSIZ güvence. Kullanıcı gerçekleşmiş bir
+# eylem bildirdiği hâlde o turda hiçbir aksiyon doğmadıysa, kullanıcı bunu ÖĞRENMELİDİR —
+# koçun cümlesini nasıl kurduğuna bakılmaksızın.
+_KAYIT_YOK_NOTU = "_(Not: bu mesajda hiçbir kayıt oluşturmadım.)_"
 
 
 def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "", proposed_actions: Optional[List] = None) -> str:
@@ -2236,7 +2263,9 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
     while i < len(lines):
         line = lines[i]
 
-        if _EMANET_HEADER_RE.search(line) and cockpit and cockpit.get("emanet_kasa", 0) == 0:
+        # BUG #271: eşleşme KATLANMIŞ satırla (numara opsiyonel + yazımdan bağımsız)
+        if (_EMANET_HEADER_RE.search(_tr_normalize(line))
+                and cockpit and cockpit.get("emanet_kasa", 0) == 0):
             i += 1
             while i < len(lines):
                 stripped = lines[i].strip()
@@ -2279,18 +2308,42 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
             cleaned = _FAKE_CONFIRM_RE.sub('', cleaned).strip()
             fake = True
         # BUG #085 fix (P0-19): parantezsiz duz gecmis-zaman iddiasi -> iddia iceren CUMLEYI at.
-        # BUG #085 iter2: SADECE tek-satırlık kısa yanıtlara uygula. Sahte tamamlama ("Kaydettim.")
-        # her zaman kısa, tek-satır bir yanıttır; çok-satırlı YAPISAL RAPOR (## başlıklar, kokpit
-        # tablosu) asla sahte-tamamlama değildir ve cümle-bölüp-birleştirmek raporu bozuyordu
-        # (yanlış-pozitif — per-file denetim HIGH bulgusu). Çok-satırlı yanıta DOKUNMA.
-        is_structured_report = ("\n" in cleaned) or ("##" in cleaned) or ("[" in cleaned)
-        if not is_structured_report and _FAKE_PASTTENSE_RE.search(cleaned):
-            sentences = re.split(r'(?<=[.!?])\s+', cleaned)
-            kept = [s for s in sentences if not _FAKE_PASTTENSE_RE.search(s)]
-            cleaned = ' '.join(kept).strip()
+        # BUG #085 iter2: cok-satirli YAPISAL RAPORU cumle-bolup-birlestirmek bozuyordu.
+        # BUG #271 fix: o düzeltme "çok satırlıysa HİÇ BAKMA"ya dönüşmüştü — ölçüm:
+        # "## Durum\n\nHarcamanı kaydettim." aksiyon yokken hiç dokunulmadan, hiçbir uyarı
+        # olmadan kullanıcıya gidiyordu. Kaygı haklıydı, çözümü yanlıştı: artık iddia içeren
+        # SATIR atılır (rapor iskeleti korunur), tek-satırlık yanıtta cümle bazında çalışır.
+        # Eşleşme katlanmış metinle yapılır — desen artık `[iı]` ikizlerini taşımaz (L32).
+        if _FAKE_PASTTENSE_RE.search(_tr_normalize(cleaned)):
+            if "\n" in cleaned:
+                cleaned = "\n".join(
+                    ln for ln in cleaned.splitlines()
+                    if not _FAKE_PASTTENSE_RE.search(_tr_normalize(ln))
+                ).strip()
+            else:
+                cumleler = re.split(r'(?<=[.!?])\s+', cleaned)
+                cleaned = ' '.join(
+                    c for c in cumleler
+                    if not _FAKE_PASTTENSE_RE.search(_tr_normalize(c))
+                ).strip()
             fake = True
         if fake:
             cleaned = (cleaned + '\n\n' + _CLARIFY_MSG).strip()
+        else:
+            # BUG #271: ASIL güvence burada. Kullanıcı gerçekleşmiş bir eylemi BİLDİRDİ ve bu
+            # turda HİÇBİR aksiyon doğmadı — koçun cümlesini nasıl kurduğuna bakmadan kullanıcı
+            # bunu öğrenmeli. Fiil listesi saymaya dayanır ve er ya da geç bir eş anlamlıyı
+            # kaçırır; bu not DURUMA bakar, ifadeye değil (biçime de: rapor olsa da eklenir).
+            #
+            # KALİBRASYON (kapı bunu yakaladı): yalın `gerceklesmis` yetmez — "bu ay ne kadar
+            # HARCADIM?" da gerçekleşmiş-eylem işareti taşır ve saf analiz cevabına not eklemek
+            # her soruda gürültü üretirdi. Ölçüt SAF BİLDİRİM: gerçekleşmiş VE soru değil.
+            # Karışık mesajda ("harcadım, bütçem ne durumda?") not eklenmez — o yol zaten
+            # BUG #267 ile propose'a, BUG #085 fiil filtresine ve retry'a bağlı (L36: yanlış
+            # tarafa düşmenin bedeli asimetrik; burada gürültünün bedeli daha yüksek).
+            _niyet = _niyet_cikar(user_message)
+            if _niyet.gerceklesmis and not _niyet.soru:
+                cleaned = (cleaned + '\n\n' + _KAYIT_YOK_NOTU).strip()
 
     return cleaned
 

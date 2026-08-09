@@ -171,7 +171,26 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-020] Hallucination postprocess salt regex — kırılgan
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: halusinasyon postprocess salt regex
+- **Durum:** ✅ KAPANDI (BUG #271, 8 Ağu 2026). **Ölçüm üç eksende de delik gösterdi:**
+  ① sahte tamamlama fiilleri **6/12 kaçıyordu** (liste #041 → #085 → #094 boyunca büyümüştü
+  ve hâlâ "işleme aldım / kayda geçirdim / not olarak girdim / sisteme yazdım / hallettim /
+  düştüm"i kaçırıyordu); ② **çok satırlı yanıtta koruma HİÇ çalışmıyordu** —
+  `is_structured_report` dalı taramayı komple atlıyor, `"## Durum
+
+Harcamanı kaydettim."`
+  aksiyon yokken hiçbir uyarı olmadan kullanıcıya gidiyordu; ③ EMANET KASA silicisi bölümün
+  **numaralanmış** olmasını şart koşuyordu → `## EMANET KASA` / `**EMANET KASA**` /
+  `### Emanet Kasa` uydurma tutarla birlikte geçiyordu (**3/6**). Yanlış-pozitif 0/5 — filtre
+  hassastı ama **kapsamı varsayımdı**. **Fix:** güvence artık **ifadeye değil DURUMA** bağlı —
+  kullanıcı SAF BİLDİRİM yaptıysa (`intent_rules`: gerçekleşmiş VE soru değil) ve hiçbir
+  aksiyon doğmadıysa cevaba dürüst not eklenir; fiilden ve yanıtın biçiminden bağımsız.
+  Fiil listesi ikinci savunma olarak kaldı, katlanmış yazılıyor (L32) ve ölçülen korpusla
+  birlikte kapıya yazıldı. Çok satırlı yanıtta artık iddia içeren SATIR atılır (rapor
+  iskeleti korunur — BUG #085 iter2'nin haklı kaygısı). EMANET eşleşmesi numaraya değil
+  YAPIYA bağlı. Sonuç: yanıltan 6/12 → **0/12**, çok satırlı 6/6 korumasız → **0/6**,
+  EMANET 3/6 → **0/6**, yanlış-pozitif **0/5**. Kapı `tests/test_sahte_tamamlama_kapisi.py`
+  (50, mutasyon 5/5 — biri kapının KENDİ kör noktasını kapattı: durum-notu satır taramasını
+  gölgeliyordu, karışık-mesaj vakasıyla izole edildi).
 - **Kanıt:** `coach.py:1318-1406`
 - **Aksiyon:** Kısa vade: regex'i eval harness fixture'larına bağla; orta vade: rapor iskeletini structured output (bölüm listesi) — boş bölüm hiç üretilmez.
 - **Etki:** Orta · **Efor:** M

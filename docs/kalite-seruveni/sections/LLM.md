@@ -64,10 +64,25 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-010] is_question sınıflandırıcı kenar durumlarında hatalı
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: is_question degismedi, intent yok
-- **Kanıt:** `coach.py:78-89,1583-1584`
-- **Aksiyon:** (1) Güçlü geçmiş-zaman marker'ları (sattım/ödedim/kaydet) varsa is_question=False zorla; (2) belirsizler için küçük LLM intent classifier (Groq 8B, tek token). Regex first-pass.
+- **Durum:** ✅ KAPANDI (BUG #267 / ADR-049, 8 Ağu 2026) — kök neden "kenar durum" değil
+  **kavram karışmasıydı:** tek bayrak iki bağımsız soruyu cevaplıyordu ("soruyor mu?" /
+  "gerçekleşmiş olay bildiriyor mu?"), oysa KURAL SIFIR yalnız ikincisine bakar. Yeni sözleşme
+  `propose_sunulsun = gerceklesmis OR (NOT soru AND NOT gelecek)` — tek kaynak
+  `app/intent_rules.py`. İkinci eksen yazımdı: desenler yalnız diakritikli hâli tanıyordu
+  (tek kaynak `app/tr_text.py`).
+- **Ölçüm:** korpus 9/25 → 0/25 (düzgün yazım), 12/25 → 0/25 (diakritiksiz); uçtan uca
+  (FakeProvider, gerçek koç akışı) 3/4 → 0/4; kırık token 20 → 0.
+- **Kanıt:** `app/intent_rules.py`, `app/tr_text.py`, `tests/test_niyet_kapisi.py` (156 test)
+- **Aksiyon (özgün):** (1) ~~geçmiş-zaman marker'ı varsa is_question=False zorla~~ → **REDDEDİLDİ:**
+  konflasyonu düzeltmez, ters çevirir (bu kez soru bayrağı yalan söyler, trace okunamaz).
+  Bayraklar ayrı kaldı, kararı sözleşme veriyor. (2) ~~küçük LLM intent classifier~~ →
+  **REDDEDİLDİ:** bu bir güvenlik kapısı; deterministik olmayan katman KURAL SIFIR'ın önüne
+  geçmemeli (gerekçe ADR-049 madde 4).
 - **Etki:** Yüksek · **Efor:** M
+- **Yan bulgu (sınıf taraması, aynı BUG):** `action_executor._DATE_KEYWORD_RE` ay adlarını
+  diakritiksiz görmüyordu → TARIH_BELIRSIZ koruması çalışmıyor, işlem **sessizce bugüne**
+  yazılıyordu. `coach_insights.QT_OPEN_PATTERN` `kaç`ı saymıyordu → koçun MI/OARS oranı düşük
+  görünüyor, "direktif tarz" uyarısı haksız tetiklenebiliyordu.
 
 ### [LLM-011] Retry backoff'ta jitter yok — thundering herd
 - **Durum:** 🔲 AÇIK — M85 R3 doğrulama: retry backoff jitter yok

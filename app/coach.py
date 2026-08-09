@@ -9,6 +9,14 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #267 fix (LLM-010, ADR-049): KURAL SIFIR on-filtresi tek bayrakla IKI bagimsiz soruyu
+  cevapliyordu ("soruyor mu?" / "gerceklesmis olay bildiriyor mu?") ve soru, gerceklesmis
+  eylemi KOSULSUZ veto ediyordu. Olcum: "320 TL harcadim, butcem ne durumda?" mesajinda
+  propose_action tool'u hic sunulmuyor → harcama KAYDEDILMIYOR ve soru harcama-ONCESI
+  rakamlarla yanitlaniyordu (uctan uca 3/4 yanlis). Ayrica desenler yalniz diakritikli yazimi
+  taniyordu. Govde `app/intent_rules.py`ye tasindi (sozlesme: gerceklesmis OR (NOT soru AND
+  NOT gelecek)); `app/tr_text.py` katlamasi sayesinde kapi YAZIMDAN bagimsiz. Karar gerekcesi
+  reasoning trace'e duser. Isimler geriye uyumlu (is_question/has_realized_action/...).
 - BUG #239 fix (D23, bayat fiyat): koç, fiyat sağlayıcısı çöktüğünde haftalarca eski fiyatla
   hesaplanmış "yatırım değerin X TL, %Y kârdasın" cümlesini KOŞULSUZ kuruyordu. Tazelik verisi
   yalnız HTTP katmanında (routers/cockpit) ekleniyordu, koç ise generate_cockpit'i doğrudan
@@ -139,67 +147,21 @@ from app import llm_quota as _kota
 logger = logging.getLogger(__name__)
 
 
-def is_question(msg: str) -> bool:
-    """BUG #023: Soru tespiti — True ise provider'a tools=[] gonder."""
-    m = msg.strip().lower()
-    if '?' in m:
-        return True
-    if re.search(r'\b(mi|mı|mu|mü)\b', m):
-        return True
-    if re.search(r'\b(ne|nasıl|niye|kaç|hangi|kim|nereden|nereye)\b', m):
-        return True
-    if re.search(r'\b(yoksa|öner|tavsiye|analiz|incele|stratej|ne yap)\b', m):
-        return True
-    # Analiz-istek fiilleri (BUG #095): değerlendir/özetle/yorumla/karşılaştır/göster/hesapla
-    if re.search(r'\b(değerlendir|özetle|yorumla|karşılaştır|göster|hesapla|listele|durum)\b', m):
-        return True
-    return False
-
-
-# Gelecek-zaman / niyet ifadeleri: "yarın kapatacağım", "gelecek hafta satacağım",
-# "planlıyorum", "düşünüyorum". Gerçekleşmiş eylem DEĞİL → KURAL SIFIR gereği propose_action
-# önerilmemeli (varsayım yasak — kurucu #1 mandat).
-_FUTURE_INTENT_RE = re.compile(
-    r'(acağım|eceğim|acağız|eceğiz|acaksın|eceksin|acak\b|ecek\b'
-    r'|planlıyorum|düşünüyorum|niyetinde|planım\s+var'
-    r'|yarın|gelecek\s+(hafta|ay|yıl|sene)|önümüzdeki|ileride|ilerde)',
-    re.IGNORECASE,
+# BUG #267 fix: bu dört fonksiyonun GÖVDESİ `app/intent_rules.py`'ye taşındı (tek kaynak).
+# Buradaki desenler iki bakımdan kırıktı ve ikisi de sessizdi:
+#   (1) `is_question` GERÇEKLEŞMİŞ EYLEMİ VETO EDİYORDU → "320 TL harcadım, bütçem ne
+#       durumda?" mesajında harcama hiç kaydedilmiyor, üstelik soru harcama ÖNCESİ
+#       rakamlarla yanıtlanıyordu (ölçüm: 7/7 karışık mesaj).
+#   (2) Desenler yalnız diakritikli yazımı tanıyordu ("odedim"/"dusunuyorum"/
+#       "degerlendir" eşleşmiyordu; 20 token).
+# İsimler geriye uyumlu bırakıldı — çağıranlar ve mevcut testler değişmedi.
+from app.intent_rules import (  # noqa: E402  (modül üstündeki import bloğuyla aynı seviye)
+    gelecek_niyet_mi as is_future_or_intent,
+    gerceklesmis_eylem_var_mi as has_realized_action,
+    niyet_cikar,
+    propose_sunulsun_mu as should_offer_propose_tool,
+    soru_mu as is_question,
 )
-# Gerçekleşmiş eylem işaretleri (KURAL SIFIR ✅ listesi) — karışık mesajda ("aldım ama
-# yarın satacağım") gerçekleşen kısmı korur, yanlışlıkla baskılamaz.
-_REALIZED_ACTION_RE = re.compile(
-    r'\b(yaptım|ettim|sattım|aldım|ödedim|kapattım|harcadım|girdim'
-    r'|yatırdım|çektim|kaydett|geldi|geçti|yatırdı)\b',
-    re.IGNORECASE,
-)
-
-
-def is_future_or_intent(msg: str) -> bool:
-    """Gelecek-zaman veya niyet ifadesi mi? (gerçekleşmemiş eylem)."""
-    return bool(_FUTURE_INTENT_RE.search(msg or ""))
-
-
-def has_realized_action(msg: str) -> bool:
-    """Gerçekleşmiş somut eylem işareti içeriyor mu?"""
-    return bool(_REALIZED_ACTION_RE.search(msg or ""))
-
-
-def should_offer_propose_tool(msg: str) -> bool:
-    """
-    propose_action tool'u LLM'e sunulmalı mı? (KURAL SIFIR ön-filtresi — BUG #095)
-
-    HAYIR (baskıla) eğer:
-    - mesaj bir SORU/analiz isteği ise, VEYA
-    - GELECEK/NİYET ifadesi ise VE gerçekleşmiş eylem işareti YOKSA.
-
-    Baskılamak GÜVENLİ başarısızlık yönüdür: yanlış-pozitifte koç sadece netleştirme
-    sorar; yanlış-negatifte koç gerçekleşmemiş eylem UYDURUR (kurucu "varsayım yasak" ihlali).
-    """
-    if is_question(msg):
-        return False
-    if is_future_or_intent(msg) and not has_realized_action(msg):
-        return False
-    return True
 
 
 # ============================================================
@@ -2586,15 +2548,24 @@ class CoachEngine:
             # BUG #023: Soru ise propose_action yok; save_insight her zaman aktif
             # BUG #095: KURAL SIFIR ön-filtresi genişletildi — gelecek/niyet ifadesinde de
             # (gerçekleşmiş eylem yoksa) propose_action sunulmaz (varsayım yasak).
-            is_q = is_question(user_message)
-            offer_propose = should_offer_propose_tool(user_message)
+            # BUG #267: tek geçiş — üç bayrak + kararın GEREKÇESİ aynı sözleşmeden gelir.
+            # Soru artık gerçekleşmiş eylemi VETO ETMEZ ("harcadım, bütçem ne durumda?").
+            _niyet = niyet_cikar(user_message)
+            is_q = _niyet.soru
+            offer_propose = _niyet.propose_sunulsun
             active_tools = (
                 [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA] if offer_propose
                 else [SAVE_INSIGHT_SCHEMA]
             )
 
             with recorder.step(OperationName.OBSERVATION, intent="Soru-bildirim siniflandirma") as s:
-                s.observation = f"is_question={is_q}, offer_propose={offer_propose}, tool_count={len(active_tools)}"
+                # BUG #267: gerekçe trace'e düşer — "neden kaydetmedin?" sorusu log okumadan
+                # cevaplanabilsin (BUG #253 ilkesi: kullanıcı kendi sistemini görebilmeli).
+                s.observation = (
+                    f"is_question={is_q}, gerceklesmis={_niyet.gerceklesmis}, "
+                    f"gelecek={_niyet.gelecek}, offer_propose={offer_propose} "
+                    f"({_niyet.gerekce}), tool_count={len(active_tools)}"
+                )
                 tool_names = [t.get("name", "?") for t in active_tools]
                 s.inference = f"active_tools: {tool_names}"
 

@@ -60,6 +60,7 @@ from app.models import (
 from app.rules_engine import _scope  # M73: extractor'lar aktif workspace kapsamında (batch personal-scope'lar)
 from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 from app.prompt_safety import guvenli_metin as _guvenli  # BUG #257 (H9)
+from app.tr_text import normalize as tr_normalize  # BUG #267: yazımdan bağımsız eşleşme
 
 logger = logging.getLogger(__name__)
 
@@ -667,24 +668,30 @@ def extract_mc_reference_frequency(db: Session, user_id: int) -> dict:
 # Helper: _upsert_insight_absolute (full-state UPSERT - durum
 #         degisirse eski insight 'dormant'a duser).
 
+# BUG #267 fix: üç desen de KATLANMIŞ (diakritiksiz) yazılır; eşleştirme
+# `_classify_sentence` içinde `tr_normalize`'dan geçmiş cümleyle yapılır.
+# Eskiden desenler iki yazımı ELLE taşıyordu ("degil mi|değil mi") ve liste EKSİKTİ:
+# ölçüm, açık-soru desenindeki `kac`ın Türkçe yazımı `kaç`ı YAKALAMADIĞINI gösterdi.
+# Bu sayaç koçun KENDİ mesajlarını ölçer ve koç düzgün Türkçe yazar — yani "Kaç lira
+# ayırabilirsin?" gibi açık sorular sayılmıyor, MI (OARS) oranı olduğundan DÜŞÜK
+# görünüyor ve "direktif tarz" uyarısı haksız yere tetiklenebiliyordu (L22 ailesi:
+# doğru sinyalin yanlış ölçümü, sinyalin yokluğu kadar zararlıdır).
 # Open question pattern - "ne/nasil/hangi" ile baslar veya icerir
 QT_OPEN_PATTERN = re.compile(
     r"\b(ne|nasil|hangi|niye|neden|nerede|nereye|nereden|kim|kac|ne kadar|"
     r"anlat|tarif et|aciklayabilir misin|ne dusunuyorsun|nelerdir)\b",
-    re.IGNORECASE,
 )
 # Closed question - "mi/mu" partikul sorusu
 QT_CLOSED_PATTERN = re.compile(
-    r"\b(mi|mu|mı|mü|misin|musun|misiniz|musunuz|var mi|var mı|olur mu|"
-    r"degil mi|değil mi|olmuyor mu|oldu mu|yapar misin|yapar mısın|dogru mu|doğru mu)\b\??$",
-    re.IGNORECASE | re.MULTILINE,
+    r"\b(mi|mu|misin|musun|misiniz|musunuz|var mi|olur mu|"
+    r"degil mi|olmuyor mu|oldu mu|yapar misin|dogru mu)\b\??$",
+    re.MULTILINE,
 )
 # Reflection - soru degil ama anlama/yansitma cumlesi
 QT_REFLECTION_PATTERN = re.compile(
-    r"\b(gibi gorunuyor|gibi görünüyor|sanki|demek ki|anliyorum|anlıyorum|"
-    r"hissediyorsun|hissediyorsunuz|fark ediyorum|sezdigi[mn]|sezdiğim|"
-    r"yani sen|yani siz|ozetle|özetle|genel olarak)\b",
-    re.IGNORECASE,
+    r"\b(gibi gorunuyor|sanki|demek ki|anliyorum|"
+    r"hissediyorsun|hissediyorsunuz|fark ediyorum|sezdigi[mn]|"
+    r"yani sen|yani siz|ozetle|genel olarak)\b",
 )
 
 QT_PERIOD_DAYS = 30
@@ -717,14 +724,17 @@ def _classify_sentence(sentence: str) -> str:
     - Reflection pattern -> reflection
     - Hicbiri -> other
     """
-    is_question = sentence.endswith("?") or QT_CLOSED_PATTERN.search(sentence)
+    # BUG #267: desenler katlanmış yazılır → cümle de katlanarak eşleştirilir. Aksi hâlde
+    # sayaç YAZIMA göre değişir ("kaç" sayılmaz, "kac" sayılır).
+    k = tr_normalize(sentence)
+    is_question = sentence.endswith("?") or QT_CLOSED_PATTERN.search(k)
 
     if is_question:
-        if QT_OPEN_PATTERN.search(sentence):
+        if QT_OPEN_PATTERN.search(k):
             return "open_q"
         return "closed_q"
 
-    if QT_REFLECTION_PATTERN.search(sentence):
+    if QT_REFLECTION_PATTERN.search(k):
         return "reflection"
 
     return "other"

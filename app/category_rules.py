@@ -35,25 +35,15 @@ from app.workspace_deps import scope_filter
 
 
 # ============================================================
-# NORMALİZE (tek kaynak — eskiden action_executor._cat_normalize)
+# NORMALİZE — gövde `app/tr_text.py`'de (BUG #267)
 # ============================================================
-
-# BUG #026: Türkçe karakter normalize.
-# BUG #167 fix (P3.5): hedef dizideki 'o' KİRİL 'о' (U+043E) idi → 'ö' harfi ASCII 'o' yerine
-# Kiril harfe çevriliyordu. Normalize edilen kategori DB'ye böyle yazıldığından ("оgle yemegi"),
-# sonraki kategori eşleşmeleri/gruplamaları sessizce kırılıyordu. Artık saf ASCII.
-TR_NORM = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
-
-
-def normalize(cat: Optional[str]) -> str:
-    """'Eğlence' → 'eglence' — büyük harf + Türkçe aksan normalize (BUG #026).
-
-    BUG #167 fix (P3.5): sıra TERSTİ. `lower()` önce koşunca `'İ'.lower()` == `'i' + U+0307`
-    (birleşik nokta) üretiyor ve çeviri tablosu bunu yakalayamıyordu → "yemeği" gibi
-    kategoriler ASCII-dışı karakterle DB'ye yazılıyordu. Artık önce çevir, sonra küçült;
-    artakalan birleşik işaretler de temizlenir.
-    """
-    return (cat or "").translate(TR_NORM).lower().replace("̇", "")
+#
+# BUG #267 fix: bu iki isim burada TANIMLI değil, `app.tr_text`ten RE-EXPORT edilir.
+# Sebep: aynı katlama koç mesajı sınıflandırmasında, tarih anahtar kelimelerinde ve
+# hesap adı eşleşmesinde de gerekiyordu; kategori modülünden import etmek "kategori
+# kuralı" gibi okunuyordu ve fiilen üç yer daha kendi kısmi telafisini yazmıştı.
+# İsimler geriye uyumlu tutuldu (mevcut çağıranlar değişmedi).
+from app.tr_text import TR_NORM, normalize  # noqa: F401  (re-export — tek kaynak)
 
 
 # ============================================================

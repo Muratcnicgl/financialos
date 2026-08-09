@@ -84,6 +84,8 @@ Yeni bir iş yaparken bu listeyi bir kontrol listesi gibi geçir.
 | L28 | **"Çökmedim" başarı değildir; "atlandı" da geçti değildir.** Kendi başarısızlığını `skip`'e çeviren test ve tek bir iş bile yapamadığı hâlde `ok=True` kaydeden cron, koruma YOKLUĞUNDAN daha kötüdür: sayıya dahil olurlar, panelde yeşil görünürler, kimse bakmaz. Aynı aile: bağımlılığına hiç dokunmayan sağlık ucu (DB ölüyken 200 döner → otomatik rollback tetiklenmez). Başarı ölçütünü **işin amacına** bağla (kaç hesap güncellendi, hook çağrıldı mı, DB yanıt veriyor mu) ve başarısızlığı görünür kıl (kayıt detayına mesajı yaz, 503 dön). | #248 (D36 ölü test + D37 hep-başarılı cron), #247 (D39 kör sağlık ucu) |
 | L29 | **Bir ürünün İKİ görünümü varsa (koyu/açık tema, dil, telefon/masaüstü genişliği) ve yalnız biri render edilerek ölçülüyorsa, ölçülmeyen görünüm YOKTUR.** Sınıf listesini statik taramak bunu kapatmaz — üstelik "taradım, temiz" diyerek kapatmış gibi yapar. İkinci görünüm ancak açılıp ölçülünce vardır; ölçüt de görünen şey olmalıdır (kontrast oranı), onun vekili değil (sınıf adı). | #265 (ilk statik tarayıcı 128 koyu-varsayan kullanımın **123'ünü** kaçırdı ve 5 bulgu raporladı; tarayıcıda render edilince açık temada başlıklar 1.05 kontrastla GÖRÜNMÜYORDU, koyu temada net-değer grafiği 2.82 ile okunmuyordu) |
 | L30 | **"Global bir sınıfla çözdük" bir İDDİADIR: o sınıfı KULLANMAYAN kodu ölçmedikçe standart yoktur.** Bir sınıf yalnız onu yazanı bağlar; ham utility ile kurulan her yeni kontrol standardın dışında doğar ve hiçbir şey bunu görmez. Standardı kalıcı yapan sınıf değil, sınıfı kullanmayanı da yakalayan ölçümdür. | #265 / ADR-010 ("global `.btn` gelecekteki butonları da 44px yapar" — ölçünce `.btn` kullanmayan kontroller 42/35/28/20/13px çıktı, 3 aydır kimse görmedi) |
+| L31 | **Tek bir bayrak İKİ bağımsız soruyu cevaplıyorsa, kapı er ya da geç yanlış olanı vetolar.** Karar, bayrağın kendisine değil bayrakları birleştiren SÖZLEŞMEYE yazılır — çünkü gerçek dünyada iki nitelik aynı anda doğru olabilir. Yan fayda: sözleşme ayrılınca tespit listesini genişletmek de ucuzlar (yanlış-pozitifin bedeli kalkar). | #267 (`if is_question: return False` — "320 TL harcadım, bütçem ne durumda?" mesajında harcama HİÇ kaydedilmiyor, üstelik soru harcama-öncesi rakamlarla yanıtlanıyordu; uçtan uca 3/4 yanlış) |
+| L32 | **Kısmi telafi, telafinin unutulduğu yeri GİZLER.** Bir desende `bugün|bugun` gibi ikiz yazım görüyorsan sorun BİLİNİYOR demektir — ve elle taşınan telafi her zaman eksik kalır. Telafi listeye değil GİRİŞE konur (normalize et, sonra eşleştir). Bunun en sinsi hâli, platformun sorunu YARIM çözmesidir: `re.IGNORECASE` ı↔i'yi katlar, ç/ş/ğ/ö/ü'yü katlamaz → defekt harfe göre değişir ve test edilen örnekte tesadüfen çalışır. | #267 (`_DATE_KEYWORD_RE` `dün/bugün/geçen` için ASCII ikizi yazmış, ay adları için yazmamıştı → "agustosta" görülmüyor, işlem SESSİZCE bugüne yazılıyordu; toplam 20 kırık token) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -437,6 +439,36 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 8 AĞUSTOS 2026 — MESAJ NİYETİ TEK KAYNAĞA İNDİ (BUG #267 / ADR-049, backlog LLM-010).**
+> KURAL SIFIR'ın deterministik ön-filtresi `if is_question(msg): return False` diyordu — yani
+> **tek bayrak iki bağımsız soruyu** cevaplıyordu ("bu mesaj soruyor mu?" / "gerçekleşmiş bir
+> olay bildiriyor mu?"), oysa KURAL SIFIR yalnız ikincisine bakar. **Ölçüm (25 mesajlık korpus
+> + FakeProvider ile gerçek koç akışı):** aynı payload'ı öneren sadık sağlayıcıyla
+> *"…320 TL harcadım"* → **1 kayıt**, *"…320 TL harcadım, bütçem ne durumda?"* → **0 kayıt**
+> (karışık sınıfta 7/7 yanlış, uçtan uca 3/4). Zarar iki katmanlı ve ikisi de sessiz: harcama
+> hiç kaydedilmez **ve** koç soruyu harcama-ÖNCESİ rakamlarla yanıtlar — cevap yanlıştır ama
+> doğru görünür. Bu durumu kurtarmak için yazılmış ikinci mekanizma (BUG #127 retry'ı) da aynı
+> bayrağa takılıyordu. **İkinci eksen yazım (20 token):** desenler yalnız diakritikli hâli
+> tanıyordu; "odedim / dusunuyorum / degerlendir" yazımında kapı başka türlü karar veriyordu.
+> Sinsiliği: `re.IGNORECASE` `ı↔i`yi kendiliğinden katlar, `ç/ş/ğ/ö/ü`yü katlamaz → defekt
+> **harfe göre değişiyor**, test edilen örnekte tesadüfen çalışıyordu (**L32**).
+> **Sınıf taraması iki canlı defekt daha buldu:** (a) `_DATE_KEYWORD_RE` ay adlarını
+> diakritiksiz görmüyordu → `TARIH_BELIRSIZ` koruması çalışmıyor, işlem **sessizce bugüne**
+> yazılıyordu (BUG #237/D17'nin sonucu); üstelik desen sorunu BİLİYORDU (`dün/bugün/geçen`
+> için elle ASCII ikizi yazılmış, aylar unutulmuştu). (b) `QT_OPEN_PATTERN` `kaç`ı saymıyordu
+> — bu sayaç KOÇUN kendi mesajlarını ölçer ve koç düzgün Türkçe yazar → MI/OARS oranı düşük
+> görünüyor, "direktif tarz" uyarısı haksız tetiklenebiliyordu. **Fix:** sözleşme
+> `propose_sunulsun = gerceklesmis OR (NOT soru AND NOT gelecek)` (tek kaynak
+> `app/intent_rules.py`, karar GEREKÇESİ trace'e düşer) + Türkçe katlama tek kaynak
+> `app/tr_text.py` (desenler katlanmış yazılır, metin girişte katlanır). Sözleşmeyi ayırmak
+> soru tespitini genişletmeyi de ucuzlattı (**L31**). LLM-010'un iki özgün önerisi
+> gerekçelendirilerek REDDEDİLDİ (ADR-049 madde 4: güvenlik kapısı LLM'e bağlanmaz).
+> Kapı: `tests/test_niyet_kapisi.py` (156 test — her vaka İKİ yazımla + kaynak-türetimli
+> drift kilidi). **Mutasyon 4/4.**
+> **Taban: 2639 passed / 18 skipped + 172 vitest + 6 e2e + `npm run build` OK.**
+> (2478 + 157 yeni kapı + **4**: BUG #264'ün kategori kapısı iki yeni modülü kendiliğinden
+> kapsama aldı — kapıların yeni dosyayı otomatik yakalaması bu turda da doğrulandı.)
 
 > **7 AĞUSTOS 2026 — P3.3 ONBOARDING REHBERİ KAPANDI (BUG #262) + LİSANS GEÇMİŞİ TEMİZLENDİ.**
 > - **BUG #262:** §11'in P3 satırı "kalan: onboarding rehberi" derken §1.2'nin H20 satırı "✅ sıralı yol"

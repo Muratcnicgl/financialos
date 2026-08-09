@@ -129,6 +129,7 @@ from app.category_rules import (  # BUG #264 (ADR-046): kategori kararları tek 
     sistem_slug_kumesi,
     normalize as _cat_norm,
 )
+from app.tr_text import normalize as _tr_normalize  # BUG #267: Türkçe katlama tek kaynak
 
 # ============================================================
 # M43 (ADR-036) — WORKSPACE SCOPING (contextvar köprüsü)
@@ -1260,8 +1261,16 @@ _SUB_MAX_DISTINCT_AMOUNTS = 2     # sabit veya tek fiyat-artışı
 
 def _normalize_merchant(desc: str) -> str:
     """Açıklamayı grup anahtarına indirger. RecurringExpense tetikleyicisi '{ad} — {ay}'
-    eklediğinden ' — ' sonrasını atarız (aynı aboneliğin ayları birleşsin)."""
-    d = (desc or "").strip().lower()
+    eklediğinden ' — ' sonrasını atarız (aynı aboneliğin ayları birleşsin).
+
+    BUG #267 (sınıf taraması): yalnız `lower()` uygulanıyordu → "Türk Telekom" ile
+    "Turk Telekom" AYRI gruplar oluyordu. Abonelik kabulü ≥3 tekrar istediğinden, aynı
+    aboneliğin ikiye bölünmesi onu eşiğin ALTINA düşürür ve abonelik hiç görünmez.
+    Grup anahtarı persist EDİLMEZ (uç `isim` ile çalışır), bu yüzden katlama geriye
+    dönük veri sorunu yaratmaz. Not: bunun canlı bir örneği ÖLÇÜLMEDİ — bu değişiklik
+    ölçülmüş defektin değil, aynı sınıfın kapatılmasıdır.
+    """
+    d = _tr_normalize(desc or "").strip()
     if " — " in d:
         d = d.split(" — ")[0].strip()
     return " ".join(d.split())

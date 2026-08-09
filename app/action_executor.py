@@ -107,7 +107,8 @@ ACTION_TYPES: frozenset = frozenset({
 # kategorisini adlandıran kullanıcıda kural sessizce ölüyordu. Karar artık kullanıcının
 # kategori kaydındaki `kart_varsayilani` bayrağında (tek kaynak: `app/category_rules.py`).
 # Normalize de oraya taşındı (BUG #026/#167 geçmişi docstring'inde korunuyor).
-from app.category_rules import TR_NORM as _TR_NORM, kart_varsayilani_mi, normalize as _cat_normalize
+from app.category_rules import kart_varsayilani_mi, normalize as _cat_normalize
+from app.tr_text import TR_NORM as _TR_NORM, normalize as _tr_normalize  # BUG #267: tek kaynak
 
 # BUG #266: payload sözleşmesi tek kaynak (şema + özet-payload tutarlılığı + prompt şablonu)
 from app.action_schema import (
@@ -121,9 +122,11 @@ import re as _re
 # başka banka kullanan kullanıcının "Papara'dan 200 TL market" cümlesi "hesap belirsiz"
 # sayılıyordu. Jenerik kelimeler burada kalır; markaya özgü eşleşme artık kullanıcının
 # KENDİ hesap adlarından türetilir (bkz. _mentions_account).
+# BUG #267: desen KATLANMIŞ yazılır ve metin `_TR_NORM` ile katlanarak eşleştirilir
+# (aşağıdaki `_mentions_account` zaten hesap ADLARI için bunu yapıyordu; jenerik
+# kelimeler yolu ise ham metinle eşleşiyordu — iki yol aynı metni farklı görüyordu).
 _ACCOUNT_KEYWORD_RE = _re.compile(
     r'\b(kart(?!on\b)\w*|hesap\w*|hesab\w*|nakit\w*|banka\w*)\b',
-    _re.IGNORECASE,
 )
 
 # Hesap adından anlam taşımayan jenerik ekler (tek başına eşleşme sayılmaz)
@@ -139,9 +142,9 @@ def _mentions_account(user_message: str, db: Session, user_id: int) -> bool:
     adlarındaki ayırt edici sözcükler. Böylece kural her kullanıcının kendi bankasıyla
     çalışır; kod hiçbir markayı bilmez.
     """
-    if _ACCOUNT_KEYWORD_RE.search(user_message):
+    norm_msg = _tr_normalize(user_message)   # BUG #267: iki yol da AYNI katlanmış metni görür
+    if _ACCOUNT_KEYWORD_RE.search(norm_msg):
         return True
-    norm_msg = user_message.lower().translate(_TR_NORM)
     from app.rules_engine import _scope  # geç import: döngüsel bağımlılık yok (workspace köprüsü)
     names = [row[0] for row in db.query(Account.name).filter(_scope(Account, user_id)).all()]
     for name in names:
@@ -150,12 +153,19 @@ def _mentions_account(user_message: str, db: Session, user_id: int) -> bool:
                 return True
     return False
 # BUG #044 fix: Summary'de tarih ifadesi var ama payload'da transaction_date yok → tutarsızlık
+#
+# BUG #267 fix: desen KATLANMIŞ yazılır, metin `_tarih_ifadesi_var_mi` içinde katlanır.
+# Eskisi ay adlarını YALNIZ diakritikli yazıyor, ama `dün/bugün/geçen` için elle ASCII
+# ikizi ekliyordu (`d[uü]n|bugun|gecen`) — yani sorun biliniyordu ve üç kelimede
+# çözülmüştü. Ölçüm: "subatta / agustosta / eylulde" eşleşmiyordu → tarih ifadesi
+# görülmeyince TARIH_BELIRSIZ korumasi devreye girmiyor ve işlem SESSİZCE BUGÜNE
+# yazılıyordu (BUG #237/D17 ile aynı sonuç: kalıcı olarak yanlış gün).
 _DATE_KEYWORD_RE = _re.compile(
     r'\b('
-    r'ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık'
-    r'|ocakta|şubatta|martta|nisanda|mayısta|haziranda|temmuzda|ağustosta|eylülde|ekimde|kasımda|aralıkta'
-    r'|d[uü]n|bugün|bugun|geçen\s+hafta|gecen\s+hafta|geçen\s+ay|gecen\s+ay'
-    r'|\d+\s+g[uü]n\s+[oö]nce'
+    r'ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik'
+    r'|ocakta|subatta|martta|nisanda|mayista|haziranda|temmuzda|agustosta|eylulde|ekimde|kasimda|aralikta'
+    r'|dun|bugun|gecen\s+hafta|gecen\s+ay'
+    r'|\d+\s+gun\s+once'
     r'|\d{1,2}[./]\d{1,2}[./]\d{2,4}'
     r'|\d{4}-\d{2}-\d{2}'
     # BUG #114 fix: eskiden ['']  içindeki DÜZ apostrof (U+0027) r'...' raw string'i erken
@@ -163,8 +173,12 @@ _DATE_KEYWORD_RE = _re.compile(
     # YAKALANMIYOR + \w kaçış-uyarısı. Çift-tırnak raw + hem düz (') hem kıvrık (’) apostrof:
     r"|tarihinde|tarihli|\d{1,2}['’]\w+nde|\d{1,2}['’]\w+da"
     r')\b',
-    _re.IGNORECASE,
 )
+
+
+def _tarih_ifadesi_var_mi(metin: Optional[str]) -> bool:
+    """Metinde bir tarih ifadesi geçiyor mu? (BUG #044 korumasının tek girişi — BUG #267)"""
+    return bool(_DATE_KEYWORD_RE.search(_tr_normalize(metin or "")))
 
 
 def _fmt(x: float) -> str:
@@ -319,7 +333,7 @@ def propose_action(
             raise ValueError("HESAP_BELIRSIZ")
         # BUG #044 fix: Summary'de tarih var ama payload'da yok → tutarsızlık
         if (summary
-                and _DATE_KEYWORD_RE.search(summary)
+                and _tarih_ifadesi_var_mi(summary)   # BUG #267: yazımdan bağımsız
                 and not payload.get("transaction_date")):
             raise ValueError("TARIH_BELIRSIZ")
         

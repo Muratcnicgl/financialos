@@ -99,3 +99,13 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   (Pydantic + `extra=forbid` + özet↔payload tutarlılığı); prompt şablonları şemadan ÜRETİLİR.
   Kapı: `tests/test_aksiyon_payload_kapisi.py` + `frontend/src/bekleyen-aksiyon-gorunurluk.test.jsx`
   (mutasyon 3/3).
+- **ADR-049 — Mesajın NİYETİ tek kaynaktan çıkarılır; soru, gerçekleşmiş eylemi veto edemez
+  (BUG #267):** tek bayrak iki bağımsız soruyu cevaplıyordu ("soruyor mu?" / "gerçekleşmiş olay
+  bildiriyor mu?"), oysa KURAL SIFIR'ın ölçütü yalnız ikincisidir. Ölçüm: "320 TL harcadım,
+  bütçem ne durumda?" mesajında harcama HİÇ kaydedilmiyor ve soru harcama-öncesi rakamlarla
+  yanıtlanıyordu (uçtan uca 3/4 yanlış). İkinci eksen yazım: desenler yalnız diakritikli hâli
+  tanıyordu (`re.IGNORECASE` ı↔i'yi kendiliğinden katlar, ç/ş/ğ/ö/ü'yü katlamaz → sorun harfe
+  göre değişiyordu). Sözleşme `propose_sunulsun = gerceklesmis OR (NOT soru AND NOT gelecek)`,
+  tek kaynaklar `app/intent_rules.py` + `app/tr_text.py`. Sınıf taraması: tarih anahtar
+  kelimeleri (sessizce yanlış güne yazma) ve koçun açık-soru sayacı (MI oranı düşük görünüyordu).
+  Kapı: `tests/test_niyet_kapisi.py` (davranış × iki yazım + kaynak-türetimli drift kilidi).

@@ -2771,6 +2771,12 @@ class CoachEngine:
                     "proposed_actions": [],
                     "cockpit_snapshot": cockpit_dict,
                     "grounding": {"ok": True, "checked": 0, "unverified": []},
+                    # BUG #276: bu dalın YAPISAL işareti. Ölçüm, kalite koşumunun tamamen ölü
+                    # bir koça %83.3 verdiğini gösterdi — çünkü senaryoların çoğu OLUMSUZ
+                    # kriterdi ("aksiyon yok", "sahte tamamlama yok") ve hiç cevap vermeyen
+                    # koç bunları zaten sağlıyor. Sessizliği başarıdan ayıran şey metin
+                    # karşılaştırması olamaz (ADR-051: önce YAPI) — bayrak sözleşmenin parçası.
+                    "llm_kullanilamadi": True,
                 }
 
             # --------------------------------------------------------

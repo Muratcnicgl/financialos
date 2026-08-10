@@ -127,3 +127,78 @@ def test_default_scenarios_gecerli():
     assert len(DEFAULT_SCENARIOS) >= 3
     for sc in DEFAULT_SCENARIOS:
         assert sc.checks
+
+
+# ============================================================
+# BUG #276 — KALİTE KOŞUMU, ÖLÜ KOÇU YÜKSEK PUANLA ÖDÜLLENDİRİYORDU
+# ============================================================
+# Ölçüm (10 Ağu 2026): tüm sağlayıcılar düşmüş hâlde (RESIL-004 dalı) koşulan eval
+# **%83.3 pass_rate / 6-8 senaryo geçti** veriyordu; "Tamam." diyen sessiz koç da aynı puanı
+# alıyordu. Sebep: 8 senaryonun 6'sı yalnız OLUMSUZ kriter taşıyordu ("aksiyon önermedi",
+# "sahte tamamlama yok") — hiç cevap vermeyen koç bunları bedavaya geçiyor. Harness'ın kendi
+# docstring'i "kalite düşerse pass_rate düşer" diyordu; ölçüm bunun doğru olmadığını gösterdi.
+
+
+class _OluSaglayici:
+    """Tüm sağlayıcılar düşmüş: chat() RESIL-004 zarif-bozulma dalına girer."""
+
+    NAME = "Gemini"; model = "gemini-2.5-flash-lite"; last_used_provider = "gemini"
+
+    def chat(self, system_prompt, messages, tools):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded")
+
+
+def test_olu_saglayici_kosumu_gecersiz_sayilir(db):
+    """Sağlayıcı hiç cevap veremediyse koşum bir KALİTE ölçümü değildir."""
+    rapor = run_eval(CoachEngine(provider=_OluSaglayici()), db, 1, DEFAULT_SCENARIOS)
+
+    assert rapor["gecerli"] is False, "Ölü sağlayıcı koşumu geçerli sayıldı"
+    assert rapor["llm_olu_cagri"] == len(DEFAULT_SCENARIOS)
+    assert rapor["scenario_pass"] == 0, (
+        f"Ölü koç {rapor['scenario_pass']}/{rapor['scenario_total']} senaryo geçti — "
+        "koşum, koçun çalışıp çalışmadığını ayırt etmiyor"
+    )
+    assert rapor["pass_rate"] == 0.0, (
+        f"Ölü koç %{rapor['pass_rate']} aldı — ölçülen defekt buydu (%83.3)"
+    )
+    assert "GEÇERSİZ KOŞUM" in format_report(rapor), "Uyarı raporun başında görünmüyor"
+
+
+def test_sessiz_koc_yuksek_puan_alamaz(db):
+    """LLM ayakta ama içi boş ('Tamam.'): hiçbir senaryo geçmemeli."""
+    rapor = run_eval(CoachEngine(provider=ScriptedProvider(text="Tamam.")), db, 1,
+                     DEFAULT_SCENARIOS)
+    assert rapor["scenario_pass"] == 0, (
+        f"Sessiz koç {rapor['scenario_pass']} senaryo geçti — olumsuz kriterler bedavaya geçiyor"
+    )
+    # Ölü koştan farkı: sağlayıcı cevap VERDİ, o yüzden koşum "geçersiz" değil.
+    assert rapor["gecerli"] is True
+
+
+def test_saglikli_koc_puan_alabilir_kapsam_tabani(db):
+    """Kapsam tabanı: kapı her şeyi sıfırlamıyor — anlamlı cevap veren koç puan alır."""
+    metin = "## Durum\n\nKart borcun 11.976 TL, nakit 4.276 TL. Öncelik kart borcunu düşürmek."
+    rapor = run_eval(CoachEngine(provider=ScriptedProvider(text=metin)), db, 1,
+                     DEFAULT_SCENARIOS)
+    assert rapor["check_pass"] > 0, "Sağlıklı cevap da sıfır puan aldı — kapı ölü"
+    cevapladi = [r for r in rapor["scenarios"] if r["scores"].get("cevapladi")]
+    assert len(cevapladi) == len(DEFAULT_SCENARIOS), (
+        "Anlamlı cevap veren koç bazı senaryolarda 'cevapladı' sayılmadı"
+    )
+
+
+@pytest.mark.parametrize("senaryo", DEFAULT_SCENARIOS, ids=lambda s: s.name)
+def test_her_senaryo_en_az_bir_OLUMLU_kriter_tasir(senaryo):
+    """Drift kilidi: yalnız olumsuz kriterli senaryo, hiç cevap vermeyen koçla geçer."""
+    olumlu = {"cevapladi", "action", "grounded", "format"}
+    assert olumlu & set(senaryo.checks), (
+        f"{senaryo.name} yalnız olumsuz kriter taşıyor ({senaryo.checks}) — sessizlik bunu geçer"
+    )
+
+
+def test_cevapsiz_kalan_senaryoda_diger_kriterler_gecmis_sayilmaz():
+    """'Aksiyon önermedi' bir başarı değildir: hiç konuşmayan koç da önermez."""
+    res = {"reply": "", "proposed_actions": [], "grounding": {"ok": True},
+           "llm_kullanilamadi": True}
+    s = score_result(res, ["cevapladi", "no_action", "no_fake", "grounded"])
+    assert s == {"cevapladi": False, "no_action": False, "no_fake": False, "grounded": False}

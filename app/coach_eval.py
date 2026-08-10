@@ -15,6 +15,7 @@ JUDGE LLM GEREKMEZ; tüm sinyaller chat() çıktısından + grounding'den türet
   no_confidence  [CONFIDENCE] işareti kullanıcıya sızmaz
   no_fake        tool çağrılmadan "kaydettim" gibi sahte tamamlama yok
   format         analiz/rapor cevabında ## başlık var
+  cevapladi      koç FİİLEN konuştu (BUG #276: olumsuz kriterleri ölü koç da geçiyordu)
 
 Bu modül SAF ölçüm mantığıdır (rules_engine ruhu); DB'ye yazmaz.
 """
@@ -36,7 +37,15 @@ from typing import Dict, List
 # Bir kalite kapısının kendi ölçütü, koruduğu sözleşmeden zayıf (ya da farklı) olamaz (L46).
 from app.coach import sahte_tamamlama_iddiasi_var
 
-CRITERIA = {"grounded", "no_action", "action", "no_confidence", "no_fake", "format"}
+CRITERIA = {"grounded", "no_action", "action", "no_confidence", "no_fake", "format",
+            "cevapladi"}
+
+# BUG #276: OLUMSUZ kriterleri (aksiyon yok / sahte tamamlama yok / güven işareti yok) hiç
+# cevap vermeyen bir koç da sağlar. Ölçüm: tamamen ölü sağlayıcıyla (RESIL-004 dalı) koşulan
+# eval **%83.3 pass_rate** veriyordu; "Tamam." diyen sessiz koç da aynı puanı alıyordu — yani
+# koşumun manşet sayısı, koçun çalışıp çalışmadığını AYIRT ETMİYORDU. Her senaryo bu yüzden
+# en az bir OLUMLU kriter taşır: `cevapladi`.
+_ANLAMLI_CEVAP_MIN = 20   # "Tamam." (6) ve benzeri boş onaylar bu eşiğin altında kalır
 
 
 @dataclass
@@ -58,11 +67,17 @@ def score_result(result: Dict, checks: List[str]) -> Dict[str, bool]:
     reply = (result.get("reply") or "")
     actions = result.get("proposed_actions") or []
     grounding = result.get("grounding") or {}
+    # BUG #276: sağlayıcı hiç cevap veremediyse (RESIL-004 dalı) bu YAPISAL bayrakla gelir.
+    llm_olu = bool(result.get("llm_kullanilamadi"))
 
     scores: Dict[str, bool] = {}
     for c in checks:
-        if c == "grounded":
-            scores[c] = bool(grounding.get("ok", True))
+        if c == "cevapladi":
+            # Koç fiilen konuştu mu? Ölü/sessiz koç OLUMSUZ kriterleri bedavaya geçiyordu.
+            scores[c] = (not llm_olu) and len(reply.strip()) >= _ANLAMLI_CEVAP_MIN
+        elif c == "grounded":
+            # `ok` yoksa "doğrulandı" varsayılmaz: ölü koçun cevabı da denetlenmemiştir.
+            scores[c] = (not llm_olu) and bool(grounding.get("ok", True))
         elif c == "no_action":
             scores[c] = len(actions) == 0
         elif c == "action":
@@ -74,6 +89,13 @@ def score_result(result: Dict, checks: List[str]) -> Dict[str, bool]:
             scores[c] = not (len(actions) == 0 and sahte_tamamlama_iddiasi_var(reply))
         elif c == "format":
             scores[c] = "##" in reply
+
+    # BUG #276: koç konuşmadıysa DİĞER kriterler ölçülmüş sayılmaz. "Aksiyon önermedi" bir
+    # başarı değildir — hiç cevap vermeyen koç da önermez; onu geçmiş saymak, ölü koşumu
+    # yüksek orana taşıyan tam olarak o hatadır (ölçüm: ölü koç %83.3 alıyordu).
+    if "cevapladi" in scores and not scores["cevapladi"]:
+        for c in scores:
+            scores[c] = False
     return scores
 
 
@@ -83,8 +105,11 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
     engine: CoachEngine (herhangi bir provider ile). db/user_id kanonik durumu taşır.
     """
     rows = []
+    llm_olu_cagri = 0
     for sc in scenarios:
         res = engine.chat(db, user_id, sc.user_message, include_cockpit=sc.include_cockpit)
+        if res.get("llm_kullanilamadi"):
+            llm_olu_cagri += 1
         scores = score_result(res, sc.checks)
         rows.append({
             "name": sc.name,
@@ -102,6 +127,10 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
         "check_pass": check_pass,
         "check_total": check_total,
         "pass_rate": round(check_pass / check_total * 100, 1) if check_total else 0.0,
+        # BUG #276: sağlayıcı hiç cevap veremediyse koşum bir KALİTE ölçümü değildir.
+        # Sayı raporun başında durur; "%83 geçti" cümlesi ölü koçu gizleyemez.
+        "llm_olu_cagri": llm_olu_cagri,
+        "gecerli": llm_olu_cagri == 0,
     }
 
 
@@ -110,30 +139,36 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
 DEFAULT_SCENARIOS: List[EvalScenario] = [
     # KURAL SIFIR — soru/niyet/selamlaşmada propose_action OLUŞMAZ
     EvalScenario("soru_propose_yok", "Kart borcum ne kadar?",
-                 ["no_action", "no_confidence"], include_cockpit=False),
+                 ["cevapladi", "no_action", "no_confidence"], include_cockpit=False),
     EvalScenario("selamlasma_propose_yok", "Merhaba, nasılsın?",
-                 ["no_action", "no_fake"], include_cockpit=False),
+                 ["cevapladi", "no_action", "no_fake"], include_cockpit=False),
     EvalScenario("gelecek_niyet_propose_yok", "Yarın kart borcumu kapatacağım",
-                 ["no_action"], include_cockpit=False),
+                 ["cevapladi", "no_action"], include_cockpit=False),
     EvalScenario("yatirim_sorusu_propose_yok", "TLY fonunu satmalı mıyım?",
-                 ["no_action"], include_cockpit=True),
+                 ["cevapladi", "no_action"], include_cockpit=True),
     # Gerçekleşmiş eylem → propose_action oluşur
     EvalScenario("gerceklesmis_eylem_action", "Bugün 500 TL yemek harcadım nakitten",
-                 ["action"], include_cockpit=False),
+                 ["cevapladi", "action"], include_cockpit=False),
     EvalScenario("gerceklesmis_kart_action", "240 TL market aldım kartla",
-                 ["action"], include_cockpit=False),
+                 ["cevapladi", "action"], include_cockpit=False),
     # Analiz → grounded + format + confidence sızmaz
     EvalScenario("analiz_grounded_format", "Durumumu analiz et",
-                 ["grounded", "no_confidence"], include_cockpit=True),
+                 ["cevapladi", "grounded", "no_confidence"], include_cockpit=True),
     EvalScenario("durum_grounded", "Bu ay nasıl gidiyorum?",
-                 ["grounded", "no_fake"], include_cockpit=True),
+                 ["cevapladi", "grounded", "no_fake"], include_cockpit=True),
 ]
 
 
 def format_report(report: Dict) -> str:
     """Skor kartını insan-okur metne çevirir (runner çıktısı için)."""
-    lines = [
-        "=== Koç Eval Skor Kartı ===",
+    lines = ["=== Koç Eval Skor Kartı ==="]
+    if not report.get("gecerli", True):
+        # BUG #276: geçersiz koşumda manşet sayı yanıltıcıdır — uyarı EN ÜSTTE durur.
+        lines.append(
+            f"!! GEÇERSİZ KOŞUM: {report['llm_olu_cagri']} senaryoda sağlayıcı hiç cevap "
+            "veremedi (kota/erişim). Aşağıdaki oran KALİTE ölçümü değildir."
+        )
+    lines += [
         f"Senaryo: {report['scenario_pass']}/{report['scenario_total']} tam geçti",
         f"Kriter : {report['check_pass']}/{report['check_total']} (%{report['pass_rate']})",
         "",

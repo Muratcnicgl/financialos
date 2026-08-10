@@ -36,7 +36,11 @@
   (c) skorun zaman içinde saklanması. **Yan bulgu → BUG #275:** eval'in `no_fake` kriteri
   sahte-tamamlama tanımasının KENDİ kopyasını taşıyordu ve ölçülen korpusun **7/12'sini
   kaçırıyordu** (ayrıca ters yönde 4/4 yanlış-pozitif üretiyordu) — yani araç, koruduğu
-  sözleşmeden zayıftı; tek kaynağa bağlandı (**L46**).
+  sözleşmeden zayıftı; tek kaynağa bağlandı (**L46**). **İkinci yan bulgu → BUG #276:**
+  harness'ın MANŞET sayısı da bozuktu — tamamen ölü koç (tüm sağlayıcılar düşmüş) ve "Tamam."
+  diyen sessiz koç **%83.3 pass_rate** alıyordu, çünkü 8 senaryonun 6'sı yalnız olumsuz
+  kriter taşıyordu. `cevapladi` olumlu kriteri + yapısal `llm_kullanilamadi` bayrağı eklendi;
+  ölü koç %0.0, sessiz koç %10.0 (**L47**).
 - **Kanıt:** `app/coach.py:1242-1264`; `routers/coach.py:181-206`; `scripts/eval_runner.py`
 - **Aksiyon:** DeepEval G-Eval/küçük judge ile offline puanla; trace'e provider+skor; haftalık dashboard.
 - **Etki:** Orta · **Efor:** M

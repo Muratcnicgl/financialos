@@ -99,6 +99,7 @@ Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satı
 | L41 | **Aynı turda iki kez çağrılan bir sözleşme, iki çağrıda AYNI olmalıdır — yönlendirme sözleşmeye değil mesaja yazılır.** Retry/plan gibi "bir kez daha dene" yolları, talimatı system prompt'a eklemeye çok müsaittir; oysa system prompt yetki yüzeyidir ve prefix'tir: değişince hem yetki metni deterministik olmaktan çıkar hem de prefix eşleşmesiyle çalışan her cache baştan yazar. | #272 (aynı dosyada doğrusu zaten vardı: soru retry'ı nudge'ı messages'a ekliyordu; propose retry'ı ve iç plan system'e yazıyordu — üstelik plan, modelin O TURDA ürettiği metindi) |
 | L42 | **Bir sinyal başına `if/elif` dalı yazan tasarımda, tüketici sayısı arttıkça bir dal MUTLAKA unutulur — sinyali dala değil TİPE bağla.** Ana akış ile retry (ya da uç ile cron) aynı kararı elle kopyaladığında kopya bir gün ayrışır ve ayrıştığı yer sessizdir: eksik dal `else`e düşüp log'a yazılır, kullanıcı hiçbir şey görmez. Kararın tamamını (kullanıcıya söylenecek cümle, tekrar denenmeli mi, ize ne yazılacak) sinyalin SINIFINA koy; tüketici tek base'i yakalasın — o zaman unutulacak dal kalmaz. | #273 (retry yolu `TARIH_BELIRSIZ`i hiç ele almıyordu: özette tarih olup payload'da olmayan harcama kaydedilmiyor VE kullanıcıya tarih sorusu da sorulmuyordu; matris 8 hücrenin 1'inde yanlıştı) |
 | L43 | **Sinyal ile teşhis AYNI string'se, sinyali loglayan her satır teşhisi de yayınlar.** `raise ValueError("KOD: ozetteki tutar [3200.0] ile payload 320.0 uyusmuyor")` yazıldığı anda, o hatayı ele alan hiç kimse "yalnız kodu logla" diyemez — `str(e)` bir bütündür. Ayrıca `str(e)` teşhis için biçimlendirilmişse kullanıcıya görünen yüzeye (trace/Gözlem satırı) düştüğünde iç kod da ekrana çıkar. Kod, kullanıcı-dostu gerekçe ve değer taşıyan teşhis ÜÇ AYRI alandır. | #273 (iki log satırı kullanıcının tutarlarını yazıyordu — BUG #180 ihlali; dört sinyalin dördü de `Belirsizlik: HESAP_BELIRSIZ` olarak `TracePanel`'de render ediliyordu) |
+| L47 | **Yalnız OLUMSUZ kriterden kurulu bir ölçüm, SESSİZLİĞİ başarı sayar.** "Aksiyon önermedi", "sahte tamamlama yok", "güven işareti sızmadı" — hiç cevap vermeyen (hatta hiç çalışmayan) bir sistem bunların hepsini geçer. Her ölçüm setinde en az bir OLUMLU kriter (iş fiilen yapıldı mı?) bulunmalı ve o düşerse diğerleri "geçti" sayılmamalıdır; ayrıca "veri yoksa iyi varsay" (`get("ok", True)`) varsayılanı aynı hatanın sessiz hâlidir. | #276 (tamamen ölü koç %83.3 pass_rate alıyordu; "Tamam." diyen sessiz koç da aynı) |
 | L46 | **Bir kalite kapısının kendi ölçütü, koruduğu sözleşmeden zayıf (ya da farklı biçimde) olamaz.** Eval/lint/monitor gibi araçlar korudukları kuralın KOPYASINI taşırsa, kural düzeldiğinde kopya geride kalır ve araç regresyonu YEŞİL puanlar — üstelik ters yönde de bozulur (fazla geniş kopya sağlıklı davranışı kırmızıya düşürür). Aracın ölçütü ürünün tek kaynağını İÇE AKTARMALIDIR; kopya varsa AST kilidiyle yasaklanır. | #275 (eval'in sahte-tamamlama kopyası ölçülen korpusun 7/12'sini kaçırıyor, ayrıca 4/4 yanlış-pozitif üretiyordu) |
 | L44 | **Bir ölçünün ANAHTARI, ölçülen şeyin gerçekten değiştiği eksende olmalı.** Fiyat modelin değil **(sağlayıcı, model) çiftinin** özelliğidir: aynı model adı Groq'ta $0.15, başka sağlayıcıda başka listede, `:free` varyantında 0'dır. Anahtarı tek düzeyli seçmek hata vermez — sessizce **yanlış para** üretir. Aynı ilke ADR-051'in "önce yapı" kuralının veri tarafıdır: ölçüyü adlandırmadan önce "bu sayı neye göre değişiyor?" sorusu cevaplanır. | #274 (tek düzeyli model tablosu sekiz sağlayıcılı zincirde yanlış maliyet üretirdi) |
 | L45 | **BİLİNMEYEN ile SIFIR aynı hücreye yazılamaz.** Hesaplanamayan bir maliyeti 0 yazmak, toplamı bozmakla kalmaz — **yeni bir model eklendiğinde sistemi "bedava" gösterir ve hata sessiz kalır**. Bilinmeyen `None` olmalı, ayrı sayılmalı ve toplam açıkça ALT SINIR ilan edilmelidir; bilinen sıfır (yerel çalışma, ücretsiz varyant) bundan AYRI bir durumdur. Doğrulanamayan bir değeri "makul tahminle" doldurmak da aynı hatadır: kendinden emin yanlış sayı, boş hücreden zararlıdır. | #274 (Cerebras/DeepInfra fiyatı teyit edilemedi → tabloya yazılmadı, raporda ayrı sayılıyor) |
@@ -455,6 +456,22 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 10 AĞUSTOS 2026 (3) — KALİTE KOŞUMU, TAMAMEN ÖLÜ KOÇU %83.3 İLE ÖDÜLLENDİRİYORDU
+> (BUG #276, LLM-005 devamı).** #275'te eval'in bir kriterinin bayat olduğu bulunmuştu; aynı
+> mercek KALAN kriterlere tutuldu. **Ölçüm (iki sahte sağlayıcı, kanonik senaryo seti):**
+> ① tüm sağlayıcılar düşmüş hâlde (RESIL-004 dalı) eval **6/8 senaryo, %83.3** veriyordu;
+> ② "Tamam." diyen sessiz koç da **aynı %83.3**'ü alıyordu. `coach_eval`'in kendi sözü
+> ("kalite düşerse pass_rate düşer" — regresyon ağı) tutmuyordu: **koçun çalışıp çalışmadığı
+> bile orana yansımıyordu.** Kök sebep: 8 senaryonun 6'sı yalnız OLUMSUZ kriter taşıyordu
+> (`no_action`/`no_fake`/`no_confidence`) ve bunları hiç cevap vermeyen koç bedavaya sağlar;
+> ayrıca `grounded` varsayılanı TRUE'ydu (denetlenmemiş cevap "doğrulandı" sayılıyordu).
+> **Fix:** zarif-bozulma dalına YAPISAL bayrak (`llm_kullanilamadi`), yeni OLUMLU kriter
+> `cevapladi` her senaryoda, cevapsız senaryoda diğer kriterler sıfırlanır ("aksiyon önermedi"
+> hiç konuşmayan koç için başarı değildir), `run_eval` geçersiz koşumu ilan eder ve uyarı
+> raporun EN ÜSTÜNDE durur. Sonuç: ölü koç **%83.3 → %0.0**, sessiz koç **%83.3 → %10.0**
+> (ikisi de senaryo 0/8). Kapı `tests/test_coach_eval.py` (+12, drift kilidi: her kanonik
+> senaryo en az bir olumlu kriter taşır; **mutasyon 4/4**). Ders **L47**.
 
 > **📌 10 AĞUSTOS 2026 (2) — KALİTE KAPISININ KENDİ ÖLÇÜTÜ, KORUDUĞU SÖZLEŞMEDEN ZAYIFTI
 > (BUG #275, LLM-005 yan bulgusu).** Sıradaki madde LLM-005 (judge) kapsamlanırken **premis

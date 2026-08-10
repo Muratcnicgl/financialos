@@ -168,6 +168,11 @@ from app.insight_schema import (  # BUG #268: içgörü sözleşmesi tek kaynak
     tool_semasi as _icgoru_tool_semasi,
 )
 from app.tr_text import normalize as _tr_normalize  # BUG #271: yazımdan bağımsız eşleşme
+from app.workspace_deps import scope_filter  # BUG #277: bekleyen onay sorgusu kapsam-güvenli
+from app.uslup_kurallari import (  # BUG #277: koçun yazılı üslup sözleşmesi tek kaynak
+    prompt_sahte_niyet_listesi as _sahte_niyet_ornekleri,
+    sahte_niyet_iddiasi_var,
+)
 from app.intent_rules import (  # noqa: E402  (modül üstündeki import bloğuyla aynı seviye)
     gelecek_niyet_mi as is_future_or_intent,
     gerceklesmis_eylem_var_mi as has_realized_action,
@@ -270,10 +275,7 @@ DOĞRU: "Kart borcun 0 — karta ödeme gerekmiyor. Ama kredilerin var (79.625 T
 
 🔴 SAHTE NİYET YASAĞI: Tool çağırmadan aşağıdaki veya benzeri cümleler YAZMA.
    Niyet varsa = tool çağrısı var. Yoksa = soru sor veya bilgi ver. Sahte vaat YASAK.
-   - "kaydetmek üzereyim" / "kaydetmek için hazırım" / "aksiyon hazırlanıyor"
-   - "onay verirseniz işleme alıyorum" / "onay bekliyorum" / "onayınızı bekliyorum"
-   - "lütfen onay verin" / "lutfen onay verin"
-   - "kaydetmek için onay" / "kaydetmek icin onay"
+{SAHTE_NIYET_ORNEKLERI}
 
 🔴 HESAP TAHMİNİ YASAĞI: Kullanıcı mesajında hesap belirten açık kelime
    (kart, kartla, kartım, nakit, nakitten, banka ya da kullanıcının kendi hesap adı) YOKSA,
@@ -290,8 +292,9 @@ DOĞRU: "Kart borcun 0 — karta ödeme gerekmiyor. Ama kredilerin var (79.625 T
 
 🔴 TOOL ÇAĞIRIRKEN BIRAZ DA METIN YAZ: propose_action çağırırken AYNI ZAMANDA
 1-2 cümlelik kısa Türkçe metin de yaz. Örnek: "4 lot TLY satışını kaydetmek
-için aksiyon hazırlandı. Onayınızı bekliyorum." Sadece tool çağırıp boş geçmek
-KULLANICIYA SOĞUK GELİR.
+için aksiyon hazırladım. Onayını bekliyorum." Sadece tool çağırıp boş geçmek
+KULLANICIYA SOĞUK GELİR. (Bu cümle SADECE gerçekten tool çağırdığında meşrudur;
+tool yoksa aynı cümle SAHTE NİYET olur — yukarıdaki yasak.)
 
 # KARAKTER
 - Soğukkanlı, profesyonel, dürüst — ama SICAK. Robot/ukala değil.
@@ -495,6 +498,12 @@ SAVE_INSIGHT_SCHEMA = _icgoru_tool_semasi()
 # prompt sessizce bayatlar, koç reddedilecek payload üretmeye devam ederdi. Artık tek kaynaktan
 # ÜRETİLİR — `tests/test_aksiyon_payload_kapisi.py` prompt↔şema eşitliğini ölçer (L27).
 V3_GOD_MODE_PROMPT = V3_GOD_MODE_PROMPT.replace("{PAYLOAD_SABLONLARI}", _payload_sablon_metni())
+
+# BUG #277 fix: SAHTE NİYET yasak-cümle listesi prompt'ta ELLE yazılıydı ve kodun aradığı
+# desenle AYRIŞMIŞTI (prompt "onayınızı bekliyorum"u yasaklıyor, kod da yalnız onu arıyordu;
+# koçun HİTAP kuralına uyan "onayını bekliyorum" biçimi ikisinde de yoktu → ölçüm 8/12 kaçak).
+# Liste artık tek kaynaktan üretilir: yasak cümle eklendiğinde dedektör de onu tanır (L27).
+V3_GOD_MODE_PROMPT = V3_GOD_MODE_PROMPT.replace("{SAHTE_NIYET_ORNEKLERI}", _sahte_niyet_ornekleri())
 
 
 PROPOSE_ACTION_SCHEMA = {
@@ -2233,17 +2242,23 @@ _PLAN_MESAJ_BASI = ("[İÇ PLAN — kullanıcıya GÖSTERME; cevabını buna gö
                     "jargonsuz yaz]\n")
 
 _CLARIFY_MSG = "Hangi hesaptan harcadın? Yazına 'kartla' veya 'nakitten' eklersen hemen kaydederim."
-# BUG #043 iter2: Gelecek zaman sahte niyet pattern'ları — retry trigger'ı
-_FAKE_NIYET_RE = re.compile(
-    r'(kaydetmek\s+(?:üzereyim|uzereyim|için\s+hazırım|icin\s+hazirim|üzere\b|uzere\b))'
-    r'|(aksiyon\s+haz[ıi]rlan[ıi]yor)'
-    r'|(onay(?:ınızı|inizi|ı)?\s+(?:bekliyorum|verin|veriniz))'
-    r'|(kaydetmeye\s+haz[ıi]r[ıi]m)'
-    r'|(l[uü]tfen\s+onay)'
-    r'|(kaydetmek\s+i[cç]in\s+onay)'
-    r'|(onay\s+bekliyorum)',
-    re.IGNORECASE,
-)
+# BUG #277 fix: sahte-niyet tanıması BURADA elle yazılıydı (BUG #043 iter2) ve yalnız retry
+# tetikleyicisi olarak kullanılıyordu. ÖLÇÜM: gerçekçi 12 cümlenin 8'ini kaçırıyordu —
+# kaçanların TAMAMI "sen" hitaplı biçimlerdi ("onayını bekliyorum", "onaylarsan kaydediyorum"),
+# oysa aynı prompt "siz" hitabını YASAKLAR: bir kuralın koruması, ikinci bir kuralın ihlaline
+# bağlıydı (L49). Tek kaynak artık `app/uslup_kurallari.py` ve prompt'un yasak-cümle listesi
+# de oradan ÜRETİLİR (elle yazılı ikinci liste kalmadı, L27).
+#
+# Ürün tarafındaki ikinci boşluk da burada kapandı: eski desen YALNIZ retry tetikleyicisiydi
+# ve o dal `offer_propose` ile korunuyordu — yani koruma sadece "kullanıcı gerçekleşmiş bir
+# eylem bildirdi" dalında çalışıyordu. Ölçüm (uçtan uca, 4 mesaj tipi × 2 hitap): sahte niyet
+# cümlesi kullanıcıya 8 hücrenin 7'sinde ULAŞIYORDU. Onay bekleyen kayıt yoksa iddia yalandır —
+# mesaj tipinden bağımsız (BUG #271'in DURUM temelli güvencesinin niyet karşılığı, L39).
+_ONAY_YOK_NOTU = "_(Not: onay bekleyen bir kayıt oluşturmadım.)_"
+# Cevabın TAMAMI sahte niyetten ibaretse geriye söz kalmaz; boş ekran yerine dürüst durum
+# + tek somut adım (KURAL 2: tek soru, tek adım).
+_ONAY_YOK_ISTEK = ("Onay bekleyen bir kayıt oluşturmadım. Ne kaydetmemi istediğini yaz "
+                   "(tutar + hesap), hemen hazırlayayım.")
 # BUG #085 fix (P0-19): Parantezsiz DUZ gecmis-zaman sahte tamamlama.
 # _FAKE_CONFIRM_RE sadece [koseli parantez] icini yakaliyordu; "Harcamani kaydettim.",
 # "Islem kaydedildi.", "500 TL gideri ekledim." gibi duz cumleler hicbir filtreye
@@ -2299,7 +2314,9 @@ def sahte_tamamlama_iddiasi_var(metin: str) -> bool:
 _KAYIT_YOK_NOTU = "_(Not: bu mesajda hiçbir kayıt oluşturmadım.)_"
 
 
-def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "", proposed_actions: Optional[List] = None) -> str:
+def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "",
+                        proposed_actions: Optional[List] = None,
+                        bekleyen_onay_var: bool = False) -> str:
     """BUG #033/#041 fix: Halüsinasyon bölümlerini output katmanında temizle.
 
     EMANET KASA: cockpit'te 0 ise başlık + içerik satırlarını sil.
@@ -2356,6 +2373,36 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
 
     cleaned = '\n'.join(result).strip()
 
+    # BUG #277: SAHTE NİYET temizliği — "onayını bekliyorum" cümlesi ONAY BEKLEYEN KAYIT
+    # VARSA doğrudur (prompt bunu açıkça ister), yoksa YALANDIR: kullanıcı ekranda hiç
+    # oluşmamış bir onay kartını bekler. Eski koruma yalnız retry tetikleyicisiydi ve
+    # `offer_propose` dalına bağlıydı → ölçüm, iddianın 8 hücrenin 7'sinde kullanıcıya
+    # ulaştığını gösterdi (soru/selamlaşma/gelecek-niyet dallarında koruma HİÇ yoktu).
+    # Güvence ifadeye değil DURUMA bağlıdır (L39): kayıt yoksa iddia taşıyan satır düşer.
+    # KALİBRASYON: ölçüt "bu turda aksiyon doğdu mu" DEĞİL, "onay bekleyen kayıt VAR MI".
+    # Koçun geçmişinde önceki turların `status=pending` satırları duruyor; kullanıcı
+    # "onay bekleyen bir şey var mı?" diye sorduğunda koçun "dünkü kayıt onayını bekliyor"
+    # cümlesi DOĞRUDUR ve silinmemelidir. Yanlış tarafa düşmenin bedeli asimetrik (L36):
+    # yalanı geçirmek kullanıcıyı olmayan bir kartı beklemeye iter, doğruyu silmek ise
+    # ekranda duran gerçek kaydı görünmez kılar — ikisi de kabul edilemez, ölçüt DURUMUN
+    # TAMAMI olmalı.
+    onay_notu_eklendi = False
+    if not proposed_actions and not bekleyen_onay_var and sahte_niyet_iddiasi_var(cleaned):
+        if "\n" in cleaned:
+            kalan = "\n".join(
+                ln for ln in cleaned.splitlines() if not sahte_niyet_iddiasi_var(ln)
+            ).strip()
+        else:
+            # Tek satırlık yanıtta cümle bazında çalış — rapor iskeleti yoksa satır atmak
+            # cevabın tamamını siler (BUG #271'de ölçülen aynı kalibrasyon).
+            kalan = " ".join(
+                c for c in re.split(r'(?<=[.!?])\s+', cleaned)
+                if not sahte_niyet_iddiasi_var(c)
+            ).strip()
+        # Geriye söz kalmadıysa boş ekran bırakma: dürüst durum + tek somut adım.
+        cleaned = (kalan + "\n\n" + _ONAY_YOK_NOTU).strip() if kalan else _ONAY_YOK_ISTEK
+        onay_notu_eklendi = True
+
     # Sahte tamamlama temizligi — SADECE hicbir aksiyon onerilmediyse (DB'ye hic yazilmadi).
     if not proposed_actions:
         fake = False
@@ -2397,8 +2444,13 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
             # Karışık mesajda ("harcadım, bütçem ne durumda?") not eklenmez — o yol zaten
             # BUG #267 ile propose'a, BUG #085 fiil filtresine ve retry'a bağlı (L36: yanlış
             # tarafa düşmenin bedeli asimetrik; burada gürültünün bedeli daha yüksek).
+            #
+            # BUG #277: sahte-niyet notu zaten eklendiyse ikincisi GEREKSİZ tekrardır —
+            # ikisi de aynı gerçeği söyler ("bu turda kayıt oluşmadı"). Prompt'un kendi
+            # "aynı şeyi iki kez söyleme" maddesi koçun ürettiği metin kadar bizim
+            # eklediğimiz metin için de geçerlidir.
             _niyet = _niyet_cikar(user_message)
-            if _niyet.gerceklesmis and not _niyet.soru:
+            if _niyet.gerceklesmis and not _niyet.soru and not onay_notu_eklendi:
                 cleaned = (cleaned + '\n\n' + _KAYIT_YOK_NOTU).strip()
 
     return cleaned
@@ -2551,6 +2603,24 @@ class CoachEngine:
         ]
         history = _trim_history_to_size(history)
         return history
+
+    def _bekleyen_onay_var(self, db: Session, user_id: int,
+                           workspace_id: Optional[int] = None) -> bool:
+        """Kullanıcının onay ekranında bekleyen bir kayıt var mı? (BUG #277)
+
+        Sahte-niyet güvencesinin DURUM ayağı: "onayını bekliyorum" cümlesi ancak gerçekten
+        bekleyen kayıt yokken yalandır. Sorgu hatası koçun cevabını düşürmemeli — böyle bir
+        durumda temkinli taraf "vardır" demektir (doğru cümleyi silmek, yanlış cümleyi
+        geçirmekten daha görünür bir hasardır; iddia zaten prompt tarafında yasaklı).
+        """
+        try:
+            return db.query(PendingAction.id).filter(
+                scope_filter(PendingAction, user_id, workspace_id),
+                PendingAction.status == ActionStatus.pending,
+            ).first() is not None
+        except Exception as e:  # pragma: no cover — savunma dalı
+            logger.warning("bekleyen onay sorgusu basarisiz: %s", type(e).__name__)
+            return True
 
     def _save_message(
         self,
@@ -2851,9 +2921,11 @@ class CoachEngine:
             # Bu durumda cevap ne boş ne sahte-niyet — eski koşul retry'ı KAÇIRIYORDU. Mesajda
             # AÇIK gerçekleşmiş-eylem fiili (aldım/ödedim/harcadım...) varsa retry'ı ayrıca tetikle.
             # has_realized_action guard'ı sayesinde nötr cümlede ("hava güzel") uydurma riski YOK.
+            # BUG #277: tanıma tek kaynaktan (uslup_kurallari) — eski yerel desen gerçekçi
+            # 12 cümlenin 8'ini kaçırdığı için retry çoğu sahte-niyet cevabında tetiklenmiyordu.
             _orig_empty_or_fake = (
                 not (llm_response.text or "").strip()
-                or bool(_FAKE_NIYET_RE.search(llm_response.text or ""))
+                or sahte_niyet_iddiasi_var(llm_response.text)
             )
             # BUG #273: "retry'ın anlamı var mı?" kararı da sinyalin ÜZERİNDEDİR. Eksik olan
             # KULLANICI bilgisiyse (hesap/tarih) modeli yeniden çağırmak aynı eksikle aynı
@@ -2937,8 +3009,15 @@ class CoachEngine:
                 except Exception as e:
                     logger.warning(f"BUG #049 soru retry basarisiz, orijinal cevaba donuluyor: {e}")
 
+            # BUG #277: "onay bekleyen kayıt var mı?" sorusunun cevabı DB'dedir — bu turda
+            # doğan aksiyon YOKSA bile kullanıcının onay ekranında önceki turlardan kalan
+            # kayıt olabilir; koçun o kayda atfı doğrudur ve silinmemelidir.
+            bekleyen_onay_var = bool(proposed_actions) or self._bekleyen_onay_var(
+                db, user_id, workspace_id)
+
             # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
-            clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message, proposed_actions)
+            clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message,
+                                             proposed_actions, bekleyen_onay_var)
 
             # Confidence parse + strip (kullaniciya gozukmesin)
             confidence = _parse_confidence(clean_text)
@@ -3040,6 +3119,11 @@ class CoachEngine:
                 "cockpit_snapshot": cockpit_dict,
                 "coach_memory_id": last_assistant.id if last_assistant else None,
                 "grounding": grounding,  # LLM-003: {ok, checked, unverified}
+                # BUG #277: "onayını bekliyorum" cümlesinin doğru mu yalan mı olduğunu
+                # METİN söyleyemez — DURUM söyler. Bayrak sözleşmenin parçasıdır ki ölçüm
+                # tarafı (coach_eval) ürünle AYNI ölçütü kullansın; farklı ölçüt, kapının
+                # kendi koruduğu sözleşmeden sapması demektir (L46).
+                "bekleyen_onay_var": bekleyen_onay_var,
                 # BE-025: fallback zincirinde İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcı (gemini/groq/...)
                 # → router bunu loglar ki günlük kota (Gemini) doğru izlensin, nominal "fallback" değil.
                 "provider_used": getattr(llm_response, "provider_used", None),

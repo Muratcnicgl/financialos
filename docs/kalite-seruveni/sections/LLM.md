@@ -41,6 +41,18 @@
   diyen sessiz koç **%83.3 pass_rate** alıyordu, çünkü 8 senaryonun 6'sı yalnız olumsuz
   kriter taşıyordu. `cevapladi` olumlu kriteri + yapısal `llm_kullanilamadi` bayrağı eklendi;
   ölü koç %0.0, sessiz koç %10.0 (**L47**).
+  **Üçüncü yan bulgu → BUG #277 (10 Ağu):** kriterlerin KAPSAMI ölçüldü — koçun V3
+  prompt'unda maddeler hâlinde YASAKLANMIŞ üslup davranışları (dalkavukluk, dolgu, "siz"
+  hitabı, iç jargon, boş teselli, nutuk, sahte niyet, duvar-metin) harness'ta hiçbir
+  kritere karşılık gelmiyordu: bu maddeleri açıkça ihlal eden 9 persona, ihlalsiz
+  referansla BİREBİR aynı **%100 pass_rate** aldı (**L48**). Canlı DB'deki 12 gerçek koç
+  cevabının 5'i de ihlalliydi. Tek kaynak `app/uslup_kurallari.py` + eval kriterleri
+  `uslup`/`no_fake_niyet`/`oz`; kapı `tests/test_uslup_kapisi.py` (46, mutasyon 8/8).
+- **Kalan AÇIK iş (judge):** öznel/muhakeme boyutu deterministik desenle ölçülemez —
+  "MUHAKEME ET / ezber tavsiye yasak", "DOĞRU ÇERÇEVEYLE BAŞLA", "RİSKLİ SEÇENEĞİ
+  İŞARETLE" maddeleri hâlâ ölçülmüyor (ezber-tavsiye personası kapı sonrası da %100
+  alıyor — ölçüldü, bilinçli kapsam dışı). Ayrıca (b) sağlayıcıları yan yana koyan tek
+  koşum ve (c) skorun zaman içinde saklanması hâlâ yok.
 - **Kanıt:** `app/coach.py:1242-1264`; `routers/coach.py:181-206`; `scripts/eval_runner.py`
 - **Aksiyon:** DeepEval G-Eval/küçük judge ile offline puanla; trace'e provider+skor; haftalık dashboard.
 - **Etki:** Orta · **Efor:** M

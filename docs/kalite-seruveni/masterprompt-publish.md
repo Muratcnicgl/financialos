@@ -100,6 +100,8 @@ Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satı
 | L42 | **Bir sinyal başına `if/elif` dalı yazan tasarımda, tüketici sayısı arttıkça bir dal MUTLAKA unutulur — sinyali dala değil TİPE bağla.** Ana akış ile retry (ya da uç ile cron) aynı kararı elle kopyaladığında kopya bir gün ayrışır ve ayrıştığı yer sessizdir: eksik dal `else`e düşüp log'a yazılır, kullanıcı hiçbir şey görmez. Kararın tamamını (kullanıcıya söylenecek cümle, tekrar denenmeli mi, ize ne yazılacak) sinyalin SINIFINA koy; tüketici tek base'i yakalasın — o zaman unutulacak dal kalmaz. | #273 (retry yolu `TARIH_BELIRSIZ`i hiç ele almıyordu: özette tarih olup payload'da olmayan harcama kaydedilmiyor VE kullanıcıya tarih sorusu da sorulmuyordu; matris 8 hücrenin 1'inde yanlıştı) |
 | L43 | **Sinyal ile teşhis AYNI string'se, sinyali loglayan her satır teşhisi de yayınlar.** `raise ValueError("KOD: ozetteki tutar [3200.0] ile payload 320.0 uyusmuyor")` yazıldığı anda, o hatayı ele alan hiç kimse "yalnız kodu logla" diyemez — `str(e)` bir bütündür. Ayrıca `str(e)` teşhis için biçimlendirilmişse kullanıcıya görünen yüzeye (trace/Gözlem satırı) düştüğünde iç kod da ekrana çıkar. Kod, kullanıcı-dostu gerekçe ve değer taşıyan teşhis ÜÇ AYRI alandır. | #273 (iki log satırı kullanıcının tutarlarını yazıyordu — BUG #180 ihlali; dört sinyalin dördü de `Belirsizlik: HESAP_BELIRSIZ` olarak `TracePanel`'de render ediliyordu) |
 | L47 | **Yalnız OLUMSUZ kriterden kurulu bir ölçüm, SESSİZLİĞİ başarı sayar.** "Aksiyon önermedi", "sahte tamamlama yok", "güven işareti sızmadı" — hiç cevap vermeyen (hatta hiç çalışmayan) bir sistem bunların hepsini geçer. Her ölçüm setinde en az bir OLUMLU kriter (iş fiilen yapıldı mı?) bulunmalı ve o düşerse diğerleri "geçti" sayılmamalıdır; ayrıca "veri yoksa iyi varsay" (`get("ok", True)`) varsayılanı aynı hatanın sessiz hâlidir. | #276 (tamamen ölü koç %83.3 pass_rate alıyordu; "Tamam." diyen sessiz koç da aynı) |
+| L48 | **Bir sistemin "kalite ölçümü", ürünün YAZILI sözleşmesinin yalnız ölçmesi kolay yarısını kapsar — ölçülmeyen yarı sessizce çürür.** Koçun prompt'unda maddeler hâlinde YASAKLANMIŞ davranışlar (dalkavukluk, dolgu, hitap biçimi, iç jargon) harness'ta hiçbir kritere karşılık gelmiyordu: yapısal olarak kusursuz ama sözleşmeyi açıkça çiğneyen 9 persona, ihlalsiz referansla BİREBİR aynı %100'ü aldı. Ölçüm setini kurarken soru "hangi kriterleri yazabilirim?" değil, **"ürün neyi vaat ediyor ve bunun hangisi ölçülüyor?"** olmalı; ölçülemeyen madde varsa AÇIKÇA kapsam dışı ilan edilir (sessiz kısıtlama yok). | #277 (9/9 ihlalli persona %100 pass_rate; canlı koşumda gerçek koç 8 senaryonun 4'ünde sözleşmeyi ihlal etti, canlı DB'deki 12 gerçek cevabın 5'i de ihlalliydi) |
+| L49 | **İki kural birbirine düğümlenmişse, birinin koruması diğerinin İHLALİNE bağlı olabilir — ve bu hiçbir testte görünmez.** Sahte-niyet dedektörü yalnız "siz" hitaplı biçimleri tanıyordu; oysa aynı prompt "siz" hitabını yasaklar. Yani koç HİTAP kuralına uyduğu anda sahte-niyet koruması düşüyordu: iki kurala birden uyan bir davranış imkânsızdı. Bir kuralı ölçen desen yazarken korpus, **diğer kuralların gerektirdiği biçimlerle** doldurulmalıdır. | #277 (12 gerçekçi cümlenin 8'i kaçıyordu, kaçanların tamamı "sen" biçimiydi; uçtan uca iddia 8 hücrenin 7'sinde kullanıcıya ulaşıyordu) |
 | L46 | **Bir kalite kapısının kendi ölçütü, koruduğu sözleşmeden zayıf (ya da farklı biçimde) olamaz.** Eval/lint/monitor gibi araçlar korudukları kuralın KOPYASINI taşırsa, kural düzeldiğinde kopya geride kalır ve araç regresyonu YEŞİL puanlar — üstelik ters yönde de bozulur (fazla geniş kopya sağlıklı davranışı kırmızıya düşürür). Aracın ölçütü ürünün tek kaynağını İÇE AKTARMALIDIR; kopya varsa AST kilidiyle yasaklanır. | #275 (eval'in sahte-tamamlama kopyası ölçülen korpusun 7/12'sini kaçırıyor, ayrıca 4/4 yanlış-pozitif üretiyordu) |
 | L44 | **Bir ölçünün ANAHTARI, ölçülen şeyin gerçekten değiştiği eksende olmalı.** Fiyat modelin değil **(sağlayıcı, model) çiftinin** özelliğidir: aynı model adı Groq'ta $0.15, başka sağlayıcıda başka listede, `:free` varyantında 0'dır. Anahtarı tek düzeyli seçmek hata vermez — sessizce **yanlış para** üretir. Aynı ilke ADR-051'in "önce yapı" kuralının veri tarafıdır: ölçüyü adlandırmadan önce "bu sayı neye göre değişiyor?" sorusu cevaplanır. | #274 (tek düzeyli model tablosu sekiz sağlayıcılı zincirde yanlış maliyet üretirdi) |
 | L45 | **BİLİNMEYEN ile SIFIR aynı hücreye yazılamaz.** Hesaplanamayan bir maliyeti 0 yazmak, toplamı bozmakla kalmaz — **yeni bir model eklendiğinde sistemi "bedava" gösterir ve hata sessiz kalır**. Bilinmeyen `None` olmalı, ayrı sayılmalı ve toplam açıkça ALT SINIR ilan edilmelidir; bilinen sıfır (yerel çalışma, ücretsiz varyant) bundan AYRI bir durumdur. Doğrulanamayan bir değeri "makul tahminle" doldurmak da aynı hatadır: kendinden emin yanlış sayı, boş hücreden zararlıdır. | #274 (Cerebras/DeepInfra fiyatı teyit edilemedi → tabloya yazılmadı, raporda ayrı sayılıyor) |
@@ -456,6 +458,35 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 10 AĞUSTOS 2026 (4) — KOÇUN YAZILI ÜSLUP SÖZLEŞMESİNİ HİÇBİR ŞEY ÖLÇMÜYORDU
+> (BUG #277, LLM-005 devamı).** #275 eval'in bir kriterinin bayat olduğunu, #276 manşet
+> sayının ölü koçu ödüllendirdiğini bulmuştu; üçüncü mercek **kriterlerin KAPSAMINA**
+> tutuldu. **Ölçüm (kanonik senaryo seti, 10 persona):** yapısal olarak KUSURSUZ (doğru
+> tool, uydurma sayı yok) ama V3 prompt'unun üslup maddelerini açıkça ihlal eden **9
+> persona** kuruldu — dalkavukluk, dolgu, "siz" hitabı, iç jargon, boş teselli, nutuk,
+> sahte niyet, duvar-metin, ezber tavsiye. **Dokuzu da %100 pass_rate / 8-8 senaryo aldı,
+> ihlalsiz referansla BİREBİR aynı.** Harness koçun DOĞRU İŞ yapıp yapmadığını ölçüyor,
+> DÜZGÜN KONUŞUP konuşmadığını hiç ölçmüyordu (**L48**). Defekt teorik değil: canlı DB'deki
+> **12 gerçek koç cevabının 5'i** ihlalliydi ("menüsündeki senaryolara dayanıyor" — prompt'un
+> kendi YANLIŞ örneği; 4 cevapta "siz" hitabı), fix sonrası canlı koşumda gerçek sağlayıcı
+> **8 senaryonun 4'ünde** ihlal verdi ("nakit **kasanızda**" — aynı cümlede sen/siz karışımı).
+> **İkinci eksen — sözleşmenin kod tarafı olan tek madde:** `coach._FAKE_NIYET_RE` gerçekçi
+> 12 cümlenin **8'ini kaçırıyordu** ve kaçanların TAMAMI "sen" hitaplı biçimlerdi
+> ("onayını bekliyorum"), oysa aynı prompt "siz" hitabını yasaklar → **bir kuralın koruması,
+> ikinci bir kuralın ihlaline bağlıydı** (**L49**). Üstelik koruma yalnız retry
+> tetikleyicisiydi ve `offer_propose` dalına bağlıydı: uçtan uca ölçümde (4 mesaj tipi × 2
+> hitap) sahte niyet iddiası kullanıcıya **8 hücrenin 7'sinde** ulaşıyordu — kullanıcı hiç
+> oluşmamış bir onay kartını bekliyordu. **Fix:** tek kaynak `app/uslup_kurallari.py`
+> (katlanmış desenler + her madde için ölçülmüş ihlal/meşru korpusu); prompt'un yasak-cümle
+> listesi buradan ÜRETİLİR; güvence ifadeye değil DURUMA bağlandı (**onay bekleyen kayıt
+> yoksa** iddia düşer — bayrak `bekleyen_onay_var` chat sözleşmesinin parçası, eval ürünle
+> AYNI ölçütü okur, L46); eval'e üç kriter eklendi (`uslup`, `no_fake_niyet`, `oz`).
+> Sonuç: ihlalli persona **%100 → %77-94** (referans %100'de kaldı), sahte-niyet desen
+> kapsamı **4/12 → 12/12**, uçtan uca sızıntı **7/8 → 0/8**. **Bilinçli kapsam dışı:**
+> "MUHAKEME ET / ezber tavsiye yasak" desenle ölçülemez (ezber-tavsiye personası hâlâ %100
+> alıyor) — judge işi, LLM-005'te AÇIK kaldı ve bu açıkça yazıldı. Kapı
+> `tests/test_uslup_kapisi.py` (46 test, **mutasyon 8/8**).
 
 > **📌 10 AĞUSTOS 2026 (3) — KALİTE KOŞUMU, TAMAMEN ÖLÜ KOÇU %83.3 İLE ÖDÜLLENDİRİYORDU
 > (BUG #276, LLM-005 devamı).** #275'te eval'in bir kriterinin bayat olduğu bulunmuştu; aynı

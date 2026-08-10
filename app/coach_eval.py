@@ -16,6 +16,10 @@ JUDGE LLM GEREKMEZ; tüm sinyaller chat() çıktısından + grounding'den türet
   no_fake        tool çağrılmadan "kaydettim" gibi sahte tamamlama yok
   format         analiz/rapor cevabında ## başlık var
   cevapladi      koç FİİLEN konuştu (BUG #276: olumsuz kriterleri ölü koç da geçiyordu)
+  uslup          yazılı üslup sözleşmesi ihlali yok (BUG #277: dalkavukluk/dolgu/"siz"
+                 hitabı/iç jargon/boş teselli/nutuk — tek kaynak app/uslup_kurallari.py)
+  no_fake_niyet  onay bekleyen kayıt yokken "onayını bekliyorum" iddiası yok
+  oz             basit soruya duvar metin yazılmadı (ÖZ VE NET OL)
 
 Bu modül SAF ölçüm mantığıdır (rules_engine ruhu); DB'ye yazmaz.
 """
@@ -36,9 +40,14 @@ from typing import Dict, List
 # cümlelerde 4/4 yanlış-pozitif verdi → sağlıklı sağlayıcı haksız yere düşerdi.
 # Bir kalite kapısının kendi ölçütü, koruduğu sözleşmeden zayıf (ya da farklı) olamaz (L46).
 from app.coach import sahte_tamamlama_iddiasi_var
+# BUG #277: koçun YAZILI üslup sözleşmesi (dalkavukluk/dolgu/hitap/iç jargon/boş teselli/
+# nutuk + sahte niyet) tek kaynaktan ölçülür. Ölçüm: bu maddelerin her birini açıkça ihlal
+# eden 9 persona, ihlalsiz referansla BİREBİR aynı %100 pass_rate alıyordu — harness koçun
+# DOĞRU İŞ yapıp yapmadığını ölçüyor, DÜZGÜN KONUŞUP konuşmadığını hiç ölçmüyordu (L48).
+from app.uslup_kurallari import BASIT_CEVAP_TAVANI, ihlaller, sahte_niyet_iddiasi_var
 
 CRITERIA = {"grounded", "no_action", "action", "no_confidence", "no_fake", "format",
-            "cevapladi"}
+            "cevapladi", "uslup", "no_fake_niyet", "oz"}
 
 # BUG #276: OLUMSUZ kriterleri (aksiyon yok / sahte tamamlama yok / güven işareti yok) hiç
 # cevap vermeyen bir koç da sağlar. Ölçüm: tamamen ölü sağlayıcıyla (RESIL-004 dalı) koşulan
@@ -89,6 +98,20 @@ def score_result(result: Dict, checks: List[str]) -> Dict[str, bool]:
             scores[c] = not (len(actions) == 0 and sahte_tamamlama_iddiasi_var(reply))
         elif c == "format":
             scores[c] = "##" in reply
+        elif c == "uslup":
+            # Saf-metin üslup maddeleri (durum gerektirmeyenler). Hangi maddenin düştüğü
+            # rapora düşsün diye kod listesi de saklanır.
+            scores[c] = not ihlaller(reply)
+        elif c == "no_fake_niyet":
+            # Sahte NİYET: "onayını bekliyorum" cümlesi onay bekleyen kayıt VARSA meşrudur
+            # (prompt bunu açıkça ister), yoksa yalandır — ölçüt DURUM (L39). Durumu ürünün
+            # YAPISAL bayrağından okur; bayrak yoksa bu turun aksiyonuna düşer (eski davranış).
+            bekleyen = bool(result.get("bekleyen_onay_var", len(actions) > 0))
+            scores[c] = not (not bekleyen and sahte_niyet_iddiasi_var(reply))
+        elif c == "oz":
+            # "Basit soruya 2-4 cümle yeter" — yalnız basit soru/selamlaşma senaryolarında
+            # seçilir; kapsamlı analiz isteyen senaryoda ölçülmez.
+            scores[c] = len(reply.strip()) <= BASIT_CEVAP_TAVANI
 
     # BUG #276: koç konuşmadıysa DİĞER kriterler ölçülmüş sayılmaz. "Aksiyon önermedi" bir
     # başarı değildir — hiç cevap vermeyen koç da önermez; onu geçmiş saymak, ölü koşumu
@@ -116,6 +139,8 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
             "scores": scores,
             "passed": all(scores.values()),
             "reply": (res.get("reply") or "")[:160],
+            # BUG #277: "uslup=-" tek başına eyleme geçirilemez; hangi madde düştüğü yazılır.
+            "uslup_ihlalleri": ihlaller(res.get("reply") or "") if "uslup" in scores else [],
         })
 
     check_total = sum(len(r["scores"]) for r in rows)
@@ -139,23 +164,26 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
 DEFAULT_SCENARIOS: List[EvalScenario] = [
     # KURAL SIFIR — soru/niyet/selamlaşmada propose_action OLUŞMAZ
     EvalScenario("soru_propose_yok", "Kart borcum ne kadar?",
-                 ["cevapladi", "no_action", "no_confidence"], include_cockpit=False),
+                 ["cevapladi", "no_action", "no_confidence", "uslup", "no_fake_niyet", "oz"],
+                 include_cockpit=False),
     EvalScenario("selamlasma_propose_yok", "Merhaba, nasılsın?",
-                 ["cevapladi", "no_action", "no_fake"], include_cockpit=False),
+                 ["cevapladi", "no_action", "no_fake", "uslup", "no_fake_niyet", "oz"],
+                 include_cockpit=False),
     EvalScenario("gelecek_niyet_propose_yok", "Yarın kart borcumu kapatacağım",
-                 ["cevapladi", "no_action"], include_cockpit=False),
+                 ["cevapladi", "no_action", "uslup", "no_fake_niyet"], include_cockpit=False),
     EvalScenario("yatirim_sorusu_propose_yok", "TLY fonunu satmalı mıyım?",
-                 ["cevapladi", "no_action"], include_cockpit=True),
+                 ["cevapladi", "no_action", "uslup", "no_fake_niyet"], include_cockpit=True),
     # Gerçekleşmiş eylem → propose_action oluşur
     EvalScenario("gerceklesmis_eylem_action", "Bugün 500 TL yemek harcadım nakitten",
-                 ["cevapladi", "action"], include_cockpit=False),
+                 ["cevapladi", "action", "uslup"], include_cockpit=False),
     EvalScenario("gerceklesmis_kart_action", "240 TL market aldım kartla",
-                 ["cevapladi", "action"], include_cockpit=False),
+                 ["cevapladi", "action", "uslup"], include_cockpit=False),
     # Analiz → grounded + format + confidence sızmaz
     EvalScenario("analiz_grounded_format", "Durumumu analiz et",
-                 ["cevapladi", "grounded", "no_confidence"], include_cockpit=True),
+                 ["cevapladi", "grounded", "no_confidence", "uslup"], include_cockpit=True),
     EvalScenario("durum_grounded", "Bu ay nasıl gidiyorum?",
-                 ["cevapladi", "grounded", "no_fake"], include_cockpit=True),
+                 ["cevapladi", "grounded", "no_fake", "uslup", "no_fake_niyet"],
+                 include_cockpit=True),
 ]
 
 
@@ -178,4 +206,6 @@ def format_report(report: Dict) -> str:
         mark = "PASS" if r["passed"] else "FAIL"
         detay = " ".join(f"{k}={'+' if v else '-'}" for k, v in r["scores"].items())
         lines.append(f"  [{mark}] {r['name']}: {detay}")
+        if r.get("uslup_ihlalleri"):
+            lines.append(f"         uslup ihlali: {', '.join(r['uslup_ihlalleri'])}")
     return "\n".join(lines)

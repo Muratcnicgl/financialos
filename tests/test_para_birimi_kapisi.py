@@ -54,10 +54,18 @@ MUAF_ENVANTER: dict[str, tuple[int, str]] = {
     # BUG #266: payload şablonundaki `<TL>` LLM'e gösterilen YER TUTUCUDUR — kullanıcıya
     # tutar basmaz, biçimlendirme yapmaz. Prompt metni (app/coach.py muafiyetiyle aynı sınıf).
     "app/action_schema.py": (1, "prompt şablonu yer tutucusu `<TL>` — kullanıcıya tutar basmaz"),
+    # BUG #277: üslup sözleşmesinin ÖLÇÜM korpusu — koçun gerçek cümlelerini taklit eden
+    # ihlal/meşru örnekleri (coach_eval fixture muafiyetiyle aynı sınıf). Bu dosya hiçbir
+    # tutar biçimlendirmez; korpustan "TL"yi atmak, yanlış-pozitif ölçümünü gerçek koç
+    # metninden uzaklaştırırdı — kapıyı memnun etmek için ölçümü zayıflatmak olurdu.
+    "app/uslup_kurallari.py": (5, "üslup ölçüm korpusu: koç cümlelerini taklit eden fixture metinleri"),
 }
 
 BACKEND_TABAN_DOSYA = 60      # app/ altında taranması beklenen en az .py dosyası
-BACKEND_TAVAN_SABIT = 20      # tüm app/ genelinde izin verilen toplam sabit (17 muaf + pay)
+# BUG #277: 20 → 25. Artış SESSİZ değil: yeni muafiyet satırı + gerekçe + bu yorum aynı
+# commit'te yazıldı. Kapının amacı tutar BİÇİMLENDİRMESİNİ tek kaynağa bağlamaktır;
+# eklenen 5 sabit ölçüm fixture'ıdır, biçimlendirme değil.
+BACKEND_TAVAN_SABIT = 25      # tüm app/ genelinde izin verilen toplam sabit (22 muaf + pay)
 
 
 def _backend_dosyalar() -> list[Path]:

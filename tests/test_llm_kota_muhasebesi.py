@@ -258,12 +258,17 @@ def test_usage_kisisel_sayaci_gercek_cagriyi_gosterir(
 
 
 def test_cagri_olcumu_saglayici_bazinda_toplar(db, kullanici_a):
-    """Ölçüm hangi sağlayıcının kaç istek yediğini ayırmalı (paylaşılan sayaç doğru dolsun)."""
+    """Ölçüm hangi sağlayıcının kaç istek yediğini ayırmalı (paylaşılan sayaç doğru dolsun).
+
+    BUG #274: ölçümün BİÇİMİ değişti (sayaç sözlüğü → istek kayıtları listesi), çünkü satır
+    artık isteğin model/token kimliğini de taşıyor. Bu testin ÖLÇTÜĞÜ özellik değişmedi;
+    sağlayıcı bazında adet `sayim()` ile okunur.
+    """
     with llm_quota.cagri_olcumu() as olcum:
         llm_quota.cagri_kaydet("Gemini")
         llm_quota.cagri_kaydet("gemini")
         llm_quota.cagri_kaydet("Groq")
-    assert olcum == {"gemini": 2, "groq": 1}
+    assert llm_quota.sayim(olcum) == {"gemini": 2, "groq": 1}
 
 
 def test_olcum_kapsami_disinda_kayit_patlamaz():

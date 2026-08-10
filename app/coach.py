@@ -9,6 +9,10 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)
 
 GUNCELLEMELER:
+- BUG #274 fix (LLM-006): kota olcum kancasi (`__init_subclass__` → `_raw_chat`) isteğin
+  SONUCUNU da olcume veriyor. Calisan model ve saglayicinin dondurdugu token'lar tam bu
+  noktadan gecip ATILIYORDU; maliyet defterinin (api_call_log) istedigi tam olarak bunlar.
+  Coken istek de kaydedilir (agina cikti, kotayi yedi) ama token'i uydurulmaz.
 - BUG #267 fix (LLM-010, ADR-049): KURAL SIFIR on-filtresi tek bayrakla IKI bagimsiz soruyu
   cevapliyordu ("soruyor mu?" / "gerceklesmis olay bildiriyor mu?") ve soru, gerceklesmis
   eylemi KOSULSUZ veto ediyordu. Olcum: "320 TL harcadim, butcem ne durumda?" mesajinda
@@ -1370,6 +1374,11 @@ class LLMProvider(ABC):
         Sarmalama sınıf yaratımında otomatik olduğu için yeni bir sağlayıcı eklendiğinde
         kanca UNUTULAMAZ (L14 fail-closed); `tests/test_llm_kota_muhasebesi.py` statik
         olarak da dayatır.
+
+        BUG #274: kanca artık isteğin SONUCUNU da ölçüme veriyor — çalışan model ve
+        sağlayıcının döndürdüğü token'lar buradan geçip atılıyordu, oysa maliyet defteri
+        tam olarak bunları istiyor. Çöken istek de kaydedilir (sağlayıcıya gitti, kotayı
+        yedi); token'ı bilinmediği için None kalır — uydurulmaz.
         """
         super().__init_subclass__(**kwargs)
         ham = getattr(cls, "_raw_chat", None)
@@ -1378,8 +1387,19 @@ class LLMProvider(ABC):
 
         @functools.wraps(ham)
         def _kota_sayan_raw_chat(self, *args, **kwargs):
-            _kota.cagri_kaydet(getattr(type(self), "NAME", type(self).__name__))
-            return ham(self, *args, **kwargs)
+            ad = getattr(type(self), "NAME", type(self).__name__)
+            model = getattr(self, "model", None)
+            try:
+                cevap = ham(self, *args, **kwargs)
+            except BaseException:
+                _kota.cagri_kaydet(ad, model=model)   # istek ağa çıktı, cevabı yok
+                raise
+            _kota.cagri_kaydet(
+                ad,
+                model=getattr(cevap, "model_name", None) or model,
+                usage=getattr(cevap, "usage", None),
+            )
+            return cevap
 
         _kota_sayan_raw_chat._kota_sarmali = True
         cls._raw_chat = _kota_sayan_raw_chat

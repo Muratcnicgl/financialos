@@ -31,6 +31,7 @@ import argparse
 import json
 import sys
 from datetime import datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Set
 
@@ -135,6 +136,48 @@ def _koc(db, esik: datetime) -> Dict[str, float]:
     }
 
 
+def _maliyet(db, esik: datetime) -> Dict[str, object]:
+    """BUG #274 (LLM-006/OBS-005): koç ne tutuyor — ve neyi HESAPLAYAMIYORUZ.
+
+    İki "eksik" birbirinden ayrı raporlanır, çünkü sebepleri ayrı:
+    - `fiyati_bilinmeyen`: token biliniyor ama (sağlayıcı, model) fiyat tablosunda yok
+      → yeni bir model eklenmiş, `app/llm_cost.FIYATLAR` güncellenmeli.
+    - `tokeni_bilinmeyen`: sağlayıcı usage döndürmedi (çöken istek, yerel model)
+      → o çağrının parası hesaplanamaz; sıfır SAYILMAZ.
+    Toplam bu iki kümeyi dışarıda bırakır — yani ALT SINIRDIR, gerçek harcama ≥ bu sayı.
+    """
+    satirlar = (db.query(ApiCallLog.amac, ApiCallLog.est_cost_usd,
+                         ApiCallLog.tokens_in, ApiCallLog.tokens_out)
+                .filter(ApiCallLog.called_at >= esik).all())
+
+    amac_usd: Dict[str, Decimal] = {}
+    toplam_usd = Decimal("0")
+    tokeni_bilinmeyen = fiyati_bilinmeyen = 0
+    giris = cikis = 0
+    for amac, usd, t_in, t_out in satirlar:
+        giris += t_in or 0
+        cikis += t_out or 0
+        if usd is None:
+            if t_in is None and t_out is None:
+                tokeni_bilinmeyen += 1
+            else:
+                fiyati_bilinmeyen += 1
+            continue
+        d = Decimal(usd)
+        toplam_usd += d
+        anahtar = amac or "?"
+        amac_usd[anahtar] = amac_usd.get(anahtar, Decimal("0")) + d
+
+    return {
+        "tahmini_usd": float(toplam_usd),
+        "amac_bazinda_usd": {k: float(v) for k, v in sorted(amac_usd.items())},
+        "giris_token": giris,
+        "cikis_token": cikis,
+        "fiyati_bilinmeyen_cagri": fiyati_bilinmeyen,
+        "tokeni_bilinmeyen_cagri": tokeni_bilinmeyen,
+    }
+
+
 def topla(db, gun: int = 30) -> dict:
     """Tüm metrikleri tek sözlükte döndürür (yalnız sayı/oran — PII yok)."""
     esik = datetime.utcnow() - timedelta(days=gun)
@@ -156,6 +199,7 @@ def topla(db, gun: int = 30) -> dict:
         },
         "tutunma": _tutunma(db, gunler),
         "koc": _koc(db, esik),
+        "maliyet": _maliyet(db, esik),
         "saglik": {
             "acik_geri_bildirim": db.query(func.count(Feedback.id))
                                     .filter(Feedback.status == "new").scalar() or 0,
@@ -206,6 +250,20 @@ def yazdir(m: dict) -> None:
     print(f"  {'çağrı':<24} {k['cagri']:>5}")
     print(f"  {'başarısız':<24} {k['basarisiz']:>5}  (%{k['hata_orani_yuzde']})")
     print(f"  {'ortalama süre':<24} {k['ortalama_sure_ms']:>5} ms")
+
+    mal = m["maliyet"]
+    print("\n-- LLM MALİYETİ (liste fiyatına göre TAHMİN) --")
+    print(f"  {'tahmini tutar':<24} ${mal['tahmini_usd']:.4f}")
+    for amac, usd in mal["amac_bazinda_usd"].items():
+        print(f"    {amac:<22} ${usd:.4f}")
+    print(f"  {'girdi / çıktı token':<24} {mal['giris_token']} / {mal['cikis_token']}")
+    if mal["fiyati_bilinmeyen_cagri"]:
+        print(f"  {'FİYATI BİLİNMEYEN çağrı':<24} {mal['fiyati_bilinmeyen_cagri']:>5}"
+              "   <- app/llm_cost.FIYATLAR güncellenmeli")
+    if mal["tokeni_bilinmeyen_cagri"]:
+        print(f"  {'token döndürmeyen çağrı':<24} {mal['tokeni_bilinmeyen_cagri']:>5}"
+              "   <- çöken istek / yerel model / BUG #274 öncesi eski satır")
+    print("  (ücretsiz katmanda gerçek fatura 0'dır; tavan zaten çağrı sayısıdır)")
 
     s = m["saglik"]
     print("\n-- SAĞLIK --")

@@ -641,6 +641,8 @@ class ApiCallLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
+    # BUG #274: bu iki sutun ISTEGI FIILEN YIYEN saglayici + CALISAN modeldir.
+    # Amac ('koc'/'premortem'/'yansima') buraya YAZILMAZ — kendi sutunu var (asagida).
     provider = Column(String(20), nullable=False)       # 'gemini' | 'anthropic'
     model = Column(String(50), nullable=False)          # 'gemini-2.5-flash' vb.
     status = Column(SQLEnum(ApiCallStatus), default=ApiCallStatus.success, nullable=False)
@@ -648,6 +650,14 @@ class ApiCallLog(Base):
     # Token sayilari (provider donerse doldurulur, donmezse null)
     tokens_in = Column(Integer, nullable=True)
     tokens_out = Column(Integer, nullable=True)
+
+    # BUG #274: yazma anindaki liste fiyatiyla dondurulmus TAHMINI maliyet (app/llm_cost).
+    # NULL = "bilinmiyor" (fiyat tablosunda yok ya da saglayici usage donmedi) — 0 DEGIL.
+    est_cost_usd = Column(Numeric(12, 6), nullable=True)
+
+    # BUG #274: cagriyi hangi urun yolu yapti — 'koc' | 'premortem' | 'yansima'.
+    # Eskiden bu bilgi provider/model sutunlarina yaziliyordu ve gercek modeli eziyordu.
+    amac = Column(String(20), nullable=True)
 
     # Tool kullanim ozeti
     tool_calls_count = Column(Integer, default=0, nullable=False)

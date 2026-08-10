@@ -99,6 +99,8 @@ Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satı
 | L41 | **Aynı turda iki kez çağrılan bir sözleşme, iki çağrıda AYNI olmalıdır — yönlendirme sözleşmeye değil mesaja yazılır.** Retry/plan gibi "bir kez daha dene" yolları, talimatı system prompt'a eklemeye çok müsaittir; oysa system prompt yetki yüzeyidir ve prefix'tir: değişince hem yetki metni deterministik olmaktan çıkar hem de prefix eşleşmesiyle çalışan her cache baştan yazar. | #272 (aynı dosyada doğrusu zaten vardı: soru retry'ı nudge'ı messages'a ekliyordu; propose retry'ı ve iç plan system'e yazıyordu — üstelik plan, modelin O TURDA ürettiği metindi) |
 | L42 | **Bir sinyal başına `if/elif` dalı yazan tasarımda, tüketici sayısı arttıkça bir dal MUTLAKA unutulur — sinyali dala değil TİPE bağla.** Ana akış ile retry (ya da uç ile cron) aynı kararı elle kopyaladığında kopya bir gün ayrışır ve ayrıştığı yer sessizdir: eksik dal `else`e düşüp log'a yazılır, kullanıcı hiçbir şey görmez. Kararın tamamını (kullanıcıya söylenecek cümle, tekrar denenmeli mi, ize ne yazılacak) sinyalin SINIFINA koy; tüketici tek base'i yakalasın — o zaman unutulacak dal kalmaz. | #273 (retry yolu `TARIH_BELIRSIZ`i hiç ele almıyordu: özette tarih olup payload'da olmayan harcama kaydedilmiyor VE kullanıcıya tarih sorusu da sorulmuyordu; matris 8 hücrenin 1'inde yanlıştı) |
 | L43 | **Sinyal ile teşhis AYNI string'se, sinyali loglayan her satır teşhisi de yayınlar.** `raise ValueError("KOD: ozetteki tutar [3200.0] ile payload 320.0 uyusmuyor")` yazıldığı anda, o hatayı ele alan hiç kimse "yalnız kodu logla" diyemez — `str(e)` bir bütündür. Ayrıca `str(e)` teşhis için biçimlendirilmişse kullanıcıya görünen yüzeye (trace/Gözlem satırı) düştüğünde iç kod da ekrana çıkar. Kod, kullanıcı-dostu gerekçe ve değer taşıyan teşhis ÜÇ AYRI alandır. | #273 (iki log satırı kullanıcının tutarlarını yazıyordu — BUG #180 ihlali; dört sinyalin dördü de `Belirsizlik: HESAP_BELIRSIZ` olarak `TracePanel`'de render ediliyordu) |
+| L44 | **Bir ölçünün ANAHTARI, ölçülen şeyin gerçekten değiştiği eksende olmalı.** Fiyat modelin değil **(sağlayıcı, model) çiftinin** özelliğidir: aynı model adı Groq'ta $0.15, başka sağlayıcıda başka listede, `:free` varyantında 0'dır. Anahtarı tek düzeyli seçmek hata vermez — sessizce **yanlış para** üretir. Aynı ilke ADR-051'in "önce yapı" kuralının veri tarafıdır: ölçüyü adlandırmadan önce "bu sayı neye göre değişiyor?" sorusu cevaplanır. | #274 (tek düzeyli model tablosu sekiz sağlayıcılı zincirde yanlış maliyet üretirdi) |
+| L45 | **BİLİNMEYEN ile SIFIR aynı hücreye yazılamaz.** Hesaplanamayan bir maliyeti 0 yazmak, toplamı bozmakla kalmaz — **yeni bir model eklendiğinde sistemi "bedava" gösterir ve hata sessiz kalır**. Bilinmeyen `None` olmalı, ayrı sayılmalı ve toplam açıkça ALT SINIR ilan edilmelidir; bilinen sıfır (yerel çalışma, ücretsiz varyant) bundan AYRI bir durumdur. Doğrulanamayan bir değeri "makul tahminle" doldurmak da aynı hatadır: kendinden emin yanlış sayı, boş hücreden zararlıdır. | #274 (Cerebras/DeepInfra fiyatı teyit edilemedi → tabloya yazılmadı, raporda ayrı sayılıyor) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
 
 ---
@@ -452,6 +454,34 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 10 AĞUSTOS 2026 — MALİYET DEFTERİNİN PARA SÜTUNLARI HİÇ YAZILMIYORDU (BUG #274 /
+> ADR-053, backlog LLM-006 + OBS-005).** `api_call_log` ilk günden beri "maliyet analizi icin
+> de veri kaynagi" diye tanımlıydı, şemada `tokens_in`/`tokens_out` duruyordu ve sağlayıcıların
+> hepsi `usage` döndürüyordu (LLM-007 Temmuz'da kapanmış). **Ölçüm (6 gerçekçi senaryo, gerçek
+> uçlardan akıtılmış trafik):** 13 gerçek sağlayıcı isteği → 13 satır (sayım doğru), ama
+> **token'ı olan satır 0/13** — harcanan 101.756 girdi token'ının tamamı deftere 0 düştü;
+> "koç bu ay ne tuttu?" sorusunun cevabı defterde YOKTU. **Model ekseni 7/13 yanlıştı:**
+> ① zincirde yedek cevapladığında satır BİRİNCİLİN modelini, üstelik
+> `gemini-2.5-flash-lite (fallback: 1 ek provider)` gibi **insan-okur bir etiketle** yazıyordu;
+> ② premortem `model='premortem'`, yansıma `model='reflection'` yazarak **amacı model sütununa**
+> koyuyordu (ADR-052'nin "karar tipte, teşhis ayrı alanda" ayrımının delinmiş hâli).
+> **Backlog'un kendi durumu da iyimserdi (R3):** "token trace'te" deniyordu; ölçüm trace'in
+> gerçek token'ların yalnız **%24'ünü** yakaladığını gösterdi (yalnız ana çağrı; plan/retry/
+> premortem/yansıma hiç) ve trace 90 günde siliniyor — muhasebe defteri değil hata ayıklama
+> yüzeyi. Sınıf taraması **dördüncü bir yazar** buldu (`_log_api_call`, ölü ama sözleşmesiz) →
+> kaldırıldı. **Fix:** ölçüm kancası artık isteğin SONUCUNU da alıyor (çalışan model + usage tam
+> o noktadan geçip atılıyordu); her gerçek istek bir KAYIT, her satır birebir o kayıttan.
+> Tek kaynak `app/llm_cost.py`: fiyat **(sağlayıcı, model)** çiftinin özelliğidir (**L44**);
+> **bilinmeyen fiyat `None`, 0 DEĞİL** ve bilinen sıfırdan (yerel Ollama) ayrı raporlanır
+> (**L45** — bilinmeyeni sıfır saymak, yeni model eklendiğinde maliyeti "bedava" gösterir).
+> Amaç `amac` sütununa taşındı. **Fiyatlar KURAL D1 ile araştırıldı** (research-log);
+> Cerebras/DeepInfra doğrulanamadığı için **tabloya YAZILMADI** — tahmin edilmiş fiyat,
+> bilinmeyen fiyattan zararlıdır. Sonuç: **token 0/13 → 8/13** (kalan 5 doğru şekilde
+> bilinmiyor), **model 7/13 → 13/13**. Kapı `tests/test_llm_maliyet_kapisi.py` (17,
+> **mutasyon 6/6**). **Dürüst kayıt:** ilk iki ölçüm turu ve tam süitteki tek kırmızı benim
+> kurulum hatalarımdı (sahte sağlayıcı `NAME`'i örnek düzeyinde; süit koşarken kaynak
+> düzenlemek `inspect.getsource`'u kaydırdı) — ikisi de düzeltilip yeniden ölçüldü.
 
 > **📌 9 AĞUSTOS 2026 — İŞ KURALI SİNYALİ İSTİSNA STRING'İYLE TAŞINIYORDU (BUG #273,
 > backlog BE-006 + RESIL-019 + BE-005).** `propose_action` dört ret sinyalini serbest metinle

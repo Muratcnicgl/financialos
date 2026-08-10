@@ -13,6 +13,10 @@ GUNCELLEMELER:
   ApiCallLog'a hic yazilmadigi icin maliyet/hata metrikleri bu trafigi gormuyordu.
   Artik paylasilan `app/llm_quota` uzerinden rezerve edilir. Onbellekten donen istek
   rezervasyonu iptal eder (yapilmamis cagri icin kullanici cezalandirilmaz).
+- BUG #274 fix (LLM-006): bu yol deftere `provider='premortem'`, `model='premortem'`
+  yaziyordu — yani AMAC etiketi calisan modeli ve saglayiciyi eziyordu, premortem'in
+  maliyeti model bazinda hesaplanamiyordu. Amac artik `amac` sutununda; saglayici/model/
+  token/maliyet olcumden yazilir (`app/llm_quota.ek_cagrilari_uzlastir`).
 """
 
 import json
@@ -133,11 +137,14 @@ def run_premortem(
     with kapasite.yavas_yol(kapasite.LLM):
         # BUG #228 (D07): kota ÇAĞRI ÖNCESİ rezerve edilir (önbellek dalından SONRA — cache
         # LLM harcamaz). Tavan doluysa 429; koç sohbetiyle aynı kural, aynı sayaç.
-        rezervasyon = _kota.rezerve_et(db, current_user.id, provider="premortem",
-                                       model="premortem")
+        # BUG #274: amaç ('premortem') `model` sütununa YAZILMAZ — kendi sütununda taşınır.
+        # Sağlayıcı/model burada bilinmez (zincir kimin cevaplayacağını çağrı anında seçer);
+        # gerçek değerler ölçümden uzlaştırmada yazılır.
+        rezervasyon = _kota.rezerve_et(db, current_user.id, provider="?", model="?",
+                                       amac=_kota.AMAC_PREMORTEM)
         # BUG #234 (D15, sınıf taraması): tek rezervasyon satırı yalnız BİR gerçek isteği
         # karşılar; zincir/retry birden fazla istek üretirse fark uzlaştırılır.
-        olcum: dict = {}
+        olcum: list = []
         try:
             with _kota.cagri_olcumu() as olcum:
                 result = generate_premortem(
@@ -148,14 +155,16 @@ def run_premortem(
         except PremortemError as e:
             # Çöken çağrı da sayılır (sağlayıcıya gitti) — koç yolundaki davranışla aynı.
             _kota.tamamla(db, rezervasyon, success=False, error_message=str(e))
-            _kota.ek_cagrilari_uzlastir(db, current_user.id, olcum, rezervasyon, "premortem")
+            _kota.ek_cagrilari_uzlastir(db, current_user.id, olcum, rezervasyon,
+                                        amac=_kota.AMAC_PREMORTEM)
             logger.error("premortem generation failed action_id=%s error=%s", action_id, e)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Premortem su anda cevap veremedi. Lutfen tekrar deneyin.",  # BUG #175
             )
         _kota.tamamla(db, rezervasyon, provider=result.provider_used, success=True)
-        _kota.ek_cagrilari_uzlastir(db, current_user.id, olcum, rezervasyon, "premortem")
+        _kota.ek_cagrilari_uzlastir(db, current_user.id, olcum, rezervasyon,
+                                    amac=_kota.AMAC_PREMORTEM)
 
     dj = persist_premortem(db, action, current_user.id, result, snapshot_hash)
 

@@ -28,6 +28,12 @@ BUG #234 (D14+D15): sayacın BİRİMİ düzeltildi.
 Uzlaştırma çağrı SONRASI olur (gerçek sayı ancak o zaman bilinir): tavan en fazla bir
 mesaj kadar aşılabilir, bir sonraki istek rezervasyonda 429 alır. Eşzamanlılık koruması
 (rezervasyon) bozulmadığı için bu bilinçli ve sınırlı bir gecikmedir.
+
+BUG #274 (LLM-006): ölçüm artık SAYMAKLA kalmıyor, isteğin KİMLİĞİNİ de taşıyor.
+Kanca `_raw_chat`'i sarmaladığı için ağa çıkan her isteğin sağlayıcısını, çalışan modelini
+ve sağlayıcının döndürdüğü token'larını tek noktada görür — ama bunları atıp yalnız "+1"
+yazıyordu. Artık her gerçek istek bir KAYIT üretir ve defterdeki satır o kayıttan doldurulur
+(sağlayıcı + model + token + tahmini maliyet). Tek kaynak: `app/llm_cost.py`.
 """
 from __future__ import annotations
 
@@ -35,15 +41,23 @@ import logging
 import os
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Iterator, Optional
+from decimal import Decimal
+from typing import Dict, Iterator, List, Optional
 
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app import llm_cost
 from app.models import ApiCallLog, ApiCallStatus
 from app.error_tracking import temizle  # BUG #258: kalici hata metni maskeli yazilir
+
+# Amaç etiketleri (BUG #274): `model` sütununa YAZILMAZ, kendi sütununda taşınır.
+AMAC_KOC = "koc"
+AMAC_PREMORTEM = "premortem"
+AMAC_YANSIMA = "yansima"
 
 logger = logging.getLogger(__name__)
 
@@ -105,17 +119,34 @@ def paylasilan_cagri_sayisi(db: Session, provider: str) -> int:
 # GERÇEK ÇAĞRI ÖLÇÜMÜ (BUG #234 / D15)
 # ------------------------------------------------------------
 
-_olcum: ContextVar[Optional[Dict[str, int]]] = ContextVar("llm_cagri_olcumu", default=None)
+@dataclass
+class Cagri:
+    """Ağa fiilen çıkan TEK bir sağlayıcı isteği — defterdeki bir satırın karşılığı.
+
+    BUG #274: eskiden bu kaydın yerine yalnız bir sayaç vardı; sağlayıcının döndürdüğü
+    usage ve çalışan model, ölçüm noktasından geçip atılıyordu.
+    """
+
+    saglayici: str
+    model: Optional[str] = None
+    tokens_in: Optional[int] = None
+    tokens_out: Optional[int] = None
+
+    def maliyet_usd(self) -> Optional[Decimal]:
+        return llm_cost.maliyet_usd(self.saglayici, self.model, self.tokens_in, self.tokens_out)
+
+
+_olcum: ContextVar[Optional[List[Cagri]]] = ContextVar("llm_cagri_olcumu", default=None)
 
 
 @contextmanager
-def cagri_olcumu() -> Iterator[Dict[str, int]]:
-    """Kapsam içinde yapılan GERÇEK sağlayıcı isteklerini sağlayıcı bazında toplar.
+def cagri_olcumu() -> Iterator[List[Cagri]]:
+    """Kapsam içinde ağa çıkan GERÇEK sağlayıcı isteklerini sırayla toplar.
 
     ContextVar kullanılır: iç içe/eşzamanlı isteklerin ölçümleri karışmaz (aynı süreçte
     çalışan başka bir kullanıcının çağrısı bu kullanıcının kotasına yazılmaz).
     """
-    olcum: Dict[str, int] = {}
+    olcum: List[Cagri] = []
     token = _olcum.set(olcum)
     try:
         yield olcum
@@ -123,8 +154,12 @@ def cagri_olcumu() -> Iterator[Dict[str, int]]:
         _olcum.reset(token)
 
 
-def cagri_kaydet(provider: str) -> None:
+def cagri_kaydet(provider: str, model: Optional[str] = None,
+                 usage: Optional[Dict[str, Optional[int]]] = None) -> None:
     """Bir gerçek sağlayıcı isteğini ölçüme ekler (kapsam yoksa sessiz no-op).
+
+    `usage` sağlayıcının döndürdüğü `{"input_tokens": .., "output_tokens": ..}` sözlüğüdür;
+    dönmeyen sağlayıcıda (ör. yerel Ollama) None kalır — uydurulmaz.
 
     Kapsam dışı yollar (cron, script, testler) muhasebe kancası olmadan da çalışmalıdır —
     ölçüm eksikliği ürünü kilitleyemez (L6).
@@ -132,62 +167,90 @@ def cagri_kaydet(provider: str) -> None:
     olcum = _olcum.get()
     if olcum is None:
         return
-    ad = (provider or "?").lower()
-    olcum[ad] = olcum.get(ad, 0) + 1
+    u = usage or {}
+    olcum.append(Cagri(
+        saglayici=(provider or "?").lower(),
+        model=model,
+        tokens_in=u.get("input_tokens"),
+        tokens_out=u.get("output_tokens"),
+    ))
 
 
-def ek_cagrilari_uzlastir(db: Session, user_id: int, olcum: Dict[str, int],
+def sayim(olcum: List[Cagri]) -> Dict[str, int]:
+    """Sağlayıcı bazında istek adedi (kota mantığının ihtiyaç duyduğu özet)."""
+    ozet: Dict[str, int] = {}
+    for c in olcum:
+        ozet[c.saglayici] = ozet.get(c.saglayici, 0) + 1
+    return ozet
+
+
+def _satiri_doldur(satir: ApiCallLog, cagri: Cagri, amac: Optional[str]) -> None:
+    """Defter satırına isteğin KİMLİĞİNİ yazar: sağlayıcı, model, token, tahmini maliyet."""
+    satir.provider = cagri.saglayici
+    if cagri.model:
+        satir.model = cagri.model
+    satir.tokens_in = cagri.tokens_in
+    satir.tokens_out = cagri.tokens_out
+    satir.est_cost_usd = cagri.maliyet_usd()
+    if amac:
+        satir.amac = amac
+
+
+def ek_cagrilari_uzlastir(db: Session, user_id: int, olcum: List[Cagri],
                           rezervasyon: Optional[ApiCallLog] = None,
-                          model: str = "?") -> int:
-    """Ölçülen gerçek istek sayısı ile yazılan satır sayısını eşitler (D15).
+                          amac: str = AMAC_KOC) -> int:
+    """Ölçülen gerçek istekleri defter satırlarıyla BİREBİR eşler (D15 + BUG #274).
 
     Rezervasyon TEK satır yazar (eşzamanlılık koruması); gerçek istek sayısı ancak çağrı
-    bittikten sonra bilinir. Fark kadar ek satır yazılır ve satırlar isteği FİİLEN yiyen
-    sağlayıcıya yazılır — böylece paylaşılan sağlayıcı sayacı da doğru dolar.
+    bittikten sonra bilinir. Kayıt[0] rezervasyon satırını doldurur, kalan her kayıt için
+    bir satır eklenir — böylece her satır KENDİ isteğinin sağlayıcısını, modelini,
+    token'larını ve tahmini maliyetini taşır.
 
     Ek satırlar tavanı aşsa bile burada 429 ÜRETİLMEZ: istek zaten yapılmıştır, kullanıcıya
     yaptığı çağrının cevabı verilir; tavan bir sonraki istekte dayatılır.
     """
-    toplam = sum(olcum.values())
-    if toplam <= 1:
+    if not olcum:
         return 0
-
-    kalan = {ad: adet for ad, adet in olcum.items() if adet > 0}
-    # Rezervasyon satırı ilk gerçek isteği temsil eder → dağılımdan bir tane düşülür.
-    rez_saglayici = (rezervasyon.provider if rezervasyon is not None else None)
-    dusulecek = rez_saglayici if rez_saglayici in kalan else next(iter(kalan))
-    kalan[dusulecek] -= 1
 
     yazilan = 0
     try:
-        for ad, adet in kalan.items():
-            for _ in range(adet):
-                db.add(ApiCallLog(user_id=user_id, provider=ad, model=model,
-                                  status=ApiCallStatus.success, tool_calls_count=0,
-                                  duration_ms=0))
-                yazilan += 1
-        if yazilan:
-            db.commit()
+        ilk = 0
+        if rezervasyon is not None:
+            _satiri_doldur(rezervasyon, olcum[0], amac)
+            ilk = 1
+        for cagri in olcum[ilk:]:
+            satir = ApiCallLog(user_id=user_id, provider=cagri.saglayici,
+                               model=cagri.model or "?", status=ApiCallStatus.success,
+                               tool_calls_count=0, duration_ms=0, amac=amac)
+            _satiri_doldur(satir, cagri, amac)
+            db.add(satir)
+            yazilan += 1
+        db.commit()
     except Exception as e:  # noqa: BLE001 — muhasebe isteği kirletmez
-        logger.warning("ek LLM cagri satirlari yazilamadi: %s", e)
+        logger.warning("LLM cagri satirlari yazilamadi: %s", e)
         db.rollback()
         return 0
     return yazilan
 
 
 def rezerve_et(db: Session, user_id: int, provider: str, model: str,
-               tavan: Optional[int] = None, hata_firlat: bool = True) -> Optional[ApiCallLog]:
+               tavan: Optional[int] = None, hata_firlat: bool = True,
+               amac: str = AMAC_KOC) -> Optional[ApiCallLog]:
     """Çağrı ÖNCESİ sayaç satırı yazar. Tavan aşılıyorsa rezervasyonu geri alır.
 
     `hata_firlat=True` → 429 HTTPException (kullanıcı-tetikli uçlar).
     `hata_firlat=False` → None döner (arka plan görevleri: kullanıcıya hata gösterilemez,
     yapılacak doğru şey işi ATLAMAKTIR — sessizce kotasız çağırmak değil).
+
+    BUG #274: `provider`/`model` burada YAPILANDIRMADAN gelir (çağrı henüz yapılmadı,
+    zincirde kimin cevaplayacağı bilinmez); gerçek değerler `ek_cagrilari_uzlastir` ile
+    ölçümden yazılır. `amac` ise baştan bellidir ve kendi sütununa yazılır.
     """
     kisisel_tavan = kullanici_gunluk_tavan() if tavan is None else tavan
     log = ApiCallLog(
         user_id=user_id, provider=(provider or "?").lower(), model=model,
         status=ApiCallStatus.failed,   # çağrı bitince success'e çevrilir (çöken istek de sayılır)
-        tool_calls_count=0, duration_ms=0,
+        tool_calls_count=0, duration_ms=0, amac=amac,
     )
     db.add(log)
     db.commit()

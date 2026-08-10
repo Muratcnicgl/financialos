@@ -31,6 +31,9 @@ GUNCELLEMELER:
   alanindan degil yapilandirmadan turetiliyor (_muhasebe_saglayici_adi) — eski
   etiket "fallback(gemini)" PROVIDER_DAILY_LIMITS'te olmadigi icin gunluk kota
   korumasi sessizce oluyordu.
+- 10 Agu 2026 BUG #274 fix (LLM-006): defter satiri artik isteğin KIMLIGINI tasiyor
+  (saglayici + calisan model + token + tahmini maliyet); amac 'koc' kendi sutununda.
+  Olu dorduncu yazar `_log_api_call` KALDIRILDI — deftere yazan tek yol app/llm_quota.
 """
 
 import os
@@ -48,7 +51,7 @@ from sqlalchemy import func
 from app.dependencies import get_db, get_current_user
 from app.workspace_deps import active_workspace_id  # M43
 from app.rules_engine import workspace_scope  # M43
-from app.models import User, CoachMemory, ApiCallLog, ApiCallStatus, PendingAction, ActionStatus, ReasoningTrace
+from app.models import User, CoachMemory, ApiCallLog, PendingAction, ActionStatus, ReasoningTrace
 from app.coach import CoachEngine
 from app import llm_quota as _kota  # BUG #228: kota muhasebesinin tek kaynağı
 from app import capacity as kapasite  # BUG #263 (P5.5): eşzamanlı LLM tavanı
@@ -280,7 +283,8 @@ def _kota_rezerve_et(db: Session, user_id: int, provider: str, model: str,
     BUG #228 (D07/D16): gövde `app/llm_quota.rezerve_et`'e taşındı (tek kaynak); bu
     sarmalayıcı çağıranları ve mevcut testleri kırmadan aynı sözleşmeyi sürdürür.
     """
-    return _kota.rezerve_et(db, user_id, provider, model, tavan=kisisel_tavan)
+    return _kota.rezerve_et(db, user_id, provider, model, tavan=kisisel_tavan,
+                            amac=_kota.AMAC_KOC)   # BUG #274: amaç kendi sütununda
 
 
 def _rezervasyonu_tamamla(db: Session, log: ApiCallLog, provider: str, success: bool,
@@ -291,34 +295,9 @@ def _rezervasyonu_tamamla(db: Session, log: ApiCallLog, provider: str, success: 
                   tool_calls_count=tool_calls_count, error_message=error_message)
 
 
-def _log_api_call(
-    db: Session,
-    user_id: int,
-    provider: str,
-    model: str,
-    success: bool,
-    duration_ms: int,
-    tool_calls_count: int = 0,
-    error_message: Optional[str] = None,
-) -> None:
-    """ApiCallLog'a tek satir yazar. Hata icinde basarisiz olsa bile chat'i kirletmez."""
-    try:
-        # SEC-009: ham sağlayıcı hatası (kota/org detayı içerebilir) 300 karakterle sınırlanır —
-        # DB/export şişmesin + gereksiz detay birikmesin (api_call_log artık KVKK export'unda).
-        log = ApiCallLog(
-            user_id=user_id,
-            provider=provider.lower(),
-            model=model,
-            status=ApiCallStatus.success if success else ApiCallStatus.failed,
-            tool_calls_count=tool_calls_count,
-            duration_ms=duration_ms,
-            error_message=(error_message[:300] if error_message else None),
-        )
-        db.add(log)
-        db.commit()
-    except Exception as e:
-        logger.warning(f"ApiCallLog yazimi basarisiz: {e}")
-        db.rollback()
+# BUG #274: `_log_api_call` KALDIRILDI. Defterin dördüncü (ve ölü) yazarıydı: hiçbir yerden
+# çağrılmıyordu ama token/maliyet/amaç sözleşmesini bilmeyen bir yazma yolu olarak duruyordu.
+# Deftere yazan tek yol `app/llm_quota` (rezerve_et → tamamla → ek_cagrilari_uzlastir).
 
 
 def _memory_to_history_item(m: CoachMemory, pa_map: Dict[int, PendingAction] = None) -> Optional[HistoryItem]:
@@ -443,7 +422,8 @@ def chat(
 
         # BUG #234 (D15): tavanin birimi ÇAĞRI'dır. Bir mesaj iki-geçiş + retry + zincir
         # yüzünden 1-4 GERÇEK istek üretir; ölçüm kapsamı bunları sayar, aşağıda uzlaştırılır.
-        olcum: Dict[str, int] = {}
+        # BUG #274: ölçüm artık her isteğin sağlayıcı/model/token kimliğini de taşır.
+        olcum: List[_kota.Cagri] = []
         try:
             with _kota.cagri_olcumu() as olcum:
                 with workspace_scope(ws_id):  # M43: koç bağlamı (cockpit) aktif workspace'ten
@@ -478,8 +458,9 @@ def chat(
         tool_calls_count=tool_calls_count, error_message=error_msg,
     )
     # BUG #234 (D15): rezervasyon TEK satır yazar; gerçek istek sayısı ancak burada bilinir.
-    # Fark kadar ek satır, isteği fiilen yiyen sağlayıcı adına yazılır.
-    _kota.ek_cagrilari_uzlastir(db, user.id, olcum, rezervasyon, model)
+    # BUG #274: her satır KENDİ isteğinin sağlayıcısını, modelini, token'ını ve tahmini
+    # maliyetini ölçümden alır — `model` (yapılandırma) artık satıra yazılmaz.
+    _kota.ek_cagrilari_uzlastir(db, user.id, olcum, rezervasyon, amac=_kota.AMAC_KOC)
 
     # Post-call usage (yeni log dahil)
     post_usage = _build_usage_info(db, user.id, provider_name, alternatif_var=yedek_var)

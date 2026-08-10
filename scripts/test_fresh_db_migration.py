@@ -52,8 +52,12 @@ def main() -> int:
     # A) Bomboş DB'ye alembic upgrade head
     dba = td / "alembic.db"
     env = {**os.environ, "DATABASE_URL": f"sqlite:///{dba.as_posix()}"}
+    # encoding acikca UTF-8: Windows'ta `text=True` yerel kod sayfasini (cp1254) kullanir ve
+    # Turkce baslikli migration mesajlari okuma is parcaciginda UnicodeDecodeError firlatir —
+    # kontrol yine tamamlaniyordu ama CIKTISI okunamiyordu (BUG #274 turunda goruldu).
     p = subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"],
-                       cwd=REPO_ROOT, env=env, capture_output=True, text=True)
+                       cwd=REPO_ROOT, env=env, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     if p.returncode != 0:
         print("FAIL: temiz DB'de 'alembic upgrade head' basarisiz")
         print(p.stdout[-1500:]); print(p.stderr[-1500:])

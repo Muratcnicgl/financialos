@@ -17,6 +17,13 @@ NOT (2 Mayis 2026 fix): action_executor.execute_pending_action ve
 reject_pending_action imzalari (db, action_id, user_id) seklinde — bu router
 o sirayla cagiriyor. Hata yonetimi: executor exception firlatmaz, dict doner
 ({success: bool, error: str}) — router bu donusu kontrol eder.
+
+GUNCELLEMELER:
+- 10 Agu 2026 BUG #274 fix (LLM-006): arka plan yansimasi deftere `model='reflection'`
+  yaziyordu (amac etiketi model sutununda) ve `provider`i SABIT 'groq' geciyordu. Amac
+  artik `amac` sutununda; denenen 8B/70B modellerinden hangisinin kostugu, token'i ve
+  tahmini maliyeti olcumden yazilir. Rezervasyon referansi muhasebe icin elde tutulur
+  (`tamamlandi` bayragi) — aksi halde uzlastirma rezervasyon satirini dolduramaz.
 """
 
 import json
@@ -91,9 +98,10 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
 
     db = None
     rezervasyon = None
+    tamamlandi = False   # BUG #274: rezervasyon referansı muhasebe için elde tutulur
     # BUG #234 (D15, sınıf taraması): yansıma iki modeli sırayla dener → tek rezervasyon
     # satırı gerçek istek sayısını temsil etmiyordu; fark aşağıda uzlaştırılır.
-    olcum: dict = {}
+    olcum: list = []
     try:
         db = SessionLocal()
         payload = json.loads(payload_str) if payload_str else {}
@@ -134,8 +142,10 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
 
         # BUG #228 (D16): kota rezervasyonu — dolu ise yansıma atlanır (429 gösterilecek
         # kullanıcı yok; kotasız çağırmak ADR-041 tavanını delerdi).
-        rezervasyon = _kota.rezerve_et(db, user_id, provider="groq", model="reflection",
-                                       hata_firlat=False)
+        # BUG #274: amaç ('yansima') `model` sütununa YAZILMAZ — kendi sütununda taşınır.
+        # Model burada bilinmez (aşağıda 8B→70B sırayla denenir); ölçümden yazılır.
+        rezervasyon = _kota.rezerve_et(db, user_id, provider="groq", model="?",
+                                       hata_firlat=False, amac=_kota.AMAC_YANSIMA)
         if rezervasyon is None:
             logger.info("reflection: kullanici kotasi dolu, yansima atlandi user_id=%s", user_id)
             return
@@ -165,9 +175,9 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
                             logger.info(
                                 f"reflection insight [{result.dedup_key}]: {result.content[:60]}"
                             )
-                    _kota.tamamla(db, rezervasyon, provider="groq", success=True,
+                    _kota.tamamla(db, rezervasyon, success=True,
                                   tool_calls_count=len(response.tool_calls))
-                    rezervasyon = None
+                    tamamlandi = True
                     return  # başarılı
                 except Exception as e:
                     last_exc = e
@@ -176,9 +186,8 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
 
         if last_exc:
             # Çöken çağrı da sayılır (sağlayıcıya gitti) — koç yolundaki davranışla aynı.
-            _kota.tamamla(db, rezervasyon, provider="groq", success=False,
-                          error_message=str(last_exc))
-            rezervasyon = None
+            _kota.tamamla(db, rezervasyon, success=False, error_message=str(last_exc))
+            tamamlandi = True
             logger.warning(f"reflection sessiz fail (tüm modeller denendi): {last_exc}")
 
     except Exception as e:
@@ -187,11 +196,15 @@ def _run_reflection(user_id: int, action_type: str, summary: str, payload_str: s
         if db:
             # BUG #228: LLM'e hiç ulaşılmadan çıkıldıysa (beklenmedik hata) rezervasyon
             # asılı kalmasın — kullanıcı yapılmamış bir çağrı için kotasından olmaz.
-            if rezervasyon is not None:
+            if not tamamlandi and rezervasyon is not None:
                 _kota.iptal_et(db, rezervasyon)
+                rezervasyon = None
             # BUG #234 (D15): denenen HER model ayrı bir gerçek istektir; rezervasyon
             # yalnız birini karşılar. (Rezervasyon iptal edildiyse ölçüm de boştur.)
-            _kota.ek_cagrilari_uzlastir(db, user_id, olcum, model="reflection")
+            # BUG #274: rezervasyon satırı BURADA doldurulur (sağlayıcı/model/token/maliyet) —
+            # bu yüzden referansı tamamlandıktan sonra da elde tutulur.
+            _kota.ek_cagrilari_uzlastir(db, user_id, olcum, rezervasyon,
+                                        amac=_kota.AMAC_YANSIMA)
             db.close()
 
 

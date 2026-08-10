@@ -30,11 +30,13 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [OBS-005] LLM cost metriği toplanmıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: est_cost_usd yok
-- **Sorun/Fırsat:** Token/maliyet görünmez; aylık LLM harcaması bilinmiyor.
-- **Kanıt:** `ApiCallLog` sadece duration; `app/coach.py:1608-1610` usage trace'te ama cost yok
-- **Aksiyon:** Provider fiyat tablosu + input/output token → `est_cost_usd`; günlük/aylık dashboard. (LLM-006/007 ön koşul)
-- **Etki:** Orta · **Efor:** M
+- **Durum:** ✅ KAPANDI (BUG #274 / ADR-053, 10 Ağu 2026) — LLM-006 ile aynı fix.
+  `est_cost_usd` yazma anındaki liste fiyatıyla dondurulur; `python -m scripts.beta_metrics`
+  tahmini tutarı, amaç bazında kırılımı (koc/premortem/yansima) ve **iki ayrı bilinmeyen
+  sayacını** basar (fiyatı bilinmeyen → tablo güncellenmeli; token döndürmeyen → çöken
+  istek/yerel model). Toplam bilinçli olarak ALT SINIRDIR: bilinmeyen sıfır sayılmaz.
+- **Kanıt:** `app/llm_cost.py`; `scripts/beta_metrics._maliyet`; kapı `tests/test_llm_maliyet_kapisi.py`
+- **Etki:** Orta · **Efor:** M · **Not:** Grafana/pano ayrı iş (OBS-004 ile birlikte).
 
 ### [OBS-006] LLM kalite metriği yok (format/grounding/retry)
 - **Durum:** 🔲 AÇIK — M85 R3 doğrulama: grounding_ok/format_valid alani yok

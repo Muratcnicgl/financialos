@@ -142,3 +142,13 @@ Bu index elle kürasyon; yeni ADR eklenince buraya satır eklenmeli. 39 dosya = 
   Recurring tetikleyiciler artık `atlanan` döner (sessizlik yasağı). Kapı:
   `tests/test_aksiyon_sinyali_kapisi.py` (AST: metne bakan karar yasak + her tüketici
   `AksiyonReddi`yi yakalar; mutasyon 6/6).
+- **ADR-053 — LLM maliyet muhasebesi: token gerçek, para dondurulmuş türev, bilinmeyen ≠ sıfır
+  (BUG #274):** `api_call_log` "maliyet analizi icin veri kaynagi" diye tanımlıydı ama ölçüm
+  13 gerçek istekte **token 0/13**, çalışan model **7/13 yanlış** buldu (zincirde birincilin
+  modeli + amaç etiketi `model` sütununda). Karar: token da maliyet de saklanır (fiyat listesi
+  değişince geçmiş değişmesin); fiyat **(sağlayıcı, model)** çiftinin özelliğidir; **bilinmeyen
+  fiyat `None` — 0 değil** ve bilinen sıfırdan (yerel Ollama) ayrı raporlanır; amaç kendi
+  sütununda (`amac`). Reddedilen: sağlayıcı faturalama API'leri (ADR-002'yi deler), ücretsiz
+  katmanı modellemek (fatura koda görünmez → değer "liste fiyatı tahmini"dir). Tek kaynak
+  `app/llm_cost.py` + `app/llm_quota.py`; kapı `tests/test_llm_maliyet_kapisi.py` (AST: deftere
+  tek yazar + `model=`'e amaç etiketi yasak; mutasyon 6/6).

@@ -2,6 +2,48 @@
 
 Her mimari/teknoloji kararı öncesi 2-3 sektör referansı; bulgular burada.
 
+## 2026-08-10 — LLM maliyet muhasebesi: neyi SAKLA, neyi HESAPLA (BUG #274 / LLM-006, OBS-005)
+**Soru (D1 tetiği #1 + #2):** `api_call_log`'a maliyet eklenecek — şema değişikliği (geri dönüşü
+pahalı) ve fiyatlar DIŞ DÜNYANIN durumu (sağlayıcı fiyat listeleri). İki karar: (a) token mü
+saklanır, maliyet mi, ikisi de mi? (b) fiyat tablosu nerede yaşar ve bilinmeyen model ne olur?
+
+**Bulgu 1 — token GERÇEK, maliyet TÜREV; ama türev de dondurulur.** Sağlayıcıların kendi
+kullanım API'leri bu ayrımı yapıyor: token sayıları olayın ölçülen gerçeğidir, para ise o anki
+fiyat listesine göre hesaplanmış bir yorumdur. Fiyat listesi değiştiğinde geçmiş satırların
+parası değişmemelidir (aksi halde "geçen ayki maliyetim" bugün başka çıkar) → maliyet **yazma
+anında hesaplanıp SAKLANIR**, token'lar da ayrıca saklanır ki yeni fiyatla yeniden hesaplanabilsin.
+İkisinden birini seçmek iki ayrı yeteneği kaybettiriyor: yalnız token → "bugüne kadar ne harcadım"
+sorusu geçmişe dönük fiyatla yanlış cevaplanır; yalnız maliyet → fiyat düzeltilince geçmiş
+düzeltilemez.
+
+**Bulgu 2 — fiyat SAĞLAYICI+MODEL çiftinin özelliğidir, modelin değil.** Aynı model adı farklı
+sağlayıcıda farklı fiyatlıdır: `gpt-oss-120b` Groq'ta $0.15/$0.60 (1M token, giriş/çıkış), aynı
+ad Cerebras'ta ayrı bir liste; `llama-3.3-70b` Groq'ta $0.59/$0.79 iken OpenRouter'ın `:free`
+varyantı 0. Model adına bakan tek düzeyli bir tablo, sekiz sağlayıcılı zincirimizde sessizce
+yanlış para üretirdi (ADR-051'in "önce yapı" dersinin fiyat karşılığı).
+
+**Bulgu 3 — ücretsiz katman fiyat listesinde GÖRÜNMEZ.** Gemini 2.5 Flash-Lite'ın ücretsiz
+katmanı var (ücretli: $0.10/$0.40); Groq/OpenRouter'ın ücretsiz modelleri de öyle. Kod hangi
+katmanda olduğumuzu ANLAYAMAZ (anahtarın faturası bize görünmez) → saklanan değer dürüstçe
+**"liste fiyatına göre tahmin"** olarak adlandırılır; ücretsiz katmanda gerçek fatura 0'dır ve
+bağlayıcı kısıt zaten çağrı sayısıdır (mevcut kota muhasebesi onu ölçüyor).
+
+**Karar:**
+1. `api_call_log` hem `tokens_in/tokens_out` (gerçek) hem `est_cost_usd` (o anki liste fiyatıyla
+   dondurulmuş tahmin) taşır.
+2. Fiyat tablosu **(sağlayıcı, model)** ile anahtarlanır; her satır kaynak + tarih taşır.
+3. **Bilinmeyen model 0 değil BİLİNMEYEN'dir** (`None`) ve operatör raporunda ayrı sayılır —
+   yeni bir model eklendiğinde maliyet sessizce sıfır görünemez. Bilinen sıfır (yerel Ollama,
+   `:free` varyantlar) bilinmeyenden ayrı tutulur.
+4. Sağlayıcının kendi kullanım/faturalama API'sinden çekme YAPILMAZ: sekiz sağlayıcıya sekiz
+   entegrasyon demek, ADR-002'nin sağlayıcı-agnostik ilkesini motor katmanında deler ve jenerik
+   OpenAI-uyumlu uçlarda zaten yok.
+**Kaynaklar:** ai.google.dev/gemini-api/docs/pricing · console.groq.com/docs/models ·
+console.groq.com/docs/model/openai/gpt-oss-120b · aipricing.guru/groq-pricing (10 Ağu 2026 teyidi) ·
+Anthropic model/fiyat tablosu (claude-api skill, cache 2026-06-24).
+
+---
+
 ## 2026-08-07 — Kullanıcı-tanımlı kategori modeli (H4 kuyruğu / BUG #264, ADR-046)
 **Soru:** Kategori seti kullanıcı başına olmalı (P3.5 ürünleşme). Şemaya dokunuyor, geri dönüşü
 pahalı (D1 tetiği #1) — sektör kategoriyi nasıl modelliyor? Özellikle: kod, kategori ADINA bakarak

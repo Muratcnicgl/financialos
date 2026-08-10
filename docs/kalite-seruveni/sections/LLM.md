@@ -34,9 +34,15 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-006] Token cost/latency ölçümü eksik — sadece süre
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: token trace'te ama ApiCallLog cost yok
-- **Kanıt:** `routers/coach.py:181-206`; `coach.py:1608-1610`
-- **Aksiyon:** ApiCallLog'a input/output token + `est_cost_usd`; provider fiyat tablosu; `/usage`'a aylık maliyet.
+- **Durum:** ✅ KAPANDI (BUG #274 / ADR-053, 10 Ağu 2026). **Ölçüm eski durumu düzeltti:**
+  "token trace'te" iddiası iyimserdi — trace gerçek token'ların yalnız **%24'ünü** yakalıyordu
+  (yalnız koç sohbetinin ANA çağrısı; plan geçişi, retry, premortem, yansıma hiç) ve 90 günde
+  siliniyordu. Deftere düşen token: **0/13**. Ayrıca çalışan model 7/13 satırda yanlıştı
+  (zincirde birincilin modeli + amaç etiketi `model` sütununda). Artık her satır isteğin
+  kimliğini taşır: sağlayıcı + çalışan model + token + `est_cost_usd` + `amac`. Fiyat tablosu
+  (sağlayıcı, model) ile anahtarlanır; bilinmeyen fiyat `None` döner ve raporda ayrı sayılır.
+- **Kanıt:** `app/llm_cost.py` + `app/llm_quota.py`; kapı `tests/test_llm_maliyet_kapisi.py`
+  (17 test, mutasyon 6/6); operatör yüzeyi `scripts/beta_metrics.py`
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-007] usage/provider_used/model_name sadece Groq'ta set ediliyor ✅ UYGULANDI (12 Tem 2026)

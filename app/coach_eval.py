@@ -139,6 +139,10 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
             "scores": scores,
             "passed": all(scores.values()),
             "reply": (res.get("reply") or "")[:160],
+            # BUG #278: judge aynı koşumun cevaplarını puanlamalı. Kısaltılmış metinle
+            # ikinci bir geçiş koşmak hem maliyeti ikiye katlar hem de BAŞKA cevapları
+            # puanlar (sağlayıcı deterministik değildir) — ölçüm ile not ayrışırdı.
+            "reply_tam": res.get("reply") or "",
             # BUG #277: "uslup=-" tek başına eyleme geçirilemez; hangi madde düştüğü yazılır.
             "uslup_ihlalleri": ihlaller(res.get("reply") or "") if "uslup" in scores else [],
         })

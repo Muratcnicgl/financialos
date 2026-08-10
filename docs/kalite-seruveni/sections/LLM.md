@@ -28,7 +28,19 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [LLM-005] LLM-as-judge ile provider kalite karşılaştırması yok
-- **Durum:** 🟡 KISMEN — **premis düzeltildi (R3, 10 Ağu 2026):** "provider kalite
+- **Durum:** ✅ **KAPANDI (BUG #278, 10 Ağu 2026).** Üç ayak da yapıldı: (a) judge
+  (`app/coach_judge.py` — rubrik tek kaynak, prompt ondan üretilir, skor yoksa `None`,
+  öz-değerlendirme uyarısı), (b) yan yana koşum (`eval_runner --saglayicilar a,b`),
+  (c) skor saklama + düşüş raporu (`app/eval_store.py`, JSONL, metin taşımaz).
+  **Judge'ın işe yaradığı ÖLÇÜLDÜ** (dekoratif özellik riski, KURAL R3): 6 çift
+  ezber/muhakemeli cevapta **5/6 doğru sıralama, 0 geçersiz**; MUHAKEME ölçütü ezber
+  cevapların 6/6'sında KALDI verdi. **Bilinçli sınır:** judge bir CI kapısı DEĞİLDİR
+  (LLM notu tekrarlanabilir değil; kapıya bağlanırsa "flaky testi susturmak" için kalite
+  ölçütü gevşetilir). Kapı `tests/test_judge_kapisi.py` (26, mutasyon 8/8).
+  **Kota gerçeği (research-log):** Gemini ücretsiz katman 20 istek/gün → bir `--judge`
+  koşumu (16 istek) günde bir kez sığar; judge'ı ayrı sağlayıcıya vermek yalnız yanlılık
+  değil KOTA meselesidir.
+- **Önceki durum (tarihsel):** 🟡 KISMEN — **premis düzeltildi (R3, 10 Ağu 2026):** "provider kalite
   karşılaştırması yok" kısmen yanlıştı — `scripts/eval_runner.py` + `app/coach_eval.py`
   sağlayıcı başına koşuyor (`LLM_PROVIDER=groq python -m scripts.eval_runner`) ve
   **deterministik** kriterlerle puanlıyor (KURAL SIFIR, grounding, sahte-tamamlama, format).

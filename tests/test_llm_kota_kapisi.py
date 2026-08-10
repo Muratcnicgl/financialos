@@ -42,6 +42,9 @@ _MUAF = {
     "app/coach.py",           # motor: kota `routers/coach.py` içinde rezerve edilir
     "app/premortem.py",       # motor: kota `routers/premortem.py` içinde rezerve edilir
     "app/coach_insights.py",  # cron (sistem-tetikli): kullanıcı döngüye sokamaz
+    # BUG #278: judge yalnız operatör aracıdır (scripts/eval_runner --judge); üründe hiçbir
+    # uç onu çağırmaz, kullanıcı tetikleyemez → kota tavanını kullanıcı adına tüketmez.
+    "app/coach_judge.py",
 }
 
 

@@ -100,6 +100,8 @@ Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satı
 | L42 | **Bir sinyal başına `if/elif` dalı yazan tasarımda, tüketici sayısı arttıkça bir dal MUTLAKA unutulur — sinyali dala değil TİPE bağla.** Ana akış ile retry (ya da uç ile cron) aynı kararı elle kopyaladığında kopya bir gün ayrışır ve ayrıştığı yer sessizdir: eksik dal `else`e düşüp log'a yazılır, kullanıcı hiçbir şey görmez. Kararın tamamını (kullanıcıya söylenecek cümle, tekrar denenmeli mi, ize ne yazılacak) sinyalin SINIFINA koy; tüketici tek base'i yakalasın — o zaman unutulacak dal kalmaz. | #273 (retry yolu `TARIH_BELIRSIZ`i hiç ele almıyordu: özette tarih olup payload'da olmayan harcama kaydedilmiyor VE kullanıcıya tarih sorusu da sorulmuyordu; matris 8 hücrenin 1'inde yanlıştı) |
 | L43 | **Sinyal ile teşhis AYNI string'se, sinyali loglayan her satır teşhisi de yayınlar.** `raise ValueError("KOD: ozetteki tutar [3200.0] ile payload 320.0 uyusmuyor")` yazıldığı anda, o hatayı ele alan hiç kimse "yalnız kodu logla" diyemez — `str(e)` bir bütündür. Ayrıca `str(e)` teşhis için biçimlendirilmişse kullanıcıya görünen yüzeye (trace/Gözlem satırı) düştüğünde iç kod da ekrana çıkar. Kod, kullanıcı-dostu gerekçe ve değer taşıyan teşhis ÜÇ AYRI alandır. | #273 (iki log satırı kullanıcının tutarlarını yazıyordu — BUG #180 ihlali; dört sinyalin dördü de `Belirsizlik: HESAP_BELIRSIZ` olarak `TracePanel`'de render ediliyordu) |
 | L47 | **Yalnız OLUMSUZ kriterden kurulu bir ölçüm, SESSİZLİĞİ başarı sayar.** "Aksiyon önermedi", "sahte tamamlama yok", "güven işareti sızmadı" — hiç cevap vermeyen (hatta hiç çalışmayan) bir sistem bunların hepsini geçer. Her ölçüm setinde en az bir OLUMLU kriter (iş fiilen yapıldı mı?) bulunmalı ve o düşerse diğerleri "geçti" sayılmamalıdır; ayrıca "veri yoksa iyi varsay" (`get("ok", True)`) varsayılanı aynı hatanın sessiz hâlidir. | #276 (tamamen ölü koç %83.3 pass_rate alıyordu; "Tamam." diyen sessiz koç da aynı) |
+| L50 | **Savunma modülünün TANIMADIĞI bir yapı işareti icat etmek, savunmayı kendi elinle devre dışı bırakır.** Prompt injection savunması (ADR-045) belirli yapı taşıyıcılarını nötrler: satır sonu, `##`, kod çiti, rol token'ı. Yeni bir prompt yazarken `--- SON ---` gibi KENDİ ayracını uydurursan, gömülen metin o ayracı birebir taklit edebilir — savunma onu tanımaz. Yapı işaretinin kaynağı da tek olmalıdır (L27'nin güvenlik tarafı): prompt, savunmanın nötrlediği işareti kullanır. | #278 (judge prompt'unun ilk taslağı `--- SON ---` kullanıyordu; kapı, gömülü metnin ayracı çoğalttığını ölçtü) |
+| L51 | **Bir kapı yanlış-pozitif verdiğinde iki yol vardır: ölçülen şeyi kapıya uydurmak ya da kapıyı KESİNLEŞTİRMEK — daima ikincisi.** Kapıyı memnun etmek için korpusu/kodu bozmak, ölçümü sessizce zayıflatır ve yanlış-pozitif sınıfı bir sonraki dosyada aynen tekrarlar (elle muafiyet satırları o sınıfın fosilidir). Deseni daraltmak kapının kapsamını KÜÇÜLTMEZ, sadece gürültüyü atar. | #278 (para kapısı `"RİSKLİ SEÇENEĞİ İŞARETLE"` içindeki İŞARE-**TL**-E'yi para sabiti sayıyordu; `auth.py`'nin `ACCESS_TTL_MIN` muafiyeti aynı sınıfın elle telafisiydi — desen harf-sınırına bağlanınca muafiyet tümden kalktı ve tavan 25'e çıkmadan 20'de kaldı) |
 | L48 | **Bir sistemin "kalite ölçümü", ürünün YAZILI sözleşmesinin yalnız ölçmesi kolay yarısını kapsar — ölçülmeyen yarı sessizce çürür.** Koçun prompt'unda maddeler hâlinde YASAKLANMIŞ davranışlar (dalkavukluk, dolgu, hitap biçimi, iç jargon) harness'ta hiçbir kritere karşılık gelmiyordu: yapısal olarak kusursuz ama sözleşmeyi açıkça çiğneyen 9 persona, ihlalsiz referansla BİREBİR aynı %100'ü aldı. Ölçüm setini kurarken soru "hangi kriterleri yazabilirim?" değil, **"ürün neyi vaat ediyor ve bunun hangisi ölçülüyor?"** olmalı; ölçülemeyen madde varsa AÇIKÇA kapsam dışı ilan edilir (sessiz kısıtlama yok). | #277 (9/9 ihlalli persona %100 pass_rate; canlı koşumda gerçek koç 8 senaryonun 4'ünde sözleşmeyi ihlal etti, canlı DB'deki 12 gerçek cevabın 5'i de ihlalliydi) |
 | L49 | **İki kural birbirine düğümlenmişse, birinin koruması diğerinin İHLALİNE bağlı olabilir — ve bu hiçbir testte görünmez.** Sahte-niyet dedektörü yalnız "siz" hitaplı biçimleri tanıyordu; oysa aynı prompt "siz" hitabını yasaklar. Yani koç HİTAP kuralına uyduğu anda sahte-niyet koruması düşüyordu: iki kurala birden uyan bir davranış imkânsızdı. Bir kuralı ölçen desen yazarken korpus, **diğer kuralların gerektirdiği biçimlerle** doldurulmalıdır. | #277 (12 gerçekçi cümlenin 8'i kaçıyordu, kaçanların tamamı "sen" biçimiydi; uçtan uca iddia 8 hücrenin 7'sinde kullanıcıya ulaşıyordu) |
 | L46 | **Bir kalite kapısının kendi ölçütü, koruduğu sözleşmeden zayıf (ya da farklı biçimde) olamaz.** Eval/lint/monitor gibi araçlar korudukları kuralın KOPYASINI taşırsa, kural düzeldiğinde kopya geride kalır ve araç regresyonu YEŞİL puanlar — üstelik ters yönde de bozulur (fazla geniş kopya sağlıklı davranışı kırmızıya düşürür). Aracın ölçütü ürünün tek kaynağını İÇE AKTARMALIDIR; kopya varsa AST kilidiyle yasaklanır. | #275 (eval'in sahte-tamamlama kopyası ölçülen korpusun 7/12'sini kaçırıyor, ayrıca 4/4 yanlış-pozitif üretiyordu) |
@@ -458,6 +460,34 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 ## §11. DURUM TABLOSU (canlı — tek doğruluk kaynağı)
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
+
+> **📌 10 AĞUSTOS 2026 (5) — LLM-005 KAPANDI: JUDGE + YAN YANA KOŞUM + SKOR SAKLAMA
+> (BUG #278).** #277 sözleşmenin desenle ölçülebilen yarısını kapatmış, ölçülemeyen yarısını
+> (muhakeme/çerçeve/risk) AÇIKÇA kapsam dışı bırakmıştı. Bu tur onu kapattı — ama önce
+> **judge'ın dekoratif olup olmadığı ölçüldü** (KURAL R3; LLM-002 tam bu ölçülemezlik
+> yüzünden ertelenmişti). **Ölçüm (gerçek sağlayıcı zinciri, 6 çift = 12 cevap):** aynı
+> soruya biri EZBER biri MUHAKEMELİ iki cevap judge'a ayrı ayrı puanlatıldı → **5/6 çift
+> doğru sıralandı, 0 geçersiz**; çekirdek ölçüt MUHAKEME ezber cevapların **6/6'sında**
+> KALDI verdi. Kaçan çift dürüstçe kaydedildi: "elimde veri yok" diyen (prompt'un TALEP
+> ETTİĞİ) cevabı judge da düşürdü — judge'ın bilinen sınırı. **Yapı:** `app/coach_judge.py`
+> (rubrik tek kaynak, judge prompt'u ondan üretilir; skor yoksa `None` — 0 DEĞİL, L45;
+> `uygulanamaz` ne pay ne payda, L47; judge == ölçülen sağlayıcıysa **öz-değerlendirme
+> uyarısı** raporda), `app/eval_store.py` (JSONL; **metin taşımaz** — koç cevabı, judge
+> gerekçesi, tutar dosyaya girmez; `dusus_raporu` kriter bazında düşüşü söyler ve GEÇERSİZ
+> koşumu "kalite düştü" diye okumaz), `scripts/eval_runner.py` (`--saglayicilar a,b`
+> yan yana · `--judge` · `--judge-saglayici` · `--kaydet` · `--gecmis`). **Canlı koşum
+> yapıldı:** deterministik %82.9, judge %59.5 (7 ölçüldü, 1 skor yok), öz-değerlendirme
+> uyarısı tetiklendi; yan-yana koşumda iki sağlayıcı da kota nedeniyle **GEÇERSİZ** etiketi
+> aldı (0% "kalite" diye okunmadı — #276 dersi yeni yüzeyde çalışıyor). **İki yan bulgu:**
+> ① judge prompt'unun ilk taslağı `--- SON ---` diye kendi ayracını icat etmişti;
+> `prompt_safety` o işareti tanımadığı için gömülü metin ayracı taklit edebiliyordu →
+> bölüm işareti savunmanın nötrlediği `##`'e çevrildi (**L50**). ② Para kapısı
+> `"RİSKLİ SEÇENEĞİ İŞARETLE"` içindeki İŞARE-**TL**-E'yi para sabiti sayıyordu; desen
+> harf-sınırına bağlandı, `auth.py`'nin elle muafiyeti tümden kalktı ve tavan 25'e
+> çıkmadan **20'de kaldı** (**L51**). **Dış dünya bulgusu (research-log):** Gemini
+> ücretsiz katman `gemini-2.5-flash-lite` için **20 istek/gün** — repo'nun "1000/gün"
+> notu bayattı; bir `--judge` koşumu 16 istek harcar. Kapı `tests/test_judge_kapisi.py`
+> (26 test, **mutasyon 8/8**).
 
 > **📌 10 AĞUSTOS 2026 (4) — KOÇUN YAZILI ÜSLUP SÖZLEŞMESİNİ HİÇBİR ŞEY ÖLÇMÜYORDU
 > (BUG #277, LLM-005 devamı).** #275 eval'in bir kriterinin bayat olduğunu, #276 manşet

@@ -40,16 +40,24 @@ FRONT = KOK / "frontend" / "src"
 
 PARA_ISARETLERI = ("TL", "₺")
 
+# BUG #278: "TL" alt-dizi olarak aranınca Türkçe BÜYÜK HARF kelimelerin içine düşüyordu —
+# ölçüldü: `"RİSKLİ SEÇENEĞİ İŞARETLE"` (İŞARE-TL-E) para sabiti sayılıyordu; `auth.py`
+# muafiyeti de aynı sınıfın (`ACCESS_TTL_MIN`) elle yazılmış telafisiydi. Artık işaretin
+# İKİ YANINDA harf olamaz: "1000TL", "TL)", "42 TL" yakalanır; kelime içi TL yakalanmaz.
+# Yön KAPIYI DARALTMAK değil KESİNLEŞTİRMEK (masterprompt §10: kapı gevşetilemez, ama
+# yanlış-pozitifi ayıklamak ölçülebilirliği artırır).
+_HARF = "A-Za-zÇĞİÖŞÜçğıöşü"
+_PARA_DESENI = re.compile(rf"(?<![{_HARF}])(?:TL|₺)(?![{_HARF}])")
+
 # --------------------------------------------------------------------------- backend
 
 # Gerekçeli muafiyet: dosya -> (izin verilen sabit sayısı, neden).
 # SAYI YALNIZ AZALABİLİR (kapı, artışı kırmızı yapar).
 MUAF_ENVANTER: dict[str, tuple[int, str]] = {
     "app/money_format.py": (4, "TEK KAYNAK — etiket/simge burada tanımlanır"),
-    "app/coach.py": (5, "V3 sistem prompt'u: LLM'e verilen ÖRNEK cümleler (konuşma metni, biçimlendirme değil)"),
-    "app/coach_eval.py": (3, "değerlendirme fixture'ları — kullanıcının yazdığı varsayılan mesajları taklit eder"),
+    "app/coach.py": (3, "V3 sistem prompt'u: LLM'e verilen ÖRNEK cümleler (konuşma metni, biçimlendirme değil)"),
+    "app/coach_eval.py": (2, "değerlendirme fixture'ları — kullanıcının yazdığı varsayılan mesajları taklit eder"),
     "app/premortem.py": (2, "LLM prompt talimatı ('somut TL etki tahmin et') — konuşma metni"),
-    "app/auth.py": (2, "yanlış-pozitif: 'ACCESS_TTL_MIN'/'REFRESH_TTL_DAYS' içindeki TTL"),
     "app/routers/user.py": (1, "422 mesajı: para birimi kilidinin GEREKÇESİNİ anlatır (ADR-042)"),
     # BUG #266: payload şablonundaki `<TL>` LLM'e gösterilen YER TUTUCUDUR — kullanıcıya
     # tutar basmaz, biçimlendirme yapmaz. Prompt metni (app/coach.py muafiyetiyle aynı sınıf).
@@ -62,10 +70,11 @@ MUAF_ENVANTER: dict[str, tuple[int, str]] = {
 }
 
 BACKEND_TABAN_DOSYA = 60      # app/ altında taranması beklenen en az .py dosyası
-# BUG #277: 20 → 25. Artış SESSİZ değil: yeni muafiyet satırı + gerekçe + bu yorum aynı
-# commit'te yazıldı. Kapının amacı tutar BİÇİMLENDİRMESİNİ tek kaynağa bağlamaktır;
-# eklenen 5 sabit ölçüm fixture'ıdır, biçimlendirme değil.
-BACKEND_TAVAN_SABIT = 25      # tüm app/ genelinde izin verilen toplam sabit (22 muaf + pay)
+# BUG #277: üslup ölçüm korpusu 5 sabit ekledi (fixture metni, biçimlendirme değil).
+# BUG #278: desen kesinleştikten sonra sayılar GERÇEK değerlerine indirildi (coach 5→3,
+# coach_eval 3→2, auth.py muafiyeti tamamen kalktı — 'ACCESS_TTL_MIN' artık eşleşmiyor),
+# böylece tavan 25'e çıkmadan 20'de kaldı. Yön daima daraltmadır.
+BACKEND_TAVAN_SABIT = 20      # tüm app/ genelinde izin verilen toplam sabit (18 muaf + pay)
 
 
 def _backend_dosyalar() -> list[Path]:
@@ -95,7 +104,7 @@ def backend_envanter() -> dict[str, int]:
         n = 0
         for d in ast.walk(agac):
             if isinstance(d, ast.Constant) and isinstance(d.value, str) and id(d) not in doc_ids:
-                if any(i in d.value for i in PARA_ISARETLERI):
+                if _PARA_DESENI.search(d.value):
                     n += 1
         if n:
             sonuc[rel] = n

@@ -3,7 +3,8 @@ FinancialOS Koç — V3 GOD MODE — Provider-Agnostic Mimari
 
 Çoklu LLM sağlayıcı desteği:
 - AnthropicProvider  (Claude — ücretli, en güçlü)
-- GeminiProvider     (Google — Flash-Lite 1000/gün ücretsiz)
+- GeminiProvider     (Google — Flash-Lite ücretsiz katman: 10 Agu 2026 ölçümü **20 istek/gün**;
+                      eski "1000/gün" notu bayattı, canlı 429 gövdesiyle düzeltildi — research-log)
 - GroqProvider       (Llama 3.3 70B Versatile — 14400/gün ücretsiz, çok hızlı)
 - OllamaProvider     (YEREL/EGEMEN — Qwen 2.5, offline, veri makineden çıkmaz)
 - FallbackProvider   (Birincil 429/quota dolarsa ikincil devreye girer)

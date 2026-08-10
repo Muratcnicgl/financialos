@@ -124,3 +124,21 @@ Her ADR (031-034) için karar öncesi 2-3 sektör referans (KURAL D1). Bu kuyruk
 - **ADR-034 koç:** LangGraph vs custom router, OpenRouter canlı fallback testi (research-log yukarıda: 50/gün TPM-sınırsız), intent-classification maliyet/fayda, prompt caching.
 
 **Not:** M7 charter'ı "karar VERME" der — bu kuyruk kararların İSKELETİ, kararlar değil.
+
+---
+
+## 2026-08-10 — Gemini free-tier günlük istek limiti (eval koşumu sırasında ÖLÇÜLDÜ)
+**Soru:** Yan-yana sağlayıcı koşumu (LLM-005 / BUG #278) pratikte kaç kez koşulabilir?
+**Bulgu (kanıt: canlı 429 gövdesi):** `gemini-2.5-flash-lite` ücretsiz katman
+`GenerateRequestsPerDayPerProjectPerModel-FreeTier` **quotaValue: 20** — yani **günde 20
+istek**. Repo dokümanı (`app/coach.py` başlığı, mimari notları) yıllardır "Flash-Lite
+1000/gün ücretsiz" diyordu; bu değer BAYAT. Tek bir `eval_runner --judge` koşumu 8 koç +
+8 judge = 16 istek harcar → günde **bir** tam koşum sığar, yan-yana koşumda Gemini ikinci
+sırada zaten düşer.
+**Sonuç:** (a) docstring düzeltildi; (b) judge için ayrı sağlayıcı bayrağı
+(`--judge-saglayici`) yalnız yanlılık değil KOTA açısından da gerekli; (c) yan-yana
+koşumda "GEÇERSİZ (sağlayıcı cevap vermedi)" etiketi kota tükenmesini kalite düşüşü gibi
+göstermiyor (BUG #276 dersinin yeni yüzeydeki karşılığı — ölçüldü, çalışıyor).
+**Kaynak:** canlı API yanıtı (429 RESOURCE_EXHAUSTED, quotaId
+`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, 10 Ağu 2026) ·
+ai.google.dev/gemini-api/docs/rate-limits

@@ -5,20 +5,43 @@ Vizyon: wave3-vision Bölüm 6 "eval-driven development" — koç kalitesini gö
 kılar. Bir prompt/model/kod değişikliği kaliteyi düşürürse pass_rate düşer (regresyon ağı).
 
 Kullanım:
-    python -m scripts.eval_runner            # .env'deki LLM_PROVIDER ile
+    python -m scripts.eval_runner                          # .env'deki LLM_PROVIDER ile
     LLM_PROVIDER=groq python -m scripts.eval_runner
+    python -m scripts.eval_runner --saglayicilar gemini,groq,ollama   # YAN YANA
+    python -m scripts.eval_runner --judge                   # + öznel boyut (LLM-as-judge)
+    python -m scripts.eval_runner --judge-saglayici gemini  # judge'ı ayrı sağlayıcıya ver
+    python -m scripts.eval_runner --kaydet                  # skoru data/eval_runs.jsonl'e yaz
+    python -m scripts.eval_runner --gecmis                  # saklanan koşumları listele
 
 İZOLE in-memory kanonik durum kullanır (Murat'ın tipik manzarası) → GERÇEK DB'ye DOKUNMAZ.
-Judge LLM gerekmez; kriterler deterministik (grounding, KURAL SIFIR, sahte-tamamlama, format).
+Deterministik kriterler (grounding, KURAL SIFIR, sahte-tamamlama, üslup, format) judge
+GEREKTİRMEZ; `--judge` yalnız desenle ölçülemeyen boyutu (muhakeme/çerçeve/risk) ekler ve
+CI kapısı DEĞİLDİR (bkz. app/coach_judge.py).
+
+GUNCELLEMELER
+- 10 Agu 2026 BUG #278 (LLM-005): yan yana saglayici kosumu + judge + skor saklama eklendi.
+  Onceki hal tek saglayiciyi kosup ekrana basiyor ve unutuyordu.
 """
 from __future__ import annotations
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import argparse
+import os
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from app.models import Base, User, Account, AccountType
-from app.coach import CoachEngine, build_provider
-from app.coach_eval import DEFAULT_SCENARIOS, run_eval, format_report
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from sqlalchemy import create_engine                     # noqa: E402
+from sqlalchemy.orm import sessionmaker                  # noqa: E402
+
+from app.models import Base, User, Account, AccountType  # noqa: E402
+from app.coach import CoachEngine, build_provider        # noqa: E402
+from app.coach_eval import DEFAULT_SCENARIOS, run_eval, format_report  # noqa: E402
+from app.coach_judge import (JudgeSonucu, degerlendir,   # noqa: E402
+                             oz_degerlendirme_mi, rapor_satirlari)
+from app.eval_store import (VARSAYILAN_YOL, dusus_raporu, kaydet,  # noqa: E402
+                            kayit_olustur, oku)
 
 
 def _canonical_db():
@@ -45,22 +68,144 @@ def _canonical_db():
     return s
 
 
-def main() -> None:
+def _saglayici_kur(ad: Optional[str]):
+    """Adı verilen sağlayıcıyı kurar (ad yoksa .env'deki). Kuramazsa (None, hata) döner."""
+    onceki = os.environ.get("LLM_PROVIDER")
     try:
-        provider = build_provider()
+        if ad:
+            os.environ["LLM_PROVIDER"] = ad
+        return build_provider(), None
     except Exception as e:
-        print(f"Sağlayıcı kurulamadı: {e}")
-        print("İpucu: .env'de LLM_PROVIDER + ilgili API key ayarla "
-              "(ör. LLM_PROVIDER=groq, GROQ_API_KEY=...). Yerel/offline için LLM_PROVIDER=ollama.")
-        raise SystemExit(1)
-    print(f"Sağlayıcı: {getattr(provider, 'NAME', type(provider).__name__)}\n")
+        return None, str(e)
+    finally:
+        if ad:
+            if onceki is None:
+                os.environ.pop("LLM_PROVIDER", None)
+            else:
+                os.environ["LLM_PROVIDER"] = onceki
+
+
+def _judge_kosumu(judge_provider, cevaplar: List[Tuple[str, str, str]],
+                  olculen_saglayici: str) -> Tuple[Dict, List[str]]:
+    """Her senaryo cevabını judge'a puanlatır; özet + rapor satırlarını döner."""
+    sonuclar: List[Tuple[str, JudgeSonucu]] = []
+    for ad, mesaj, cevap in cevaplar:
+        sonuclar.append((ad, degerlendir(judge_provider, mesaj, cevap)))
+
+    gecerliler = [s for _, s in sonuclar if s.gecerli and s.oran is not None]
+    ozet = {
+        "saglayici": getattr(judge_provider, "NAME", type(judge_provider).__name__),
+        "model": getattr(judge_provider, "model", None),
+        # Bilinmeyen, sıfır DEĞİLDİR (L45): hiç geçerli puan yoksa oran None kalır.
+        "oran": round(sum(s.oran for s in gecerliler) / len(gecerliler), 1) if gecerliler else None,
+        "olculen": len(gecerliler),
+        "gecersiz": len(sonuclar) - len(gecerliler),
+    }
+    ozet["oz_degerlendirme"] = oz_degerlendirme_mi(ozet["saglayici"], olculen_saglayici)
+    return ozet, rapor_satirlari(sonuclar)
+
+
+def _tek_kosum(saglayici_adi: Optional[str], judge_provider, args) -> Optional[Dict]:
+    provider, hata = _saglayici_kur(saglayici_adi)
+    if provider is None:
+        print(f"[ATLANDI] {saglayici_adi or '(.env)'}: sağlayıcı kurulamadı — {hata}")
+        return None
+    ad = getattr(provider, "NAME", type(provider).__name__)
+    print(f"\n=== Sağlayıcı: {ad} ({getattr(provider, 'model', '?')}) ===")
+
     engine = CoachEngine(provider=provider)
     db = _canonical_db()
     try:
-        report = run_eval(engine, db, 1, DEFAULT_SCENARIOS)
-        print(format_report(report))
+        rapor = run_eval(engine, db, 1, DEFAULT_SCENARIOS)
+        print(format_report(rapor))
+
+        judge_ozet = None
+        if judge_provider is not None:
+            # Judge, DETERMİNİSTİK KOŞUMUN TAM cevaplarını puanlar (ikinci bir geçiş
+            # koşmak başka cevapları puanlardı — ölçüm ile not ayrışırdı).
+            mesajlar = {sc.name: sc.user_message for sc in DEFAULT_SCENARIOS}
+            cevaplar = [(r["name"], mesajlar.get(r["name"], ""), r.get("reply_tam", ""))
+                        for r in rapor["scenarios"]]
+            judge_ozet, satirlar = _judge_kosumu(judge_provider, cevaplar, ad)
+            print("\n--- Judge (öznel boyut — CI kapısı DEĞİL) ---")
+            oran = judge_ozet["oran"]
+            print(f"  Judge: {judge_ozet['saglayici']} · ortalama: "
+                  f"{'ÖLÇÜLEMEDİ' if oran is None else f'%{oran}'} "
+                  f"({judge_ozet['olculen']} ölçüldü, {judge_ozet['gecersiz']} skor yok)")
+            if judge_ozet["oz_degerlendirme"]:
+                print("  !! ÖZ-DEĞERLENDİRME: judge, ölçülen sağlayıcının kendisi — "
+                      "skor yanlı olabilir.")
+            print("\n".join(satirlar))
     finally:
         db.close()
+
+    kayit = kayit_olustur(rapor, ad, getattr(provider, "model", None), judge_ozet)
+    if args.kaydet:
+        onceki = oku(saglayici=ad)
+        dusus = dusus_raporu(kayit, onceki[-1] if onceki else None)
+        yol = kaydet(kayit)
+        print(f"\n  [kayıt] {yol}")
+        if dusus:
+            print("  !! ÖNCEKİ KOŞUMA GÖRE DÜŞÜŞ:")
+            for satir in dusus:
+                print(f"     - {satir}")
+    return kayit
+
+
+def _gecmis_yazdir() -> None:
+    kayitlar = oku()
+    if not kayitlar:
+        print(f"Kayıt yok ({VARSAYILAN_YOL}).")
+        return
+    print(f"{'zaman':26s} {'saglayici':14s} {'pass_rate':>9s} {'senaryo':>9s} {'judge':>7s}")
+    for k in kayitlar:
+        judge = (k.get("judge") or {}).get("oran")
+        gecerli = "" if k.get("gecerli", True) else "  (GECERSIZ)"
+        print(f"{k['zaman'][:25]:26s} {str(k['saglayici'])[:14]:14s} "
+              f"{k['pass_rate']:>8.1f}% {k['senaryo_pass']:>4d}/{k['senaryo_total']:<4d} "
+              f"{'-' if judge is None else f'{judge:>6.1f}%'}{gecerli}")
+
+
+def main() -> None:
+    ayristirici = argparse.ArgumentParser(description="Koç kalite eval koşumu")
+    ayristirici.add_argument("--saglayicilar", default=None,
+                             help="virgülle ayrılmış liste (yan yana koşum), ör. gemini,groq")
+    ayristirici.add_argument("--judge", action="store_true",
+                             help="öznel boyutu da ölç (LLM-as-judge)")
+    ayristirici.add_argument("--judge-saglayici", default=None,
+                             help="judge için ayrı sağlayıcı (öz-değerlendirme yanlılığını azaltır)")
+    ayristirici.add_argument("--kaydet", action="store_true",
+                             help="skoru data/eval_runs.jsonl'e ekle ve önceki koşumla karşılaştır")
+    ayristirici.add_argument("--gecmis", action="store_true", help="saklanan koşumları listele")
+    args = ayristirici.parse_args()
+
+    if args.gecmis:
+        _gecmis_yazdir()
+        return
+
+    judge_provider = None
+    if args.judge or args.judge_saglayici:
+        judge_provider, hata = _saglayici_kur(args.judge_saglayici)
+        if judge_provider is None:
+            print(f"Judge sağlayıcısı kurulamadı: {hata}")
+            print("İpucu: --judge-saglayici gemini (ya da .env'de LLM_PROVIDER).")
+            raise SystemExit(1)
+
+    adlar = [a.strip() for a in args.saglayicilar.split(",")] if args.saglayicilar else [None]
+    kayitlar = [k for k in (_tek_kosum(ad, judge_provider, args) for ad in adlar) if k]
+
+    if len(kayitlar) > 1:
+        print("\n=== YAN YANA ===")
+        print(f"{'saglayici':16s} {'pass_rate':>9s} {'senaryo':>9s} {'judge':>8s}  durum")
+        for k in kayitlar:
+            judge = (k.get("judge") or {}).get("oran")
+            print(f"{str(k['saglayici'])[:16]:16s} {k['pass_rate']:>8.1f}% "
+                  f"{k['senaryo_pass']:>4d}/{k['senaryo_total']:<4d} "
+                  f"{'-' if judge is None else f'{judge:>7.1f}%'}  "
+                  f"{'gecerli' if k['gecerli'] else 'GECERSIZ (saglayici cevap vermedi)'}")
+
+    if not kayitlar:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -28,8 +28,16 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [LLM-005] LLM-as-judge ile provider kalite karşılaştırması yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: LLM-as-judge yok
-- **Kanıt:** `app/coach.py:1242-1264`; `routers/coach.py:181-206`
+- **Durum:** 🟡 KISMEN — **premis düzeltildi (R3, 10 Ağu 2026):** "provider kalite
+  karşılaştırması yok" kısmen yanlıştı — `scripts/eval_runner.py` + `app/coach_eval.py`
+  sağlayıcı başına koşuyor (`LLM_PROVIDER=groq python -m scripts.eval_runner`) ve
+  **deterministik** kriterlerle puanlıyor (KURAL SIFIR, grounding, sahte-tamamlama, format).
+  Eksik olan: (a) judge ile ÖZNEL kalite, (b) sağlayıcıları yan yana koyan tek koşum,
+  (c) skorun zaman içinde saklanması. **Yan bulgu → BUG #275:** eval'in `no_fake` kriteri
+  sahte-tamamlama tanımasının KENDİ kopyasını taşıyordu ve ölçülen korpusun **7/12'sini
+  kaçırıyordu** (ayrıca ters yönde 4/4 yanlış-pozitif üretiyordu) — yani araç, koruduğu
+  sözleşmeden zayıftı; tek kaynağa bağlandı (**L46**).
+- **Kanıt:** `app/coach.py:1242-1264`; `routers/coach.py:181-206`; `scripts/eval_runner.py`
 - **Aksiyon:** DeepEval G-Eval/küçük judge ile offline puanla; trace'e provider+skor; haftalık dashboard.
 - **Etki:** Orta · **Efor:** M
 

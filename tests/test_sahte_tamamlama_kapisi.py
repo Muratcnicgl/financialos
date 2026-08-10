@@ -193,3 +193,64 @@ def test_sahte_tamamlama_deseni_katlanmis():
 
     for desen in (_FAKE_PASTTENSE_RE, _EMANET_HEADER_RE):
         assert katlanmis_mi(desen.pattern), f"katlanmamis desen: {desen.pattern}"
+
+
+# ============================================================
+# 6) BUG #275 — KALİTE KAPISININ KENDİ ÖLÇÜTÜ, KORUDUĞU SÖZLEŞMEDEN ZAYIF OLAMAZ
+# ============================================================
+# Ölçüm (10 Ağu 2026): `app/coach_eval.py` sahte-tamamlama tanımasının KENDİ kopyasını
+# taşıyordu (5 kök) ve yukarıdaki korpusun **7'sini kaçırıyordu** — yani koç kalitesini
+# koruyan eval, yeniden ortaya çıkan bir regresyonu YEŞİL puanlardı (L37'nin araç tarafı:
+# aynı soruya iki cevap, zayıf olan koruma görevini taşıyordu). Kopya ayrıca ters yönde de
+# kırıktı: `tamamladı\w*` kökü "Analizi tamamladım" gibi MEŞRU cümleleri sahte-tamamlama
+# sayıyordu (ölçüm: 4/4 yanlış-pozitif) → sağlıklı bir sağlayıcı haksız yere düşerdi.
+
+EVAL_MESRU = [
+    "Analizi tamamladım, üç riskli kalem var.",
+    "Sana üç adımlı bir plan oluşturdum.",
+    "Değerlendirmeyi tamamladım; karar senin.",
+]
+
+
+@pytest.mark.parametrize("cumle", SAHTE_CUMLELER)
+def test_eval_kriteri_urun_sozlesmesiyle_ayni_korpusu_yakalar(cumle):
+    """Eval'in `no_fake` kriteri, ürünün yakaladığı her cümlede kırmızı vermeli."""
+    from app.coach import sahte_tamamlama_iddiasi_var
+    from app.coach_eval import score_result
+
+    assert sahte_tamamlama_iddiasi_var(cumle), "kapsam tabanı çöktü: ürün bu cümleyi kaçırıyor"
+    puan = score_result({"reply": cumle, "proposed_actions": []}, ["no_fake"])
+    assert puan["no_fake"] is False, (
+        f"Eval {cumle!r} cümlesini TEMİZ saydı — kalite kapısı, koruduğu sözleşmeden zayıf"
+    )
+
+
+@pytest.mark.parametrize("cumle", EVAL_MESRU)
+def test_eval_kriteri_mesru_is_bitirme_cumlesini_cezalandirmaz(cumle):
+    """Ters yön: 'Analizi tamamladım' DB yazımı iddiası değildir; eval bunu düşürmemeli."""
+    from app.coach_eval import score_result
+
+    puan = score_result({"reply": cumle, "proposed_actions": []}, ["no_fake"])
+    assert puan["no_fake"] is True, (
+        f"Eval meşru cümleyi ({cumle!r}) sahte tamamlama saydı — sağlıklı sağlayıcı haksız düşer"
+    )
+
+
+def test_eval_sahte_tamamlama_tanimasinin_kopyasini_tutmaz():
+    """Drift kilidi (AST): `coach_eval` kendi fiil listesini yeniden tanımlayamaz."""
+    import ast
+    from pathlib import Path
+
+    kaynak = Path(__file__).resolve().parent.parent / "app" / "coach_eval.py"
+    agac = ast.parse(kaynak.read_text(encoding="utf-8"), filename=str(kaynak))
+    fiiller = ("kaydett", "ekledi", "isledi", "işledi", "tamamlad", "gecirdi", "geçirdi")
+    ihlal = []
+    for dugum in ast.walk(agac):
+        if isinstance(dugum, ast.Constant) and isinstance(dugum.value, str):
+            metin = dugum.value.lower()
+            if any(f in metin for f in fiiller) and ("|" in metin or "\b" in metin):
+                ihlal.append(f"satır {dugum.lineno}: {dugum.value[:60]!r}")
+    assert not ihlal, (
+        "coach_eval sahte-tamamlama deseninin kopyasını tutuyor — tek kaynak "
+        "`app.coach.sahte_tamamlama_iddiasi_var` olmalı:\n  " + "\n  ".join(ihlal)
+    )

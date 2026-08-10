@@ -2280,6 +2280,19 @@ _FAKE_PASTTENSE_RE = re.compile(
     r')\b'
 )
 
+def sahte_tamamlama_iddiasi_var(metin: str) -> bool:
+    """Metin, koçun KENDİ tamamlama iddiasını (1. tekil şahıs) taşıyor mu?
+
+    BUG #275: bu soru iki yerde ayrı ayrı cevaplanıyordu — ürün kodu (aşağıdaki
+    `_postprocess_report`) ve **eval harness'ının kendi kopyası** (`coach_eval._FAKE_DONE_RE`,
+    5 kök). Ölçüm: eval'in kopyası BUG #271'in ölçtüğü 12 cümlenin **7'sini kaçırıyordu** —
+    yani koç kalitesini korumakla görevli araç, yeniden ortaya çıkan bir sahte-tamamlama
+    regresyonunu YEŞİL puanlardı (L37: aynı soruya iki cevap; zayıf olan, koruma görevini
+    taşıyordu). Tek kaynak burasıdır; eşleşme `tr_text.normalize`'dan geçer (L32).
+    """
+    return bool(_FAKE_PASTTENSE_RE.search(_tr_normalize(metin or "")))
+
+
 # BUG #271: fiilden ve yanıtın biçiminden BAĞIMSIZ güvence. Kullanıcı gerçekleşmiş bir
 # eylem bildirdiği hâlde o turda hiçbir aksiyon doğmadıysa, kullanıcı bunu ÖĞRENMELİDİR —
 # koçun cümlesini nasıl kurduğuna bakılmaksızın.

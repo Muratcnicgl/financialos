@@ -24,16 +24,17 @@ Bu modül SAF ölçüm mantığıdır (rules_engine ruhu); DB'ye yazmaz.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-# Sahte-tamamlama işaret fiilleri (gerçekleşmiş iddia kökleri + çekim ekleri).
-# Kök + \w* çünkü "kaydett" → "kaydettim"; sonda \b konursa "kaydett\b" "kaydettim"i KAÇIRIR.
-_FAKE_DONE_RE = re.compile(
-    r"\b(?:kaydett|ekledi|güncelledi|işledi|tamamladı)\w*",
-    re.IGNORECASE,
-)
+# BUG #275: sahte-tamamlama tanıması burada KOPYALANMAZ — ürün kodunun tek kaynağı kullanılır.
+# Ölçüm: buradaki eski kopya (5 kök) BUG #271'in ölçtüğü 12 cümlenin **7'sini kaçırıyordu**
+# ("işleme aldım", "kayda geçirdim", "not olarak girdim", "sisteme yazdım", "hallettim",
+# "düştüm", "oluşturdum") → eval, yeniden ortaya çıkan bir regresyonu YEŞİL puanlardı. Ters
+# yönde de kırıktı: nesneden bağımsız `tamamladı\w*` kökü "Analizi tamamladım" gibi meşru
+# cümlelerde 4/4 yanlış-pozitif verdi → sağlıklı sağlayıcı haksız yere düşerdi.
+# Bir kalite kapısının kendi ölçütü, koruduğu sözleşmeden zayıf (ya da farklı) olamaz (L46).
+from app.coach import sahte_tamamlama_iddiasi_var
 
 CRITERIA = {"grounded", "no_action", "action", "no_confidence", "no_fake", "format"}
 
@@ -69,8 +70,8 @@ def score_result(result: Dict, checks: List[str]) -> Dict[str, bool]:
         elif c == "no_confidence":
             scores[c] = "CONFIDENCE" not in reply.upper()
         elif c == "no_fake":
-            # sahte tamamlama = eylem YOK ama "kaydettim" gibi iddia VAR
-            scores[c] = not (len(actions) == 0 and bool(_FAKE_DONE_RE.search(reply)))
+            # sahte tamamlama = eylem YOK ama "kaydettim" gibi iddia VAR (tek kaynak, BUG #275)
+            scores[c] = not (len(actions) == 0 and sahte_tamamlama_iddiasi_var(reply))
         elif c == "format":
             scores[c] = "##" in reply
     return scores

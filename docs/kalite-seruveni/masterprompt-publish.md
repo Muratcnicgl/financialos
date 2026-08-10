@@ -470,7 +470,7 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 > kalan iki cümle ("tamamladım"/"oluşturdum") **bilinçli eklenmedi** — ölçüm 4/4 yanlış-pozitif
 > gösterdi ve #271'in kendi kaydı bu listenin saymaya dayandığını, asıl güvencenin
 > durum-tabanlı not olduğunu söylüyor. Sonuç: kaçırma **7/12 → 2/12**, yanlış-pozitif
-> **4/4 → 0/4**. Kapı `tests/test_sahte_tamamlama_kapisi.py` (+18, AST kilidi dahil;
+> **4/4 → 0/4**. Kapı `tests/test_sahte_tamamlama_kapisi.py` (+16, AST kilidi dahil;
 > **mutasyon 3/3**). Ders **L46**.
 
 > **📌 10 AĞUSTOS 2026 — MALİYET DEFTERİNİN PARA SÜTUNLARI HİÇ YAZILMIYORDU (BUG #274 /

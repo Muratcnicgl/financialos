@@ -46,7 +46,7 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
   (Murat tüm işlemleri önceden onayladı) — **tek istisna §9 İNSAN-KAPISI**.
 - **GERİLEME YASAK.** Bu masterprompt yalnız ileri yönlü güncellenir (§12).
 
-### §1.3 DERS-KURALLARI L1-L28 (v2.0+ — YALNIZ EKLENİR)
+### §1.3 DERS-KURALLARI L1-L52 (v2.0+ — YALNIZ EKLENİR)
 
 > Not: `D1` §1'de **sektör referansı** kuralıdır; karışmasın diye ders-kuralları **L** ile numaralanır.
 
@@ -108,6 +108,7 @@ Harcamanı kaydettim.` hiçbir uyarı olmadan kullanıcıya gidiyordu; tek satı
 | L44 | **Bir ölçünün ANAHTARI, ölçülen şeyin gerçekten değiştiği eksende olmalı.** Fiyat modelin değil **(sağlayıcı, model) çiftinin** özelliğidir: aynı model adı Groq'ta $0.15, başka sağlayıcıda başka listede, `:free` varyantında 0'dır. Anahtarı tek düzeyli seçmek hata vermez — sessizce **yanlış para** üretir. Aynı ilke ADR-051'in "önce yapı" kuralının veri tarafıdır: ölçüyü adlandırmadan önce "bu sayı neye göre değişiyor?" sorusu cevaplanır. | #274 (tek düzeyli model tablosu sekiz sağlayıcılı zincirde yanlış maliyet üretirdi) |
 | L45 | **BİLİNMEYEN ile SIFIR aynı hücreye yazılamaz.** Hesaplanamayan bir maliyeti 0 yazmak, toplamı bozmakla kalmaz — **yeni bir model eklendiğinde sistemi "bedava" gösterir ve hata sessiz kalır**. Bilinmeyen `None` olmalı, ayrı sayılmalı ve toplam açıkça ALT SINIR ilan edilmelidir; bilinen sıfır (yerel çalışma, ücretsiz varyant) bundan AYRI bir durumdur. Doğrulanamayan bir değeri "makul tahminle" doldurmak da aynı hatadır: kendinden emin yanlış sayı, boş hücreden zararlıdır. | #274 (Cerebras/DeepInfra fiyatı teyit edilemedi → tabloya yazılmadı, raporda ayrı sayılıyor) |
 | L22 | **Doğru sinyalin YANLIŞ EŞİĞİ, sinyalin yokluğu kadar zararlıdır — ve tek eşik iki işi birden yapamaz.** Etiketleme (dürüst, ücretsiz, her zaman) ile alarm (pahalı, dikkat harcar) farklı eşiklerdir; ikisini tek sayıya bağlarsan ya rutin durumda gürültü üretir (uyarı yorgunluğu → gerçek kesinti görünmez olur) ya da gerçek arızada susarsın. Eşiği seçerken alanın takvimini (piyasa tatili, hafta sonu, batch penceresi) yaz ve teste koy. | #239 (24s tazelik eşiği alarm eşiği yapılsaydı TEFAS yayın yapmayan her hafta sonu uyarı üretirdi → 24s etiket / 72s alarm ayrımı) |
+| L52 | **Bir DELTA raporda geçmemek, diskte OLMAMAK değildir.** Delta belge tanımı gereği eksiktir: yalnız kapsadığı aralıkta DEĞİŞENİ anlatır. "Raporda tek satır geçmiyor, demek ki yok" çıkarımı, envanter sorusunu yanlış belgeye sormaktır — envanter sorusu **envantere** sorulur (`git ls-files`, `grep`, şema, uç listesi). Bedeli sıradan bir yanlış değildir: var olan tek kaynağın **yanına ikincisi yazılır** ve proje kendi en pahalı anti-pattern'ini üretir (ADR-044/046/049/051/052'nin tamamı tek-kaynağa indirgeme işiydi). | Kapalı beta charter taslağı (11 Ağu): "geri bildirim sistemi yok / allowlist yok / yedek+prova yok / sürüm damgası yok" denmişti — ölçünce **dördü de vardı** (FEAT-033 + `scripts/beta_triage.py`, `app/beta_access.py` + BUG #226 OAuth kapısı, `tests/test_backup_restore_drill.py`, `app/version.py`); hepsi raporun kapsadığı 6→11 Ağu aralığından ÖNCE yazılmıştı |
 
 ---
 

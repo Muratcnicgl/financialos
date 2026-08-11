@@ -32,20 +32,33 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // App shell (statik) precache; /api GET'leri NetworkFirst (taze veri önce, offline'da cache).
+        // App shell (statik) precache. API YANITLARI ONBELLEGE ALINMAZ — bkz. BUG #288.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
-            },
-          },
-        ],
+        // BUG #288: `/api/*` navigasyonlarina index.html DONULMEZ. Aksi halde bir API
+        // yolu tarayicida acildiginda JSON yerine uygulama HTML'i doner ve hata teshisi
+        // yaniltici olur.
+        navigateFallbackDenylist: [/^\/api\//],
+        // BUG #288 — API ICIN ONBELLEK YOK (runtimeCaching KASTEN BOS).
+        //
+        // Onceki hali `/api/*` icin NetworkFirst + networkTimeoutSeconds: 5 idi. Canlida
+        // ilk gercek kullanimda coktu: kullanici giris yapti, Cockpit yuklenemedi ve
+        // konsolda `FetchEvent.respondWith received an error: no-response` cikti.
+        // Mekanizma: 5 sn'de yanit gelmezse NetworkFirst ONBELLEGE duser; onbellekte o
+        // istek YOKSA Workbox `no-response` firlatir ve istek TAMAMEN olur. Yani zaman
+        // asimi bir yedek degil, ARIZA uretiyordu.
+        //
+        // 5 sn zaten yanlis bir tavandi: koc ucu IKI LLM cagrisi surer (10-40 sn, bkz.
+        // app/capacity.py yavas-yol tavanlari) ve tunel yolu ek gecikme ekler.
+        //
+        // Tavani buyutmek de dogru cozum DEGIL: bu bir finans uygulamasi ve API yanitlari
+        // BAKIYE tasiyor. Onbellekten servis edilen bir bakiye, kullaniciya TAZE gibi
+        // gorunur — projenin BUG #239'da kapattigi hatanin ta kendisi. Ustelik yanitlar
+        // tarayici onbelleginde kalir; ayni cihazi kullanan baska biri okuyabilir (BUG #180).
+        //
+        // Karar: app shell (JS/CSS/ikon) onbellege alinir -> uygulama cevrimdisi ACILIR ve
+        // DURUST bir "baglanti yok" hatasi gosterir. Veri asla onbellekten gelmez.
+        runtimeCaching: [],
       },
     }),
   ],

@@ -95,6 +95,95 @@ taahhüt. Kapalı beta gibi **süresi belirsiz** bir iş için taahhütlü ürü
 
 ---
 
+## 3b. "ÜCRETSİZ ALAN ADI" İDDİALARININ TARANMASI (11 Ağu, ikinci tur)
+
+**Tetik:** "GoDaddy adını içeren alan adları ücretsizmiş" bilgisi (staj yerinden, ikinci el).
+
+**İddianın literal hâli yanlıştır** — bir markanın adını içeren alan adı almak marka
+ihlalidir; ücretsiz olmak şöyle dursun UDRP şikâyeti konusudur. **Kastedilen şey
+bulundu:** GoDaddy Website Builder'ın ücretsiz planı `siteadi.godaddysites.com` **alt alan
+adı** verir — yani "godaddy adını içeren" ücretsiz bir adres. Gerçek, ama:
+
+- Bir **site kurucudur**, barındırma değil: Docker/FastAPI/PostgreSQL koşturulamaz.
+- Sitede **GoDaddy reklamı** görünür.
+- Kendi alan adını bağlamak **Basic plan → 9,99 $/AY** ister (yılda ~120 $ — alan adı
+  satın almanın 11 katı).
+- `godaddysites.com` bölgesinin DNS'i sende değildir → Cloudflare Tunnel'a bağlanamaz.
+
+→ **Bizim yığın için kullanılamaz.**
+
+### Gerçekten ücretsiz alan adı seçenekleri (taranan)
+
+| Seçenek | Durum (2026) | Cloudflare bölgesi olabilir mi? | Bizim için |
+|---|---|---|---|
+| **eu.org** | Yaşıyor, gönüllü işletiyor; **kendi nameserver'ını (Cloudflare) verebilirsin** | ✅ Evet — Tunnel çalışır | ⚠️ **Onay ELLE**: birkaç gün ~ birkaç hafta, bazen ay. Bedeli para değil **zaman** |
+| **is-a.dev** | Aktif, GitHub PR ile kayıt, tam DNS kaydı kontrolü, HTTPS hazır | ⚠️ **DOĞRULANMADI** — Tunnel için `*.cfargotunnel.com` CNAME'i genelde **kendi Cloudflare hesabındaki bölgede** olmak zorundadır | ⚠️ Gönüllü işletiyor, **geri alınabilir**, kullanım politikasına tabi |
+| **DuckDNS** | Aktif, kalıcı ad | ❌ IP'ye işaret eder | ⚠️ Port yönlendirme + **ev IP'si açığa çıkar** |
+| **Freenom (.tk/.cf/.gq)** | **Ücretsiz iş modeli ÖLDÜ** (Meta davası, 12,6M alan adı kapatıldı); geri döndü ama **€8,22/yıl ücretli** | — | ❌ Üstelik bu uzantılar **spam/phishing itibarı** taşır: şifre sıfırlama e-postalarımız spam'e düşer |
+
+### GoDaddy TR "Ücretsiz Domain" sayfası — iki ayrı teklif (11 Ağu, doğrulandı)
+
+Sayfa iki şey vaat ediyor ve ikisi çok farklı:
+
+**(a) "Yıllık Hosting / WordPress planı al, alan adı ücretsiz."** Alan adı bedava ama
+**yıllık peşin bir hosting planı** satın almış oluyorsun — ve o hosting **paylaşımlı /
+WordPress** hostingidir. §0'daki üç şart (Docker + root + kalıcı disk) karşılanmaz:
+**bizim yığın orada koşmaz.** Yani "ücretsiz" alan adı, kullanamayacağımız bir hosting
+planının yanında geliyor. ❌
+
+**(b) "İlk .com yalnızca 0,01 TL."** Bu **gerçek** ve tek başına alınabiliyor. Ama şartı
+belirleyici: bulunan kaynaklar bu kampanyanın **3 YILLIK taahhüt** istediğini, 1. yılın
+0,01 olup **2. ve 3. yılların 22,99 $** olduğunu söylüyor → 3 yıl toplamı ≈ **46 $**.
+Cloudflare'da 3 yıl **31,38 $**. Bu şartla teklif **daha pahalı**.
+⚠️ **TR kampanyasının şartı buradan doğrulanamadı** — kesin bilgi **sepet ekranındadır**
+(aynı `.app` fiyatı gibi: canlı ekran benim aramamdan üstündür).
+
+### Kararı belirleyen iki YAPISAL gerçek
+
+1. **Kayıt yeri ≠ DNS sağlayıcısı.** Alan adını nereden alırsan al, **nameserver'ları
+   Cloudflare'a yöneltmek ücretsizdir** ve alan adı böylece bir Cloudflare bölgesi olur →
+   **Tunnel çalışır.** Yani "Cloudflare'dan almak zorundayız" diye bir kısıt YOK; oradan
+   almak yalnızca bir adım eksiltir.
+2. **60 günlük ICANN transfer kilidi + transferin 1 yıl EKLEMESİ.** Yeni kayıtlı bir alan
+   adı 60 gün taşınamaz; 60 gün sonra Cloudflare'a transfer **10,46 $** ve süreye
+   **1 yıl ekler** (kalan süre kaybolmaz).
+
+### Bundan çıkan karar kuralı (sepet ekranında bakılacak TEK şey: DÖNEM)
+
+| Sepette görülen | Doğru hamle | Gerçek maliyet |
+|---|---|---|
+| **1 yıl / 0,01 TL** | GoDaddy'den al → nameserver'ları Cloudflare'a çevir → **60 gün sonra** Cloudflare'a transfer et | ~0,01 TL + 10,46 $ → **~22 ay** alan adı |
+| **3 yıl taahhüt (0,01 + 22,99 + 22,99)** | **Alma.** Doğrudan Cloudflare | 3 yıl 31,38 $ (46 $ yerine) |
+
+**Her iki durumda da satın alma anında yapılacaklar:** ① **otomatik yenilemeyi KAPAT**
+(unutulursa 12. ayda ~22,99 $ sürpriz fatura), ② sepete kendiliğinden eklenen ek ürünleri
+(Domain Protection, e-posta, SSL) **çıkar** — SSL'i zaten ücretsiz alıyoruz, ③ ödeme
+öncesi **toplam tutarı** ve **yenileme fiyatını** ekrandan oku.
+
+**Kaynaklar:** godaddy.com/tr-tr/domain/ucretsiz-domain (kampanya sayfası) · theguidex.com
+(0,01 $ .com kampanyası 3 yıl taahhütlü) · hostadvice.com + nameexperts.com (yenileme
+21,99–22,99 $) · developers.cloudflare.com/registrar (transfer 1 yıl ekler) ·
+ICANN transfer politikası (60 gün kilidi)
+
+### Ölçülen sonuç
+
+**Gerçekten 0 TL ve 7/24 olan tek kombinasyon: eu.org + Oracle Always Free.** Bedeli para
+değil **iki ayrı kuyruk**: eu.org'un elle onayı ve Oracle'ın ARM kapasitesi. İkisi de
+bizim kontrolümüzde değil ve ikisi de betayı **süresiz** erteleyebilir.
+
+**Karşılaştırma için ölçek:** `.com` **10,46 $/yıl ≈ 0,87 $/ay**. Her ücretsiz yol bunun
+karşılığında ya haftalarca bekleme, ya başkasının iyi niyetine bağlı **geri alınabilir**
+bir ad, ya da **ev IP'sinin açığa çıkması** istiyor. Başkasının finansal verisini tutan
+bir uygulamada bu takas kötüdür — ama karar ürün sahibinindir ve para kısıtı gerçektir.
+
+**Kaynaklar:** godaddy.com/websites/website-builder + tooltester.com + digiadagency.co.uk
+(ücretsiz plan = `godaddysites.com` alt alan adı, reklamlı; özel alan adı 9,99 $/ay) ·
+indexedev.com + blog.51sec.org (eu.org + Cloudflare nameserver) · docs.is-a.dev ·
+freestuff.dev (DuckDNS) · domainincite.com + webhosting.today + netcraft.com (Freenom
+ücretsiz model kapandı, geri dönüş ücretli, itibar sorunu)
+
+---
+
 ## 4. DOĞRULANAMAYANLAR (bilinçli olarak tabloya yazılmadı)
 
 - **Türkiye lokasyonlu VPS'ler (Natro / Turhost / Radore / Komuta vb.).** Arama yalnız

@@ -106,3 +106,47 @@ def test_riza_surumu_yayinlanan_metinle_ayni():
     assert KVKK_CONSENT_VERSION in dosya, (
         f"Rıza sürümü ({KVKK_CONSENT_VERSION}) yayınlanan metinle ({dosya}) uyuşmuyor"
     )
+
+
+def test_riza_metni_TESHIS_alanlarini_beyan_eder():
+    """BUG #282 (B5): kayda giren her teşhis alanı rıza metninde BEYAN EDİLMİŞ olmalı.
+
+    Beyan ↔ gerçek ayrışması bu projede en pahalı hata sınıfı: kod bir alan toplamaya
+    başlar, metin eski kalır ve rıza fiilen SAKAT olur — üstelik sessizce. Kontrol
+    modelin KENDİ sütunlarından türetilir; yeni bir teşhis alanı eklendiği an bu kapı
+    kırmızıya döner ve metnin güncellenmesini (ve yeni rıza sürümünü) zorunlu kılar.
+    """
+    from app.models import Feedback
+    from app.routers.legal import BELGELER
+
+    # Sütun adı → metinde aranacak Türkçe ifade (metin teknik alan adı yazmaz, ANLAM yazar).
+    TESHIS_BEYANI = {
+        "app_version": "sürüm",
+        "istek_id": "korelasyon",
+        "viewport_w": "ekran genişliği",
+        "tarayici": "tarayıcı",
+        "pwa": "ana ekran",
+    }
+    sutunlar = {c.name for c in Feedback.__table__.columns}
+    kapsanmayan = [s for s in TESHIS_BEYANI if s not in sutunlar]
+    assert not kapsanmayan, (
+        f"Beyan haritası bayat — modelde olmayan alan(lar): {kapsanmayan}"
+    )
+
+    metin = (_ROOT / "docs" / "legal" / BELGELER["kvkk"][0]).read_text(encoding="utf-8").lower()
+    eksik = [f"{s} → '{ifade}'" for s, ifade in TESHIS_BEYANI.items() if ifade.lower() not in metin]
+    assert not eksik, (
+        "Rıza metni toplanan teşhis verisini beyan etmiyor: " + " ; ".join(eksik)
+    )
+
+
+def test_riza_metni_teshis_SINIRLARINI_de_yazar():
+    """Toplananı saymak yetmez: TOPLANMAYANI da yazmak rızanın kapsamını daraltır.
+
+    'Ekran görüntüsü alınmaz' ve 'ham tarayıcı kimliği saklanmaz' kodda testle kilitli
+    (`test_geri_bildirim_teshis_kapisi.py`); kullanıcı bunu metinden öğrenebilmeli.
+    """
+    from app.routers.legal import BELGELER
+    metin = (_ROOT / "docs" / "legal" / BELGELER["kvkk"][0]).read_text(encoding="utf-8").lower()
+    for ifade in ("ekran görüntüsü", "user-agent"):
+        assert ifade in metin, f"Rıza metni '{ifade}' sınırını yazmıyor"

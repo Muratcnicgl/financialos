@@ -44,7 +44,13 @@ users_router = APIRouter(prefix="/api/users", tags=["users"])
 
 # P4: v2 — v1 metni uygulamayi yalniz self-host varsayiyordu ("veriniz kendi sunucunuzda");
 # barindirilan kapali betada bu YANLIS beyandi. v2 dogru veri-sorumlusu tanimini icerir.
-KVKK_CONSENT_VERSION = "v3"  # BUG #231 (D10): koç aktarım kapsamı düzeltildi → yeni rıza sürümü
+# BUG #282 (B5): v4 — geri bildirim TEŞHİS verisi beyan edildi (sürüm/korelasyon kodu/
+# ekran genişliği/tarayıcı ailesi/PWA). Bu alanlar v3'ün saydığı kategorilerin hiçbirine
+# tam girmiyordu; kapsamı eksik beyan edilen rıza sakattır. Sürüm ŞİMDİ yükseltiliyor
+# çünkü şu an tek kullanıcı var (maliyet ~0); davetliler geldikten sonra yükseltmek
+# 3-10 kişiyi beta ortasında yeniden onaya zorlardı.
+# Önceki: v3 — BUG #231 (D10) koç aktarım kapsamı düzeltilmişti.
+KVKK_CONSENT_VERSION = "v4"
 
 # M21: rate limiter app/rate_limit.py'a taşındı (per-bucket production değerleri).
 # _rate_limit/_RATE alias'ları test uyumu için korunur (auth_mod._RATE.clear()).

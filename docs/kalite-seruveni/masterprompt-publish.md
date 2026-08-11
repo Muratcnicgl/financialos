@@ -461,6 +461,13 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
 
+> **📄 ARA DEVİR RAPORU (11 Ağu 2026):** 6 Ağustos'taki master devir belgesinden bu yana olan
+> **her değişim** tek dosyada toplandı — `docs/kalite-seruveni/ara-durum-raporu-2026-08-11.md`
+> (5.941 satır; 28 commit, 24 BUG, 10 ADR, 23 yeni ders, bu dönemde doğan 24 kaynak dosya +
+> 10 ADR **inline**). Yeni bir sohbete devir verilirken master rapor + bu ara rapor birlikte
+> okunur. Manşet kanıt (bugün koşuldu): **2969 passed / 18 skipped** + **175 vitest** + 6 e2e,
+> canlı DB head `c5d6e7f8a9b0`, çalışma ağacı temiz.
+
 > **📌 10 AĞUSTOS 2026 (5) — LLM-005 KAPANDI: JUDGE + YAN YANA KOŞUM + SKOR SAKLAMA
 > (BUG #278).** #277 sözleşmenin desenle ölçülebilen yarısını kapatmış, ölçülemeyen yarısını
 > (muhakeme/çerçeve/risk) AÇIKÇA kapsam dışı bırakmıştı. Bu tur onu kapattı — ama önce

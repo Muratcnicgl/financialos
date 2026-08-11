@@ -406,7 +406,15 @@ def _health_payload() -> dict:
 
 @app.get("/", tags=["health"])
 def root():
-    """Backend kok adresi. Direkt tarayici testleri icin."""
+    """Backend kok adresi. Direkt tarayici testleri icin.
+
+    BUG #284 (B4): nginx'siz kurulumda (SERVE_SPA=1) kok adres UYGULAMANIN KENDISIDIR —
+    davetli buraya gelir. Saglik kontrolu zaten /api/health (canlilik) ve /api/ready
+    (hazir olma) uclarindadir; bu ayrim BUG #247'de yapilmisti.
+    """
+    from app.spa import spa_aktif, index_yanit
+    if spa_aktif():
+        return index_yanit()
     return _health_payload()
 
 
@@ -418,3 +426,18 @@ def api_health():
     icin gerekli. Root '/' Vite'in kendi sayfasi olduguntan proxy gecmiyor.
     """
     return _health_payload()
+
+
+# ============================================================
+# SPA MOUNT (BUG #284 / B4) — EN SONDA OLMALI
+# ============================================================
+# nginx'siz kurulumda (Docker yok, tunel tek porta vekillik ediyor) derlenmis arayuzu
+# uygulamanin kendisi servis eder. Varsayilan KAPALI: Docker/nginx yolunda bu satir
+# hicbir sey yapmaz ve mevcut dagitim davranisi DEGISMEZ.
+#
+# NEDEN EN SONDA: `/` altindaki catch-all mount, kendisinden ONCE kayitli /api/* yollarini
+# golgeleyemez (Starlette kayit sirasina gore eslestirir). Yukari tasinirsa TUM API 404 olur.
+from app.spa import spa_kur as _spa_kur
+
+if _spa_kur(app):
+    logger.info("SPA mount aktif (SERVE_SPA=1) — derlenmis arayuz uygulamadan servis ediliyor")

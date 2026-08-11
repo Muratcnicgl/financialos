@@ -65,7 +65,10 @@ def test_rls_yanlis_workspace_sifir_satir(rls_db):
     admin.dispose()
 
     # Non-superuser bağlan (RLS ona uygulanır)
-    app_url = str(make_url(rls_db).set(username=APP_ROL, password=APP_SIFRE))
+    # BUG #300: `str(url)` şifreyi `***` ile maskeler → rol şifresi kaybolur ve
+    # bağlantı "password authentication failed" alır.
+    app_url = make_url(rls_db).set(
+        username=APP_ROL, password=APP_SIFRE).render_as_string(hide_password=False)
     app_eng = create_engine(app_url)
 
     def raw_count(conn):
@@ -174,7 +177,10 @@ def test_superuser_force_rls_e_ragmen_bypass_eder(rls_db):
         su.dispose()
 
     # Aynı sorgu, provizyon edilmiş app rolüyle → RLS uygulanır.
-    app_url = str(make_url(rls_db).set(username=APP_ROL, password=APP_SIFRE))
+    # BUG #300: `str(url)` şifreyi `***` ile maskeler → rol şifresi kaybolur ve
+    # bağlantı "password authentication failed" alır.
+    app_url = make_url(rls_db).set(
+        username=APP_ROL, password=APP_SIFRE).render_as_string(hide_password=False)
     app_eng = create_engine(app_url)
     try:
         with app_eng.connect() as c:

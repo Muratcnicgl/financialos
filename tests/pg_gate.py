@@ -68,7 +68,12 @@ def fresh_pg_database(base_url: str, name: str) -> str:
     admin.dispose()
     # base_url'in veritabanı adını değiştir
     from sqlalchemy.engine import make_url
-    return str(make_url(base_url).set(database=name))
+    # BUG #300: burada `str(url)` vardı — SQLAlchemy'nin `URL.__str__()` şifreyi
+    # **maskeler** (`postgres:***@...`). Dönen URL ile kurulan her bağlantı
+    # "password authentication failed" alır. Yerelde görünmez, çünkü yerel `pgserver`
+    # `trust` kimlik doğrulamasıyla açılır ve şifreyi hiç sormaz; şifre isteyen her
+    # gerçek Postgres'te (CI servisi, prod) sessizce çöker.
+    return make_url(base_url).set(database=name).render_as_string(hide_password=False)
 
 
 def test_pg_gate_ortami():

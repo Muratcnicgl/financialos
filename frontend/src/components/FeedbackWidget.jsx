@@ -11,10 +11,14 @@ const KINDS = [
   { id: 'sikayet', label: 'Şikayet' },
   { id: 'istek', label: 'İstek' },
   { id: 'oneri', label: 'Öneri' },
+  // BUG #281 (B2): "kafa karıştırdı" hata da istek de değildir — KULLANILABİLİRLİK
+  // sinyalidir ve kapalı betanın en değerli çıktısıdır. Kullanıcı "bu bozuk mu, ben mi
+  // anlamadım" ikilemine düştüğünde başka kutuya sığmaz ve hiç yazmaz.
+  { id: 'kafa_karistirdi', label: 'Kafa karıştırdı' },
 ];
 
-export default function FeedbackWidget({ page }) {
-  const [open, setOpen] = useState(false);
+export default function FeedbackWidget({ page, istekId = null, acik = false, onKapat = null }) {
+  const [open, setOpen] = useState(acik);
   const [kind, setKind] = useState('oneri');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,6 +30,7 @@ export default function FeedbackWidget({ page }) {
   }
   function close() {
     setOpen(false);
+    if (onKapat) onKapat();
     setTimeout(reset, 200);
   }
 
@@ -34,7 +39,7 @@ export default function FeedbackWidget({ page }) {
     if (!message.trim() || busy) return;
     setBusy(true); setError('');
     try {
-      await feedbackApi.create(kind, message.trim(), page);
+      await feedbackApi.create(kind, message.trim(), page, istekId);
       setSent(true);
     } catch (err) {
       setError(err?.message || 'Gönderilemedi, tekrar dene.');
@@ -108,6 +113,17 @@ export default function FeedbackWidget({ page }) {
                     </button>
                   ))}
                 </div>
+
+                {istekId && (
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2"
+                     data-testid="feedback-istek-id">
+                    Hata kodu{' '}
+                    <code className="font-mono font-semibold text-zinc-700 dark:text-zinc-200">
+                      {istekId}
+                    </code>{' '}
+                    bu bildirime eklenecek.
+                  </p>
+                )}
 
                 <textarea
                   value={message}

@@ -45,6 +45,20 @@ def _yazdir_geri_bildirim(db, tumu: bool) -> int:
         kim = _mask(u.email) if (u and u.email) else f"user#{f.user_id}"
         etiket = _KIND_ETIKET.get(f.kind, f.kind.upper())
         print(f"\n[#{f.id}] {etiket} · {kim} · {f.created_at:%Y-%m-%d %H:%M} · {f.status}")
+        # BUG #281 (B2): TEŞHİS satırı. Bu satır olmadan geri bildirim "bir şeyler oldu"dan
+        # ibarettir: hangi sürüm koştuğu, hangi ekranda olduğu, telefon mu masaüstü mü ve
+        # en önemlisi HANGİ İSTEK — kullanıcının okuduğu kod. Kod varsa aynı kod log'da
+        # ve `error_logs.last_istek_id`'de aranabilir (BUG #280 zinciri).
+        teshis = [p for p in (
+            f"sürüm={f.app_version}" if f.app_version else None,
+            f"ekran={f.page}" if f.page else None,
+            f"kod={f.istek_id}" if f.istek_id else None,
+            f"{f.tarayici}" if f.tarayici else None,
+            f"{f.viewport_w}px" if f.viewport_w else None,
+            "PWA" if f.pwa else None,
+        ) if p]
+        if teshis:
+            print("    · " + " · ".join(teshis))
         print(f"    {f.message.strip()[:400]}")
     if not kayitlar:
         print("  (yeni geri bildirim yok)")

@@ -25,6 +25,9 @@
  *   4) Konsol hatasi YOK.
  */
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 const API = 'http://localhost:8000';
 let token;
@@ -141,6 +144,20 @@ const OLC = () => {
   };
 };
 
+// KAPSAM TABANI (L11/H25): panel listesi App.jsx'in TABS'inden TURETILEN gercek sekme
+// kumesiyle ayni buyuklukte olmali. Yeni bir sekme eklenip bu listeye yazilmazsa kapi
+// onu hic ziyaret etmez ve "temiz" der — kapsamsiz kapi olu kapidir.
+test('kapsam tabani: panel listesi App.jsx TABS ile ayni buyuklukte', () => {
+  const kok = dirname(fileURLToPath(import.meta.url));
+  const kaynak = readFileSync(join(kok, '..', 'src', 'App.jsx'), 'utf8');
+  const blok = kaynak.slice(kaynak.indexOf('const TABS = ['), kaynak.indexOf('];', kaynak.indexOf('const TABS = [')));
+  const idler = [...blok.matchAll(/id:\s*'([a-z]+)'/g)].map((m) => m[1]);
+  expect(idler.length, 'App.jsx TABS okunamadi').toBeGreaterThan(0);
+  expect(PANELLER.length,
+    `App.jsx'te ${idler.length} sekme var, kapi ${PANELLER.length} panel geziyor: ${idler.join(', ')}`,
+  ).toBe(idler.length);
+});
+
 for (const tema of ['dark', 'light']) {
   test(`390px / ${tema} tema: kontrast + tasma + dokunma hedefi + konsol`, async ({ page }) => {
     const konsol = [];
@@ -164,6 +181,15 @@ for (const tema of ['dark', 'light']) {
       if (r.tasma > 1) ihlaller.push(`[${ad}/${tema}] YATAY TASMA ${r.tasma}px → ${r.tasanlar.join(' ; ')}`);
       for (const k of r.kucuk) ihlaller.push(`[${ad}/${tema}] DOKUNMA HEDEFI <44px → ${k}`);
       for (const k of r.dusukKontrast) ihlaller.push(`[${ad}/${tema}] KONTRAST <3:1 → ${k}`);
+
+      // BUG #281 (B2): geri bildirim dugmesi HER ANA ROTADA erisilebilir olmali.
+      // Statik "App.jsx'te bir kez render ediliyor" tespiti YETMEZ (L29): bir panel
+      // tam-ekran bir katman acsa ya da z-index/overflow dugmeyi gizlese kimse gormez.
+      // Olculen sey GORUNURLUK ve TIKLANABILIRLIK.
+      const gb = page.getByRole('button', { name: /Geri [Bb]ildirim/ }).first();
+      if (!(await gb.isVisible().catch(() => false))) {
+        ihlaller.push(`[${ad}/${tema}] GERI BILDIRIM DUGMESI GORUNMUYOR`);
+      }
     }
 
     expect(ihlaller, `\n${ihlaller.join('\n')}\n`).toEqual([]);

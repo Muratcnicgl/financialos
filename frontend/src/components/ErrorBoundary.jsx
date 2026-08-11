@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, MessageSquarePlus } from 'lucide-react';
+import FeedbackWidget from './FeedbackWidget.jsx';
 
 /**
  * FE-003: Global hata sınırı. Bir panel render sırasında çökerse (ör. beklenmedik veri
@@ -18,7 +19,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, bildirimAcik: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -60,13 +61,34 @@ export default class ErrorBoundary extends Component {
               </code>
             </p>
           )}
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            className="btn btn-secondary !text-xs mx-auto"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Yeniden dene
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="btn btn-secondary !text-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Yeniden dene
+            </button>
+            {/* BUG #281 (B2): hatadan geri bildirime TEK TIK. Kullanıcı hatayı gördüğü
+                anda bildirebilmeli; "sonra widget'ı bul" demek pratikte bildirmemektir —
+                ve kod da o an ekranda, sonra kaybolur. */}
+            <button
+              onClick={() => this.setState({ bildirimAcik: true })}
+              className="btn btn-secondary !text-xs"
+              data-testid="hatadan-bildir"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5" />
+              Bunu bildir
+            </button>
+          </div>
+          {this.state.bildirimAcik && (
+            <FeedbackWidget
+              page="hata"
+              istekId={this.state.error?.istekId || null}
+              acik
+              onKapat={() => this.setState({ bildirimAcik: false })}
+            />
+          )}
         </div>
       );
     }

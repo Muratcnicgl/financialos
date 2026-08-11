@@ -1218,8 +1218,16 @@ class Feedback(Base):
     id = Column(Integer, primary_key=True)  # PK zaten indeksli; ayrı ix_feedback_id gereksiz (dual-index kaçın)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # kim gönderdi
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
-    kind = Column(String(20), nullable=False)      # sikayet | istek | oneri (Pydantic doğrular)
+    kind = Column(String(20), nullable=False)      # sikayet | istek | oneri | kafa_karistirdi
     message = Column(Text, nullable=False)
     page = Column(String(80), nullable=True)       # hangi ekrandan gönderildi (opsiyonel bağlam)
     status = Column(String(20), nullable=False, default="new")  # new | reviewed
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # BUG #281 (B2): TEŞHİS alanları — sabit küme, fazlası girmez (gizlilik sınırı).
+    # Teşhis edilemeyen geri bildirim gürültüdür; bu beş alan "hangi kod koşuyordu ve
+    # o an ne patladı" sorusunu cevaplar.
+    app_version = Column(String(40), nullable=True)   # SUNUCUDAN türetilir (app/version.py)
+    istek_id = Column(String(64), nullable=True)      # korelasyon kimliği (BUG #280)
+    viewport_w = Column(Integer, nullable=True)       # ekran genişliği (L29'un veri tarafı)
+    tarayici = Column(String(40), nullable=True)      # UA'dan türetilen kısa aile adı (ham UA saklanmaz)
+    pwa = Column(Boolean, nullable=True)              # ana ekrana eklenmiş uygulamadan mı

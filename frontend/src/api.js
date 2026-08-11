@@ -221,9 +221,27 @@ export const cockpitApi = {
 };
 
 // FEAT-033: uygulama-içi geri bildirim (Şikayet/İstek/Öneri)
+// BUG #281 (B2): teshis alanlari. Surum SUNUCUDA turetilir (istemcinin beyani degil);
+// buradan yalniz istemcinin BILDIGI seyler gider: kullanicinin gordugu korelasyon
+// kimligi, ekran genisligi ve PWA olarak mi acik. Tarayici SUNUCUDA User-Agent'tan
+// turetilir — ham UA saklanmaz (parmak izi yuzeyi). Bu kume SABITTIR; genisletmek
+// gizlilik kapisindan gecer (tests/test_geri_bildirim_teshis_kapisi.py).
+export function istemciBaglami() {
+  const pwa = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(display-mode: standalone)').matches || window.navigator?.standalone === true
+    : false;
+  return {
+    viewport_w: typeof window !== 'undefined' ? window.innerWidth : null,
+    pwa: !!pwa,
+  };
+}
+
 export const feedbackApi = {
-  create: (kind, message, page) =>
-    request('/api/feedback', { method: 'POST', body: { kind, message, page } }),
+  create: (kind, message, page, istekId = null) =>
+    request('/api/feedback', {
+      method: 'POST',
+      body: { kind, message, page, istek_id: istekId, ...istemciBaglami() },
+    }),
   list: () => request('/api/feedback'),
 };
 

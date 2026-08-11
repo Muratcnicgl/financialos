@@ -11,6 +11,28 @@ başlatmada değişir ve telefona kurulmuş PWA'yı kırar.
 
 ---
 
+## 0.0 ⚠️ ÖNCE nginx TÜNEL ŞABLONUNA GEÇ (BUG #283 — bu adım atlanırsa uygulama AÇILMAZ)
+
+Bu runbook'un ilk hâlinde bu adım **yoktu** ve `service: http://localhost:80` yazıyordu.
+Ölçünce hata çıktı: varsayılan `deploy/nginx.conf.template` :80'i **koşulsuz**
+`return 301 https://…` ile yönlendirir. Tünelde TLS **dışarıda** sonlanır ve nginx'e düz
+HTTP gelir → zaten HTTPS olan istek tekrar HTTPS'e yönlendirilir → **sonsuz döngü**.
+
+`deploy/nginx.tunnel.conf.template` bunun içindir: yönlendirmez, TLS sonlandırmaz,
+`X-Forwarded-Proto: https` sabitler (aksi hâlde uygulama isteği HTTP sanar ve HSTS'i
+atlar), güvenlik başlıklarını **aynen** taşır. Kapı:
+`tests/security/test_guvenlik_basliklari.py` (üç yeni test: 301 yok · TLS yok · iki şablon
+aynı başlık kümesi).
+
+```powershell
+# compose'da `web` servisinin sablonunu tunel surumune cevir, sonra:
+docker compose -f docker-compose.prod.yml up -d
+curl.exe -s -o NUL -w "%{http_code}`n" http://localhost/api/ready
+# BEKLENEN: 200   ← 301 gorursen tunel sablonuna gecilmemis demektir
+```
+
+---
+
 ## 0. Ön kontrol (kurulumdan ÖNCE)
 
 ```powershell
@@ -135,6 +157,12 @@ curl.exe -s https://<ALAN-ADI>/api/meta | ConvertFrom-Json | Select-Object surum
 
 curl.exe -s -D - -o NUL https://<ALAN-ADI>/api/health | Select-String -Pattern "strict-transport|x-frame|x-request-id"
 # BEKLENEN: uc baslik da var (HSTS + X-Frame-Options + X-Request-Id)
+```
+
+```powershell
+# Yonlendirme dongusu KONTROLU (en sik hata — BUG #283):
+curl.exe -s -o NUL -w "%{num_redirects}`n" -L https://<ALAN-ADI>/
+# BEKLENEN: 0 veya 1. Yuksek sayi → nginx tunel sablonuna gecilmemis (§0.0)
 ```
 
 **Sonra servis olarak kur** (makine açıldığında kendiliğinden başlasın):

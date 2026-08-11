@@ -1,0 +1,70 @@
+# FinancialOS nginx — TÜNEL MODU (BUG #283 / B4)
+#
+# NEDEN AYRI BİR ŞABLON VAR:
+# `nginx.conf.template` (VPS modu) :80'i **koşulsuz** `return 301 https://...` ile
+# yönlendirir ve TLS'i kendisi sonlandırır. Bu, sertifikanın BİZDE olduğu kurulum için
+# doğrudur. Ama tünel yollarında (Cloudflare Tunnel / Tailscale Funnel) TLS **dışarıda**
+# sonlanır ve bize düz HTTP gelir → o 301, tünelin zaten HTTPS olan isteğini tekrar
+# HTTPS'e yönlendirir ve tarayıcı **SONSUZ YÖNLENDİRME DÖNGÜSÜNE** girer.
+#
+# Bu şablon tünel arkasında koşmak içindir:
+#   - :80 dinler, YÖNLENDİRMEZ, uygulamayı doğrudan servis eder
+#   - TLS/sertifika yoktur (dış katman hallediyor) → certbot gerekmez
+#   - `X-Forwarded-Proto` **sabit `https`** yazılır: dış hop gerçekten HTTPS'tir; `$scheme`
+#     yazılsaydı uygulama isteği HTTP sanır, HSTS'i atlar ve `secure` çerez mantığı bozulur
+#   - Güvenlik başlıkları AYNEN korunur (H22: koruma tek katmanda yaşamaz — uygulama
+#     katmanı da yayıyor, BUG #259)
+#
+# KULLANIM: compose'da `web` servisinin şablonunu bununla değiştir (SUNUCU_MODU=tunnel).
+# ${DOMAIN} yine env'den gelir; tünel adı da bir alan adıdır (ör. `x.y.ts.net`).
+
+limit_req_zone $binary_remote_addr zone=fos_auth_tunnel:10m rate=10r/m;
+limit_req_status 429;
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    client_max_body_size 1m;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+    gzip_min_length 512;
+
+    # BUG #182 (P2): kimlik uçları nginx katmanında da sınırlanır.
+    # DİKKAT: tünel arkasında $remote_addr TÜNELİN adresidir, gerçek istemcinin değil →
+    # bu bölge pratikte TÜM trafiği tek kovada sayar. Bu bilinçlidir ve kabul edilebilir:
+    # kaba sel saldırısını yine keser, ince ayrım zaten uygulama katmanındadır (kullanıcı/
+    # e-posta bazlı). Gerçek IP gerekiyorsa tünel PROXY protokolüyle kurulmalıdır.
+    location /api/auth/ {
+        limit_req zone=fos_auth_tunnel burst=20 nodelay;
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;   # dış hop HTTPS — $scheme DEĞİL
+        proxy_read_timeout 60s;
+    }
+
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 60s;
+    }
+
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Güvenlik başlıkları — VPS modundakiyle AYNI küme (testle kilitli, BUG #259).
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
+    server_tokens off;
+}

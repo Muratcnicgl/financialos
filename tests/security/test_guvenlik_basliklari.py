@@ -100,3 +100,66 @@ def test_nginx_ve_uygulama_ayni_baslik_kumesini_taşiyor():
              if b not in uygulama and b.lower() not in {"x-robots-tag", "cache-control"}}
     assert not eksik, f"nginx'te olup uygulamada olmayan güvenlik başlığı: {sorted(eksik)}"
     assert len(nginx_basliklar) >= 4, "nginx şablonu taraması çökmüş olabilir (kapsam tabanı)"
+
+
+def test_tunel_sablonu_YONLENDIRME_yapmaz():
+    """BUG #283 (B4): tünel arkasında `return 301 https://...` SONSUZ DÖNGÜ üretir.
+
+    Tünel yollarında (Cloudflare Tunnel / Tailscale Funnel) TLS DIŞARIDA sonlanır ve
+    nginx'e düz HTTP gelir. VPS şablonundaki koşulsuz 301, zaten HTTPS olan bir isteği
+    tekrar HTTPS'e yönlendirir → tarayıcı döngüye girer ve uygulama HİÇ açılmaz.
+
+    Bu defekt ilk yazdığım Cloudflare runbook'unda vardı (`service: http://localhost:80`)
+    ve ancak nginx şablonu okunduğunda görüldü — belge doğru görünüyordu, kod hayır.
+    """
+    from pathlib import Path
+
+    kok = Path(__file__).resolve().parent.parent.parent
+    tunel = kok / "deploy" / "nginx.tunnel.conf.template"
+    assert tunel.exists(), "Tünel şablonu yok — tünel modu deploy edilemez"
+
+    metin = tunel.read_text(encoding="utf-8")
+    kod = "\n".join(s for s in metin.splitlines() if not s.strip().startswith("#"))
+    assert "return 301" not in kod, (
+        "Tünel şablonunda 301 yönlendirme var — tünel arkasında sonsuz döngü üretir"
+    )
+    assert "listen 443 ssl" not in kod, (
+        "Tünel şablonu TLS sonlandırıyor — sertifika dış katmanda, burada olmamalı"
+    )
+
+
+def test_tunel_sablonu_X_Forwarded_Proto_HTTPS_sabitler():
+    """Dış hop gerçekten HTTPS'tir; `$scheme` yazılırsa uygulama isteği HTTP sanır.
+
+    Sonucu sessizdir ve ikilidir: HSTS gönderilmez ve `secure` çerez mantığı yanlış
+    tarafa düşer. Sabit `https` yazmak burada doğru olandır — TLS'i dış katman garanti eder.
+    """
+    from pathlib import Path
+
+    kok = Path(__file__).resolve().parent.parent.parent
+    metin = (kok / "deploy" / "nginx.tunnel.conf.template").read_text(encoding="utf-8")
+    kod = "\n".join(s for s in metin.splitlines() if not s.strip().startswith("#"))
+    assert "proxy_set_header X-Forwarded-Proto https;" in kod
+    assert "X-Forwarded-Proto $scheme" not in kod, (
+        "Tünel şablonu $scheme kullanıyor — düz HTTP geldiği için 'http' yazar"
+    )
+
+
+def test_iki_nginx_sablonu_AYNI_baslik_kumesini_tasir():
+    """VPS ve tünel şablonları ayrışmamalı: birinde sertleştirme yapılıp diğeri unutulursa
+    hangi modda koştuğuna göre güvenlik seviyesi DEĞİŞİR — ve bunu kimse fark etmez."""
+    import re
+    from pathlib import Path
+
+    kok = Path(__file__).resolve().parent.parent.parent / "deploy"
+
+    def basliklar(dosya: str) -> set[str]:
+        return {m.group(1) for m in re.finditer(
+            r'add_header\s+([A-Za-z\-]+)\s', (kok / dosya).read_text(encoding="utf-8"))}
+
+    vps = basliklar("nginx.conf.template")
+    tunel = basliklar("nginx.tunnel.conf.template")
+    assert vps == tunel, (
+        f"İki nginx şablonu ayrışmış.\n  Yalnız VPS'te: {sorted(vps - tunel)}\n"
+        f"  Yalnız tünelde: {sorted(tunel - vps)}"
+    )

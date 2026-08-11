@@ -28,8 +28,11 @@ def _auth_env(monkeypatch):
     """
     monkeypatch.setenv("SECRET_KEY", "test-secret-key-do-not-use-in-prod-0123456789")
     monkeypatch.setenv("AUTH_ENABLED", "1")
-    monkeypatch.setenv("AUTH_RATE_MAX", "5")
-    monkeypatch.setenv("AUTH_RATE_WINDOW", "60")
+    # BUG #297: burada `AUTH_RATE_MAX` yazıyordu — kod o adı HİÇ okumuyor.
+    # Test yine de geçiyordu çünkü varsayılan tavan da tesadüfen 5'ti: doğru
+    # sonuç, yanlış sebeple. Gerçek ad `app/rate_limit.py`'nin ürettiği biçim.
+    monkeypatch.setenv("RATE_LIMIT_LOGIN_MAX", "5")
+    monkeypatch.setenv("RATE_LIMIT_LOGIN_WINDOW", "60")
 
 
 @pytest.fixture
@@ -186,7 +189,7 @@ def test_kvkk_export_veri_doner(client):
 
 def test_rate_limit_login(client):
     _register(client)
-    # AUTH_RATE_MAX=5 → 5 login sonrası 6. istek 429
+    # RATE_LIMIT_LOGIN_MAX=5 → 5 login sonrası 6. istek 429
     for _ in range(5):
         client.post("/api/auth/login", json={"email": "a@x.com", "password": "yanlis"})
     r = client.post("/api/auth/login", json={"email": "a@x.com", "password": "Kirmizi-Fener-2026"})

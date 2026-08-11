@@ -169,7 +169,7 @@ def test_yalniz_eposta_bekler_digerleri_ANINDA_reddeder():
 @pytest.fixture
 def smtp_yapilandirildi(monkeypatch):
     for ad, deger in (("SMTP_HOST", "smtp.test"), ("SMTP_PORT", "587"),
-                      ("SMTP_USER", "u"), ("SMTP_PASSWORD", "p"),
+                      ("SMTP_USER", "u"), ("SMTP_PASS", "p"),
                       ("SMTP_FROM", "no-reply@test")):
         monkeypatch.setenv(ad, deger)
 

@@ -31,7 +31,7 @@ def _env(monkeypatch):
     monkeypatch.setenv("REGISTRATION_MODE", "open")     # açık beta senaryosu
     monkeypatch.setenv("REQUIRE_EMAIL_VERIFICATION", "1")  # açık beta = doğrulama açık
     monkeypatch.delenv("ENVIRONMENT", raising=False)
-    for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"):
+    for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"):
         monkeypatch.delenv(k, raising=False)
     from app import rate_limit
     rate_limit.reset()

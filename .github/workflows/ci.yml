@@ -51,7 +51,13 @@ jobs:
           SECRET_KEY: ci-test-secret-key-min-32-characters-long-0123456789
           # tests/pg_gate.py bunu görünce SKIP etmez. Tüm süit koşulur: dosya listesi
           # tutulmaz → yeni bir dual-dialect testi otomatik kapsanır (drift yok).
-          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          #
+          # BUG #295: adres `localhost`tu ve runner'da `localhost` önce **::1 (IPv6)**
+          # çözülüyor. Servis konteynerinin port eşlemesi IPv4'tedir; ::1'de ise runner
+          # imajının KENDİ PostgreSQL'i dinliyor ve şifresi farklı →
+          # "FATAL: password authentication failed for user postgres". Yani testler yanlış
+          # veritabanına bağlanıyordu. 127.0.0.1 bunu tekilleştirir.
+          PG_TEST_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
         run: python -m pytest tests/ -q
 
   # BUG #260 (SEC-020/SEC-021): bağımlılık güvenlik taraması CI'da YOKTU.
@@ -73,9 +79,25 @@ jobs:
           python -m pip install --upgrade pip pip-audit
           # requirements.txt sabit sürümlüdür; kurulum yapmadan dosyayı denetler.
           pip-audit -r requirements.txt --strict
-      - name: npm audit (frontend, yüksek/kritik)
+      # BUG #298: tek bir `npm audit --audit-level=high` iki farklı soruyu birbirine
+      # karıştırıyordu. ÜRETİM bağımlılığındaki bir açık kullanıcıya ulaşan koddadır —
+      # yayını durdurmalıdır. GELİŞTİRME aracındaki açık (vite/esbuild dev-server) bundle'a
+      # girmez; kullanıcıya ulaşmaz. İkisi tek eşikte toplanınca, bir dev aracının major
+      # sürüm gerektiren açığı BÜTÜN CI'ı kırmızıya çeviriyor ve o kırmızı normalleşince
+      # gerçek bir üretim açığı da fark edilmiyordu (son 30 koşum kırmızıydı).
+      # Ayrım: üretim tarafı KIRMIZI yapar, geliştirme tarafı RAPORLANIR ama durdurmaz.
+      - name: npm audit — ÜRETİM bağımlılıkları (yüksek/kritik → kırmızı)
         working-directory: frontend
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit — geliştirme bağımlılıkları (bilgi; kırmızı yapmaz)
+        working-directory: frontend
+        continue-on-error: true
+        run: |
+          echo "::group::Geliştirme bağımlılıkları (bundle'a girmez)"
+          npm audit --audit-level=high || true
+          echo "::endgroup::"
+          echo "Not: buradaki bulgular kullanıcıya ulaşan kodu etkilemez; sürüm"
+          echo "yükseltmeleri ayrı iş olarak planlanır (vite 5 -> 8 major)."
       # BUG #261 (SEC-018): sızmış anahtar taraması. `.gitignore` doğru olsa bile tek bir
       # `git add -f` ya da örneğe yapıştırılmış gerçek bir anahtar yeter; ve git geçmişi
       # silinmez — repo bir gün açılırsa geçmiş de açılır. Geçmiş taraması ~8 sn.

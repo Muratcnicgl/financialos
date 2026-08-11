@@ -595,11 +595,29 @@ def get_usage(
     """
     Bugunku LLM cagri sayisi + limit yuzdesi. Cockpit panel'i ust kosesinde
     'API kullanim: %42' rozetini bundan cekecek.
+
+    BUG #296 fix: bu uc SAGLAYICI KURMADAN cevaplanabilmeli. Kullanim sayisi tamamen
+    DB'den (api_call_log) gelir; saglayici yalnizca ETIKET icin lazimdir. Oysa
+    `_get_engine()` gercek bir saglayici kurmaya calisiyor ve API anahtari yoksa
+    `ValueError: GEMINI_API_KEY bulunamadi` firlatiyordu -> uc 500 veriyor, Cockpit
+    rozeti cokuyordu. Anahtari olmayan bir kurulum (yeni klon, self-host, CI) paneli
+    hic acamiyordu. Olcum: CI'da `test_sifirdan_kullanici_e2e` tam bu yuzden kirmiziydi.
+
+    Saglayici kurulamiyorsa etiket yapilandirmadan (LLM_PROVIDER) turetilir; kullanim
+    sayilari yine dogru doner ve panel calisir. Kocun KENDISI zaten anahtar isteyecektir
+    — ama bu, kullanim rozetinin olecegi anlamina gelmez.
     """
-    engine = _get_engine()
-    # BUG #234: etiket calisma-ani durumundan degil yapilandirmadan turetilir — `provider_name`
-    # ilk basarili cagridan sonra "Fallback(Gemini)" doner, o etiket PROVIDER_DAILY_LIMITS'te
-    # yoktur ve rozet sessizce %0'a duserdi (BUG #212 ile ayni sinif).
-    provider_name = _muhasebe_saglayici_adi(engine)
-    return _build_usage_info(db, user.id, provider_name,
-                             alternatif_var=_alternatif_saglayici_var(engine))
+    try:
+        engine = _get_engine()
+        # BUG #234: etiket calisma-ani durumundan degil yapilandirmadan turetilir — `provider_name`
+        # ilk basarili cagridan sonra "Fallback(Gemini)" doner, o etiket PROVIDER_DAILY_LIMITS'te
+        # yoktur ve rozet sessizce %0'a duserdi (BUG #212 ile ayni sinif).
+        provider_name = _muhasebe_saglayici_adi(engine)
+        alternatif = _alternatif_saglayici_var(engine)
+    except Exception:
+        # BUG #175: ic hata metni disari sizmaz; teshis log'a duser.
+        logger.warning("saglayici kurulamadi — kullanim rozeti yapilandirma etiketiyle "
+                       "dondurulyor", exc_info=True)
+        provider_name = (os.getenv("LLM_PROVIDER", "") or "yapilandirilmamis").strip().lower()
+        alternatif = provider_name == "fallback"
+    return _build_usage_info(db, user.id, provider_name, alternatif_var=alternatif)

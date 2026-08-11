@@ -31,7 +31,7 @@ def _env(monkeypatch):
     monkeypatch.setenv("AUTH_ENABLED", "true")
     monkeypatch.delenv("ENVIRONMENT", raising=False)
     # SMTP tanımsız → dev-token dalı (sıfırlama akışını token'sız sınayamayız)
-    for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PASS", "SMTP_FROM"):
+    for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"):
         monkeypatch.delenv(k, raising=False)
     from app import rate_limit
     rate_limit.reset()

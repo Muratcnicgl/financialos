@@ -25,6 +25,11 @@ import Goals from './panels/Goals.jsx';
 import Budget from './panels/Budget.jsx';
 import Hesap from './panels/Hesap.jsx';  // P4.4 (BUG #215/#216): KVKK haklari arayuzde
 import FeedbackWidget from './components/FeedbackWidget.jsx';  // FEAT-033
+// Öğretici sistem: içerik `lib/ogretici.js`'te tek kaynak, bu üç bileşen yalnız çizer.
+import Ipucu from './components/Ipucu.jsx';
+import OgreticiSihirbaz from './components/OgreticiSihirbaz.jsx';
+import YardimKosesi from './components/YardimKosesi.jsx';
+import { onboardingApi } from './api.js';
 
 const TABS = [
   { id: 'cockpit',     label: 'Cockpit',         icon: Activity      },
@@ -208,12 +213,36 @@ function AppContent({ onLogout }) {
   const { status, usagePct } = useBackendHealth();
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [showSihirbaz, setShowSihirbaz] = useState(false);
+  // Geri bildirim kutusunu dışarıdan açmak için: key değişimi widget'ı `acik` başlatır.
+  const [gbAcSayaci, setGbAcSayaci] = useState(0);
 
   useKeyboardShortcuts({
     setActiveTab,
     onHelp: () => setShowHelp(h => !h),
     onPalette: () => setShowPalette(p => !p),
   });
+
+  // Sihirbaz İLK girişte bir kez kendiliğinden açılır: yalnız hiçbir adım tamamlanmamışsa
+  // ve kullanıcı rehberi daha önce kapatmamışsa. Sonraki açılışlarda çıkmaz — davet
+  // edilmemiş bir modal, ikinci gösterimde engeldir. Yardım köşesinden her an açılır.
+  useEffect(() => {
+    let iptal = false;
+    const OTOMATIK_ANAHTAR = 'sihirbaz_otomatik_acildi';
+    try {
+      if (localStorage.getItem(OTOMATIK_ANAHTAR) === '1') return undefined;
+    } catch { /* depolama yoksa yine de bir kez göster */ }
+
+    onboardingApi.rehber()
+      .then((r) => {
+        if (iptal || !r?.gorunur || (r.tamamlanan ?? 0) > 0) return;
+        setShowSihirbaz(true);
+        try { localStorage.setItem(OTOMATIK_ANAHTAR, '1'); } catch { /* önemsiz */ }
+      })
+      .catch(() => { /* rehber okunamadıysa sihirbaz zorlanmaz */ });
+
+    return () => { iptal = true; };
+  }, []);
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -318,6 +347,10 @@ function AppContent({ onLogout }) {
         }`}>
           {/* FE-003: her panel hata sınırıyla sarılı — biri çökerse tüm uygulama beyaz ekrana
               düşmesin. resetKey=activeTab → sekme değişince sınır sıfırlanır. */}
+          {/* Panel içi öğretici şerit — ne işe yarar + nasıl kullanılır + örnek.
+              İçerik `lib/ogretici.js`, kapatınca hatırlanır, yardım köşesinden geri gelir. */}
+          <Ipucu sekme={activeTab} />
+
           <ErrorBoundary resetKey={activeTab}>
             {activeTab === 'cockpit' && <Cockpit setActiveTab={setActiveTab} />}
             {activeTab === 'coach' && <Coach />}
@@ -354,8 +387,24 @@ function AppContent({ onLogout }) {
         <HelpModal onClose={() => setShowHelp(false)} />
       )}
 
-      {/* FEAT-033: her ekranda geri bildirim (aktif sekme bağlam olarak geçer) */}
-      <FeedbackWidget page={activeTab} />
+      {showSihirbaz && (
+        <OgreticiSihirbaz
+          onKapat={() => setShowSihirbaz(false)}
+          setActiveTab={setActiveTab}
+        />
+      )}
+
+      {/* Her panelde duran yardım düğmesi: bu ekran ne işe yarar + sihirbazı yeniden başlat */}
+      <YardimKosesi
+        sekme={activeTab}
+        onSihirbaz={() => setShowSihirbaz(true)}
+        onKisayollar={() => setShowHelp(true)}
+        onGeriBildirim={() => setGbAcSayaci((n) => n + 1)}
+      />
+
+      {/* FEAT-033: her ekranda geri bildirim (aktif sekme bağlam olarak geçer).
+          key: yardım köşesinden "Sorun bildir" seçilince widget açık başlar. */}
+      <FeedbackWidget key={gbAcSayaci} page={activeTab} acik={gbAcSayaci > 0} />
     </div>
   );
 }

@@ -13,6 +13,8 @@ import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import Onboarding from '../components/Onboarding.jsx';  // H20: ilk kullanım rehberi + demo veri
+// Sadeleştirme: ikincil bölümler katlanır — özet başlıkta kalır, bilgi eksilmez.
+import KatlanirBolum from '../components/KatlanirBolum.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
@@ -593,11 +595,15 @@ export default function Cockpit({ setActiveTab }) {
 
       {/* Yatırım K/Z */}
       {investmentPnl && (
-        <div className="card p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-            <h3 className="font-semibold">Yatırım Kâr/Zarar</h3>
-          </div>
+        /* Sadeleştirme: dört alt-kalem katlanır ama SONUÇ (brüt kâr + getiri) özet
+           olarak başlıkta kalır — kullanıcı açmadan da kârda mı zararda mı bilir. */
+        <KatlanirBolum
+          ikon={TrendingUp}
+          baslik="Yatırım Kâr/Zarar"
+          anahtar="cockpit_yatirim_kz"
+          ozet={`${investmentPnl.brut_kar > 0 ? '+' : ''}${formatPara(investmentPnl.brut_kar)}`
+                + ` · ${formatPercent(investmentPnl.getiri_yuzde)}`}
+        >
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Toplam maliyet</p>
@@ -621,7 +627,7 @@ export default function Cockpit({ setActiveTab }) {
               </p>
             </div>
           </div>
-        </div>
+        </KatlanirBolum>
       )}
 
       {/* Akış Özeti — cashflow forecast özeti (30 gün) */}
@@ -717,11 +723,17 @@ export default function Cockpit({ setActiveTab }) {
       {/* Takvim 2 sütun */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {data.upcoming_payments?.length > 0 && (
-          <div className="card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-              <h3 className="font-semibold text-sm">Yaklaşan ödemeler</h3>
-            </div>
+          /* Sadeleştirme: 60 günlük ödeme takvimi PLANLAMA bilgisidir, acil değil —
+             katlı gelir. Özet başlıkta kaldığı için bilgi eksilmez (kalem sayısı +
+             toplam net etki görünür). */
+          <KatlanirBolum
+            ikon={Calendar}
+            baslik="Yaklaşan ödemeler"
+            anahtar="cockpit_odemeler"
+            ozet={`${data.upcoming_payments.length} kalem · ${formatPara(
+              data.upcoming_payments.reduce(
+                (t, p) => t + (p.tip === 'gelir' ? Number(p.tutar) : -Number(p.tutar)), 0))}`}
+          >
             <div className="space-y-2">
               {data.upcoming_payments.map((p, i) => (
                 <div
@@ -752,15 +764,17 @@ export default function Cockpit({ setActiveTab }) {
                 </div>
               ))}
             </div>
-          </div>
+          </KatlanirBolum>
         )}
 
         {data.upcoming_receivables?.length > 0 && (
-          <div className="card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-              <h3 className="font-semibold text-sm">Yaklaşan tahsilatlar</h3>
-            </div>
+          <KatlanirBolum
+            ikon={Users}
+            baslik="Yaklaşan tahsilatlar"
+            anahtar="cockpit_tahsilatlar"
+            ozet={`${data.upcoming_receivables.length} kalem · +${formatPara(
+              data.upcoming_receivables.reduce((t, r) => t + Number(r.tutar), 0))}`}
+          >
             <div className="space-y-2">
               {data.upcoming_receivables.map((r, i) => (
                 <div
@@ -782,22 +796,24 @@ export default function Cockpit({ setActiveTab }) {
                 </div>
               ))}
             </div>
-          </div>
+          </KatlanirBolum>
         )}
       </div>
 
       {/* Fiyat tazeliği */}
       {data.price_freshness?.items?.length > 0 && (
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-            <h3 className="font-semibold text-sm">Fiyat tazeliği</h3>
-            {data.price_freshness.stale_count > 0 && (
-              <span className="chip chip-warn text-[10px]">
-                {data.price_freshness.stale_count} eski
-              </span>
-            )}
-          </div>
+        /* Sadeleştirme: operasyonel bir liste — normalde katlı. AMA bayat fiyat varsa
+           `vurgu` rozeti katlıyken de görünür (BUG #239 sınıfı: tazelik sessizce
+           kaybolmamalı) ve bölüm kendiliğinden açık gelir. */
+        <KatlanirBolum
+          ikon={Clock}
+          baslik="Fiyat tazeliği"
+          anahtar="cockpit_fiyat_tazeligi"
+          varsayilanAcik={data.price_freshness.stale_count > 0}
+          vurgu={data.price_freshness.stale_count > 0
+            ? `${data.price_freshness.stale_count} eski` : null}
+          ozet={`${data.price_freshness.items.length} yatırım hesabı`}
+        >
           <div className="space-y-1.5">
             {data.price_freshness.items.map((item) => (
               <div key={item.account_id} className="flex items-center justify-between text-xs">
@@ -819,7 +835,7 @@ export default function Cockpit({ setActiveTab }) {
               </div>
             ))}
           </div>
-        </div>
+        </KatlanirBolum>
       )}
 
       {/* Manuel fiyat güncelleme modal */}

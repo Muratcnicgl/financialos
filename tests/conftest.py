@@ -40,9 +40,49 @@ for _anahtar, _deger in TEST_ENV_SABITLERI.items():
     os.environ[_anahtar] = _deger
 os.environ.pop("SPA_DIST", None)
 
-DAVRANIS_DEGISTIREN_ENV = tuple(TEST_ENV_SABITLERI) + ("SPA_DIST",)
+DAVRANIS_DEGISTIREN_ENV = tuple(TEST_ENV_SABITLERI) + ("SPA_DIST", "DATABASE_URL")
+
+# ══════════════════════════════════════════════════════════════════════════
+# BUG #289 — SÜİT CANLI VERİTABANINA BAĞLANAMAZ (bu blok app import'undan ÖNCE koşar)
+# ══════════════════════════════════════════════════════════════════════════
+# ÖLÇÜLEN DEFEKT (11 Ağu 2026, canlı beta DB'si): `scheduler_runs` tablosunda 50 satırın
+# TAMAMI `weekly_smoke_test` — içlerinde `RuntimeError: smoke boom`, yani testin ürettiği
+# satırlar gerçek kullanıcıların defterinde. Uçtan uca ölçüm (canlı DB'nin kopyası üzerinde
+# tüm süit) `api_call_log: 252 → 254` gösterdi — LLM maliyet defteri (BUG #274) test
+# çağrılarıyla kirleniyordu.
+#
+# NEDEN FIXTURE YETMEZ: `db_session` fixture'ı izoledir (BUG #078) ama ~20 test dosyası
+# `app.database.SessionLocal`'i DOĞRUDAN kullanır; o modül `DATABASE_URL`'i **import
+# anında** okur. Fixture o noktada çok geçtir — engine çoktan canlı dosyaya bağlanmıştır.
+# Koruma, testin ne yaptığına değil, sürecin neye BAĞLANABİLDİĞİNE dayanmalı.
+#
+# ESCAPE HATCH: `scripts/suite_db_izolasyon_kontrolu.py` sızıntıyı ÖLÇMEK için süiti canlı
+# DB'nin bir kopyasına yönlendirir. Bu sabit onu da ezerse araç her zaman "temiz" derdi —
+# sahte yeşil. O yüzden araç `FINANCIALOS_SUITE_DB_OVERRIDE=1` ile burayı devre dışı bırakır.
+if os.getenv("FINANCIALOS_SUITE_DB_OVERRIDE") == "1":
+    SUIT_DB_URL = os.environ.get("DATABASE_URL", "")
+else:
+    import atexit as _atexit
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    _suit_db_dizin = _tempfile.mkdtemp(prefix="financialos_suit_")
+    _suit_db_yolu = _Path(_suit_db_dizin) / "suit.db"
+    SUIT_DB_URL = f"sqlite:///{_suit_db_yolu.as_posix()}"
+    os.environ["DATABASE_URL"] = SUIT_DB_URL
+
+    @_atexit.register
+    def _suit_db_temizle() -> None:
+        import shutil
+        shutil.rmtree(_suit_db_dizin, ignore_errors=True)
 
 from app.models import Base, User  # noqa: E402 — env sabitlenmeden app import EDİLMEZ
+
+# Şemayı süit DB'sine kur: `SessionLocal`'i doğrudan kullanan testler tablo bekler.
+# ADR-013 `create_all` yasağı ÜRETİM içindir; conftest açıkça muaftır.
+from app.database import engine as _suit_engine  # noqa: E402
+
+Base.metadata.create_all(_suit_engine)
 
 
 @pytest.fixture(autouse=True)
@@ -68,6 +108,10 @@ def _neutralize_dotenv_auth(monkeypatch):
     for anahtar, deger in TEST_ENV_SABITLERI.items():
         monkeypatch.setenv(anahtar, deger)
     monkeypatch.delenv("SPA_DIST", raising=False)
+    # BUG #289: bir test `DATABASE_URL`'i değiştirirse sonraki testler canlı dosyaya
+    # düşmesin — süit DB'si test başına geri yüklenir.
+    if SUIT_DB_URL:
+        monkeypatch.setenv("DATABASE_URL", SUIT_DB_URL)
 
 
 @pytest.fixture

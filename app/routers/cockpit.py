@@ -38,7 +38,21 @@ router = APIRouter(prefix="/api/cockpit", tags=["cockpit"])
 def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict,
                            workspace_id: Optional[int] = None,
                            today: Optional[date] = None) -> None:
-    """Bugünkü net değer snapshot'ını yaz (idempotent — workspace başına günde bir kez)."""
+    """Bugünkü net değer snapshot'ını GÜNCEL tut — o günün SON BİLİNEN durumu (upsert).
+
+    BUG #292 fix: eskiden `if q.first(): return` vardı — yani "o gün kayıt varsa dokunma"
+    (create-once). Yeni kullanıcı paneli ilk açtığında henüz hiçbir hesabı yoktur; o günün
+    snapshot'ı 0 yazılıyor, aynı gün verisini girdiğinde GÜNCELLENMİYORDU. Ertesi gün
+    `catch_up_snapshots` yalnız EKSİK günleri doldurduğu için kayıt gününün net değeri
+    KALICI olarak 0 kalıyordu. Canlı beta ölçümü (11 Ağu 2026): üç kullanıcının üçünde de
+    grafikte 0 — gerçek değerler 7.313 / 20.354 / 10.350 TL. Yan etkisi: `coach_insights`
+    trendi ve FEAT-017 borç ilerlemesi EN ESKİ snapshot'ı baz alır → sahte 0'dan bugüne
+    "net değerin arttı" denebiliyordu.
+
+    Sözleşme: bir günü temsil eden kayıt o gün BİTMEDEN yazılıyorsa create-once yanlış
+    cevaptır (L53). Geçmiş günlere dokunulmaz; değer değişmediyse DB'ye yazılmaz (cockpit
+    her panel açılışında çağrılır — değişmemiş değer için UPDATE boşuna yüktür).
+    """
     # BUG #237 fix (D17): snapshot SUNUCU gününü damgalıyordu; aynı istekte cockpit ise
     # kullanıcının gününü kullanıyordu (istek kendi içinde tutarsız) → trend grafiği
     # kullanıcının gördüğü günle hizasız kalıyordu. Gün artık çağırandan gelir.
@@ -47,25 +61,36 @@ def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict,
     q = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.snapshot_date == today)
     q = q.filter(NetWorthSnapshot.workspace_id == workspace_id) if workspace_id is not None \
         else q.filter(NetWorthSnapshot.user_id == user_id)  # scope-exempt: snapshot legacy fallback (ws_id None branch)
-    if q.first():
-        return
+    mevcut = q.first()
+
     # BUG #117 fix (#116 takibi): net_deger_tam artık payable de düşüyor → (net_deger_tam −
     # net_deger) = alacak − borç olurdu (yanlış "receivables"). Alacağı doğrudan cockpit'ten al.
     receivables = cockpit.get("alacaklar_toplami",
                               max(0.0, cockpit.get("net_deger_tam", cockpit["net_deger"]) - cockpit["net_deger"]))
-    snap = NetWorthSnapshot(
-        user_id=user_id,
-        workspace_id=workspace_id,  # M43
-        snapshot_date=today,
-        net_worth_seen=cockpit["net_deger"],
-        net_worth_full=cockpit.get("net_deger_tam", cockpit["net_deger"]),
-        cash=cockpit["nakit_kasa"],
-        card_debt=cockpit["kart_borcu"],
-        loan_debt=cockpit["kredi_borcu"],
-        investment_value=cockpit["yatirim_deger"],
-        receivables=receivables,
-    )
-    db.add(snap)
+    degerler = {
+        "net_worth_seen": cockpit["net_deger"],
+        "net_worth_full": cockpit.get("net_deger_tam", cockpit["net_deger"]),
+        "cash": cockpit["nakit_kasa"],
+        "card_debt": cockpit["kart_borcu"],
+        "loan_debt": cockpit["kredi_borcu"],
+        "investment_value": cockpit["yatirim_deger"],
+        "receivables": receivables,
+    }
+
+    if mevcut is None:
+        db.add(NetWorthSnapshot(user_id=user_id, workspace_id=workspace_id,  # M43
+                                snapshot_date=today, **degerler))
+        db.commit()
+        return
+
+    # BUG #292: gün içi güncelleme. Karşılaştırma float üzerinden — DB Numeric(19,4)
+    # Decimal döner, cockpit float verir (B1 sınırı); tip farkı "değişti" sanılmamalı.
+    degisti = any(float(getattr(mevcut, alan) or 0) != float(yeni or 0)
+                  for alan, yeni in degerler.items())
+    if not degisti:
+        return
+    for alan, yeni in degerler.items():
+        setattr(mevcut, alan, yeni)
     db.commit()
 
 

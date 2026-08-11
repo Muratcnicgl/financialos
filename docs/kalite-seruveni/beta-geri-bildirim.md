@@ -126,3 +126,26 @@ sıfırlama) anında geçersiz oldu. Kontrolün her kimlikli istekte koştuğu d
 
 **Kalıcı ders:** operatör aracı yoktu — sızıntı anında "bu kullanıcının oturumlarını
 iptal et" diyebilecek bir yol bulunmuyordu. `scripts/oturum_iptal.py` bu turda yazıldı.
+
+
+## F. Destek talebi — DEĞERLENDİRİLDİ (bekletilmedi, çünkü kod defekti çıktı)
+
+| # | Olay | Durum |
+|---|---|---|
+| **F1** | Davetli (kullanıcı #4) **"verilerimi kontrol et"** dedi ve operatörün bakmasını açıkça istedi. Kontrol `user_id=4` kapsamıyla yapıldı; verisi eksiksiz ve tutarlıydı (bakiye = girdiği gelir − iki gideri). **Ama panelinde gördüğü bir sayı yanlıştı** → BUG #292 | **KAPANDI** |
+
+**Ne bulundu:** net değer grafiği bugünü **0** gösteriyordu — üstelik yalnız onda değil,
+**o gün kaydolan HER kullanıcıda**. Kök neden: günün snapshot'ı kullanıcı henüz boş
+paneldeyken yazılıyor ve o gün bir daha güncellenmiyordu (create-once). Gerçek değerler
+7.313 / 20.354 / 10.350 TL iken grafik üçünde de sıfırdı. Ayrıntı ve kalıcı çözüm:
+`uygulanan-fixler.md` → BUG #292.
+
+**Neden bu madde bekletilmedi:** karar turu (3 davetli × 14 gün) *geri bildirim
+DEĞERLENDİRMESİ* içindir — "şunu şöyle yapsak mı" türü ürün kararlarını biriktirip
+toplu bakmak için. Bu madde bir ürün tercihi değil, **ölçülmüş bir kod defektiydi**;
+üstelik yanlış sayı kullanıcıya gösteriliyordu. Bekletilseydi 14 gün boyunca her yeni
+kullanıcının ilk günü sıfır kaydedilmeye devam edecekti.
+
+**Yan bulgu (kullanıcıya görünmeyen ama daha tehlikeli):** bu kontrol sırasında testlerin
+canlı veritabanına yazdığı doğrulandı (BUG #289) — ve e2e koşumunun kapalı beta
+sunucusuna kaydolduğu. İkisi de kapatıldı; artık süit canlı veriye **bağlanamaz**.

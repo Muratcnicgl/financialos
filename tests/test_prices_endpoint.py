@@ -3,6 +3,17 @@ M19-v3 (ADR-029 revize) — /api/prices EVDS v3 endpoint testleri.
 
 fetch_currency_rate/fetch_gold_price mock'lanır (canlı EVDS env-bağımlı). Döviz alış+satış
 200; None → 502. Tarih formatı 422.
+
+BUG #289 (11 Ağu 2026) — GİZLİ ORTAM BAĞIMLILIĞI: bu dosya kendi kullanıcısını kurmuyordu.
+`/api/prices/*` uçları `get_current_user` ister; kimliksiz fallback yolu "ilk kullanıcı"yı
+döndürür ve o kullanıcı GELİŞTİRİCİNİN CANLI VERİTABANINDA duruyordu. Yani yedi test,
+`data/financialos.db` içinde gerçek bir kullanıcı olduğu için yeşildi — testin kendi
+kurduğu bir şey yüzünden değil. Süit canlı DB'den ayrılınca hepsi
+404 "Kullanici kurulumu yapilmamis" verdi.
+
+Sızıntının az konuşulan yüzü budur: YAZMA kirletir, OKUMA yalan söyler. Bir testin
+yeşilliği, o makinede duran veriye bağlıysa test hiçbir şey kanıtlamıyordur (L55).
+Kullanıcı artık test içinde kuruluyor — süit her makinede aynı sonucu verir.
 """
 from __future__ import annotations
 
@@ -12,9 +23,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.dependencies import get_current_user
+from app.models import User
 import app.routers.prices as prices_mod
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _kimlik():
+    """Uçların istediği kullanıcıyı testin KENDİSİ sağlar (ortamdan okumaz)."""
+    app.dependency_overrides[get_current_user] = lambda: User(id=1, name="test", email="t@t.test")
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_currency_200_buy_sell(monkeypatch):

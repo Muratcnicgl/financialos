@@ -9,7 +9,7 @@ export default defineConfig({
   retries: 2,                      // D1: flaky ağ/LLM'siz deterministik akış; 2 retry
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
     trace: 'retain-on-failure',    // D1: başarısızlıkta trace
     screenshot: 'only-on-failure',
   },

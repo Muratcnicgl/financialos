@@ -29,7 +29,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const API = 'http://localhost:8000';
+// BUG #289: sabit adres, e2e'yi geliştiricinin CANLI backend'ine bağlıyordu
+// (gerçek kullanıcıların DB'sine test verisi yazılıyordu). İzole koşum
+// (`scripts/e2e_izole.py`) bu değişkenle ayrı porttaki ayrı DB'yi gösterir.
+const API = process.env.E2E_API || 'http://localhost:8000';
 let token;
 
 test.use({ viewport: { width: 390, height: 844 } });   // iPhone 12/13/14 mantik genisligi
@@ -151,7 +154,7 @@ test('kapsam tabani: panel listesi App.jsx TABS ile ayni buyuklukte', () => {
   const kok = dirname(fileURLToPath(import.meta.url));
   const kaynak = readFileSync(join(kok, '..', 'src', 'App.jsx'), 'utf8');
   const blok = kaynak.slice(kaynak.indexOf('const TABS = ['), kaynak.indexOf('];', kaynak.indexOf('const TABS = [')));
-  const idler = [...blok.matchAll(/id:\s*'([a-z]+)'/g)].map((m) => m[1]);
+  const idler = [...blok.matchAll(/\bid:\s*'([a-z]+)'/g)].map((m) => m[1]);
   expect(idler.length, 'App.jsx TABS okunamadi').toBeGreaterThan(0);
   expect(PANELLER.length,
     `App.jsx'te ${idler.length} sekme var, kapi ${PANELLER.length} panel geziyor: ${idler.join(', ')}`,

@@ -14,7 +14,10 @@
 // kullanicisi + kendi nakit hesabi, sonunda KVKK-delete ile temizlenir.
 import { test, expect } from '@playwright/test';
 
-const API = 'http://localhost:8000';
+// BUG #289: sabit adres, e2e'yi geliştiricinin CANLI backend'ine bağlıyordu
+// (gerçek kullanıcıların DB'sine test verisi yazılıyordu). İzole koşum
+// (`scripts/e2e_izole.py`) bu değişkenle ayrı porttaki ayrı DB'yi gösterir.
+const API = process.env.E2E_API || 'http://localhost:8000';
 let debtId;
 let baslangicNakit;
 let token;

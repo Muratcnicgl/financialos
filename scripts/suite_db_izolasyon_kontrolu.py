@@ -62,7 +62,11 @@ def main() -> int:
         once = _satir_sayilari(str(kopya))
         print(f"Kopya hazir: {len(once)} tablo, {sum(once.values())} satir. Suit kosuyor...")
 
-        env = dict(os.environ, DATABASE_URL=f"sqlite:///{kopya.as_posix()}")
+        # BUG #289: conftest artık `DATABASE_URL`'i süit-özel geçici dosyaya sabitliyor.
+        # Bu araç sızıntıyı ÖLÇMEK için o sabiti bilerek devre dışı bırakır — aksi hâlde
+        # ölçüm kendi korumasını ölçer ve her zaman "temiz" der (sahte yeşil).
+        env = dict(os.environ, DATABASE_URL=f"sqlite:///{kopya.as_posix()}",
+                   FINANCIALOS_SUITE_DB_OVERRIDE="1")
         sonuc = subprocess.run([sys.executable, "-m", "pytest", "tests/", "-q", "--no-header"],
                                cwd=KOK, env=env, capture_output=True, text=True)
         ozet = (sonuc.stdout.strip().splitlines() or ["(cikti yok)"])[-1]

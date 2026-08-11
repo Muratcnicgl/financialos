@@ -64,10 +64,19 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
-    open: true,
+    // Dev'de tarayıcıyı kendiliğinden açmak kolaylıktır; OTOMASYONDA değildir. Her e2e
+    // koşumu bir vite başlatır ve `open:true` geliştiricinin Chrome'unda yeni bir sekme
+    // açar — arka arkaya koşumlar sekme yığar (ölçüldü). `scripts/e2e_izole.py` ve CI
+    // bu değişkenle kapatır.
+    open: process.env.VITE_OTOMATIK_AC !== '0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // BUG #289: hedef sabitken `npm run e2e` GELİŞTİRİCİNİN CANLI backend'ine
+        // (ve dolayısıyla gerçek kullanıcıların veritabanına) gidiyordu. Testin
+        // yazdığı kullanıcı/işlem, canlı defterde gerçek kayıtların yanına düşer.
+        // Hedef artık env ile yönlendirilebilir; izole e2e koşumu ayrı porttaki
+        // ayrı DB'li bir backend'i gösterir (`npm run e2e:izole`).
+        target: process.env.VITE_API_HEDEF || 'http://localhost:8000',
         changeOrigin: true,
       },
     },

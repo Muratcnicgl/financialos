@@ -11,24 +11,10 @@
     <meta name="apple-mobile-web-app-title" content="FinancialOS" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>FinancialOS</title>
-    <!-- Tema tercihi flash'ini onlemek icin: HTML ilk yuklendiginde
-         localStorage'tan tema okuyup hemen <html>'e class ekliyoruz.
-         Aksi halde React mount olana kadar yanlis tema gozukur. -->
-    <script>
-      (function() {
-        try {
-          var t = localStorage.getItem('financialos-theme');
-          if (t === 'light') {
-            document.documentElement.classList.remove('dark');
-          } else {
-            // Default: koyu tema
-            document.documentElement.classList.add('dark');
-          }
-        } catch (e) {
-          document.documentElement.classList.add('dark');
-        }
-      })();
-    </script>
+    <!-- Tema flash'i: BUG #287'den beri HARICI dosya. Inline script her iki katmanin da
+         CSP'sinde (`script-src 'self'`) ENGELLENIYORDU; CSP'yi gevsetmek yerine kod
+         kurallara uygun yere tasindi. `public/theme-init.js` -> build'de kok dizine kopyalanir. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

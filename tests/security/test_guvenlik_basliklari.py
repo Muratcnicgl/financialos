@@ -163,3 +163,76 @@ def test_iki_nginx_sablonu_AYNI_baslik_kumesini_tasir():
         f"İki nginx şablonu ayrışmış.\n  Yalnız VPS'te: {sorted(vps - tunel)}\n"
         f"  Yalnız tünelde: {sorted(tunel - vps)}"
     )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# BUG #287 — CSP YÜZEYE GÖRE (canlıda bembeyaz ekran olarak ölçüldü)
+# ══════════════════════════════════════════════════════════════════════
+
+def test_SPA_modunda_CSP_arayuzu_OLDURMEZ(monkeypatch):
+    """Kapalı beta yayına alındığında tarayıcıda BEMBEYAZ EKRAN çıktı.
+
+    Dosyaların hepsi 200 dönüyordu; `default-src 'none'` JS'i engelliyordu, `#root` boştu,
+    React hiç mount olmadı. 17 testlik SPA kapısı bunu göremedi çünkü `TestClient` CSP
+    UYGULAMAZ — CSP'yi yalnız gerçek tarayıcı zorlar (L29).
+    """
+    monkeypatch.setenv("SERVE_SPA", "1")
+    from app.security_headers import csp_degeri
+    politika = csp_degeri()
+    assert "default-src 'none'" not in politika, "SPA modunda CSP arayüzü öldürüyor"
+    assert "script-src 'self'" in politika, "SPA'nın kendi JS'i yüklenemez"
+    assert "connect-src 'self'" in politika, "Arayüz kendi API'sine istek atamaz"
+
+
+def test_API_modunda_CSP_DAR_kalir(monkeypatch):
+    """SPA kapalıyken saf API politikası korunur — gevşetme SPA'ya özgüdür."""
+    monkeypatch.delenv("SERVE_SPA", raising=False)
+    from app.security_headers import csp_degeri
+    assert "default-src 'none'" in csp_degeri()
+
+
+def test_SPA_CSP_si_nginx_ile_AYNI():
+    """İki dağıtım yolu iki farklı güvenlik seviyesi üretemez.
+
+    Uygulama SPA'yı kendi servis ettiğinde (tünel yolu) ve nginx servis ettiğinde (VPS yolu)
+    tarayıcının gördüğü politika AYNI olmalı; biri sertleştirilip diğeri unutulursa
+    korumanın gücü hangi yolla deploy edildiğine göre DEĞİŞİR ve bunu kimse fark etmez.
+    """
+    import re
+    from pathlib import Path
+
+    from app.security_headers import CSP_SPA
+
+    kok = Path(__file__).resolve().parent.parent.parent
+    sablon = (kok / "deploy" / "nginx.conf.template").read_text(encoding="utf-8")
+    m = re.search(r'add_header\s+Content-Security-Policy\s+"([^"]+)"', sablon)
+    assert m, "nginx şablonunda CSP bulunamadı — kapı ölçtüğünü bulamıyor"
+
+    def yonergeler(p: str) -> set[str]:
+        return {" ".join(k.split()) for k in p.split(";") if k.strip()}
+
+    assert yonergeler(CSP_SPA) == yonergeler(m.group(1)), (
+        f"Uygulama ve nginx CSP'si ayrışmış.\n  Yalnız uygulamada: "
+        f"{sorted(yonergeler(CSP_SPA) - yonergeler(m.group(1)))}\n  Yalnız nginx'te: "
+        f"{sorted(yonergeler(m.group(1)) - yonergeler(CSP_SPA))}"
+    )
+
+
+def test_index_html_INLINE_script_TASIMAZ():
+    """`script-src 'self'` inline script'i engeller — sessizce.
+
+    Tema başlatıcı inline duruyordu: sayfa açılır ama tema yanlış başlar ve konsolda bir
+    CSP ihlali kalır. Çözüm CSP'yi 'unsafe-inline' ile gevşetmek DEĞİL, kodu kurallara
+    uygun yere taşımaktı (L51) — `frontend/public/theme-init.js`.
+    """
+    import re
+    from pathlib import Path
+
+    kok = Path(__file__).resolve().parent.parent.parent
+    html = (kok / "frontend" / "index.html").read_text(encoding="utf-8")
+    inline = [m for m in re.finditer(r"<script(?![^>]*\ssrc=)[^>]*>(.*?)</script>", html, re.S)
+              if m.group(1).strip()]
+    assert not inline, (
+        f"index.html'de {len(inline)} inline script var — CSP bunları engeller. "
+        "Harici dosyaya taşıyın (frontend/public/)."
+    )

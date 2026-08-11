@@ -2,6 +2,43 @@
 
 Her mimari/teknoloji kararı öncesi 2-3 sektör referansı; bulgular burada.
 
+## 2026-08-11 (2) — GoDaddy dahil alan adı + barındırma tam taraması (B0 eki)
+**Soru:** "Ücretsiz yapılabileni ücretsiz yap, kalanı fiyat/performansı en iyi olanla."
+GoDaddy ayrıca istendi. Tam belge: `b0-barindirma-arastirmasi.md`.
+
+**Bulgu 0 — teknik kısıt fiyattan ÖNCE gelir.** `docker-compose.prod.yml` **6 servis**
+(postgres + 2 uvicorn worker + scheduler + nginx + certbot + backup) → Docker + root +
+kalıcı disk zorunlu. **Paylaşımlı/cPanel hosting teknik olarak elenir** (GoDaddy'nin ucuz
+"web hosting" paketleri dahil); gereken şey VPS. RAM ~1–1,5 GB sürekli → 2 GB dar, 4 GB rahat.
+
+**Bulgu 1 — GoDaddy alan adında EN PAHALI.** 1. yıl 4,99–11,99 $ ama yenileme
+**21,99–22,99 $** (+%92) ve WHOIS gizliliği 1. yıldan sonra 9,99 $/yıl → 5 yıl ≈ **100–104 $**.
+Cloudflare Registrar sabit 10,44 $ → 5 yıl ≈ **52 $**. Ölçüt yıllık fiyat değil **5 yıllık
+gerçek maliyet**; bu pazarın tuzağı ilk yıl indirimidir.
+
+**Bulgu 2 — ücretsiz PaaS bu yığını barındıramaz.** Render ücretsiz Postgres **30 gün sonra
+sona eriyor** (+14 gün sonra VERİ SİLİNİR), web servisi 15 dk'da uyuyor (→ 02:45 cron hiç
+koşmaz), cron servisi ücretsiz değil. Fly.io ücretsiz katmanı 2024'te kaldırıldı. Railway'de
+ücretsiz katman yok. **Tek gerçek ücretsiz 7/24 seçenek Oracle Always Free** ve o da kapasite
+piyangosu (home region kayıttan sonra değişmez).
+
+**Bulgu 3 — GoDaddy VPS fiyat/performansta elenir.** 8,99 $/ay ama **36 ay peşin** şartıyla,
+yenilemede ~2 kat; karşılığında 1 vCPU / 2 GB. Hetzner CX22 2 vCPU / 4 GB **€3,79**
+(bir kaynak CX23 için €5,99 diyor — SKU sipariş anında doğrulanacak). Netcup €3,35 (2 GB —
+dar). Contabo €4,50 / 6 GB ama bağımsız kaynaklar **CPU overselling** notu düşüyor.
+
+**Yazılmayanlar (L45):** Türkiye lokasyonlu VPS'ler (Natro/Turhost/Radore/Komuta) —
+yalnız pazarlama sayfası ve affiliate listesi bulundu, bağımsız kıyas/uptime/Docker teyidi
+YOK. Görülen aralık ~103–170 TL/ay **gösterge olarak** kaydedildi, fiyat olarak değil.
+Gerçek avantajları var (TRY fatura, Türkçe destek, ~10 ms gecikme) → ciddiye alınacaksa
+taahhütsüz 1 ay deneyip ÖLÇMEK doğru yol. TL kuru çevrimi yapılmadı.
+
+**Kaynaklar:** priceworld.com/domains/godaddy · hostingrevelations.com · nameexperts.com ·
+domaindetails.com · spendbase.co (`.app` 12,18 $) · kb.porkbun.com + comodosslstore.com
+(`.app` HSTS preload) · render.com/changelog + /docs/free · saaspricepulse.com (Fly.io) ·
+northflank.com (Railway) · hostadvice.com + cybernews.com (GoDaddy VPS) · sliplane.io +
+experte.com (VPS kıyas) · danubedata.ro (Contabo) · docs.oracle.com/iaas (home region)
+
 ## 2026-08-11 — Kapalı beta barındırma: alan adı + tünel vs VPS (B0 / P6)
 **Soru (D1 tetiği #1 + #2):** Barındırma platformu seçimi geri dönüşü pahalı (dağıtım platformu)
 ve cevap dış dünyanın durumunda (fiyat listeleri, ücretsiz katman şartları). Üç seçenek ölçüldü.

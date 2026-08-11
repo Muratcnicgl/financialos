@@ -13,6 +13,7 @@ Saglik kontrolu:
     GET  http://localhost:8000/docs     -> Swagger UI (interaktif test)
 """
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -117,10 +118,16 @@ async def lifespan(app: FastAPI):
     _sched_on = os.getenv("SCHEDULER_ENABLED", "true").strip().lower() not in ("0", "false", "no")
     _scheduler_started = False
     if _sched_on:
-        from app.scheduler import start_scheduler
+        from app.scheduler import start_scheduler, kacirilan_isleri_telafi_et
         try:
             start_scheduler()
             _scheduler_started = True
+            # BUG #302: `misfire_grace_time` bir işi yalnız 1 saat gecikmeye kadar kurtarır.
+            # Kapalı beta KİŞİSEL bir makinede koşuyor; gece 02:45-04:00 penceresi uykuda
+            # geçtiğinde fiyat güncelleme, gece batch'i ve iz temizliği o gün HİÇ koşmuyordu.
+            # Telafi açılışta çalışır ama açılışı BEKLETMEZ: kullanıcı uygulamayı açtığında
+            # gece işinin bitmesini beklememeli.
+            asyncio.create_task(kacirilan_isleri_telafi_et())
         except Exception as e:
             logger.warning(f"Scheduler baslatilamadi: {type(e).__name__}: {e}")
     else:

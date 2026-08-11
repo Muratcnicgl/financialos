@@ -464,6 +464,63 @@ def start_scheduler() -> AsyncIOScheduler:
     return _scheduler
 
 
+async def kacirilan_isleri_telafi_et() -> str:
+    """Açılışta: beklenen periyodunu aşmış planlı işleri ŞİMDİ koştur.
+
+    BUG #302 — NEDEN GEREKLİ: `misfire_grace_time=3600` bir işi yalnız **1 saat**
+    gecikmeye kadar kurtarır; daha fazlası sessizce atlanır ve bir daha koşmaz. Bu,
+    7/24 açık bir sunucuda makul bir varsayımdır — ama kapalı beta **kişisel bir Windows
+    makinesinde** koşuyor ve o makine her gece açık kalmaz. Gece 02:45–04:00 penceresi
+    uykuda geçtiğinde şunlar o gün HİÇ koşmuyordu:
+      · yatırım fiyatları güncellenmiyor → kullanıcı bayat fiyattan net değer görüyor
+        (BUG #239 sınıfı: sayı yanlış değil ama DAYANAĞI bayat)
+      · gece batch'i (uyarılar, periyodik hesaplar) atlanıyor
+      · iz temizliği atlanmıyor → 90 günlük saklama sözü kendiliğinden tutulmuyor (KVKK)
+
+    Veri zaten vardı ama kimse EYLEM almıyordu: `beklenen_periyot_saat` tanımlı ve
+    `/api/ops/scheduler` işi "gecikti" diye işaretliyordu — bakan olmadıkça hiçbir şey
+    değişmiyor (bu turun tekrar eden dersi). Telafi o ölçümü eyleme çevirir.
+
+    Tasarım kararları:
+      · Açılışı BLOKLAMAZ (çağıran `create_task` ile arka plana atar) — kullanıcı
+        uygulamayı açtığında gece işini bekliyor olmamalı.
+      · İşler SIRAYLA koşar: dördü aynı anda DB havuzunu zorlar (BUG #263 kapasite).
+      · Ölçüt son BAŞARILI koşumdur; başarısız deneme işi "koşmuş" saymaz.
+      · Her iş `_izlenen_is` ile sarılı olduğu için telafi koşumu da deftere yazılır ve
+        hatası yutulur — biri patlarsa diğerleri koşmaya devam eder.
+      · İdempotenslik çağıranın değil işlerin sorumluluğu; recurring tetikleyicileri
+        `last_triggered_year_month` ile zaten korumalı, fiyat/temizlik yazımı tekrarlanabilir.
+    """
+    from sqlalchemy import func
+    from app.models import SchedulerRun
+
+    simdi = datetime.utcnow()
+    kosulan: list[str] = []
+    with _db_session() as db:
+        gecikenler = []
+        for plan in PLANLI_ISLER:
+            son_ok = (db.query(func.max(SchedulerRun.finished_at))
+                      .filter(SchedulerRun.job_name == plan.ad,
+                              SchedulerRun.ok.is_(True))
+                      .scalar())
+            if son_ok is None or (simdi - son_ok) > timedelta(hours=plan.beklenen_periyot_saat):
+                gecikenler.append((plan, son_ok))
+
+    for plan, son_ok in gecikenler:
+        yas = "hiç koşmamış" if son_ok is None else f"{(simdi - son_ok).total_seconds() / 3600:.1f} saat önce"
+        logger.info("[telafi] %s gecikmiş (%s) — şimdi koşuyor", plan.ad, yas)
+        try:
+            await plan.fonksiyon()      # `_izlenen_is` kaydı açar/kapatır, hatayı yutar
+            kosulan.append(plan.ad)
+        except Exception:               # yeniden-fırlatan bir iş diğerlerini düşürmesin
+            logger.exception("[telafi] %s koşulamadı", plan.ad)
+
+    ozet = f"{len(kosulan)}/{len(PLANLI_ISLER)} is telafi edildi" + (
+        f": {', '.join(kosulan)}" if kosulan else " (hepsi guncel)")
+    logger.info("[telafi] %s", ozet)
+    return ozet
+
+
 def shutdown_scheduler() -> None:
     """Lifespan shutdown'tan cagirilir."""
     global _scheduler

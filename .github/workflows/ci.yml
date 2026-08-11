@@ -29,7 +29,11 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
         ports:
-          - 5432:5432
+          # BUG #295 ikinci tur: 5432'yi HOST tarafında kullanmak yetmedi — runner imajının
+          # KENDİ PostgreSQL'i o portta dinliyor (farklı şifreyle), yani testler yanlış
+          # sunucuya bağlanmaya devam etti ("password authentication failed"). Adres
+          # düzeltmek (localhost → 127.0.0.1) çakışmayı çözmez; PORTU ayırmak çözer.
+          - 55432:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -57,7 +61,7 @@ jobs:
           # imajının KENDİ PostgreSQL'i dinliyor ve şifresi farklı →
           # "FATAL: password authentication failed for user postgres". Yani testler yanlış
           # veritabanına bağlanıyordu. 127.0.0.1 bunu tekilleştirir.
-          PG_TEST_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+          PG_TEST_URL: postgresql://postgres:postgres@127.0.0.1:55432/postgres
         run: python -m pytest tests/ -q
 
   # BUG #260 (SEC-020/SEC-021): bağımlılık güvenlik taraması CI'da YOKTU.

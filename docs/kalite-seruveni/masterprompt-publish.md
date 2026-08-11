@@ -462,6 +462,30 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 
 ### §11.0 KALDIĞIMIZ YER (yeni oturum buradan devam eder — 6 Ağustos 2026, akşam turu)
 
+> **📌 11 AĞUSTOS 2026 — KAPALI BETA (P6+P7) BAŞLADI: B0-B1-B2-B3 KAPANDI.**
+> Yöneten belgeler: `masterprompt-kapali-beta.md` + `charter-kapali-beta.md` +
+> `goal-kapali-beta.md`. Rollback etiketi `pre-kapali-beta` atıldı.
+> **Charter taslağının DÖRT premisi ölçülüp çürütüldü** (ayrıntı: masterprompt §0):
+> geri bildirim sistemi, allowlist, yedek+geri yükleme provası ve sürüm damgası
+> "diskte yok" sanılıyordu; **dördü de vardı** (FEAT-033 + `beta_access.py` +
+> `test_backup_restore_drill.py` + `version.py`). Sebep: taslak 11 Ağu **delta**
+> raporundan besleniyordu, o işler ise daha önce yapılmıştı → **L52**.
+> - **B0:** barındırma karar notu hazır (`b0-barindirma-karar-notu.md`) — üç seçenek
+>   bugünkü fiyatlarla, research-log satırı yazıldı. **Murat'ın kararı bekleniyor.**
+>   Ölçülen dürüst bedel: A seçeneğinde `catch_up_snapshots` yalnız `NetWorthSnapshot`'ı
+>   telafi eder; 02:45 fiyat cron'u atlanırsa o gün `price_history`'ye HİÇ yazılmaz.
+> - **B1 / BUG #279:** davet kapısının **kapsamı** ölçülüyor (AST, 3 yol, kaynaktan
+>   türetilmiş taban) + workspace daveti artık allowlist dışı adrese sessizce gitmiyor.
+>   Mutasyon 6/6 (M6 kapının `ImportFrom` kör noktasını buldu).
+> - **B3 / BUG #280:** korelasyon kimliği — log ↔ yanıt ↔ ekran aynı kod
+>   (`app/correlation.py`, migration `d6e7f8a9b0c1`). Mutasyon 7/7 (M6 kapının kör
+>   noktasını İKİ KEZ buldu: TestClient ayrı iş parçacığı, `asyncio.run` bağlam kopyası).
+> - **B2 / BUG #281:** geri bildirim artık teşhis edilebilir (sürüm/kimlik/istemci,
+>   `kafa_karistirdi` türü, hatadan bildirime tek tık, migration `e7f8a9b0c1d2`).
+>   Mutasyon 7/7.
+> **Taban: 3040 passed / 18 skipped + 183 vitest + `npm run build` yeşil.** Canlı DB
+> head **`e7f8a9b0c1d2`**. **Sıradaki: B4 (yayın) — B0 kararına bağlı, insan-kapısı.**
+
 > **📄 ARA DEVİR RAPORU (11 Ağu 2026):** 6 Ağustos'taki master devir belgesinden bu yana olan
 > **her değişim** tek dosyada toplandı — `docs/kalite-seruveni/ara-durum-raporu-2026-08-11.md`
 > (5.941 satır; 28 commit, 24 BUG, 10 ADR, 23 yeni ders, bu dönemde doğan 24 kaynak dosya +

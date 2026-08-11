@@ -66,11 +66,20 @@ Register-ScheduledTask -TaskName "FinancialOS-Baslat" @ortak `
 "kuruldu: FinancialOS-Baslat (oturum acilisinda)"
 
 # ── 2. Sağlık kontrolü — 10 dakikada bir ───────────────────────────────────
-$saglikTetik = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) `
-    -RepetitionInterval (New-TimeSpan -Minutes 10)
+# İKİ TETİKLEYİCİ — BUG #290 ikinci tur:
+#   (a) OTURUM AÇILIŞINDA: yalnız zaman tetiği kullanılırsa, tetiğin başlangıcı GEÇMİŞTE
+#       kaldığı için makine yeniden başladığında tekrar kurulumu güvenilir DEĞİLDİR.
+#       Sonucu sinsi olurdu: başlatma görevi çalışır, sağlık kontrolü sessizce ölür ve
+#       "izleme var" sanılırken hiçbir şey izlenmez.
+#   (b) 10 DAKİKALIK TEKRAR: oturum boyunca sürekli ölçüm.
+$saglikTetikler = @(
+    (New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME),
+    (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) `
+        -RepetitionInterval (New-TimeSpan -Minutes 10))
+)
 Register-ScheduledTask -TaskName "FinancialOS-Saglik" @ortak `
     -Description "Kapali beta: uygulama+tunel+dis yol saglik kontrolu, duseni onarir (BUG #290)" `
-    -Trigger $saglikTetik `
+    -Trigger $saglikTetikler `
     -Action (New-ScheduledTaskAction -Execute $psExe `
         -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SAGLIK`"" `
         -WorkingDirectory $KOK) `

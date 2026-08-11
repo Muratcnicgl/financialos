@@ -15,7 +15,7 @@ belge o cümlenin yerine **yazılı tetikler** koyar.
 | TLS | Let's Encrypt, **kendi makinemizde sonlanıyor** (relay'ler şifreli bayt taşır) |
 | Uygulama | uvicorn, SQLite, `SERVE_SPA=1` (arayüzü uygulama servis ediyor) |
 | Kayıt | `invite_only` — davet kodu / davetli e-posta zorunlu |
-| Otomatik başlatma | ✅ `FinancialOS-Baslat` (oturum açılışında) |
+| Otomatik başlatma | ✅ `FinancialOS-Baslat` (**oturum açılışında** — bilgisayarın açılması yetmez, Windows'a giriş yapılmalı) |
 | Sağlık kontrolü | ✅ `FinancialOS-Saglik` (10 dk; uygulama + tünel + **dış yol**) |
 | Yedek | ✅ `FinancialOS-Yedek` (her gün 03:15, `data/backups/`) |
 | **Postgres + RLS** | ❌ **YOK** — SQLite kullanılıyor |
@@ -119,6 +119,33 @@ ister ve 3 yılda ~1.600 TL tutar — Cloudflare ~1.143 TL. Ayrıntı:
 
 **2. madde yayın-engeli sayılır:** "yedek alınıyor" bir iddiadır; kapı **geri yükleme
 provasıdır**. Davetli verisi girmeye başladıktan sonra bu daha da kritikleşir.
+
+---
+
+## 4b. AÇILIŞ ZİNCİRİ — ne otomatik, ne değil (11 Ağu, ölçüldü)
+
+Bilgisayarı kapatıp açtığında sırayla şunlar olur:
+
+| Sıra | Bileşen | Otomatik mi | Nasıl |
+|---|---|---|---|
+| 1 | **Tailscale** | ✅ | Windows servisi, `StartType: Automatic` |
+| 2 | **Funnel** | ✅ | `--bg` ile kuruldu; yapılandırma `tailscaled` durumunda saklanır |
+| 3 | **Uygulama (uvicorn)** | ✅ | `FinancialOS-Baslat`, **oturum açılışında** |
+| 4 | **İzleme** | ✅ | `FinancialOS-Saglik`, **oturum açılışında + 10 dk tekrar** |
+| 5 | **Yedek** | ✅ | `FinancialOS-Yedek`, her gün 03:15 |
+
+**TEK ŞART: Windows'a GİRİŞ YAPILMALI.** Görevler "oturum açılışında" tetiklenir; makine
+açılıp kilit ekranında beklerse uygulama **başlamaz**. Sebep §1.3'te: "kullanıcı oturum
+açmasa da çalıştır" seçeneği Windows'ta **parola saklamayı** gerektirir ve bu bilinçli
+olarak reddedildi.
+
+**Pratikte:** bilgisayarı aç, Windows'a gir, **başka hiçbir şeye dokunma**. ~30 saniye
+içinde uygulama ayağa kalkar ve dışarıdan erişilebilir olur.
+
+**Sağlık görevindeki düzeltme (aynı gün, ikinci tur):** ilk kurulumda tek tetikleyici
+zaman tetiğiydi ve başlangıcı **geçmişte** kaldığı için yeniden başlatmada tekrar kurulumu
+güvenilir değildi. Sonucu sinsi olurdu: başlatma görevi çalışır, **izleme sessizce ölür**
+ve "izleme var" sanılırken hiçbir şey izlenmez. Oturum-açılışı tetikleyicisi eklendi.
 
 ---
 

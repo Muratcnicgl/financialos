@@ -37,14 +37,28 @@ def test_saglik_ucu_surum_ve_build_doner():
 
 
 def test_build_commit_enjekte_edilebilir(monkeypatch):
+    """BUG #294: env artık YALNIZ git çalışma kopyası yokken (konteyner imajı) geçerli.
+
+    Eskiden bu test env'i tek kaynak sayıyordu; o sözleşme canlıda damganın donmasına
+    yol açtı (`build: 6d3bf26abd62` derken kod `fc10e0b`di). Sözleşme değişti, test de
+    onunla birlikte: enjeksiyon hâlâ çalışır ama git'i EZMEZ.
+    """
+    import app.version as surum
+    monkeypatch.setattr(surum, "_git_commit", lambda: "")     # .git yok (konteyner)
+    surum.build_commit.cache_clear()
     monkeypatch.setenv("BUILD_COMMIT", "abcdef1234567890")
-    assert build_commit() == "abcdef123456"          # 12 karaktere kısalır
+    assert surum.build_commit() == "abcdef123456"             # 13 karaktere kısalır
     assert APP_VERSION in full_version()
+    surum.build_commit.cache_clear()
 
 
 def test_build_commit_yoksa_bilinmiyor(monkeypatch):
+    import app.version as surum
+    monkeypatch.setattr(surum, "_git_commit", lambda: "")
+    surum.build_commit.cache_clear()
     monkeypatch.delenv("BUILD_COMMIT", raising=False)
-    assert build_commit() == "bilinmiyor"
+    assert surum.build_commit() == "bilinmiyor"
+    surum.build_commit.cache_clear()
 
 
 def test_changelog_surumle_senkron():

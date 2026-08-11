@@ -13,7 +13,7 @@ import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-_TEXT_FMT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+_TEXT_FMT = "%(asctime)s [%(levelname)s] [%(istek_id)s] %(name)s: %(message)s"
 
 
 class JsonFormatter(logging.Formatter):
@@ -22,6 +22,10 @@ class JsonFormatter(logging.Formatter):
         payload = {
             "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
             "level": record.levelname,
+            # BUG #280 (B3): korelasyon kimligi HER satirda. Davetli ekranda gordugu kodu
+            # soyler, operator log'da bu alandan bulur. Istek baglami disindaki satirlar
+            # (acilis, cron) "-" tasir — "kimlik yok" ile "kimlik bos" ayni degildir.
+            "istek_id": getattr(record, "istek_id", "-"),
             "logger": record.name,
             "msg": record.getMessage(),
         }
@@ -48,9 +52,17 @@ def setup_logging() -> Path | None:
     from app.error_tracking import LogMaskeleyici
     maskeleyici = LogMaskeleyici()
 
+    # BUG #280 (B3): korelasyon kimliği de aynı YAPISAL yolla eklenir (aynı L24 gerekçesi).
+    # Handler'a bağlanır, çağrı yerlerine değil: elle kurulan LogRecord'lar (aşağıdaki
+    # fail-safe dalı gibi) da filtreden geçer, yoksa formatter `istek_id` bulamaz ve
+    # log'un kendisi patlar — gözlemlenebilirlik aracının kendini vurması.
+    from app.correlation import IstekIdFiltresi
+    istek_id_filtresi = IstekIdFiltresi()
+
     handlers: list[logging.Handler] = []
     console = logging.StreamHandler()
     console.setFormatter(formatter)
+    console.addFilter(istek_id_filtresi)
     console.addFilter(maskeleyici)
     handlers.append(console)
 
@@ -64,6 +76,7 @@ def setup_logging() -> Path | None:
             encoding="utf-8",
         )
         fh.setFormatter(formatter)
+        fh.addFilter(istek_id_filtresi)   # BUG #280
         fh.addFilter(maskeleyici)
         handlers.append(fh)
         active_dir = log_dir

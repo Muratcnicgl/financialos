@@ -122,7 +122,7 @@ def parmak_izi(hata_tipi: str, yol: str, tb_metni: str) -> str:
 
 
 def kaydet(db, *, hata: BaseException, yol: str, metod: str,
-           user_id: Optional[int] = None) -> Optional[int]:
+           user_id: Optional[int] = None, istek_id: Optional[str] = None) -> Optional[int]:
     """Hatayı DB'ye kaydeder (aynı parmak izi varsa sayacı artırır). Dönüş: kayıt id.
 
     Hata izleme ASLA isteği düşürmemeli: burada oluşan her sorun yutulur ve loglanır.
@@ -140,6 +140,12 @@ def kaydet(db, *, hata: BaseException, yol: str, metod: str,
             kayit.last_seen_at = simdi
             if user_id and kayit.last_user_id != user_id:
                 kayit.last_user_id = user_id
+            # BUG #280 (B3): kayıt parmak izine göre BİRLEŞTİRİLİR (aynı hata tek satır),
+            # bu yüzden burada saklanan SON isteğin kimliğidir — `last_user_id` ile aynı
+            # konvansiyon. Daha eski bir kimlik DB'de bulunmaz ama LOG'da bulunur; zincirin
+            # kalıcı ucu log, özet ucu bu satırdır.
+            if istek_id:
+                kayit.last_istek_id = istek_id[:64]
         else:
             kayit = ErrorLog(
                 fingerprint=fp,
@@ -152,6 +158,7 @@ def kaydet(db, *, hata: BaseException, yol: str, metod: str,
                 last_seen_at=simdi,
                 occurrence_count=1,
                 last_user_id=user_id,
+                last_istek_id=(istek_id or None) and istek_id[:64],  # BUG #280
             )
             db.add(kayit)
         db.commit()

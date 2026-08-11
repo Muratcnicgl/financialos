@@ -221,6 +221,42 @@ from app.security_headers import GuvenlikBasliklariMiddleware as _GuvenlikBaslik
 
 app.add_middleware(_GuvenlikBasliklari)
 
+# ============================================================
+# KORELASYON KIMLIGI (B3 / BUG #280) — kapali beta teshis zinciri
+# ============================================================
+# Davetli "bir seyler patladi" der; operatorun elinde o ANI bulacak tutamak yoktu.
+# Bu middleware EN DISTA durur (Starlette'te en son eklenen en distadir): boylece
+# govde-boyutu ve kapasite reddi gibi ERKEN donen yollar da kimlik tasir — aksi halde
+# tam da en cok teshis gereken istekler kimliksiz kalirdi.
+# Ayrinti ve tasarim gerekceleri: app/correlation.py
+from starlette.middleware.base import BaseHTTPMiddleware as _BaseHTTP
+from starlette.requests import Request as _KorelasyonIstek
+from app.correlation import (
+    yeni_id as _yeni_id, gelen_id_temizle as _gelen_id_temizle,
+    istek_id_var as _istek_id_var,
+)
+
+_ISTEK_ID_BASLIGI = "X-Request-Id"
+
+
+class _KorelasyonMiddleware(_BaseHTTP):
+    async def dispatch(self, request: _KorelasyonIstek, call_next):
+        # Vekilin (nginx / Cloudflare) kimligi DEVRALINIR: kendi kimligimizi dayatmak
+        # kenardaki kaydi bizimkinden koparir ve iki ayri iz uretir.
+        gelen = _gelen_id_temizle(request.headers.get(_ISTEK_ID_BASLIGI)
+                                  or request.headers.get("Cf-Ray"))
+        kimlik = gelen or _yeni_id()
+        jeton = _istek_id_var.set(kimlik)
+        try:
+            yanit = await call_next(request)
+        finally:
+            _istek_id_var.reset(jeton)
+        yanit.headers[_ISTEK_ID_BASLIGI] = kimlik
+        return yanit
+
+
+app.add_middleware(_KorelasyonMiddleware)
+
 
 # ============================================================
 # KAPASITE SIRT BASINCI (P5.5 / BUG #263)
@@ -276,16 +312,28 @@ async def _beklenmedik_hata(request: _Request, exc: Exception):
             user_id = int(_a.decode_token(auth[7:].strip(), expected_type="access")["sub"])
     except Exception:
         user_id = None
+    # BUG #280 (B3): ayni kimlik UC YERDE birden — log satiri, kalici kayit ve kullanicinin
+    # gordugu cumle. Zincirin bir halkasi eksik olursa "sende hangi kod cikti?" sorusunun
+    # cevabi hicbir seye baglanmaz.
+    from app.correlation import istek_id as _istek_id
+    kimlik = _istek_id()
     db = _SL()
     try:
-        _kaydet(db, hata=exc, yol=str(request.url.path), metod=request.method, user_id=user_id)
+        _kaydet(db, hata=exc, yol=str(request.url.path), metod=request.method,
+                user_id=user_id, istek_id=kimlik)
     finally:
         db.close()
     logger.exception("Beklenmedik hata: %s %s", request.method, request.url.path)
-    # BUG #175 ile tutarli: kullaniciya IC DETAY sizmaz.
+    # BUG #175 ile tutarli: kullaniciya IC DETAY sizmaz. Kimlik detay DEGILDIR — hata
+    # metnini tasimaz, yalnizca "hangi istek" sorusunu isaretler (ADR-052 ayrimi: kod ayri,
+    # teshis ayri).
     return _JSONResponse(
         status_code=500,
-        content={"detail": "Beklenmedik bir hata oluştu. Kayıt altına alındı."},
+        content={
+            "detail": f"Beklenmedik bir hata oluştu. Kayıt altına alındı. Kod: {kimlik}",
+            "istek_id": kimlik,
+        },
+        headers={_ISTEK_ID_BASLIGI: kimlik},
     )
 
 

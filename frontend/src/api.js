@@ -14,7 +14,11 @@
 // =============================================================
 
 export class ApiError extends Error {
-  constructor(status, detail, raw) {
+  // BUG #280 (B3): istekId — sunucunun urettigi korelasyon kimligi. Zincirin kullaniciya
+  // bakan ucu: davetli ekranda gordugu kodu soyler, operator ayni kodu log'da ve
+  // error_logs'ta bulur. Kimlik DETAY DEGILDIR (hata metnini tasimaz), bu yuzden
+  // kullaniciya gostermek BUG #175'i (ic detay sizmaz) ihlal etmez.
+  constructor(status, detail, raw, istekId = null) {
     const message = typeof detail === 'string'
       ? detail
       : (detail?.message || JSON.stringify(detail) || `HTTP ${status}`);
@@ -23,6 +27,7 @@ export class ApiError extends Error {
     this.status = status;
     this.detail = detail;
     this.raw = raw;
+    this.istekId = istekId;
   }
 }
 
@@ -178,7 +183,10 @@ async function request(path, { method = 'GET', body, params, headers: extraHeade
   if (!res.ok) {
     // FastAPI hatalari {detail: ...} sekleinde gelir
     const detail = data?.detail ?? data;
-    throw new ApiError(res.status, detail, data);
+    // BUG #280: kimlik once BASLIKTAN okunur — govde her hata tipinde tasimaz (422, 403,
+    // vekilin urettigi 502 gibi), baslik ise middleware'de HER yanita eklenir.
+    const istekId = res.headers.get('X-Request-Id') || data?.istek_id || null;
+    throw new ApiError(res.status, detail, data, istekId);
   }
 
   return data;

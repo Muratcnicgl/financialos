@@ -1099,6 +1099,9 @@ class ErrorLog(Base):
     first_seen_at = Column(DateTime, nullable=False)
     last_seen_at = Column(DateTime, nullable=False)
     last_user_id = Column(Integer, nullable=True)   # FK YOK: kullanici silinse de hata izi kalir
+    # BUG #280 (B3): kullanicinin ekranda gordugu korelasyon kimligi. Kayit parmak izine
+    # gore birlestigi icin SON istegin kimligidir (last_user_id ile ayni konvansiyon).
+    last_istek_id = Column(String(64), nullable=True)
 
 
 class DemoDataMarker(Base):

@@ -90,3 +90,39 @@ Bu bilinçli bir erteleme ve doğrudur — tek kullanıcının izlenimiyle ürü
 1. **Özellik silmek/gizlemek** — "fazla detay" geri bildirimi bir kişiden geldi; ikinci
    kişi tersini söyleyebilir (bkz. B1/B3 vs A4 "harcama hedefi çok iyi").
 2. **Yeni özellik eklemek** — faz sınırı: kapalı betada yeni özellik açılmaz.
+
+---
+
+# 2026-08-11 (2) · Davetli #1 — ikinci tur
+
+## D. İşlem girişi
+
+| # | Geri bildirim | Durum |
+|---|---|---|
+| **D1** | **"Hızlı işlem"den + (gelir) eklenemiyor.** *"Birkaç tane denedim ama hep − oldu."* Kullanıcı gelir girmeyi denedi, hızlı giriş yalnız gider üretti. | NOT ALINDI |
+| D2 | "Yeni işlem ekle" ekranında gelir de gider de var — sorun **yalnız hızlı girişte** | NOT ALINDI |
+| **D3** | **Koça yazarak gelir ekleme ÇALIŞTI**: *"koç ekledi direkt, çok iyi… baya pratik güzel bir özellik"*. **Onay sordu, onayladı, ekledi** — propose→onay→execute akışı gerçek kullanıcıda beklendiği gibi işledi | NOT ALINDI (doğrulama) |
+
+**D1 notu:** Murat'ın amacı *"o günkü harcamaları rahatça hızlı girmek"*ti — yani hızlı
+girişin gider-ağırlıklı olması bir tasarım tercihiydi. Ama kullanıcı **gelir de girmeyi
+denedi ve neden olmadığını anlamadı**. Bu "eksik özellik" değil, **karşılanmayan beklenti**:
+"hızlı işlem" adı her iki yönü de vaat ediyor.
+
+## E. Güvenlik — DEĞERLENDİRİLDİ (bekletilmedi)
+
+| # | Olay | Durum |
+|---|---|---|
+| **E1** | Davetli, tarayıcı geliştirici araçlarından **"Copy as cURL"** ile kendi isteğini kopyalayıp sohbette paylaştı; içinde **kendi geçerli access token'ı** vardı. | **İŞLEM YAPILDI — BUG #291** |
+
+**Teşhis (yanlış alarmı önlemek için açık yazılıyor):** bu bir **uygulama sızıntısı
+DEĞİLDİR**. Kullanıcı kendi tarayıcısındaki kendi oturumunun token'ını kendi kopyaladı;
+her web uygulamasında bu mümkündür ve olağandır. Uygulama hiç kimseye başkasının verisini
+göstermedi.
+
+**Ama token artık bir sohbet geçmişinde** → yakılmış sayılır. Aksiyon: `token_version`
+artırıldı (0 → 1); kullanıcının **üretilmiş tüm token'ları** (access + refresh + şifre
+sıfırlama) anında geçersiz oldu. Kontrolün her kimlikli istekte koştuğu doğrulandı
+(`app/dependencies.py:83`).
+
+**Kalıcı ders:** operatör aracı yoktu — sızıntı anında "bu kullanıcının oturumlarını
+iptal et" diyebilecek bir yol bulunmuyordu. `scripts/oturum_iptal.py` bu turda yazıldı.

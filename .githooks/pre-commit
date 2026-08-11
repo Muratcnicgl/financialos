@@ -38,4 +38,17 @@ if echo "$staged" | grep -qE '^frontend/src/.*\.(js|jsx)$'; then
   fi
 fi
 
+# ── UZAKTAKİ DURUM (BUG #295-#300) ────────────────────────────────────────────
+# Bu hook yalnız YEREL süiti bilir. GitHub Actions 30+ koşum boyunca kırmızı kaldı ve
+# kimse fark etmedi: yerel yeşil, uzak ölü. CI farklı OS, farklı Node/npm sürümü, `.env`
+# YOKLUĞU ve gerçek bir PostgreSQL ile koşar — o turda bulunan altı defektin dördü
+# yalnızca orada görünüyordu.
+# `--sessiz`: yeşilse hiç konuşmaz. Commit'i ASLA engellemez (ağ yoksa/kota dolduysa
+# çalışma durmamalı); amacı uyarmak, kapı olmak değil.
+if [ -x ./venv/Scripts/python.exe ]; then
+  ./venv/Scripts/python.exe -m scripts.ci_durum --sessiz 2>/dev/null || true
+elif command -v python3 >/dev/null 2>&1; then
+  python3 -m scripts.ci_durum --sessiz 2>/dev/null || true
+fi
+
 exit 0

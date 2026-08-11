@@ -2,6 +2,37 @@
 
 Her mimari/teknoloji kararı öncesi 2-3 sektör referansı; bulgular burada.
 
+## 2026-08-11 — Kapalı beta barındırma: alan adı + tünel vs VPS (B0 / P6)
+**Soru (D1 tetiği #1 + #2):** Barındırma platformu seçimi geri dönüşü pahalı (dağıtım platformu)
+ve cevap dış dünyanın durumunda (fiyat listeleri, ücretsiz katman şartları). Üç seçenek ölçüldü.
+
+**Bulgu 1 — alan adı, seçenekten bağımsız TEK zorunlu harcama.** Ücretsiz/geçici tünel adresleri
+her yeniden başlatmada değişir; telefona kurulmuş PWA farklı origin görüp **kırılır**. Cloudflare
+Registrar maliyetine satıyor: `.com` **10,44 $/yıl** (kayıt = yenileme, ilk yıl indirimi yok,
+yenileme zammı yok). Porkbun 11,08 $ düz; Namecheap ilk yıl 6,79 $ ama yenileme 14,78 $.
+
+**Bulgu 2 — Cloudflare Tunnel ücretsiz ve sınırsız, ama alan adını kendi DNS'ine bağlıyor.**
+Özel alan adı destekli, giden-bağlantı temelli (port açmak gerekmez). Alan adı Cloudflare
+Registrar'dan alınırsa DNS adımı kendiliğinden çözülür. **Yan sonuç:** TLS Cloudflare kenarında
+biter → hazır olan nginx/Let's Encrypt yığını bu yolda DEVREDE OLMAZ, B'ye geçişte ilk kez canlıda
+sınanır.
+
+**Bulgu 3 — Hetzner CX22 €3,79/ay** (2 vCPU / 4 GB / 40 GB). `deploy.sh` + `docker-compose.prod.yml`
++ nginx/LE tam olarak bu senaryo için yazılmış.
+
+**Bulgu 4 (repo ölçümü, dış kaynak değil) — "makine kapalıysa veri kaybolmaz, gecikir" iddiası
+YARIM DOĞRU.** `catch_up_snapshots()` yalnız `NetWorthSnapshot` boşluğunu doldurur; beş planlı işin
+hiçbirinde catch-up yok (`misfire_grace_time=3600` yalnız 1 saat tolere eder). Somut sonuç: makine
+gece 02:45'te kapalıysa **o günün yatırım fiyatı `price_history`'ye hiç yazılmaz**. Elle telafi
+yolu var (`POST /api/fund-price/update`) ve tazelik yüzeyi bayatlığı söyler (BUG #239).
+
+**Karar:** karar Murat'ın (para + ürün-DNA). Tavsiye: A ile başla → yatırım hesabı kullanılacaksa
+fiyat çekimini açılış catch-up'ına ekle → P8'den önce B'ye geç. Tam not:
+`b0-barindirma-karar-notu.md`.
+**Kaynaklar:** tldprice.org/registrar/cloudflare · startupowl.com (Cloudflare Registrar) ·
+makerstack.co + toolradar.com (Tunnel ücretsiz katman/DNS şartı) · hetzner.com + vpsfor.dev
+(CX22) · domaindetails.com (registrar 5 yıllık toplam) · repo: `app/startup.py`, `app/scheduler.py`
+
 ## 2026-08-10 — LLM maliyet muhasebesi: neyi SAKLA, neyi HESAPLA (BUG #274 / LLM-006, OBS-005)
 **Soru (D1 tetiği #1 + #2):** `api_call_log`'a maliyet eklenecek — şema değişikliği (geri dönüşü
 pahalı) ve fiyatlar DIŞ DÜNYANIN durumu (sağlayıcı fiyat listeleri). İki karar: (a) token mü

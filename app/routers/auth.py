@@ -652,22 +652,14 @@ def oauth_callback(
         # e-postasıyla davet eder, davet ilk OAuth girişinde tüketilir. E-postasız
         # (yalnız-kod) davetler bu yolda eşleştirilemez ve fail-closed kalır — aksi halde
         # tek genel kod, adres bilmeden sınırsız OAuth hesabı açardı.
-        from app.beta_access import invite_required, davet_dogrula, davet_kullan
+        # BUG #279: aday davet SORGUSU da tek kaynağa indi (`eposta_daveti_bul`). Burada
+        # elle yazılmış hâli duruyordu; "kural tek yerde" niyeti doğruydu ama SORGUNUN
+        # kendisi (e-posta normalizasyonu + kullanılmamış filtresi + sıra) kopyaydı ve
+        # ikinci bir tüketici (workspace daveti) gelince üçüncü kopyayı davet ederdi.
+        from app.beta_access import invite_required, eposta_daveti_bul, davet_kullan
         davet = None
         if invite_required():
-            from app.models import BetaInvite
-            normal_eposta = (email or "").lower().strip()
-            adaylar = (db.query(BetaInvite)
-                       .filter(BetaInvite.email == normal_eposta,
-                               BetaInvite.used_at.is_(None))
-                       .order_by(BetaInvite.id.asc())
-                       .all())
-            # Süre/kullanım/e-posta kuralları TEK KAYNAKTAN (davet_dogrula) uygulanır —
-            # burada ikinci bir kural kopyası tutulmaz (kurallar ayrışırsa kapı bozulur).
-            for aday in adaylar:
-                if davet_dogrula(db, aday.code, normal_eposta) is not None:
-                    davet = aday
-                    break
+            davet = eposta_daveti_bul(db, email)
             if davet is None:
                 logger.warning("[oauth] davetsiz kayit denemesi reddedildi provider=%s", provider)
                 raise HTTPException(

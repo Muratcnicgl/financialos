@@ -241,6 +241,19 @@ def invite_member(
     if body.role == WorkspaceRole.owner:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Owner rolüyle davet edilemez (owner tektir).")
 
+    # BUG #279 (B1): KAPALI BETADA WORKSPACE DAVETİ, HESAP AÇAMAYACAK BİRİNE GİDEBİLİYORDU.
+    # Sızıntı değildi (katılmak için hesap gerekir, hesap yolları `beta_access` kapısında) —
+    # ama davetli elinde geçerli bir workspace linkiyle kayıt duvarına çarpıyor ve NEDENİNİ
+    # bilmiyordu; owner da gönderdiğini sanıyordu. İki taraf da sessizce yanlış bilgilenir.
+    # ADR-046 ilkesi: sessiz kabulün ikizi sessiz RET'tir — ikisi de yasak.
+    from app.beta_access import hesap_acabilir_mi
+    if not hesap_acabilir_mi(db, body.email):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Bu e-posta kapalı beta listesinde değil; davet gönderilse bile hesap açamaz. "
+            "Önce bu adrese bir beta daveti oluşturun.",
+        )
+
     token = create_invite_token(workspace_id, body.email, body.role)
     link = build_invite_link(token)
     sent = send_invite_email(body.email.strip().lower(), ws.name, body.role, link)

@@ -9,6 +9,17 @@ Karar: kayıt modu env ile yönetilir ve **production'da varsayılan KAPALI**dı
   REGISTRATION_MODE = invite_only (varsayılan: production) | open (varsayılan: dev)
 Yanlış tarafa düşmemek için varsayılan güvenli seçilir: prod'da açık kayıt ancak
 operatör AÇIKÇA `open` yazarsa mümkündür (fail-closed).
+
+GUNCELLEMELER
+-------------
+BUG #279 fix (B1, 11 Ağu 2026): iki ekleme, ikisi de KOPYA KALDIRMAK için.
+  (a) `eposta_daveti_bul()` — "bu adrese açılmış geçerli davet var mı?" sorusunun tek
+      cevabı. Bu sorgu `routers/auth.py`'nin OAuth dalında elle yazılmıştı; ikinci bir
+      kopya olduğu için kural ayrışmasına açıktı (L46: kopya değil içe aktarma).
+  (b) `hesap_acabilir_mi()` — "bu adres kapalı betada hesap açabilir mi?". Kayıt
+      YOLLARI dışındaki tüketiciler (workspace daveti) için gerekliydi: owner,
+      allowlist'te olmayan birine davet gönderebiliyor, davetli hiç kayıt olamıyor ve
+      NEDENİNİ bilmiyordu — sessiz ret (ADR-046 ilkesi: sessiz kabulün ikizi sessiz RET).
 """
 from __future__ import annotations
 
@@ -74,6 +85,53 @@ def davet_dogrula(db: Session, code: Optional[str], email: str):
     if davet.email and davet.email != (email or "").lower().strip():
         return None
     return davet
+
+
+def eposta_daveti_bul(db: Session, email: str):
+    """Bu ADRESE açılmış, kullanılmamış ve geçerli daveti döner; yoksa None.  # BUG #279
+
+    Kod girilemeyen akışlarda (OAuth: kullanıcı sağlayıcıya gidip geliyor, form yok) kapı
+    e-posta eşleşmesiyle kurulur. Süre/kullanım/e-posta kuralları BURADA tekrar YAZILMAZ —
+    her aday `davet_dogrula`'dan geçirilir, yani kural tek yerdedir (L46).
+
+    E-postasız (yalnız-kod) davetler bu yolla eşleşmez ve bu BİLİNÇLİDİR: tek genel kod,
+    adres bilmeden sınırsız OAuth hesabı açardı (BUG #226 gerekçesi).
+    """
+    from app.models import BetaInvite
+    normal = (email or "").lower().strip()
+    if not normal:
+        return None
+    adaylar = (db.query(BetaInvite)
+               .filter(BetaInvite.email == normal, BetaInvite.used_at.is_(None))
+               .order_by(BetaInvite.id.asc())
+               .all())
+    for aday in adaylar:
+        if davet_dogrula(db, aday.code, normal) is not None:
+            return aday
+    return None
+
+
+def hesap_acabilir_mi(db: Session, email: str) -> bool:
+    """Bu adres kapalı betada hesap açabilir mi?  # BUG #279
+
+    Kayıt UÇLARININ kendi kapısı vardır (register/OAuth); bu fonksiyon kayıt DIŞINDAKİ
+    tüketiciler içindir — birine "gel kullan" demeden önce sorulacak soru.
+
+    Üç hâlde True:
+      - kayıt modu 'open' (kapı yok),
+      - adresin ZATEN hesabı var (davet tüketilmiş ya da hiç gerekmemiş),
+      - adrese açılmış geçerli bir davet var.
+    """
+    if not invite_required():
+        return True
+    normal = (email or "").lower().strip()
+    if not normal:
+        return False
+    from app.models import User
+    varsa = db.query(User.id).filter(User.email == normal).first()
+    if varsa is not None:
+        return True
+    return eposta_daveti_bul(db, normal) is not None
 
 
 def davet_kullan(db: Session, davet, user_id: int) -> None:

@@ -210,3 +210,47 @@ göstermiyor (BUG #276 dersinin yeni yüzeydeki karşılığı — ölçüldü, 
 **Kaynak:** canlı API yanıtı (429 RESOURCE_EXHAUSTED, quotaId
 `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, 10 Ağu 2026) ·
 ai.google.dev/gemini-api/docs/rate-limits
+
+---
+
+## 2026-08-12 — `ts.net` adı Cloudflare çözümleyicisinde ÇÖZÜLMÜYOR (canlı kullanıcıda ölçüldü)
+**Tetik (KURAL D1, soru 2 — cevap benim deneyimimde değil DIŞ DÜNYANIN durumunda):** yeni
+davetli (5. kullanıcı) siteyi **Chrome'da da Brave'de de açamadı**. Operatör makinesinde her
+şey yeşildi — ama bu kurulumda "bende çalışıyor" kanıt değildir (makine tailnet'in içinde,
+adı içeriden çözer).
+
+**Ölçüm (12 sorgu, 10 sn arayla, iki çözümleyici aynı anda):**
+
+| Çözümleyici | Sonuç |
+|---|---|
+| Cloudflare (1.1.1.1 / cloudflare-dns.com) | **1/12 çözdü** — kalan 11'i `Status:3` **NXDOMAIN** |
+| Google (8.8.8.8 / dns.google) | **12/12 çözdü** |
+| AdGuard DNS | çözdü |
+
+**Bu bir önbellek bayatlığı DEĞİL:** Cloudflare'in herkese açık önbellek temizleme aracı
+(`POST https://1.1.1.1/api/v1/purge`) çağrıldı, kuyruğa alındı, sonrasında sonuç hâlâ
+oynadı (5 sorguda 3 OK / 2 NXDOMAIN). **DNSSEC de değil:** `cd=1` (doğrulama kapalı) ile
+de NXDOMAIN. Yani Cloudflare, `ts.net`in yetkili sunucularından (DNSimple: `ns1/ns3.dnsimple.com`,
+`ns2.dnsimple-edge.net`, `ns4.dnsimple-edge.org`) **gerçekten "böyle bir ad yok" cevabı alıyor**;
+Google ve AdGuard almıyor. Kaynağı bizim tarafımızda değil — funnel açık, ingress sağlam
+(IP'ler `--resolve` ile pinlenince **10/10 200**, 0.5-1.8 sn).
+
+**Neden tam da tarayıcıda görünüyor:** Chrome ve Brave'in **"Güvenli DNS" (Secure DNS /
+DNS-over-HTTPS)** özelliği yaygın olarak **Cloudflare**'e gider ve işletim sisteminin DNS
+ayarını **atlar**. Yani davetlinin bilgisayarı sağlıklı bir DNS'e ayarlı olsa bile tarayıcı
+kendi başına Cloudflare'e sorar ve "site bulunamadı" alır.
+
+**Sonuç (karar değil, kısıt):**
+1. Bu, `ts.net` paylaşımlı alan adına bağımlı olmanın **ölçülmüş bedelidir**; kodla
+   giderilemez. Kalıcı çözüm zaten yazılıydı — **kendi alan adı** (`kalici-cozum-plani.md`).
+   Bu ölçüm o planın ilk **somut, kullanıcıda görülmüş** tetikleyicisidir.
+2. Bugün işe yarayan geçici yol: davetliye tarayıcıda **Güvenli DNS'i kapattır** (ya da
+   Google'a aldır). Ücretsiz ve anında; ama her yeni davetliye söylenmesi gereken bir şey
+   olduğu için **beta'nın bedeli olarak kayda geçirildi**, çözüm sayılmadı.
+3. Sağlık kontrolü artık bu duruma KÖR DEĞİL (BUG #303): iki çözümleyiciye birden sorar ve
+   çelişkiyi "DNS KISMI KESINTI — bu çözümleyiciyi kullanan davetli SİTEYİ AÇAMAZ" diye
+   yazar. Eski hâli tek çözümleyiciye (Cloudflare) bakıyor ve aynı olayı yanlış adla
+   ("DIŞ YOL erişilemiyor") raporluyordu.
+
+**Kaynak:** canlı DoH yanıtları (Cloudflare `Status:3` + SOA authority `ns1.dnsimple.com`,
+Google `Status:0` + 3 A kaydı), 12 Ağu 2026 14:20-14:40 · `logs/saglik.log`.

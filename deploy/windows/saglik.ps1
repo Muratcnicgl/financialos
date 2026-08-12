@@ -13,6 +13,14 @@
 # 3. madde neden otomatik onarılmıyor: dış yol Tailscale'in altyapısına bağlı ve geçici
 # ağ dalgalanmasında da düşer. Her düşüşte servisi yeniden başlatmak, çalışan bir
 # sistemi gereksizce sarsar (L6: kapı ürünü kırmaz). Israrla düşerse operatör görür.
+#
+# GUNCELLEMELER
+# -------------
+# BUG #303 fix (12 Ağu 2026): 3. adım yanlış negatif üretiyordu — `/api/ready` ölçüyordu
+#   (DB sorusu, yol sorusu değil), DoH çözümlemesi başarısızken "tünel kapalı" diyordu ve
+#   tek denemeyle karar veriyordu. Sonuç: saglik.log'da gerçek olmayan HATA satırları →
+#   gerçekten düştüğü anı ayırt edilemez hâle getiriyordu. Bu görev artık pencere de
+#   açmıyor (bkz. `gizli_calistir.vbs`).
 param(
     [int]$Port = 8000,
     [string]$Adres = "financialos.tail378d7a.ts.net"
@@ -76,20 +84,84 @@ if (Test-Path $ts) {
 # DNS ile "disaridan hangi IP gorunuyor" sorusu bu makineden SORULAMAZ. DoH bir HTTPS
 # istegidir; araya girilemez ve gercek public IP'leri verir. (Ilk yazimda normal DNS
 # kullanilmisti ve kontrol her seferinde YANLIS NEGATIF veriyordu.)
+# BUG #303: bu adım üç noktada YANLIŞ NEGATİF üretiyordu ve log'u güvenilmez kılıyordu.
+#   (a) Ölçülen uç `/api/ready` idi — o uç VERİTABANINA dokunur. Buradaki soru "dış yol
+#       AÇIK MI"; uygulamanın hazır olup olmadığı 1. adımda ZATEN yerel olarak ölçülüyor.
+#       Yavaş bir DB sorgusu, sağlam bir tüneli "erişilemiyor" diye raporluyordu (iki ayrı
+#       soruyu tek bayrakla cevaplamak — bu defterde tanıdık sınıf).
+#   (b) DoH isteği başarısız olursa `catch` sessizce yutuyor ve sonuç "DIS YOL
+#       erisilemiyor" oluyordu. Oysa çözümlenemeyen DNS ile kapalı tünel AYNI ŞEY DEĞİL;
+#       operatör yanlış yere bakar.
+#   (c) Tek deneme. Relay üzerinden gelen anlık dalgalanma (ölçüldü: 0.5-3.1 sn arası
+#       oynuyor) doğrudan HATA satırına dönüşüyordu. Israrlı arıza ile hıçkırık ayrılmalı.
+# BUG #303 (ikinci bulgu — CANLI ARIZA, 12 Ağu 14:22): tek çözümleyiciye (Cloudflare)
+# bakmak, gerçekte YAŞANAN bir kesintiyi yanlış adla raporluyordu. Ölçüm: aynı anda
+# Cloudflare `Status:3` (NXDOMAIN) derken Google 3 A kaydını sorunsuz döndürdü. Yani
+# `ts.net` adı BAZI çözümleyicilerde geçici olarak kayboluyor — Chrome/Brave'in "Güvenli
+# DNS" özelliği çoğu kurulumda Cloudflare'e gider, dolayısıyla bu pencerede DAVETLİ
+# KULLANICI SİTEYİ AÇAMAZ. Operatör makinesinde hiçbir şey görünmez, çünkü Tailscale
+# istemcisi adı tailnet içinden çözer.
+#
+# Bu yüzden burada iki soru AYRI sorulur ve ayrı raporlanır:
+#   - "adres çözülüyor mu"  → kullanıcının siteye ULAŞABİLMESİ bu cevaba bağlı
+#   - "ingress cevap veriyor mu" → tünelin kendisi
+# Çözümleyiciler ÇELİŞİYORSA bu bir kesintidir: kullanıcıların bir kısmı giremiyordur.
 $disOk = $false
-try {
-    $doh = Invoke-RestMethod -Uri "https://cloudflare-dns.com/dns-query?name=$Adres&type=A" `
-             -Headers @{accept = "application/dns-json"} -TimeoutSec 20
-    $ipler = @($doh.Answer | Where-Object { $_.type -eq 1 -and $_.data -notlike "100.*" } |
-               ForEach-Object { $_.data })
-    foreach ($ip in $ipler) {
-        $kod = & curl.exe -s -o NUL -w "%{http_code}" --max-time 20 `
-                 --resolve "${Adres}:443:${ip}" "https://$Adres/api/ready" 2>$null
-        if ($kod -eq "200") { $disOk = $true; break }
-    }
-} catch { }
+$disNot = "DIS YOL erisilemiyor (public ingress)"
+$ipler = @()
+$cozenler = @()
+$cozmeyenler = @()
 
-if (-not $disOk) { $sorun += "DIS YOL erisilemiyor (public ingress)" }
+foreach ($cozumleyici in @(
+    @{ ad = "cloudflare"; url = "https://cloudflare-dns.com/dns-query?name=$Adres&type=A" },
+    @{ ad = "google";     url = "https://dns.google/resolve?name=$Adres&type=A" }
+)) {
+    # curl.exe kullanılır, Invoke-RestMethod DEĞİL: ikincisi bu makinede aynı sorguya
+    # boş gövde döndürüyordu (kanıt BUG #303 turu). Ölçüm aracının kendisi sessizce
+    # başarısız olursa ölçüm de yalan söyler.
+    $ham = & curl.exe -s --max-time 15 -H "accept: application/dns-json" $cozumleyici.url 2>$null
+    $bulunan = @()
+    try {
+        $j = $ham | ConvertFrom-Json
+        if ($j.Status -eq 0) {
+            $bulunan = @($j.Answer | Where-Object { $_.type -eq 1 -and $_.data -notlike "100.*" } |
+                         ForEach-Object { $_.data })
+        }
+    } catch { }
+    if ($bulunan.Count -gt 0) {
+        $cozenler += $cozumleyici.ad
+        $ipler += $bulunan
+    } else {
+        $cozmeyenler += $cozumleyici.ad
+    }
+}
+$ipler = @($ipler | Select-Object -Unique)
+
+if ($cozenler.Count -gt 0 -and $cozmeyenler.Count -gt 0) {
+    # Kısmi DNS kesintisi — tünel sağlam olsa bile kullanıcıların bir kısmı giremez.
+    $sorun += ("DNS KISMI KESINTI — cozmeyen: {0} (cozen: {1}); bu cozumleyiciyi kullanan davetli SITEYI ACAMAZ" `
+               -f ($cozmeyenler -join ","), ($cozenler -join ","))
+}
+
+if ($ipler.Count -eq 0) {
+    # Hiçbir çözümleyici cevap vermedi: ya adres tamamen düştü ya da bu makinenin
+    # internet erişimi yok. İkisi de "tünel kapalı" DEĞİLDİR — ayrı yazılır.
+    $disNot = "DIS ADRES HIC COZULMUYOR (hicbir cozumleyici A kaydi vermedi) — davetliler SITEYI ACAMAZ"
+} else {
+    $sonKod = ""
+    foreach ($deneme in 1, 2) {
+        foreach ($ip in $ipler) {
+            $sonKod = & curl.exe -s -o NUL -w "%{http_code}" --max-time 20 `
+                        --resolve "${Adres}:443:${ip}" "https://$Adres/api/health" 2>$null
+            if ($sonKod -eq "200") { $disOk = $true; break }
+        }
+        if ($disOk) { break }
+        if ($deneme -eq 1) { Start-Sleep -Seconds 5 }   # hıçkırık mı, arıza mı
+    }
+    if (-not $disOk) { $disNot = "DIS YOL erisilemiyor (public ingress, son kod: $sonKod)" }
+}
+
+if (-not $disOk) { $sorun += $disNot }
 
 # ── Sonuç ──────────────────────────────────────────────────────────────────
 if ($sorun.Count -eq 0) {

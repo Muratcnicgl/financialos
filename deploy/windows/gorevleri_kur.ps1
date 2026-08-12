@@ -1,5 +1,16 @@
 ﻿# FinancialOS — kapalı beta Windows görevleri (BUG #290 / B4)
 #
+# GUNCELLEMELER
+# -------------
+# BUG #303 fix (12 Ağu 2026): üç görev de artık `gizli_calistir.vbs` üzerinden koşar.
+#   Görev Zamanlayıcı, kullanıcının OTURUMUNDA koşan bir göreve konsol penceresi açar;
+#   `-WindowStyle Hidden` pencereyi ancak AÇILDIKTAN SONRA gizler, yani ekranda siyah
+#   kutu çakar. Sağlık kontrolü 10 dakikada bir koştuğu için kullanıcı bunu günde ~100
+#   kez görüyordu. Sıklığı azaltmak yanlış çözümdü: pencere rahatsızlığı ölçümün
+#   BEDELİ değil, YAN ETKİSİYDİ — ölçümü seyrekleştirmek düşen tüneli daha uzun süre
+#   düşük bırakırdı (kanıt: saglik.log 12 Ağu 08:52 "funnel kapali — yeniden kuruluyor").
+#   Yan etki kaldırıldı, ölçüm sıklığı KORUNDU.
+#
 # Üç görev kurar:
 #   1. FinancialOS-Baslat   — oturum açılışında uygulamayı başlatır
 #   2. FinancialOS-Saglik   — 10 dakikada bir uygulama+tünel+dış yolu ölçer, düşeni onarır
@@ -51,6 +62,20 @@ if (-not (Test-Path $PY)) { Write-Error "venv python yok: $PY"; exit 1 }
 $psExe = (Get-Command powershell.exe).Source
 $ortak = @{ Force = $true }
 
+# Pencere açmadan çalıştırma sarmalayıcısı (BUG #303). `//B` = toplu mod (hata kutusu
+# çıkarmaz), `//Nologo` = banner yok. Asıl komut bunun ARDINDAN argüman olarak gelir.
+$VBS = Join-Path $PSScriptRoot "gizli_calistir.vbs"
+if (-not (Test-Path $VBS)) { Write-Error "gizli calistirici yok: $VBS"; exit 1 }
+$wscript = (Get-Command wscript.exe).Source
+
+function GizliAksiyon {
+    param([string]$Program, [string[]]$Argumanlar)
+    # Her argüman VBS'e AYRI ve tırnaklı gider; boşluklu yollar bozulmaz.
+    $parcalar = @("//B", "//Nologo", "`"$VBS`"", "`"$Program`"")
+    foreach ($a in $Argumanlar) { $parcalar += "`"$a`"" }
+    New-ScheduledTaskAction -Execute $wscript -Argument ($parcalar -join " ") -WorkingDirectory $KOK
+}
+
 # ── 1. Oturum açılışında başlat ────────────────────────────────────────────
 # Gecikme: Tailscale servisinin ayağa kalkması ve ağın hazır olması için. Uygulama
 # tünelden ÖNCE açılırsa sorun olmaz (tünel yerel porta bağlanır) ama ağ hazır değilken
@@ -58,9 +83,8 @@ $ortak = @{ Force = $true }
 Register-ScheduledTask -TaskName "FinancialOS-Baslat" @ortak `
     -Description "Kapali beta: oturum acilisinda FinancialOS'u baslatir (BUG #290)" `
     -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME) `
-    -Action (New-ScheduledTaskAction -Execute $psExe `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$BASLAT`"" `
-        -WorkingDirectory $KOK) `
+    -Action (GizliAksiyon -Program $psExe `
+        -Argumanlar @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $BASLAT)) `
     -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 10)) | Out-Null
 "kuruldu: FinancialOS-Baslat (oturum acilisinda)"
@@ -80,9 +104,8 @@ $saglikTetikler = @(
 Register-ScheduledTask -TaskName "FinancialOS-Saglik" @ortak `
     -Description "Kapali beta: uygulama+tunel+dis yol saglik kontrolu, duseni onarir (BUG #290)" `
     -Trigger $saglikTetikler `
-    -Action (New-ScheduledTaskAction -Execute $psExe `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SAGLIK`"" `
-        -WorkingDirectory $KOK) `
+    -Action (GizliAksiyon -Program $psExe `
+        -Argumanlar @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $SAGLIK)) `
     -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 5) `
         -MultipleInstances IgnoreNew) | Out-Null
@@ -94,7 +117,7 @@ Register-ScheduledTask -TaskName "FinancialOS-Saglik" @ortak `
 Register-ScheduledTask -TaskName "FinancialOS-Yedek" @ortak `
     -Description "Kapali beta: gunluk veritabani yedegi (data/backups)" `
     -Trigger (New-ScheduledTaskTrigger -Daily -At "03:15") `
-    -Action (New-ScheduledTaskAction -Execute $PY -Argument "-m scripts.backup" -WorkingDirectory $KOK) `
+    -Action (GizliAksiyon -Program $PY -Argumanlar @("-m", "scripts.backup")) `
     -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 15)) | Out-Null
 "kuruldu: FinancialOS-Yedek (her gun 03:15)"

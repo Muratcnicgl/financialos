@@ -1,5 +1,5 @@
 # RUNBOOK — Kendi makineden yayın: Tailscale Funnel (B4 / Seçenek A-0, **alan adı GEREKMEZ**)
-
+c
 **Durum:** HAZIR, koşulmadı.
 **Ne zaman bu yol:** "şimdi 0 TL başla, markalaşınca alan adı al" kararı verildiğinde.
 **Maliyet: 0.** Alan adı yok, sunucu yok, port yönlendirme yok.
@@ -166,3 +166,61 @@ Alan adı alındığında iki yol var; ikisi de bu kurulumun üstüne gelir:
 
 **Geçiş günü yapılacak tek ek iş:** davetlilere "adres değişti, ana ekrandaki eskisini silin,
 şunu ekleyin" mesajı. Bunu **önceden** duyur; sessiz taşıma kullanıcı kaybettirir.
+
+---
+
+## 8. "Davetli siteyi açamıyor" — önce BUNA bak (12 Ağu 2026, ölçülmüş)
+
+**Belirti:** davetli "site açılmıyor" diyor (Chrome ve Brave'de aynı), sen makinenden
+bakınca her şey yeşil.
+
+**En olası sebep tünel DEĞİL, DNS.** `financialos.<tailnet>.ts.net` adı **Cloudflare'in
+genel çözümleyicisinde (1.1.1.1) NXDOMAIN dönebiliyor**; aynı anda Google (8.8.8.8) ve
+AdGuard sorunsuz çözüyor. Ölçüm: 12 sorguda Cloudflare **1/12**, Google **12/12**
+(ayrıntı + kaynak: `docs/kalite-seruveni/research-log.md`, 12 Ağu 2026).
+
+Bu neden tam da tarayıcıda vurur: **Chrome ve Brave'in "Güvenli DNS" (Secure DNS / DoH)**
+özelliği yaygın olarak Cloudflare'e gider ve **işletim sisteminin DNS ayarını atlar**.
+Kullanıcının bilgisayarı sağlıklı bir DNS'e ayarlı olsa bile tarayıcı kendi başına
+Cloudflare'e sorar.
+
+Sen göremezsin çünkü bu makine tailnet'in içindedir ve adı içeriden çözer — **"bende
+çalışıyor" bu kurulumda kanıt değildir** (§0'ın aynı dersi).
+
+### Teşhis (30 saniye)
+
+```powershell
+# Iki cozumleyiciye AYNI soruyu sor. Biri cozup digeri cozmuyorsa teshis kesindir.
+curl.exe -s -H "accept: application/dns-json" `
+  "https://cloudflare-dns.com/dns-query?name=financialos.tail378d7a.ts.net&type=A"
+curl.exe -s -H "accept: application/dns-json" `
+  "https://dns.google/resolve?name=financialos.tail378d7a.ts.net&type=A"
+# BEKLENEN (saglikli): iki cevapta da "Status":0 + uc A kaydi
+# DNS ARIZASI        : birinde "Status":3 (NXDOMAIN), digerinde 0
+```
+
+Sağlık kontrolü bunu artık kendisi yazar — `logs/saglik.log`:
+`DNS KISMI KESINTI — cozmeyen: cloudflare (cozen: google)` (BUG #303).
+
+Tünelin kendisini ayırt etmek için adresi atlayıp **IP'yi pinle**:
+
+```powershell
+curl.exe -s -o NUL -w "%{http_code}`n" --max-time 20 `
+  --resolve "financialos.tail378d7a.ts.net:443:176.58.88.82" `
+  "https://financialos.tail378d7a.ts.net/api/health"
+# 200 ise: tunel SAGLAM, sorun yalnizca ad cozumlemede.
+```
+
+### Davetliye söylenecek (geçici, ücretsiz, anında)
+
+> Tarayıcıda **Güvenli DNS**'i kapat:
+> **Chrome:** Ayarlar → Gizlilik ve güvenlik → Güvenlik → *Güvenli DNS kullan* → **kapat**.
+> **Brave:** Ayarlar → Gizlilik ve güvenlik → *Güvenli DNS kullan* → **kapat**
+> (ya da sağlayıcıyı **Google (Public DNS)** yap).
+> Sonra sayfayı yenile.
+
+### Kalıcı çözüm
+
+Bu, paylaşımlı `ts.net` alan adına bağımlı olmanın bedelidir ve **kodla giderilemez**.
+Kendi alan adına geçiş (§7 + `kalici-cozum-plani.md`) bunu tamamen ortadan kaldırır —
+yukarıdaki ölçüm, o hattın ilk **kullanıcıda görülmüş** tetikleyicisidir.

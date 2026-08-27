@@ -1,4 +1,4 @@
-"""
+r"""
 Mevcut yatırım hesapları için geçmiş fiyat backfill (charter M4.5 / ADR-029).
 
 Her aktif `investment` hesabının fund_code'u için verilen aralıktaki iş günlerinde TEFAS

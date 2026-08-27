@@ -1,4 +1,4 @@
-"""
+r"""
 Temiz-DB kurulum testi (charter M1 — ADR-013 tam gerçekleştirme).
 
 Bomboş bir SQLite dosyasında `alembic upgrade head` çalıştırıldığında TÜM şema kurulmalı ve

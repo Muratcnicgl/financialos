@@ -74,7 +74,9 @@ _TANIMLAYICI = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 MUAF: dict[str, str] = {}
 
 
-def _izlenen_py() -> list[str]:
+def izlenen_py() -> list[str]:
+    """Depoda İZLENEN tüm `.py` yolları. Public: `tests/test_kacis_dizisi_kapisi.py` de
+    aynı listeyi ister ve `git ls-files`'ı dördüncü kez yeniden yazmasın diye buradan alır."""
     cikti = subprocess.run(
         ["git", "ls-files", "*.py"], cwd=str(REPO_KOK), capture_output=True, text=True, check=True
     )
@@ -161,7 +163,7 @@ def atif_sayaci(py_dosyalari: list[str]) -> collections.Counter:
 
 
 def olu_fonksiyonlar() -> tuple[list[tuple[str, list[str]]], int, int]:
-    py = _izlenen_py()
+    py = izlenen_py()
     app_py = [y for y in py if y.startswith("app/")]
     bulunan, elenen = tanimlar(app_py)
     sayac = atif_sayaci(py)

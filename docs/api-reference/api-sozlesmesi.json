@@ -1,0 +1,2939 @@
+[
+  {
+    "yol": "/",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu"
+    }
+  },
+  {
+    "yol": "/api/accounts",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "account_type",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "AccountType|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[AccountOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/accounts",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "AccountCreate",
+    "yanitlar": {
+      "201": "AccountOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/accounts/{account_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "account_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/accounts/{account_id}",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "account_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "AccountOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/accounts/{account_id}",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "account_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "AccountUpdate",
+    "yanitlar": {
+      "200": "AccountOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/actions/history",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "action_type",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string"
+      },
+      {
+        "ad": "limit",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[ActionHistoryOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/actions/pending",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[PendingActionOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/actions/{action_id}/approve",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "action_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/actions/{action_id}/edit",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "action_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "EditActionRequest",
+    "yanitlar": {
+      "200": "PendingActionOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/actions/{action_id}/reject",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "action_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "RejectRequest",
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/callback/{provider}",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [
+      {
+        "ad": "provider",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "string"
+      },
+      {
+        "ad": "code",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string"
+      },
+      {
+        "ad": "state",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/change-email",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": "EmailChangeIn",
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/change-email-confirm",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "EmailChangeConfirmIn",
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/change-password",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": "PasswordChangeIn",
+    "yanitlar": {
+      "200": "TokenOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/login",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "LoginIn",
+    "yanitlar": {
+      "200": "TokenOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/logout",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "RefreshIn",
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/me",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "app__routers__auth__UserOut"
+    }
+  },
+  {
+    "yol": "/api/auth/oauth/exchange",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "OAuthExchangeIn",
+    "yanitlar": {
+      "200": "TokenOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/oauth/{provider}/login",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [
+      {
+        "ad": "provider",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/password-reset-confirm",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "PasswordResetConfirmIn",
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/password-reset-request",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "PasswordResetRequestIn",
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/refresh",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "RefreshIn",
+    "yanitlar": {
+      "200": "TokenOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/register",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "RegisterIn",
+    "yanitlar": {
+      "201": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/set-password",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": "PasswordSetIn",
+    "yanitlar": {
+      "200": "TokenOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/auth/verify-email",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [
+      {
+        "ad": "token",
+        "yer": "query",
+        "zorunlu": true,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/cashflow/forecast",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "account_id",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "crunch_threshold",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "number"
+      },
+      {
+        "ad": "days",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      },
+      {
+        "ad": "include",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "ForecastResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/categories",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "tumu",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "boolean"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[CategoryOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/categories",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "CategoryCreate",
+    "yanitlar": {
+      "201": "CategoryOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/categories/{kategori_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "kategori_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      },
+      {
+        "ad": "hedef",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/categories/{kategori_id}",
+    "metot": "PATCH",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "kategori_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "CategoryUpdate",
+    "yanitlar": {
+      "200": "CategoryOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/checkpoints",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "active_only",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "boolean"
+      },
+      {
+        "ad": "checkpoint_type",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "CheckpointType|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[CheckpointOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/checkpoints",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "CheckpointCreate",
+    "yanitlar": {
+      "201": "CheckpointOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/checkpoints/{cp_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "cp_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      },
+      {
+        "ad": "hard",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "boolean"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/checkpoints/{cp_id}",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "cp_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "CheckpointUpdate",
+    "yanitlar": {
+      "200": "CheckpointOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/coach/chat",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "ChatRequest",
+    "yanitlar": {
+      "200": "ChatResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/coach/history",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [
+      {
+        "ad": "limit",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[HistoryItem]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/coach/reset",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "ResetResponse"
+    }
+  },
+  {
+    "yol": "/api/coach/trace/{memory_id}",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [
+      {
+        "ad": "memory_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "TraceResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/coach/usage",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "UsageInfo"
+    }
+  },
+  {
+    "yol": "/api/cockpit",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debt-strategy/compare",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "extra_monthly",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "number"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "DebtStrategyResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debt-strategy/consolidation",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "rate",
+        "yer": "query",
+        "zorunlu": true,
+        "tip": "number"
+      },
+      {
+        "ad": "term",
+        "yer": "query",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debt-strategy/opportunity-cost",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "amount",
+        "yer": "query",
+        "zorunlu": true,
+        "tip": "number"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debts",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "counterparty",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      },
+      {
+        "ad": "direction",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "DebtDirection|null"
+      },
+      {
+        "ad": "paid",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "boolean|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[DebtOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debts",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "DebtCreate",
+    "yanitlar": {
+      "201": "DebtOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debts/{debt_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "debt_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debts/{debt_id}",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "debt_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "DebtUpdate",
+    "yanitlar": {
+      "200": "DebtOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/envelopes",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/envelopes",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "EnvelopeCreate",
+    "yanitlar": {
+      "201": "EnvelopeOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/envelopes/{envelope_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "envelope_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/envelopes/{envelope_id}",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "envelope_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "EnvelopeUpdate",
+    "yanitlar": {
+      "200": "EnvelopeOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/expenses/recurring",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "active_only",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "boolean"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[ExpenseOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/expenses/recurring",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "ExpenseCreate",
+    "yanitlar": {
+      "201": "ExpenseOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/expenses/recurring/trigger-due",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/expenses/recurring/{expense_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "expense_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/expenses/recurring/{expense_id}",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "expense_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "ExpenseUpdate",
+    "yanitlar": {
+      "200": "ExpenseOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/feedback",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[FeedbackOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/feedback",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "FeedbackCreate",
+    "yanitlar": {
+      "201": "FeedbackOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/fund-price/freshness",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/fund-price/tefas-link/{fund_code}",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "fund_code",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "TefasLinkResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/fund-price/update",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "FundPriceUpdate",
+    "yanitlar": {
+      "200": "FundPriceUpdateResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_type",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      },
+      {
+        "ad": "status_filter",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[GoalRead]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "GoalCreate",
+    "yanitlar": {
+      "201": "GoalRead",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/allocations/{allocation_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "allocation_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/rules/{rule_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "rule_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/rules/{rule_id}",
+    "metot": "PATCH",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "rule_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "GoalRuleUpdate",
+    "yanitlar": {
+      "200": "GoalRuleRead",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "GoalRead",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}",
+    "metot": "PATCH",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "GoalUpdate",
+    "yanitlar": {
+      "200": "GoalRead",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}/allocations",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[GoalAllocationRead]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}/allocations",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "GoalAllocationCreate",
+    "yanitlar": {
+      "201": "GoalAllocationRead",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}/refresh",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "GoalRead",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}/rules",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[GoalRuleRead]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/goals/{goal_id}/rules",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "goal_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "GoalRuleCreate",
+    "yanitlar": {
+      "201": "GoalRuleRead",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/health",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu"
+    }
+  },
+  {
+    "yol": "/api/incomes",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "active_only",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "boolean"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[IncomeOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/incomes",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "IncomeCreate",
+    "yanitlar": {
+      "201": "IncomeOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/incomes/trigger-due",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/incomes/{income_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "income_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/incomes/{income_id}",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "income_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "IncomeUpdate",
+    "yanitlar": {
+      "200": "IncomeOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/legal",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object"
+    }
+  },
+  {
+    "yol": "/api/legal/{slug}",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [
+      {
+        "ad": "slug",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/meta",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "UrunBilgisi"
+    }
+  },
+  {
+    "yol": "/api/meta/durum",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "Durum"
+    }
+  },
+  {
+    "yol": "/api/onboarding/demo",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "DemoDurumu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/onboarding/demo",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "DemoDurumu"
+    }
+  },
+  {
+    "yol": "/api/onboarding/demo",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "201": "DemoDurumu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/onboarding/rehber",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "RehberDurumu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/onboarding/rehber",
+    "metot": "PATCH",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "RehberGizleIstegi",
+    "yanitlar": {
+      "200": "RehberDurumu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/ops/scheduler",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "SchedulerDurumu"
+    }
+  },
+  {
+    "yol": "/api/premortem/{action_id}",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "action_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "PremortemResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/prices/currency/{currency_code}",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [
+      {
+        "ad": "currency_code",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "string"
+      },
+      {
+        "ad": "date",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/prices/gold/{gold_type}",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [
+      {
+        "ad": "gold_type",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "string"
+      },
+      {
+        "ad": "date",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/ready",
+    "metot": "GET",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object"
+    }
+  },
+  {
+    "yol": "/api/reports/category-breakdown",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "days",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      },
+      {
+        "ad": "type",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "CategoryBreakdownResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/reports/monthly-summary",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "month",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "year",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/reports/net-worth-attribution",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/reports/net-worth-trend",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "days",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/reports/real-net-worth",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/reports/upcoming-cashflow",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "days",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/simulate/{action_id}",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "action_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "HorizonsResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/subscriptions",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "lookback_days",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "SubscriptionsResponse",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/subscriptions/to-recurring",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "ToRecurringRequest",
+    "yanitlar": {
+      "201": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/transactions",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "limit",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/transactions",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "TransactionCreate",
+    "yanitlar": {
+      "201": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/transactions/{txn_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "txn_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      },
+      {
+        "ad": "auto_revert_balance",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "boolean"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/transactions/{txn_id}",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "txn_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "TransactionUpdate",
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/user",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "app__routers__user__UserOut"
+    }
+  },
+  {
+    "yol": "/api/user",
+    "metot": "POST",
+    "kimlik": "kimliksiz",
+    "koruma": [],
+    "parametreler": [],
+    "istek_govdesi": "UserCreate",
+    "yanitlar": {
+      "201": "app__routers__user__UserOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/user",
+    "metot": "PUT",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": "UserUpdate",
+    "yanitlar": {
+      "200": "app__routers__user__UserOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/user/export",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu"
+    }
+  },
+  {
+    "yol": "/api/users/me",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz"
+    }
+  },
+  {
+    "yol": "/api/users/me/export",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object"
+    }
+  },
+  {
+    "yol": "/api/users/me/kvkk-consent",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object"
+    }
+  },
+  {
+    "yol": "/api/users/me/kvkk-consent",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object"
+    }
+  },
+  {
+    "yol": "/api/wishlist",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "object",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/wishlist",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      }
+    ],
+    "istek_govdesi": "WishlistCreate",
+    "yanitlar": {
+      "201": "WishlistOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/wishlist/{item_id}/resolve",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "item_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      },
+      {
+        "ad": "status",
+        "yer": "query",
+        "zorunlu": true,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "WishlistOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/workspaces",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[WorkspaceOut]"
+    }
+  },
+  {
+    "yol": "/api/workspaces",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": "WorkspaceCreate",
+    "yanitlar": {
+      "201": "WorkspaceOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/workspaces/join",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [
+      {
+        "ad": "token",
+        "yer": "query",
+        "zorunlu": true,
+        "tip": "string"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "JoinOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/workspaces/{workspace_id}",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [
+      {
+        "ad": "workspace_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "WorkspaceDetail",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/workspaces/{workspace_id}/invite",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.get_active_membership",
+      "app.workspace_deps.require_workspace"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "workspace_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "InviteCreate",
+    "yanitlar": {
+      "201": "InviteOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/workspaces/{workspace_id}/members/{target_user_id}",
+    "metot": "DELETE",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.get_active_membership",
+      "app.workspace_deps.require_workspace"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "target_user_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      },
+      {
+        "ad": "workspace_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  }
+]

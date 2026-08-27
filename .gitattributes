@@ -8,3 +8,8 @@ deploy/*.sh text eol=lf
 Dockerfile* text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+
+# BUG #306: dondurulmuş API sözleşmesi DAİMA LF. Ölçüm makineye bağlı olmamalı —
+# seen-backend'de aynı repo iki makinede 31 ve 59 "biçimsiz dosya" ölçtü, sebebi CRLF'ti.
+# Betik dosyayı zaten LF ile yazar; bu satır klonlamada da aynı garantiyi verir.
+docs/api-reference/api-sozlesmesi.json text eol=lf

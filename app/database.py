@@ -122,11 +122,13 @@ def get_db() -> Session:
         db.close()
 
 
-def init_db() -> None:
-    """
-    Tüm tabloları oluşturur. setup_data.py'den çağrılır.
-    Var olan tablolara dokunmaz (CREATE IF NOT EXISTS).
-    """
-    # Tüm modelleri import et ki Base.metadata onları görsün
-    from app import models  # noqa: F401
-    Base.metadata.create_all(bind=engine)
+# BUG #311 fix (KAP-06): `init_db()` SİLİNDİ. İki ayrı gerekçe, ikisi de ölçüldü:
+#   1. ÇAĞIRANI YOKTU. Docstring'i "setup_data.py'den çağrılır" diyordu; `setup_data.py`
+#      `Base.metadata.drop_all/create_all`'ı DOĞRUDAN çağırıyor, `init_db`'yi değil
+#      (`git grep init_db -- '*.py'` → yalnız tanım satırı). Yani docstring ölçülebilir
+#      bir yalandı ve yanlışlığı hiçbir şeyi kırmadığı için 21 gün fark edilmedi.
+#   2. ADR-013'E AYKIRIYDI. Şema otoritesi alembic'tir; `create_all` şemayı kurar ama
+#      `alembic_version`'ı damgalamaz — sonraki `upgrade head` ya "table already exists"
+#      der ya da belirsizliğe düşer. Tam olarak ADR-013 + ADR-013a'nın yasakladığı yol.
+#      `docs/kalite-seruveni/dosya-denetimi/database.md` [DB-001] bunu 6 Ağu'da bulmuş,
+#      "init_db'yi test-only yap" demiş; ölü olduğu için doğru cevap silmekti.

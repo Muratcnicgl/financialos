@@ -40,7 +40,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +163,5 @@ def format_para(
     return f"{metin} {birim.etiket}"
 
 
-def para_listesi(degerler: Iterable[Sayi], user=None, *, ayirac: str = " · ") -> str:
-    """Birden çok tutarı aynı biçimle yazar (rapor/özet satırları için)."""
-    return ayirac.join(format_para(d, user) for d in degerler)
+# BUG #311 (KAP-06): `para_listesi(degerler, ...)` SİLİNDİ — `guvenli_metin_veya` ile aynı
+# sınıf: "rapor/özet satırları için" yazılmış ama hiçbir rapor onu çağırmamış.

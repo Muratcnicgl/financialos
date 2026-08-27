@@ -11,6 +11,19 @@ Bu modül iki kullanım sunar:
 - `UtcDateTime`: Pydantic Out şemalarında `created_at: Optional[UtcDateTime]` olarak
   kullanılır; JSON serilaştırmada otomatik +00:00 ekler. Naive değeri UTC kabul eder,
   zaten aware olanı olduğu gibi bırakır (çift dönüşüm yok).
+
+GUNCELLEMELER
+-------------
+BUG #311 fix (KAP-06): `export_user_data` SİLİNDİ. BUG #243 (D26/D28) KVKK export'unu
+`app/data_subject.disa_aktar`'da tek kaynağa toplarken iki ÇAĞIRANI değiştirdi ama bu
+GÖVDEYİ bıraktı; fonksiyon `ac08db1` (6 Ağu 2026) ile ölmüş, 21 gün boyunca hiçbir
+yerden çağrılmadan durmuştu. Zararsız değildi: `_row()` her kolonu koşulsuz basar, yani `disa_aktar`'ın
+`GIZLENEN_ALANLAR` ile bilerek gizlediği `password_hash` · `oauth_sub` · `token_version`
+alanlarını döküyordu (ölçüldü: üçü de ölü sürümde True, canlı sürümde False). "export"
+diye arayan biri bunu bulup çağırsa D26 aynen geri gelirdi — üstelik
+`tests/test_kvkk_veri_sahibi_kapisi.py`'nin sınıflandırma kapısını hiç görmeden.
+Ders: bir düzeltme çağıranları yönlendirip eski gövdeyi bırakırsa, defekt kapanmaz;
+SİLAHLI BEKLEMEYE geçer.
 """
 from __future__ import annotations
 
@@ -34,45 +47,3 @@ UtcDateTime = Annotated[
     datetime,
     PlainSerializer(utc_isoformat, return_type=str, when_used="json"),
 ]
-
-
-def export_user_data(user, db) -> dict:
-    """
-    M11 (ADR-033 / KVKK taşınabilirlik): kullanıcının tüm verisini JSON-serileştir.
-    Basit, tam kapsam: ilişkili tabloları satır-satır dict'e çevirir (SQLAlchemy sütunları).
-    """
-    from sqlalchemy import inspect as _sa_inspect
-
-    def _row(obj) -> dict:
-        out = {}
-        for col in _sa_inspect(obj).mapper.column_attrs:
-            val = getattr(obj, col.key)
-            if isinstance(val, datetime):
-                val = utc_isoformat(val)
-            else:
-                # Decimal/enum/date → JSON-güvenli
-                try:
-                    import json as _json
-                    _json.dumps(val)
-                except (TypeError, ValueError):
-                    val = str(val)
-            out[col.key] = val
-        return out
-
-    data: dict = {
-        "exported_at": utc_isoformat(datetime.now(timezone.utc)),
-        "user": _row(user),
-    }
-    # User üzerindeki tüm relationship koleksiyonlarını dök
-    for rel in _sa_inspect(user).mapper.relationships:
-        try:
-            related = getattr(user, rel.key)
-        except Exception:
-            continue
-        if related is None:
-            continue
-        if rel.uselist:
-            data[rel.key] = [_row(item) for item in related]
-        else:
-            data[rel.key] = _row(related)
-    return data

@@ -104,7 +104,8 @@ def guvenli_metin(ham: Optional[str], *, azami: int = VARSAYILAN_AZAMI) -> str:
     return metin
 
 
-def guvenli_metin_veya(ham: Optional[str], varsayilan: str, *, azami: int = VARSAYILAN_AZAMI) -> str:
-    """Boşa düşen alanlar için varsayılanlı sürüm (örn. adsız hesap → '(adsız)')."""
-    temiz = guvenli_metin(ham, azami=azami)
-    return temiz if temiz else varsayilan
+# BUG #311 (KAP-06): `guvenli_metin_veya(ham, varsayilan)` SİLİNDİ — hiç çağrılmadı ve
+# elle yeniden yazıldığı bir yer de yoktu (`guvenli_metin(...) or ...` kalıbı aranıp
+# bulunamadı). Yani gerçek bir ihtiyacın karşılığı değil, ihtimalli bir kolaylıktı.
+# İhtiyaç doğarsa iki satır; o güne dek bakımı yapılan, kapsanan, güvenilir sanılan
+# ama hiç koşmayan kod olmaktan başka bir iş görmüyordu.

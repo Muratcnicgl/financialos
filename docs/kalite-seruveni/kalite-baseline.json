@@ -12,13 +12,14 @@
     "E9": 0,
     "F": 203,
     "B": 31,
-    "S": 62
+    "S": 63
   },
   "notlar": [
     "TOPLAM 296. Aile bazında tutuluyor, tek bir toplam olarak değil: tek toplam takas yapmaya izin verirdi — 5 kullanılmayan import temizlenip 5 yeni güvenlik bulgusu eklendiğinde sayı aynı kalır ve kapı susardı. Aile bazında S ailesinin artışı kendi başına kapıyı kırar.",
     "TAVAN İLK ÖLÇÜMDE 57'YDİ, 59'A ÇEKİLDİ. Sebep dürüstçe kaydediliyor: sayacın KENDİ betiği (`scripts/kalite_kapisi.py`) ruff'u `subprocess` ile çağırıyor ve bu iki `S603` üretiyor. Bunlara `# noqa` koyup sayıyı 57'de tutmak, kapının kendi ölçümünden muaf olması demekti — muafiyet listesi büyüdükçe kural erir. Baseline, ölçüldüğü ANDAKİ ağacı yansıtır; araç da o ağacın parçasıdır.",
     "S 59 -> 62 (BUG #310): `scripts/belge_denetimi.py` `git ls-files` / `git log` çağırdığı için 3 × S607 ('partial executable path') ekledi. Tavan ELLE ve bu gerekçeyle yükseltildi — `--yaz` bunu yapmayı REDDEDER (ölçüldü: bozuk ağaçta çıkış 1, dosya değişmedi), çünkü tavan yükseltmek bilinçli bir karardır ve otomatik olmamalıdır. `git`i tam yolla çağırmak taşınabilir değil; kural bu bağlamda B008/S101 ile aynı sınıfta — ama muafiyet listesi büyütmek yerine sayı görünür kaldı.",
     "E9 = 0 ve öyle kalmalı: sözdizimi/derleme hatası. Bu ailede tavan yükseltmek anlamsızdır.",
+    "S 62 -> 63 (BUG #311): `scripts/olu_kod_kapisi.py` `git ls-files` çağırdığı için 1 × S607. Üçüncü kez aynı sebeple yükseldi (#310'da 3, şimdi 1) ve bu bir DESENDİR: bu depodaki her kapı git'i sorgular, `git`i tam yolla yazmak taşınabilir değildir. Yine de S607 kural kümesinden ÇIKARILMADI — muafiyet listesi büyütmek sayıyı kalıcı olarak kör eder, tavan yükseltmek ise her seferinde bilinçli bir karar ve yazılı bir gerekçe ister. Sayı görünür kalsın diye pahalı yol seçildi.",
     "F 203'ün 177'si kullanılmayan import (F401). Hepsi `ruff check --fix` ile otomatik düzeltilebilir ama BU TURDA YAPILMADI: KAP-04'ün işi sayacı kurmaktı, temizlik ayrı bir tek-amaçlı commit'tir. Ayrıca `__init__.py` ve alembic dosyalarındaki bazı import'lar yeniden-dışa-aktarım ya da yan etki için durabilir; toplu `--fix` bunu ölçmeden yapamaz. Ayrı iş olarak kaydedildi.",
     "B008 (229 bulgu) kural kümesinin DIŞINDA: hepsi FastAPI'nin `Depends()` deseni, yani çerçevenin gerektirdiği yazım. Sayaca konsaydı kapı doğduğu gün anlamsızlaşırdı.",
     "S101 (assert) tests/ ve kökteki tarihsel test_*.py için muaf: pytest'in çalışma biçimi budur (tests/ altında 4484 tane var, hepsi doğru kullanım). app/ içindeki tek S101 sayılmaya devam ediyor — üretim kodunda assert, -O bayrağıyla sessizce kaybolur.",

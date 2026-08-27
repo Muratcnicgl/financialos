@@ -63,6 +63,15 @@ jobs:
       # bir `openapi.json`'u kaynak gösteriyordu. Koşum süresi 0,7 sn.
       - name: Belge denetimi (ölü yönlendirme kapısı)
         run: python scripts/belge_denetimi.py
+      # BUG #311 (KAP-06): ölü kod kapısı, TAVAN 0. Kaynak defekt ölü kodun çirkinliği
+      # değildi: BUG #243 (D26) KVKK export'unun şifre hash'ini döktüğünü bulup iki
+      # ÇAĞIRANI `disa_aktar`'a yönlendirmiş ama eski GÖVDEYİ silmemişti. O gövde 21 gün
+      # çağrılmadan durdu ve ölçüldüğünde `password_hash`/`oauth_sub`/`token_version`
+      # alanlarını hâlâ döküyordu — "export" diye arayan biri çağırsa defekt aynen geri
+      # gelirdi. Yani bir düzeltme çağıranları yönlendirip gövdeyi bırakırsa defekt
+      # kapanmaz, SİLAHLI BEKLEMEYE geçer. Koşum 0,3 sn.
+      - name: Ölü kod kapısı (çağrılmayan public fonksiyon)
+        run: python scripts/olu_kod_kapisi.py
       - name: Fresh DB migration lock (ADR-013a)
         run: python scripts/test_fresh_db_migration.py
       # BUG #308 (KAP-03): `--cov` EKLENDİ. Coverage bugüne dek hiçbir yerde ölçülmüyordu —

@@ -1,0 +1,28 @@
+{
+  "aciklama": "Kalite kapısı gerileme sayacı (BUG #309 / KAP-04). Bu sayılar HEDEF DEĞİL, TAVAN. Ölçülen değer tavanı aşarsa CI kırılır; düşerse tavan aşağı çekilir ve kazanım kilitlenir. Kural kümesinin gerekçesi ruff.toml başındadır.",
+  "olcum_tarihi": "2026-08-27",
+  "arac": {
+    "ad": "ruff",
+    "surum": "0.16.4",
+    "yapilandirma": "ruff.toml",
+    "neden_sabit": "Tavan bir araç sürümüne aittir. Yeni sürüm kural ekler ya da mevcut kuralı değiştirir; o an sayı anlamını yitirir — zıplarsa sahte kırmızı, düşerse gerçek gerileme görünmez olur. requirements-dev.txt ruff'u tam sürümle sabitler ve kapı tavandan ÖNCE bunu doğrular."
+  },
+  "olcum_komutu": "ruff check . --no-cache --output-format concise  (aileye göre sayım)",
+  "tavan": {
+    "E9": 0,
+    "F": 203,
+    "B": 31,
+    "S": 59
+  },
+  "notlar": [
+    "TOPLAM 293. Aile bazında tutuluyor, tek bir toplam olarak değil: tek toplam takas yapmaya izin verirdi — 5 kullanılmayan import temizlenip 5 yeni güvenlik bulgusu eklendiğinde sayı aynı kalır ve kapı susardı. Aile bazında S ailesinin artışı kendi başına kapıyı kırar.",
+    "TAVAN İLK ÖLÇÜMDE 57'YDİ, 59'A ÇEKİLDİ. Sebep dürüstçe kaydediliyor: sayacın KENDİ betiği (`scripts/kalite_kapisi.py`) ruff'u `subprocess` ile çağırıyor ve bu iki `S603` üretiyor. Bunlara `# noqa` koyup sayıyı 57'de tutmak, kapının kendi ölçümünden muaf olması demekti — muafiyet listesi büyüdükçe kural erir. Baseline, ölçüldüğü ANDAKİ ağacı yansıtır; araç da o ağacın parçasıdır.",
+    "E9 = 0 ve öyle kalmalı: sözdizimi/derleme hatası. Bu ailede tavan yükseltmek anlamsızdır.",
+    "F 203'ün 177'si kullanılmayan import (F401). Hepsi `ruff check --fix` ile otomatik düzeltilebilir ama BU TURDA YAPILMADI: KAP-04'ün işi sayacı kurmaktı, temizlik ayrı bir tek-amaçlı commit'tir. Ayrıca `__init__.py` ve alembic dosyalarındaki bazı import'lar yeniden-dışa-aktarım ya da yan etki için durabilir; toplu `--fix` bunu ölçmeden yapamaz. Ayrı iş olarak kaydedildi.",
+    "B008 (229 bulgu) kural kümesinin DIŞINDA: hepsi FastAPI'nin `Depends()` deseni, yani çerçevenin gerektirdiği yazım. Sayaca konsaydı kapı doğduğu gün anlamsızlaşırdı.",
+    "S101 (assert) tests/ ve kökteki tarihsel test_*.py için muaf: pytest'in çalışma biçimi budur (tests/ altında 4484 tane var, hepsi doğru kullanım). app/ içindeki tek S101 sayılmaya devam ediyor — üretim kodunda assert, -O bayrağıyla sessizce kaybolur.",
+    "E ailesinden yalnız E9 seçildi. E711/E712'nin 22 bulgusunun TAMAMI yanlış alarm: `PersonalDebt.due_date != None` bir SQLAlchemy filtre ifadesidir ve `IS NOT NULL` üretir; `is not None` yazmak sorguyu bozar.",
+    "DTZ ailesi (212 bulgu) dışarıda: projede DB datetime alanları BİLİNÇLİ olarak timezone-naive UTC (PROJE.md). Kural burada projenin yazılı kararına karşı çıkıyor.",
+    "Biçimlendirme (ruff format) ve I001/UP aileleri dışarıda: sinyal yok, 403 dosyalık diff var. Toplu biçimlendirme gerçek değişikliği gizler — seen-backend bunu kendi baseline notunda yazılı olarak yasaklamış."
+  ]
+}

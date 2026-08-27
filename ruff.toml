@@ -1,0 +1,66 @@
+# RUFF — KURAL KÜMESİ (BUG #309 / KAP-04)
+#
+# Bu dosya bir STİL dayatması değil, bir GERİLEME SAYACININ ölçüm tanımıdır
+# (`scripts/kalite_kapisi.py` + `docs/kalite-seruveni/kalite-baseline.json`).
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# ÖNCE DÜRÜST KAYIT: RUFF BUGÜN BU KOD TABANINDA TEK DEFEKT BULMUYOR.
+# ══════════════════════════════════════════════════════════════════════════════
+# 27 Ağu 2026'da ölçüldü ve bulguların TAMAMI tek tek incelendi:
+#   · E9 (sözdizimi)  → 0. Kod sağlam.
+#   · E711/E712 (22)  → HEPSİ YANLIŞ ALARM. `PersonalDebt.due_date != None` bir SQLAlchemy
+#                       filtre ifadesidir ve `IS NOT NULL` üretir; `is not None` yazmak
+#                       sorguyu BOZAR. Bu yüzden `E` ailesinden yalnız E9 seçildi.
+#   · S (bandit, 36)  → gerçek açık YOK. `S105 "token_type"` değeri `"bearer"`dır;
+#                       `S310` TCMB/İş Yatırım `urlopen`'ları; `S608` operatör
+#                       script'lerinde f-string SQL; `S603/S607` kendi betiklerimizi
+#                       çağıran `subprocess`.
+#   · F (100)         → 86'sı kullanılmayan import, 4 ölü değişken, 9 boş f-string,
+#                       1 çift import. Kalite borcu, defekt değil.
+# Yani bu araç DÜZELTİCİ olarak değil, BUNDAN SONRASINI TUTMAK için var. Sayacın
+# felsefesi seen-backend'in `quality-baseline.json`'ından: hedef koyma, GERİLEMEYİ yakala.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# BİÇİMLENDİRME BİLİNÇLİ OLARAK KAPSAM DIŞI
+# ══════════════════════════════════════════════════════════════════════════════
+# `ruff format --check` 411 dosyanın 403'ünü değiştirmek isterdi. Toplu biçimlendirme
+# commit'i gerçek değişikliği gizler — seen-backend bunu kendi baseline notunda yazılı
+# olarak yasaklamış ve financialos'un tek-amaçlı-commit kuralı da aynı şeyi söylüyor.
+# `I001` (import sıralama, 412) ve `UP` ailesi (960) aynı sebeple dışarıda: sinyal yok,
+# devasa diff var.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# DTZ AİLESİ NEDEN YOK
+# ══════════════════════════════════════════════════════════════════════════════
+# DTZ003/DTZ011 (212 bulgu) `datetime.utcnow()` ve `date.today()` kullanımını işaretler.
+# Bu projede DB'deki tüm datetime alanları BİLİNÇLİ olarak timezone-naive UTC'dir
+# (`PROJE.md` → "DB datetime"; serialize sınırında `tzinfo=timezone.utc` eklenir).
+# Yani DTZ burada projenin yazılı kararına karşı çıkar — kuralın kendisi yanlış alarmdır.
+
+target-version = "py311"
+
+# `respect-gitignore` varsayılan olarak açık: `venv/`, `frontend/node_modules` vb.
+# zaten taranmaz. Aşağıdakiler git'te izleniyor ama kapsam dışı bırakılıyor:
+extend-exclude = [
+    "frontend",   # JS/JSX — Python linter'ının işi değil (frontend'in kendi turu ayrı)
+]
+
+[lint]
+# Seçilen dört küme: sözdizimi (E9), ölü/hatalı kod (F), tuzak desenler (B),
+# güvenlik (S). Hepsi DAVRANIŞ hakkında; hiçbiri biçim hakkında değil.
+select = ["E9", "F", "B", "S"]
+
+ignore = [
+    # B008: "argüman varsayılanında fonksiyon çağırma". FastAPI'nin `Depends()` deseni
+    # TAM OLARAK BUNU GEREKTİRİR — 229 bulgunun 229'u `Depends(...)`. Kural bu çerçevede
+    # yanlış alarmdır; sayaca konsaydı kapı doğduğu gün anlamsızlaşırdı.
+    "B008",
+]
+
+[lint.per-file-ignores]
+# S101 = `assert` kullanımı. pytest'in çalışma biçimi budur; testte `assert` yazmak
+# bulgu değildir (tests/ altında 4484 tane var, hepsi doğru kullanım).
+"tests/**" = ["S101"]
+# Kökteki tarihsel `test_*.py` script'leri ve temiz-DB kilidi de assert kullanır.
+"test_*.py" = ["S101"]
+"scripts/test_fresh_db_migration.py" = ["S101"]

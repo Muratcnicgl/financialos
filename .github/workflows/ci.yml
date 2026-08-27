@@ -48,6 +48,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
+      # BUG #309 (KAP-04): kalite gerileme sayacı. `docs/kalite-seruveni/kalite-baseline.json`
+      # bir TAVAN tutar (hedef değil); ölçülen aşarsa kırılır, düşerse tavan indirilir.
+      # pytest'ten ÖNCE koşar: saniyeler sürer, 9 dakikalık süitin arkasında beklemesin.
+      # Kural kümesinin ve muafiyetlerin gerekçesi `ruff.toml` başındadır — özetle: ruff bu
+      # kod tabanında bugün TEK defekt bulmuyor, kapı bundan sonrasını tutmak için var.
+      - name: Kalite kapısı (ruff gerileme sayacı)
+        run: python scripts/kalite_kapisi.py
       - name: Fresh DB migration lock (ADR-013a)
         run: python scripts/test_fresh_db_migration.py
       # BUG #308 (KAP-03): `--cov` EKLENDİ. Coverage bugüne dek hiçbir yerde ölçülmüyordu —

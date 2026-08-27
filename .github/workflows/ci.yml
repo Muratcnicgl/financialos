@@ -50,7 +50,15 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
       - name: Fresh DB migration lock (ADR-013a)
         run: python scripts/test_fresh_db_migration.py
-      - name: Pytest (SQLite + PostgreSQL dual-dialect kapıları)
+      # BUG #308 (KAP-03): `--cov` EKLENDİ. Coverage bugüne dek hiçbir yerde ölçülmüyordu —
+      # araç kuruluydu, `[tool.coverage.*]` yapılandırması vardı, ama hiçbir koşum onu
+      # çağırmıyordu. `PROJE.md`'deki "%93" 6 Ağu'da elle alınmış tek seferlik bir sayıydı,
+      # yani kazanımı hiçbir kapı korumuyordu (L28).
+      # Eşik BU SATIRDA (`--cov-fail-under=93`), `pyproject.toml`'da DEĞİL: oraya konduğunda
+      # tek dosyalık koşumlar da eşiğe tabi oluyor ve %36,70 ile SAHTE KIRMIZI veriyor
+      # (ölçüldü). Eşik ölçülenin hemen altı — hedef değil TAVAN; kapsam arttıkça yukarı
+      # çekilir. Ölçülen: %93,61 (11.395 satır, 728 kapsanmayan). Süre bedeli: 7:25 → 8:48.
+      - name: Pytest (SQLite + PostgreSQL dual-dialect kapıları + coverage gerileme sayacı)
         env:
           SECRET_KEY: ci-test-secret-key-min-32-characters-long-0123456789
           # tests/pg_gate.py bunu görünce SKIP etmez. Tüm süit koşulur: dosya listesi
@@ -62,7 +70,7 @@ jobs:
           # "FATAL: password authentication failed for user postgres". Yani testler yanlış
           # veritabanına bağlanıyordu. 127.0.0.1 bunu tekilleştirir.
           PG_TEST_URL: postgresql://postgres:postgres@127.0.0.1:55432/postgres
-        run: python -m pytest tests/ -q
+        run: python -m pytest tests/ -q --cov=app --cov-report=term --cov-fail-under=93
 
   # BUG #260 (SEC-020/SEC-021): bağımlılık güvenlik taraması CI'da YOKTU.
   # Ölçüm: `grep -rl "pip-audit" .github/` → 0 sonuç; backlog "tarama yok" diyordu ve

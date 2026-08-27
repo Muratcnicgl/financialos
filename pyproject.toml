@@ -7,7 +7,7 @@
 testpaths = ["tests"]
 markers = [
     "llm: gerçek LLM API çağrısı gerektirir (CI'da default skip)",
-    "network: dış ağ çağrısı gerektirir",
+    "network: dış ağ çağrısı gerektirir — BUG #307 ağ kapısını bu test için AÇAR",
     "slow: yavaş test",
 ]
 
@@ -16,3 +16,35 @@ source = ["app"]
 
 [tool.coverage.report]
 show_missing = true
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BUG #308 (KAP-03) — COVERAGE GERİLEME SAYACI
+# ══════════════════════════════════════════════════════════════════════════════
+# ÖLÇÜLEN DEFEKT (27 Ağu 2026): coverage HİÇBİR YERDE ÖLÇÜLMÜYORDU.
+#   $ grep -rn 'fail.under\|cov-fail\|--cov' .github/workflows/ci.yml pyproject.toml
+#   (çıktı yok)
+# Araç kuruluydu (`pytest-cov`), yapılandırma buradaydı, ama CI `pytest tests/ -q` koşuyor
+# ve `--cov` hiç geçmiyordu. `PROJE.md` "TOTAL coverage %93" diyordu; o sayı 6 Ağu'da elle
+# alınmış TEK SEFERLİK bir koşumdu (L28: bir kez yeşil, sürekli yeşil demek değildir).
+# Yani %93'lük kazanımı hiçbir şey korumuyordu — bir sonraki commit onu %60'a düşürse
+# CI yeşil kalırdı.
+#
+# BU BİR HEDEF DEĞİL, TAVAN. Felsefe seen-backend'in `quality-baseline.json`'ından alındı:
+# hedef koyma, GERİLEMEYİ yakala. Değer ölçülenin HEMEN ALTINA konur; kapsam arttıkça
+# yukarı çekilir ve kazanım kilitlenir. Yukarı çekmek CI'ı kırar — bilinçli yapılır.
+#
+# ÖLÇÜM (27 Ağu 2026, tam süit): 11.395 satır · 728 kapsanmayan · **%93,61** (rapor %94).
+#   3134 passed, 18 skipped, 8:48
+# Payda dürüstlüğü ayrıca ölçüldü: `source = ["app"]` import EDİLMEMİŞ dosyaları da
+# paydaya katıyor — yalnız 9 test koşulduğunda bile rapor 104 app dosyasının hepsini ve
+# aynı 11.395 satırı listeliyor. Yani ölçülen şey ÜRÜNÜN kapsamı, "kapsanan dosyaların
+# kapsamı" değil.
+#
+# EŞİK BURADA DEĞİL, `.github/workflows/ci.yml` İÇİNDE (`--cov-fail-under=93`) — ve bu
+# bilinçli bir karar, ölçümle alındı. Buraya `fail_under` konduğunda tek dosyalık bir
+# koşum da eşiğe tabi oluyor:
+#   $ pytest tests/test_ag_kapisi.py -q --cov=app
+#   FAIL Required test coverage of 93.0% not reached. Total coverage: 36.70%
+# Bu SAHTE KIRMIZIDIR: alt küme koşumu tam süit değildir, eşiğin orada anlamı yoktur ve
+# geliştiriciyi var olmayan bir gerilemeyle uğraştırır (L40 — sahte kırmızı, kapının
+# kendisine olan güveni yer). Eşik, tam süitin koştuğu TEK yere bağlıdır.

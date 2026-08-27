@@ -76,6 +76,123 @@ else:
         import shutil
         shutil.rmtree(_suit_db_dizin, ignore_errors=True)
 
+# ══════════════════════════════════════════════════════════════════════════
+# BUG #307 — TESTTE AĞ KAPISI (bu blok da app import'undan ÖNCE koşar)
+# ══════════════════════════════════════════════════════════════════════════
+# ÖLÇÜLEN DEFEKT (27 Ağu 2026): süitin dışarı çıkmasını engelleyen HİÇBİR ŞEY yoktu.
+#   $ grep -niE 'socket|urlopen|httpx' tests/conftest.py   -> (ağ ile ilgili satır yok)
+#   $ git grep -c 'pytest.mark.llm'     -- tests/          -> 0
+#   $ git grep -c 'pytest.mark.network' -- tests/          -> 0
+# `pyproject.toml` üç marker tanımlıyor (`llm`, `network`, `slow`) ve ÜÇÜ DE HİÇ
+# KULLANILMAMIŞ — yani "CI'da default skip" diye yazılan koruma ölü yapılandırmaydı.
+#
+# Oysa `app/` içinde beş modül dışarı çağırıyor: `app/coach.py` (ÜCRETLİ LLM),
+# `app/llm_cost.py`, `app/fund_tracker.py:316` (`urlopen`),
+# `app/price_providers/evds_client.py:80` ve `fx_live.py:69` (`requests.get`).
+# Unutulan tek bir mock, 3125 testlik süitte sessizce gerçek istek atardı: para yanar,
+# dış servisin o anki durumu testi kırmızı/yeşil yapar (deterministiklik ölür) ve
+# geliştiricinin `.env`'indeki gerçek anahtar bunu YEREL'de görünmez kılar — BUG #297'nin
+# (L59) tam sınıfı.
+#
+# NEDEN FIXTURE YETMEZ: bazı istemciler modül yüklenirken kurulur; ayrıca bir sızıntı
+# fixture kurulmadan (import/collection sırasında) da olabilir. Kapı bu yüzden modül
+# seviyesinde açılır, autouse fixture yalnız test başına GERİ YÜKLER.
+#
+# İZİN VERİLEN TEK ŞEY LOOPBACK: `TestClient` soket açmaz (ASGI üzerinden konuşur) ama
+# `PG_TEST_URL` CI'da `127.0.0.1:55432`'e bağlanır (BUG #295) — dual-dialect kapıları
+# ölmesin diye loopback açık kalır.
+#
+# BİLİNÇLİ GERÇEK ÇAĞRI: `@pytest.mark.network` — ölü marker böylece canlanır.
+import socket as _socket
+
+
+class AgCagrisiEngellendi(RuntimeError):
+    """Testte dışarı çıkan bir çağrı yakalandı."""
+
+
+_LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost", "localhost.localdomain", "0.0.0.0", ""})
+
+
+def _yerel_mi(adres) -> bool:
+    """Adres loopback mı? Tuple (host, port…), str (AF_UNIX) ve bilinmeyen biçimleri kapsar."""
+    if isinstance(adres, (tuple, list)) and adres:
+        host = adres[0]
+    elif isinstance(adres, (str, bytes)):
+        return True  # AF_UNIX soketi makinenin dışına çıkmaz
+    else:
+        return False
+    # `getaddrinfo(None, port)` SUNUCU BAĞLAMA çağrısıdır (AI_PASSIVE) — dışarı çıkmaz.
+    # Bunu engellemek kapıyı fazla geniş yapar ve yerel dinleyici kuran testleri kırardı;
+    # `test_loopback_acik_kalir` bu sınıfın yalnız bir örneğini ölçer, kural burada durur.
+    if host is None:
+        return True
+    if isinstance(host, bytes):
+        host = host.decode("utf-8", "replace")
+    return str(host).strip("[]") in _LOOPBACK
+
+
+def _hata(hedef, kanal: str) -> AgCagrisiEngellendi:
+    return AgCagrisiEngellendi(
+        "\n".join(
+            (
+                f"TESTTE AĞ ÇAĞRISI ENGELLENDİ ({kanal}): {hedef!r}",
+                "Süit dışarı çıkamaz: gerçek çağrı para yakar (LLM), testi dış servisin o anki",
+                "durumuna bağlar ve geliştiricinin .env'i yüzünden yerelde görünmez kalır.",
+                "Muhtemel sebep: ilgili modül için mock/monkeypatch unutuldu",
+                "  (app/coach.py · fund_tracker.py · price_providers/evds_client.py · fx_live.py).",
+                "Bilinçli ve gerekli bir dış çağrıysa testi `@pytest.mark.network` ile işaretle.",
+            )
+        )
+    )
+
+
+_GERCEK_GETADDRINFO = _socket.getaddrinfo
+_GERCEK_CONNECT = _socket.socket.connect
+_GERCEK_CONNECT_EX = _socket.socket.connect_ex
+_GERCEK_CREATE_CONNECTION = _socket.create_connection
+
+
+def _ag_kapisini_kapat() -> None:
+    """Loopback dışına çıkan her soket girişimini anlaşılır bir hatayla düşür."""
+
+    def getaddrinfo(host, port, *a, **kw):
+        # Ad çözümlemesi de bir ağ çağrısıdır (hedefin adını dış çözümleyiciye sızdırır)
+        # ve hatayı BURADA vermek mesaja hedefin ADINI koyar — connect'te yalnız IP olurdu.
+        if not _yerel_mi((host, port)):
+            raise _hata(host, "getaddrinfo")
+        return _GERCEK_GETADDRINFO(host, port, *a, **kw)
+
+    def connect(self, adres):
+        if not _yerel_mi(adres):
+            raise _hata(adres, "connect")
+        return _GERCEK_CONNECT(self, adres)
+
+    def connect_ex(self, adres):
+        if not _yerel_mi(adres):
+            raise _hata(adres, "connect_ex")
+        return _GERCEK_CONNECT_EX(self, adres)
+
+    def create_connection(adres, *a, **kw):
+        if not _yerel_mi(adres):
+            raise _hata(adres, "create_connection")
+        return _GERCEK_CREATE_CONNECTION(adres, *a, **kw)
+
+    _socket.getaddrinfo = getaddrinfo
+    _socket.socket.connect = connect
+    _socket.socket.connect_ex = connect_ex
+    _socket.create_connection = create_connection
+
+
+def _ag_kapisini_ac() -> None:
+    """Kapıyı kaldır — yalnız `@pytest.mark.network` işaretli testler için."""
+    _socket.getaddrinfo = _GERCEK_GETADDRINFO
+    _socket.socket.connect = _GERCEK_CONNECT
+    _socket.socket.connect_ex = _GERCEK_CONNECT_EX
+    _socket.create_connection = _GERCEK_CREATE_CONNECTION
+
+
+_ag_kapisini_kapat()
+
 from app.models import Base, User  # noqa: E402 — env sabitlenmeden app import EDİLMEZ
 
 # Şemayı süit DB'sine kur: `SessionLocal`'i doğrudan kullanan testler tablo bekler.
@@ -112,6 +229,25 @@ def _neutralize_dotenv_auth(monkeypatch):
     # düşmesin — süit DB'si test başına geri yüklenir.
     if SUIT_DB_URL:
         monkeypatch.setenv("DATABASE_URL", SUIT_DB_URL)
+
+
+@pytest.fixture(autouse=True)
+def _ag_kapisi(request):
+    """Ağ kapısını test başına geri yükler; `@pytest.mark.network` işaretliyse açar.
+
+    Modül seviyesinde kapatılmış olması yetmez: bir test kapıyı (bilerek ya da bir
+    monkeypatch yan etkisiyle) kaldırırsa sonraki testler korumasız kalırdı — koruma
+    testin ne yaptığına değil, süreç durumuna dayanmalı (BUG #289'un dersi).
+    """
+    if request.node.get_closest_marker("network"):
+        _ag_kapisini_ac()
+        try:
+            yield
+        finally:
+            _ag_kapisini_kapat()
+    else:
+        _ag_kapisini_kapat()
+        yield
 
 
 @pytest.fixture

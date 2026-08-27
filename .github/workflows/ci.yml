@@ -55,6 +55,14 @@ jobs:
       # kod tabanında bugün TEK defekt bulmuyor, kapı bundan sonrasını tutmak için var.
       - name: Kalite kapısı (ruff gerileme sayacı)
         run: python scripts/kalite_kapisi.py
+      # BUG #310 (KAP-05): belge denetimi. İKİ İŞ, İKİ SERTLİK — kapı yalnız MEKANİK
+      # yalanı sayar: bir belge okuyucuyu bir dosyaya GÖNDERİYOR ("bkz. `X`") ve o dosya
+      # git'te yok. Bayatlık kısmı RAPORDUR, kapı değil: bir cümlenin bayat olup olmadığına
+      # kod karar veremez ve kapıya çevirmek insanı "sustur" refleksine iter.
+      # Kaynak defekt: BUG #306 — `docs/api-reference/README.md` `.gitignore`'daki olmayan
+      # bir `openapi.json`'u kaynak gösteriyordu. Koşum süresi 0,7 sn.
+      - name: Belge denetimi (ölü yönlendirme kapısı)
+        run: python scripts/belge_denetimi.py
       - name: Fresh DB migration lock (ADR-013a)
         run: python scripts/test_fresh_db_migration.py
       # BUG #308 (KAP-03): `--cov` EKLENDİ. Coverage bugüne dek hiçbir yerde ölçülmüyordu —

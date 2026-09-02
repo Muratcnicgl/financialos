@@ -482,6 +482,69 @@ yerine (mimarinin kendi ilkesi: *rules engine karar verir, LLM açıklar*).
 
 ## §10. DEĞİŞİKLİK GÜNLÜĞÜ (yalnız ileri yönlü)
 
+### ⏸️ KALDIĞIMIZ YER — 2 Eylül 2026, gün sonu (SIRADAKİ OTURUM BURADAN BAŞLAR)
+
+**DURUM:** her şey commit'li ve push'lu (`main` = `origin/main`, fark yok).
+Süitler: **backend 3380 · frontend 214 · e2e 8** — hepsi yeşil.
+
+**BUGÜN KAPANAN BEŞ ÜRÜN DEFEKTİ** (hiçbiri prompt'a satır eklemeden — K-KURAL 5):
+`#317` .env yorumu model adı sanıldı · `#318` erken kapama sayısal alana ·
+`#319` nakit takvimi parçalıydı (koç gelen parayı gider sayıyordu) ·
+`#320` yatırımda bekleyen nakit ayrı kalem · `#321` etiketsiz ≠ izlenemez.
+
+**ÖLÇÜMLER (aralıkla — tek koşum gürültülüdür):**
+- Altın set, 3 koşum: kriter **min %88 / medyan %88 / maks %96**, muhakeme
+  **min 4/6 / medyan 4/6 / maks 6/6**. Sabahki taban **1/6** idi.
+  Senaryo başına: G1 3/3 · G2 3/3 · G4 3/3 · G6 3/3 kararlı · **G3 1/3 · G5 1/3 kararsız**.
+- Davranış seti, 3 koşum: kriter medyan **%82,9**; `grounded` **0/6 → 3/6** (BUG #321),
+  `no_action` **12/12**, `uslup` 13/24 (gürültülü eksen).
+
+**SIRADAKİ İŞLER — ÖNCELİK SIRASIYLA:**
+1. **K3'ün kalan yarısını sınıflandır.** `grounded` hâlâ 3/6 düşüyor. Her düşüşü tek tek
+   oku ve ayır: TÜREV sayı mı (toplam/fark — koç meşru üretir, cockpit'te bulunmaz) yoksa
+   GERÇEK uydurma mı? **Zorlama tasarımı ancak bu ayrımdan sonra seçilir** — türev sayıyı
+   engellemek koçun matematik yapmasını yasaklamak olur.
+2. **Prompt kırpma.** Sistem promptu 19.444 kar = isteğin **%78'i**. KURAL SIFIR promptun
+   **%32'si** ve `offer_propose=False` iken `propose_action` tool listesinde HİÇ YOK
+   (`no_action` 12/12 kanıt). Sınıflandırma tablosu + tetikleyici listeleri ölü ağırlık.
+   Kesmeden önce davranış setinin 3-koşumluk tabanı alınmalı (bugünkü: medyan %82,9).
+   **Groq beklentisi yok:** 8.000 token altına inmek ~5.000 indirim ister, KURAL SIFIR'ın
+   tamamı 3.258. Groq ayrı bir yapısal çözüm (kısa prompt varyantı) ister.
+3. **G3/G5 kararsızlığı (1/3).** Kart ödemesi bağlamda VAR ama koç bazen atlıyor — kalan
+   kusur ürün değil MODEL tarafında. Bağlam sıralaması/belirginlik denenebilir (prompt
+   kuralı değil, bilgi mimarisi).
+4. **Dalkavukça hizalanma** — kullanıcı yanlış önerme söyleyince koç kendi verisini terk
+   ediyor. `uslup_kurallari.py`'de karşılığı yok.
+5. **G2 deseni dar** ("cari dönem" eşanlamlısını görmüyor) — ölçüt turu AYRI yapılmalı,
+   gerekçesi ÖNCE yazılarak (cevapları gördükten sonra ölçüt değiştirmek fitlemektir).
+6. Açık ürün soruları: kredi `balance`i anapara olmalı mı · `IC_JARGON` onarımı ·
+   emir kipi kalıntısı · K4 stigmerji · K5 caching.
+
+**BU TURUN METODOLOJİ DERSLERİ (hepsi deftere yazılı):**
+- **Örneklem büyüklüğü belirtilmeyen bir oran bir iddiadır, ölçüm değil.** Aynı kodla
+  %88 → %84 → %80 ölçüp ±4 puanı sinyal sandım.
+- **Manşet oran bir karıştırıcıdır:** `grounded` iyileşirken manşet düştü (başka eksen).
+  Kriter başına tablo olmadan yorumlanamaz.
+- **Bir ölçüt, kabul ettiği YAZIM kadar iyidir** — bugün ÜÇ kez doğru cevabı düşürdü
+  (tire, eşanlamlı, NOUN şartı) + BUG #321. Gevşetmeden önce **meşruluk sınaması**:
+  bu gevşetme, korumaya çalıştığı defekti kaçırır mı?
+- **Bir kapı değişikliğimi reddettiğinde üç ihtimal var:** değişiklik yanlış yerde ·
+  kapı fazla katı · kapının ÖRNEĞİ kötü seçilmiş. Bugün üçü de yaşandı.
+- **Ratchet kapısına doğru cevap çoğu zaman tavanı yükseltmek değil, ihtiyacı ortadan
+  kaldırmaktır.**
+- **`notes` karar verdiren bir sayı taşıyamaz** — kredide de kartta da; iki kaynak olunca
+  koç kararsız kalıyor ("0 mı 8.221 mi?").
+- **Bu ortamda heredoc ters-eğik çizgileri bozuyor** (`` → düşey sekme, `
+` → satır
+  sonu). Kaçış dizisi içeren kod Write/Edit ile yazılır.
+
+**ATIF (kapandı, 2 Eyl):** GitHub'da tek katkıcı `Muratcnicgl`. `.asistan/` ve `PROJE.md`
+depodan çıktı (kök brifing artık **`PROJE.md`**; yerelde tek satırlık `@PROJE.md`
+yönlendirmesi var). Depo-yerel git kimliği `Murat Icgil <muraticgil@gmail.com>`,
+`includeCoAuthoredBy: false`. **Global git config'e DOKUNULMAZ.**
+
+---
+
 - **2 Eylül 2026 (gün sonu) — K-B TABANI YENİDEN ÖLÇÜLDÜ, BU KEZ ARALIKLA.**
   **KRİTER min %88,0 · medyan %88,0 · maks %96,0 · MUHAKEME min 4/6 · medyan 4/6 · maks 6/6**
   (3 koşum, OpenRouter). Senaryo başına geçiş: **G1 3/3 · G2 3/3 · G4 3/3 · G6 3/3**

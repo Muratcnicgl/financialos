@@ -2,7 +2,7 @@
 
 **Tarih:** 20 Mayıs 2026
 **Durum:** Onaylandı, H2G5 (Wave-2) ile uygulandı
-**Önerenler:** Murat Can İçgil (kullanıcı), asistan
+**Öneren:** Murat Can İçgil
 **İlgili commits:** `258fcd7` (backend), `91546aa`+`89d3710` (fix), `68ad681` (frontend)
 
 ---
@@ -94,7 +94,7 @@ Monarch 3.0'da var: bir hesabın **tamamını** tek bir hedefe bağlama. Bakiye 
 
 ## KURAL 12 — Kalite Mutlak, Basitlik Gerekçe Değil
 
-İlk taslakta Claude "tek hesaba bağlı, basit MVP yeterli" önerdi. Murat **(c) seçeneği = opsiyonel multi-allocation default tüm cash** ile düzeltti. Mevcut tasarım bu kararı uyguluyor.
+İlk taslak "tek hesaba bağlı, basit MVP yeterli" yönündeydi. **(c) seçeneği = opsiyonel multi-allocation default tüm cash** ile düzeltildi. Mevcut tasarım bu kararı uyguluyor.
 
 ---
 

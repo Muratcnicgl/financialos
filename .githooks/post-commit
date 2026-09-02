@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # M24 — MCP memory auto-sync (CAPTURE adımı).
 #
-# R3 GERÇEĞİ: Bir git hook (shell) MCP memory'ye DOĞRUDAN yazamaz — MCP Claude-runtime
-# aracıdır. Bu yüzden hook yalnız commit'i bir ledger'a YAKALAR; asistan araci (oturum
+# R3 GERÇEĞİ: Bir git hook (shell) MCP memory'ye DOĞRUDAN yazamaz — MCP çalışma-anı
+# aracıdır. Bu yüzden hook yalnız commit'i bir ledger'a YAKALAR; asistan aracı (oturum
 # başında/milestone'da) ledger'ı okur ve MCP Working State'e FLUSH eder, sonra temizler.
 # Böylece "graph 2 ay bayat kalır" (Wave-3 dersi) sorunu yarı-otomatik çözülür.
 #

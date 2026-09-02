@@ -59,5 +59,4 @@ FastAPI resmi deploy (gunicorn+UvicornWorker) · multi-stage Python (wheel build
 
 ## Sonuç
 Deploy altyapısı **parasız + statik-doğrulandı** (docker CLI dev'de yok → YAML/`sh -n`/config-yapı gate'leri geçti).
-**Canlı-deploy + KULLANIM-GATE Murat'ın Oracle VM'ini bekliyor** (KURAL-3 gerçek elle-görev: hesap/ödeme/uzak-VM — Claude
-Code yapamaz). Bu ADR canlı-deploy doğrulanınca "sahada çalıştı" notuyla güncellenecek.
+**Canlı-deploy + KULLANIM-GATE Murat'ın Oracle VM'ini bekliyor** (KURAL-3 gerçek elle-görev: hesap/ödeme/uzak-VM — otomasyon yapamaz). Bu ADR canlı-deploy doğrulanınca "sahada çalıştı" notuyla güncellenecek.

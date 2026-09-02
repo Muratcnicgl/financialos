@@ -26,7 +26,7 @@ MVP tamam (3 May 2026). Wave-2 tek hedef: sistemden **gerçek finansal değer** 
 
 ## Wave-3 Backlog
 
-- C1 — Anthropic Claude'a geçiş: **sadece** günde 50+ koç çağrısı yapıp Gemini/Groq fallback'in kalite farkını gerçek hissedersen mantıklı. Şu an Gemini Flash-Lite + Groq fallback + MALFORMED_FUNCTION_CALL handling yeterli.
+- C1 — Anthropic asistana geçiş: **sadece** günde 50+ koç çağrısı yapıp Gemini/Groq fallback'in kalite farkını gerçek hissedersen mantıklı. Şu an Gemini Flash-Lite + Groq fallback + MALFORMED_FUNCTION_CALL handling yeterli.
 - C2 — Genişletilmiş bağlam (son 30 günlük işlem geçmişi koça): 1 ay veri biriktikten sonra anlamlı.
 - C3 — Çok turlu konuşma: kafa karıştırırsa öncelik kazanır, aksi halde mevcut yapı yeter.
 

@@ -70,3 +70,7 @@ scratchpad_cov.txt
 scratchpad_uvicorn.log
 openapi.json
 .mcp-sync-pending.log
+
+# Gelistirme araci yapilandirmasi — depoya girmez (proje bilgisi degil).
+.asistan/
+PROJE.md

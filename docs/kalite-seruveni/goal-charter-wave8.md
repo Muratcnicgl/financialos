@@ -23,7 +23,7 @@ Kullanıcı-görünür iş için **AYRICA KULLANIM-GATE** (gerçek veriyle uçta
 
 > ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden TÜM agent'lar bitmiş + tam süit tek seferde koşulmuş olacak.
 >
-> ⚠️ asistan arayuzu'a "ne yapayım" YASAK — **TEK istisna: sunucu para adımı (Blok B).**
+> ⚠️ Web asistana "ne yapayım" YASAK — **TEK istisna: sunucu para adımı (Blok B).**
 >
 > 🔒 **GÜVENLİK:** deploy = internete açılma. Bu wave'de her şey **production-güvenlik** gözüyle: secret sızıntısı,
 > açık port, debug mode, CORS, rate limit, HTTPS zorunlu.

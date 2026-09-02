@@ -20,7 +20,7 @@
 Wave-2/3/4/5/6 charter'ları tam metin geçerli. KURAL 1/3/12, K10, D1, R3, W1-W8, ADR-001, **ADR-013 (Alembic tek
 doğruluk, create_all prod'da YASAK), ADR-013a**, OTONOM KARAR + SELF-CORRECTION. Her milestone: **canlı-gate → tag →
 push → MCP → milestone-log.** Charter Revize açık (ürün-DNA hariç) = tag `charter-revise-w7-<N>` + MCP. Tıkanıklıkta
-OTONOM KARAR. asistan arayuzu'a "ne yapayım" YASAK.
+OTONOM KARAR. Web asistana "ne yapayım" YASAK.
 
 > ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden TÜM agent'lar bitmiş + tam süit tek seferde koşulmuş olacak (Wave-5 erken-TAMAM hatası tekrarlanmasın).
 >

@@ -1313,13 +1313,25 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     # kalemin yönü KELİMEYLE yazılı. Koç toplamıyor, okuyor.
     nt = cockpit.get("nakit_takvimi") or {}
     if nt.get("kalemler"):
+        _bekleyen = float(nt.get("yatirimda_bekleyen") or 0)
+        _bekleyen_adlar = ", ".join(
+            _guvenli(k["ad"]) for k in nt.get("yatirimda_bekleyen_kalemler") or [])
         satirlar = "\n".join(
             f"    {k['tarih']}  {'GİRİŞ +' if k['yon'] == 'giris' else 'ÇIKIŞ -'}"
             f"{_para(k['tutar'])}  {_guvenli(k['ad'])}  -> kalan {_para(k['bakiye_sonrasi'])}"
             for k in nt["kalemler"])
+        # Yatırımda bekleyen nakit AYRI satır: nakde eklenmez ama görünmez de kalmaz.
+        # Ölçülen boşluk — kullanıcının elindeki paranın üçte ikisi (9.000/11.663) bir
+        # `investment` hesabında duruyordu ve takvimde hiç görünmüyordu.
+        _bekleyen_satir = (
+            f"  - YATIRIMDA BEKLEYEN (nakde EKLENMEDİ; erişmek için çekmek/satmak gerekir): "
+            f"{_para(_bekleyen)} ({_bekleyen_adlar}) · erişilebilir toplam "
+            f"{_para(nt['erisilebilir_toplam'])}\n"
+        ) if _bekleyen > 0 else ""
         context += (
             f"\n\n## NAKİT TAKVİMİ ({nt['bugun']} -> {nt['ufuk']}) — HESAPLANMIŞTIR, toplama yapma\n"
             f"  - Başlangıç nakit: {_para(nt['baslangic_nakit'])}\n"
+            f"{_bekleyen_satir}"
             f"{satirlar}\n"
             f"  - Toplam giriş {_para(nt['toplam_giris'])} · toplam çıkış "
             f"{_para(nt['toplam_cikis'])} · ay sonu {_para(nt['ay_sonu_bakiye'])}\n"

@@ -482,6 +482,20 @@ yerine (mimarinin kendi ilkesi: *rules engine karar verir, LLM açıklar*).
 
 ## §10. DEĞİŞİKLİK GÜNLÜĞÜ (yalnız ileri yönlü)
 
+- **2 Eylül 2026 (gün sonu) — K-B TABANI YENİDEN ÖLÇÜLDÜ, BU KEZ ARALIKLA.**
+  **KRİTER min %88,0 · medyan %88,0 · maks %96,0 · MUHAKEME min 4/6 · medyan 4/6 · maks 6/6**
+  (3 koşum, OpenRouter). Senaryo başına geçiş: **G1 3/3 · G2 3/3 · G4 3/3 · G6 3/3**
+  kararlı; **G3 1/3 · G5 1/3** kararsız. Sabahki taban muhakeme **1/6** idi ve geçen tek
+  senaryo setin en zayıf ölçüleniydi.
+  **METODOLOJİ DÜZELTMESİ:** gün içinde neredeyse aynı kodla %88 → %84 → %80 ölçtüm ve
+  ±4 puanı sinyal gibi anlattım. Sağlayıcı deterministik değil; 6 senaryoluk TEK koşum
+  ±1 senaryoyu çözemez. **Örneklem büyüklüğü belirtilmeyen bir oran bir iddiadır, ölçüm
+  değil.** Bundan sonra altın ölçümü N koşum + min/medyan/maks + senaryo başına sıklık.
+  **BUG #320:** yatırımda bekleyen nakit ayrı ve etiketli kalem oldu (`erisilebilir_toplam`
+  = 11.663,59, 1 Eylül analiziyle birebir); emanet pazarlıksız hariç.
+  **Ölçüt onarımı (üçüncü kez):** G1'in NOUN şartı kaldırıldı — meşruluk sınaması yapıldı,
+  eski bozuk cevap kelimesiz ölçütten de düşüyor.
+
 - **2 Eylül 2026 (üçüncü tur) — ÜRÜN DÜZELTMELERİ ÖLÇÜYÜ HAREKET ETTİRDİ.**
   Altın set (OpenRouter) gün içinde dört kez ölçüldü:
   **%60,0 (1/6) → %76,0 (2/6) → %84,0 (3/6) → %88,0 (3/6 tam geçen).**

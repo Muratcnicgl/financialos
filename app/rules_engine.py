@@ -1742,6 +1742,47 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
     }
 
 
+def _yatirimda_bekleyen_nakit(user_id: int, db: Session) -> Tuple[float, List[Dict]]:
+    """
+    Yatırım hesabında duran ama YATIRIMA DÖNÜŞMEMİŞ para.
+
+    NEDEN AYRI BİR KAVRAM (altın senaryo G3'ün açık maddesi): 1 Eylül'de insanın yaptığı
+    analiz Midas'taki 9.000 TL'yi kullanılabilir saydı ve Eylül kaynağını 15.663,59 buldu.
+    Hesap `investment` tipindeydi ama içindeki para bir varlığa dönüşmemişti — aracı
+    kurumda bekleyen nakitti. Kural motorunun `nakit`i ise yalnız `cash` hesapları toplar,
+    yani 2.663,59 der. İki sayı da doğrudur; eksik olan AYRIMDI.
+
+    İKİ YANLIŞ ÇÖZÜM VE NEDEN SEÇİLMEDİKLERİ:
+      * Bu bakiyeyi nakde saymak → satılmamış bir varlığı harcanabilir göstermek olurdu;
+        gerçekten fona yatırılmış bir hesapta bu doğrudan yanlış olurdu.
+      * Görmezden gelmek → kullanıcının elindeki paranın üçte ikisi görünmez kalırdı.
+    Seçilen: AYRI ve ADLANDIRILMIŞ kalem. Nakde eklenmez; "erişmek için çekmek/satmak
+    gerekir" etiketiyle raporlanır. Karar kullanıcının, sayı bizim.
+
+    ÖLÇÜT: pozisyonu OLMAYAN yatırım hesabı (ne `fund_code` ne `lot_count`). Pozisyonu
+    olan hesap gerçekten yatırımdadır ve buraya girmez.
+
+    EMANET HARİÇ — pazarlıksız: emanet hesap Master Checkpoint ile dokunulmazdır
+    (`action_executor` kod seviyesinde bloklar). Onu "erişilebilir" diye raporlamak,
+    kullanıcıyı ihlale davet etmek olurdu.
+    """
+    kalemler: List[Dict] = []
+    toplam = ZERO
+    for acc in db.query(Account).filter(
+            _scope(Account, user_id),
+            Account.account_type == AccountType.investment).all():
+        if acc.is_emanet:
+            continue
+        if acc.fund_code or acc.lot_count:
+            continue
+        bakiye = D(acc.balance or 0)
+        if bakiye <= 0:
+            continue
+        toplam += bakiye
+        kalemler.append({"ad": acc.name, "tutar": round(bakiye, 2)})
+    return round(toplam, 2), kalemler
+
+
 def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
     """
     AY SONUNA KADAR İŞARETLİ NAKİT TAKVİMİ — tek, sıralı, yönü ADLANDIRILMIŞ liste.
@@ -1833,10 +1874,16 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
         if bakiye < en_dusuk:
             en_dusuk, en_dusuk_tarih = bakiye, k["tarih"]
 
+    bekleyen, bekleyen_kalemler = _yatirimda_bekleyen_nakit(user_id, db)
     return {
         "bugun": bugun.isoformat(),
         "ufuk": ay_sonu.isoformat(),
         "baslangic_nakit": round(baslangic, 2),
+        # Nakde EKLENMEZ; ayrı durur. Erişmek için çekmek/satmak gerekir — koç bunu
+        # kullanıcıya söyler, biz onun yerine karar vermeyiz.
+        "yatirimda_bekleyen": bekleyen,
+        "yatirimda_bekleyen_kalemler": bekleyen_kalemler,
+        "erisilebilir_toplam": round(baslangic + bekleyen, 2),
         "kalemler": kalemler,
         "toplam_giris": round(giris, 2),
         "toplam_cikis": round(cikis, 2),

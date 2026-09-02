@@ -103,8 +103,13 @@ def altin_db():
     s.add(Account(user_id=1, name="Ziraat Bankkart Genc", account_type=AccountType.credit_card,
                   balance=KART_GUNCEL_BORC, credit_limit=12000.0,
                   statement_day=2, payment_day=14,
-                  notes="Son ekstreden kalan borc 0,00 TL. Donem ici guncel borc "
-                        "8.221,13 TL, 14 Eylul'de odenecek."))
+                  # BUG #318'in AYNI SINIFI, KARTTA: `notes` karar verdiren bir SAYI
+                  # tasiyordu ("Son ekstreden kalan 0,00 TL") ve `balance` ile CELISIYORDU.
+                  # Olculdu — koc G3'te "14 Eylul kart: belirsiz (0 mi 8.221 mi?)" deyip
+                  # takvimi ikiye boldu. Serbest metin bir veri modeli degildir: tek
+                  # dogruluk kaynagi `balance`tir. Senaryonun "son ekstre 0" baglami
+                  # zaten G2'nin SORUSUNDA duruyor.
+                  notes="Kesim ayin 2'si, son odeme 14'u."))
     # --- krediler: balance = KALAN TAKSİT TOPLAMI, anapara notes içinde (G1'in tuzağı) ---
     s.add(Account(user_id=1, name="Garanti Kredi 1", account_type=AccountType.loan,
                   balance=KREDI1_KALAN_TAKSIT_TOPLAMI, monthly_payment=4109.90,
@@ -136,11 +141,15 @@ ALTIN_SENARYOLAR: List[EvalScenario] = [
         ["cevapladi", "dogru_sonuc", "tuzak_yok", "uslup", "no_fake_niyet"],
         include_cockpit=True,
         beklenen_tutarlar=[KREDI1_ERKEN_KAPAMA, KREDI2_ERKEN_KAPAMA],
-        # YAZIM KÖRLÜĞÜ DÜZELTMESİ (BUG #316 sınıfı): desen `erken\s*kapama` yazılmıştı;
-        # koç "erken-kapama" dedi ve TİRE boşluk değildir → DOĞRU cevap düştü. Ölçüt bir
-        # kavramı arıyorsa o kavramın yazım varyantlarını da kabul etmeli. Bu bir
-        # GEVŞETME değil: aranan kavram aynı, yalnız ayıraç serbest.
-        beklenen_desenler=[r"erken[\s\-_]*kapama|anapara|kapama bedeli"],
+        # KELİME ŞARTI KALDIRILDI — ve bu bir gevşetme DEĞİL, ölçüt hatasının onarımı.
+        # İki koşumda koç doğru tutarları verdi ama "erken kapama" NOUN'unu kullanmadı
+        # ("bugün ... ödersin" dedi) ve kriter doğru cevabı düşürdü. Üçüncü kez aynı sınıf.
+        # MEŞRULUK SINAMASI: ölçütü gevşetmek, korumaya çalıştığı defekti kaçırıyor mu?
+        # Hayır — ölçülen bozuk cevap ("79.625,85 TL ödemen gerekiyor") iki kapama tutarını
+        # da içermiyordu, kelimesiz ölçütten de DÜŞERDİ. Sayısal imza tek başına ayırt edici:
+        # 14.023,29 ve 34.487,12 ancak DOĞRU taban seçilirse söylenebilir. Kelime şartı,
+        # ayırt etmeyen ama doğru cevabı düşüren bir fazlalıktı.
+        beklenen_desenler=[],
         tuzak_tutarlar=[KREDI_TOPLAM_TAKSIT_TOPLAMI,
                         KREDI1_KALAN_TAKSIT_TOPLAMI, KREDI2_KALAN_TAKSIT_TOPLAMI],
     ),

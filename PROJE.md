@@ -45,6 +45,17 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > portrait kapısına ait ve iki yazılı istisnası var; kopyalayınca 26 yanlış pozitif verdi.
 > **e2e 8 passed · frontend 214 passed.**
 >
+> **K-B GÜN SONU (2 Eyl, 3 koşum — TEK KOŞUM GÜRÜLTÜLÜDÜR):** altın set
+> **kriter min %88,0 / medyan %88,0 / maks %96,0 · muhakeme min 4/6 / medyan 4/6 / maks 6/6.**
+> Sabahki taban **1/6** idi. Senaryo başına: G1 3/3 · G2 3/3 · G4 3/3 · G6 3/3 kararlı,
+> G3 1/3 · G5 1/3 kararsız. Kazanımların hiçbiri prompt'a satır eklemekten gelmedi
+> (K-KURAL 5); dördü de ÜRÜN düzeltmesi: **#317** (.env yorumu model adı sanıldı),
+> **#318** (erken kapama sayısal alana → G1'in 31.115,44 TL'lik yanlış tavsiyesi kapandı),
+> **#319** (nakit takvimi parçalıydı, koç gelen parayı gider sayıyordu),
+> **#320** (yatırımda bekleyen nakit ayrı ve etiketli kalem; emanet hariç).
+> **Metodoloji dersi:** aynı kodla %88 → %84 → %80 ölçüldü; örneklem büyüklüğü
+> belirtilmeyen bir oran bir iddiadır, ölçüm değil.
+>
 > **Stopaj artık kural motorunda** (`app/vergi.py` + `calculate_getiri_esigi`): engel oran =
 > en pahalı borcun aylık faizi; ters hesap = eşiği geçmek için gereken brüt yıllık (%4,75/ay
 > → **%68,49**). Koç vergi aritmetiği YAPMAZ, okur. Prompt'a tek satır eklenmedi (K-KURAL 5).

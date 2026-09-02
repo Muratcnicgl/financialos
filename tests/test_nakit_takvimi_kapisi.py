@@ -39,7 +39,8 @@ from app.rules_engine import calculate_nakit_takvimi
 BUGUN = date(2026, 9, 2)
 
 
-def _db(*, nakit=2663.59, gelir=None, gider=None, kart=None, kredi=None, alacak=None):
+def _db(*, nakit=2663.59, gelir=None, gider=None, kart=None, kredi=None, alacak=None,
+        yatirim=None):
     eng = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(eng)
     s = sessionmaker(bind=eng)()
@@ -66,6 +67,11 @@ def _db(*, nakit=2663.59, gelir=None, gider=None, kart=None, kredi=None, alacak=
         s.add(PersonalDebt(user_id=1, counterparty=alacak[0], amount=alacak[1],
                            direction=DebtDirection.receivable, is_paid=False,
                            due_date=alacak[2]))
+    if yatirim:
+        # (ad, bakiye, fund_code, lot_count, is_emanet)
+        s.add(Account(user_id=1, name=yatirim[0], account_type=AccountType.investment,
+                      balance=yatirim[1], fund_code=yatirim[2], lot_count=yatirim[3],
+                      is_emanet=yatirim[4]))
     s.commit()
     return s
 
@@ -228,3 +234,56 @@ def test_takvim_kocun_baglamina_giriyor():
     assert "ÇIKIŞ" in ctx
     assert "15.078,25" in ctx, "çıkış toplamı bağlamda yok"
     assert "EN DÜŞÜK" in ctx
+
+
+# ---- 7) YATIRIMDA BEKLEYEN NAKİT: ayrı kalem, nakde EKLENMEZ -------------------
+# 1 Eylül analizinde kullanıcının parasının üçte ikisi (9.000/11.663) bir `investment`
+# hesabında duruyordu ve takvimde HİÇ görünmüyordu. İki yanlış çözüm de reddedildi:
+# nakde saymak (satılmamış varlığı harcanabilir göstermek) ve görmezden gelmek.
+
+def test_pozisyonsuz_yatirim_bakiyesi_AYRI_kalem_olarak_raporlanir():
+    db = _db(nakit=2663.59, yatirim=("Midas", 9000.0, None, None, False))
+    try:
+        r = calculate_nakit_takvimi(1, db, BUGUN)
+    finally:
+        db.close()
+    assert float(r["baslangic_nakit"]) == 2663.59, "yatırım bakiyesi nakde EKLENMEMELİ"
+    assert float(r["yatirimda_bekleyen"]) == 9000.0
+    assert r["yatirimda_bekleyen_kalemler"] == [{"ad": "Midas", "tutar": 9000.0}] or         float(r["yatirimda_bekleyen_kalemler"][0]["tutar"]) == 9000.0
+    assert float(r["erisilebilir_toplam"]) == 11663.59
+
+
+def test_POZISYONU_OLAN_yatirim_bekleyen_sayilmaz():
+    """Fonu alınmış hesap gerçekten yatırımdadır; onu 'erişilebilir' demek yanlış olurdu."""
+    db = _db(yatirim=("TLY Fonu", 9000.0, "TLY", 6.0, False))
+    try:
+        r = calculate_nakit_takvimi(1, db, BUGUN)
+    finally:
+        db.close()
+    assert float(r["yatirimda_bekleyen"]) == 0.0
+    assert float(r["erisilebilir_toplam"]) == float(r["baslangic_nakit"])
+
+
+def test_EMANET_hesap_asla_erisilebilir_sayilmaz():
+    """Emanet Master Checkpoint ile dokunulmaz; 'erişilebilir' demek ihlale davet olurdu."""
+    db = _db(yatirim=("Emanet", 50000.0, None, None, True))
+    try:
+        r = calculate_nakit_takvimi(1, db, BUGUN)
+    finally:
+        db.close()
+    assert float(r["yatirimda_bekleyen"]) == 0.0
+    assert not r["yatirimda_bekleyen_kalemler"]
+
+
+def test_bekleyen_nakit_koc_baglaminda_ETIKETIYLE_gorunur():
+    from app.coach import _build_context_message
+    from scripts.coach_altin import altin_db
+    db = altin_db()
+    try:
+        ctx, _ = _build_context_message(db, 1)
+    finally:
+        db.close()
+    assert "YATIRIMDA BEKLEYEN" in ctx
+    assert "9.000,00" in ctx and "11.663,59" in ctx
+    # Etiket şart: sayıyı etiketsiz vermek koçun onu nakit sanmasına kapı açar.
+    assert "nakde EKLENMEDİ" in ctx

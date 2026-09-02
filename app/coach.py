@@ -818,6 +818,15 @@ def _build_context_message(db: Session, user_id: int, workspace_id: Optional[int
             line += f" (limit {limit_str}, kullanım %{acc.get('kullanim_orani', 0)})"
         if acc.get("aylik_taksit"):
             line += f" (aylık {_fmt(acc['aylik_taksit'])}, kalan {acc.get('kalan_taksit')} taksit, sonraki {acc.get('sonraki_taksit')})"
+        # BUG #318: kredinin IKI sayisi var ve karistirilirsa kullanici fazla oder.
+        # Olculen zarar: koc "iki kredimi kapatsam ne oderim?" sorusuna kalan taksit
+        # toplamini (79.625,85) soyledi; dogrusu 48.510,41'di. Fark 31.115,44 TL.
+        # Bilinmiyorsa SUSMAK yerine BILMEDIGINI soyler — sifir varsaymaz (L45).
+        if acc.get("tip") == "loan":
+            ek = acc.get("erken_kapama")
+            line += (f" · BUGÜN KAPATMA BEDELİ {_para(ek)} (bakiye kalan taksit toplamıdır, "
+                     f"kapatma bedeli DEĞİLDİR)" if ek is not None
+                     else " · bugün kapatma bedeli BİLİNMİYOR (kullanıcıya sor, tahmin etme)")
         if acc.get("lot"):
             line += f" (lot {acc['lot']}, fiyat {acc.get('fiyat')}, maliyet/lot {acc.get('maliyet_per_lot')})"
             # BUG #239 fix (D23): sağlayıcı çöktüğünde fiyat olduğu yerde kalır. İşaretlenmezse

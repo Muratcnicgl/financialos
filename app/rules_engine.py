@@ -1774,8 +1774,14 @@ def calculate_getiri_esigi(user_id: int, db: Session, bugun: date) -> Dict:
         if oran <= 0:
             oransiz += 1
             continue
-        kalemler.append({"ad": a.name, "aylik_oran": oran,
-                         "borc": round(D(a.balance or 0.0), 2)})
+        kalem = {"ad": a.name, "aylik_oran": oran,
+                 "borc": round(D(a.balance or 0.0), 2)}
+        # BUG #318: kapatma bedeli biliniyorsa AYRICA tasinir. `borc` (kalan taksit
+        # toplami) ile karistirilmasin diye ayri anahtar; bilinmiyorsa alan HIC eklenmez
+        # (None yazmak "sifir" gibi okunabiliyor).
+        if a.early_payoff_amount is not None:
+            kalem["erken_kapama"] = round(D(a.early_payoff_amount), 2)
+        kalemler.append(kalem)
     kalemler.sort(key=lambda k: -k["aylik_oran"])
 
     if not kalemler:
@@ -2144,6 +2150,10 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
             detail["aylik_taksit"] = acc.monthly_payment
             detail["kalan_taksit"] = acc.remaining_installments
             detail["sonraki_taksit"] = acc.next_payment_date.isoformat() if acc.next_payment_date else None
+            # BUG #318: kredinin IKINCI sayisi. `bakiye` kalan taksit toplamidir (gelecek
+            # faizi icerir); bu, bugun kapatmanin bedelidir. None birakilir — bilinmeyen
+            # sifir DEGILDIR (L45); sifir yazmak "borcun yok" demek olurdu.
+            detail["erken_kapama"] = acc.early_payoff_amount
         elif acc.account_type == AccountType.investment:
             value = D(acc.lot_count or 0) * D(acc.current_price or 0)  # ADR-030: lot(float)+fiyat→D
             # BUG #239 (D23): tazelik hesabın kendisinden türetilir (ek sorgu yok → workspace

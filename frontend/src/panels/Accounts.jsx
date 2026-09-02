@@ -293,6 +293,14 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
               <span className="font-numeric">{a.remaining_installments}</span>
             </div>
           )}
+          {a.early_payoff_amount != null && (
+            <div className="flex justify-between">
+              <span>Bugün kapatma</span>
+              <span className="font-numeric font-semibold text-zinc-800 dark:text-zinc-200">
+                {formatPara(a.early_payoff_amount)}
+              </span>
+            </div>
+          )}
           {a.next_payment_date && (
             <div className="flex justify-between">
               <span>Sonraki</span>
@@ -366,6 +374,9 @@ function AccountFormModal({ account, onClose, onSave }) {
   const [paymentDay, setPaymentDay] = useState(account?.payment_day?.toString() || '');
   const [monthlyPayment, setMonthlyPayment] = useState(account?.monthly_payment?.toString() || '');
   const [remainingInstallments, setRemainingInstallments] = useState(account?.remaining_installments?.toString() || '');
+  // BUG #318: kredinin IKINCI sayisi — bugun kapatmanin bedeli (anapara). Bakiye
+  // kalan taksit toplamidir ve gelecek faizi icerir; ikisi AYNI SEY DEGILDIR.
+  const [earlyPayoff, setEarlyPayoff] = useState(account?.early_payoff_amount?.toString() || '');
   const [nextPaymentDate, setNextPaymentDate] = useState(account?.next_payment_date || '');
   const [fundCode, setFundCode] = useState(account?.fund_code || '');
   const [lotCount, setLotCount] = useState(account?.lot_count?.toString() || '');
@@ -411,6 +422,7 @@ function AccountFormModal({ account, onClose, onSave }) {
       data.monthly_payment = parseNum(monthlyPayment);
       data.remaining_installments = parseInt2(remainingInstallments);
       data.next_payment_date = nextPaymentDate || null;
+      data.early_payoff_amount = parseNum(earlyPayoff);   // BUG #318
     } else if (type === 'investment') {
       data.fund_code = fundCode || null;
       data.lot_count = parseNum(lotCount);
@@ -508,6 +520,18 @@ function AccountFormModal({ account, onClose, onSave }) {
                 <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Sonraki tarih</label>
                 <input type="date" value={nextPaymentDate} onChange={(e) => setNextPaymentDate(e.target.value)} className="input" />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+                Bugün kapatma bedeli
+              </label>
+              <input type="text" value={earlyPayoff} onChange={(e) => setEarlyPayoff(e.target.value)}
+                     className="input font-numeric" placeholder="14023.29" />
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                Bankanın "Erken Kapama Tutarı". Yukarıdaki bakiye kalan taksitlerin
+                toplamıdır ve gelecek faizi içerir — bu ikisi aynı şey değildir.
+                Bilmiyorsan boş bırak; boş bırakılırsa koç tahmin etmez, sana sorar.
+              </p>
             </div>
           </>
         )}

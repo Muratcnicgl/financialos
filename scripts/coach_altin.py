@@ -19,8 +19,9 @@ yazıldı. Kaynaklar satır satır `_ALTIN_MANZARA` içinde işaretlidir.
 
 ÖLÇÜTÜN BİLİNEN SINIRLARI (yazılı olmayan sınır, sessiz yalandır):
   1. `grounded` bu sette KULLANILMAZ. İki ayrı nedenle geçersizdir:
-     (a) "Erken Kapama" tutarı veri modelinde SAYI değil, `notes` içinde METİN — cockpit'in
-         sayısal yapraklarına girmez, yani doğru cevap "izlenemeyen tutar" damgası yer.
+     (a) ~~"Erken Kapama" tutarı `notes` içinde METİNDİ~~ → **BUG #318 ile KAPANDI**:
+         alan sayısallaştı (`Account.early_payoff_amount`), cockpit'e `erken_kapama` olarak
+         giriyor ve artık grounding tarafından doğrulanabiliyor. Bu sınır ortadan kalktı.
      (b) Altın senaryolar TOPLAM/FARK istiyor; türev sayı zaten cockpit'te yoktur.
      Bu bir ölçüt kusuru değil, kapsam dışılıktır — ama ikisi de birer ÜRÜN bulgusudur ve
      deftere yazılmıştır (erken kapama sayısal alan olmalı).
@@ -29,9 +30,12 @@ yazıldı. Kaynaklar satır satır `_ALTIN_MANZARA` içinde işaretlidir.
      ve o bir CI kapısı değildir.
   3. G6'nın deterministik imzası setin en zayıfıdır (bkz. senaryo notu).
 
-BAKIM UYARISI: veri modeli düzelirse (kredi `balance`i anapara olur / erken kapama sayısal
-alana taşınırsa) G1'in TUZAĞI ORTADAN KALKAR ve bu fixture güncellenmelidir. Aksi hâlde kapı,
-düzeltilmiş bir hatayı yerinde dondurur.
+BAKIM NOTU (2 Eyl 2026): erken kapama tutarı BUG #318 ile sayısal alana taşındı ve bu
+fixture güncellendi — tutarlar artık `early_payoff_amount`ta, `notes` yalnız hesap numarası
+taşıyor. G1'in tuzağı DEVAM EDİYOR ama artık ADİL: `balance` hâlâ kalan taksit toplamıdır,
+kapama bedeli ayrı bir alandır ve koç ikisini AYIRT ETMEK zorundadır. Fark şu: eskiden doğru
+cevap için serbest metin ayrıştırmak gerekiyordu, şimdi veri veriliyor. Kredi `balance`i bir
+gün anaparaya çevrilirse tuzak tamamen kalkar ve bu fixture yine güncellenmelidir.
 """
 # kota-exempt: degerlendirme kosum araci (scripts/eval_runner.py --altin) — urun yuzeyi
 #              degil, kullanici tetikleyemez.
@@ -105,11 +109,13 @@ def altin_db():
     s.add(Account(user_id=1, name="Garanti Kredi 1", account_type=AccountType.loan,
                   balance=KREDI1_KALAN_TAKSIT_TOPLAMI, monthly_payment=4109.90,
                   remaining_installments=4, next_payment_date=date(2026, 9, 11),
-                  interest_rate=4.75, notes="Erken Kapama: 14.023,29 TL."))
+                  interest_rate=4.75, early_payoff_amount=KREDI1_ERKEN_KAPAMA,
+                  notes="Hesap No: KREDI-HESAP-1."))
     s.add(Account(user_id=1, name="Garanti Kredi 2", account_type=AccountType.loan,
                   balance=KREDI2_KALAN_TAKSIT_TOPLAMI, monthly_payment=2747.22,
                   remaining_installments=23, next_payment_date=date(2026, 9, 15),
-                  interest_rate=4.55, notes="Erken Kapama: 34.487,12 TL."))
+                  interest_rate=4.55, early_payoff_amount=KREDI2_ERKEN_KAPAMA,
+                  notes="Hesap No: KREDI-HESAP-2."))
     s.commit()
     return s
 
@@ -130,7 +136,11 @@ ALTIN_SENARYOLAR: List[EvalScenario] = [
         ["cevapladi", "dogru_sonuc", "tuzak_yok", "uslup", "no_fake_niyet"],
         include_cockpit=True,
         beklenen_tutarlar=[KREDI1_ERKEN_KAPAMA, KREDI2_ERKEN_KAPAMA],
-        beklenen_desenler=[r"erken\s*kapama|anapara"],
+        # YAZIM KÖRLÜĞÜ DÜZELTMESİ (BUG #316 sınıfı): desen `erken\s*kapama` yazılmıştı;
+        # koç "erken-kapama" dedi ve TİRE boşluk değildir → DOĞRU cevap düştü. Ölçüt bir
+        # kavramı arıyorsa o kavramın yazım varyantlarını da kabul etmeli. Bu bir
+        # GEVŞETME değil: aranan kavram aynı, yalnız ayıraç serbest.
+        beklenen_desenler=[r"erken[\s\-_]*kapama|anapara|kapama bedeli"],
         tuzak_tutarlar=[KREDI_TOPLAM_TAKSIT_TOPLAMI,
                         KREDI1_KALAN_TAKSIT_TOPLAMI, KREDI2_KALAN_TAKSIT_TOPLAMI],
     ),

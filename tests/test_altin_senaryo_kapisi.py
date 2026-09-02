@@ -69,10 +69,13 @@ def test_fixture_kredi_bakiyeleri_tuzagi_tasiyor():
                     .filter(Account.account_type == AccountType.loan)}
         assert float(krediler["Garanti Kredi 1"].balance) == KREDI1_KALAN_TAKSIT_TOPLAMI
         assert float(krediler["Garanti Kredi 2"].balance) == KREDI2_KALAN_TAKSIT_TOPLAMI
-        # Anapara SAYISAL alanda değil, notes METNİNDE — `grounded`ın bu sette neden
-        # kullanılamadığının kanıtı (bkz. coach_altin modül notu, sınır 1a).
-        assert "14.023,29" in krediler["Garanti Kredi 1"].notes
-        assert "34.487,12" in krediler["Garanti Kredi 2"].notes
+        # BUG #318 SONRASI: anapara artık SAYISAL alanda. Önceden `notes` içinde METİNDİ
+        # ve doğru cevap cockpit'te bulunamadığı için "izlenemeyen tutar" damgası yiyordu.
+        assert float(krediler["Garanti Kredi 1"].early_payoff_amount) == KREDI1_ERKEN_KAPAMA
+        assert float(krediler["Garanti Kredi 2"].early_payoff_amount) == KREDI2_ERKEN_KAPAMA
+        # Ve tutar artık serbest metinde TUTULMAZ: iki kaynak olursa biri bayatlar.
+        for k in krediler.values():
+            assert "Erken Kapama" not in (k.notes or ""),                 "kapama tutarı hem alanda hem notes'ta — ikinci kaynak bayatlar"
     finally:
         db.close()
     assert round(KREDI1_KALAN_TAKSIT_TOPLAMI + KREDI2_KALAN_TAKSIT_TOPLAMI, 2) == \
@@ -251,9 +254,12 @@ def test_her_altin_senaryoda_olcum_ve_olu_koc_korumasi_var():
 
 def test_grounded_altin_sette_kullanilmaz():
     """
-    Kapsam dışılık KİLİTLİDİR. `grounded` bu sette geçerli değildir (erken kapama tutarı
-    cockpit'te sayı olarak yok; ayrıca senaryolar TÜREV sayı istiyor). Biri iyi niyetle
-    eklerse set sistematik kırmızıya döner ve suç koçta sanılır.
+    Kapsam dışılık KİLİTLİDİR — ama gerekçesi ARTIK TEK:
+      * ~~erken kapama tutarı cockpit'te sayı değil~~ → BUG #318 ile kapandı, sayısallaştı.
+      * senaryolar TÜREV sayı istiyor (toplam/fark) ve türev sayı cockpit'te bulunmaz.
+    İkinci gerekçe tek başına yeterli: G1'in altın cevabı iki kapama tutarını TOPLAR,
+    G3 kaynak ve çıkış toplamı ister. Biri iyi niyetle `grounded` eklerse set sistematik
+    kırmızıya döner ve suç koçta sanılır.
     """
     for sc in ALTIN_SENARYOLAR:
         assert "grounded" not in sc.checks, (

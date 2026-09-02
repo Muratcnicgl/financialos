@@ -48,6 +48,7 @@ class AccountBase(BaseModel):
     interest_rate: FinansOptOran = None  # SEC-032
     monthly_payment: FinansOptOran = None  # SEC-032
     remaining_installments: Optional[int] = Field(None, ge=0)
+    early_payoff_amount: FinansOptOran = None  # BUG #318 (SEC-032 ile ayni dogrulama)
     next_payment_date: Optional[date] = None
     # Yatirim
     fund_code: Optional[str] = Field(None, max_length=20)
@@ -72,6 +73,7 @@ class AccountUpdate(BaseModel):
     interest_rate: FinansOptOran = None  # SEC-032
     monthly_payment: FinansOptOran = None  # SEC-032
     remaining_installments: Optional[int] = Field(None, ge=0)
+    early_payoff_amount: FinansOptOran = None  # BUG #318 (SEC-032 ile ayni dogrulama)
     next_payment_date: Optional[date] = None
     fund_code: Optional[str] = Field(None, max_length=20)
     lot_count: FinansOptOran = None  # SEC-032

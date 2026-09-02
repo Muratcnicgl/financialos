@@ -233,6 +233,14 @@ class Account(Base):
     monthly_payment = Column(Numeric(19, 4), nullable=True)       # Aylık taksit
     remaining_installments = Column(Integer, nullable=True)
     next_payment_date = Column(Date, nullable=True)
+    # BUG #318: bir kredinin IKI ayri sayisi vardir ve karistirilirsa kullanici yanlis
+    # karar verir. `balance` = KALAN TAKSIT TOPLAMI (gelecek faizi icerir); bu alan =
+    # bugun kapatirsan odenecek ANAPARA ("Erken Kapama Tutari"). Onceden yalniz `notes`
+    # icinde METINDI: koc "iki kredimi kapatsam ne oderim?" sorusuna 79.625,85 dedi,
+    # dogrusu 48.510,41'di -> 31.115,44 TL fazla odeme tavsiyesi. Ayrica dogru cevap
+    # cockpit'te sayi olarak bulunamadigi icin "izlenemeyen tutar" damgasi yiyordu.
+    # NULL = BILINMIYOR (sifir DEGIL, L45): banka soylemeden bu sayi uydurulmaz.
+    early_payoff_amount = Column(Numeric(19, 4), nullable=True)
 
     # === Yatırım alanları ===
     # M12 (ADR-031): varlık sınıfı discriminator. None/'fund'=TEFAS fonu (mevcut),

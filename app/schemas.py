@@ -40,6 +40,9 @@ class AccountBase(BaseModel):
     monthly_payment: Optional[float] = None
     remaining_installments: Optional[int] = None
     next_payment_date: Optional[date] = None
+    # BUG #318: bugun kapatirsan odenecek ANAPARA. `balance` (kalan taksit toplami) ile
+    # AYNI SEY DEGILDIR; None = bilinmiyor.
+    early_payoff_amount: Optional[float] = None
 
     # Yatırım
     fund_code: Optional[str] = None
@@ -64,6 +67,9 @@ class AccountUpdate(BaseModel):
     monthly_payment: Optional[float] = None
     remaining_installments: Optional[int] = None
     next_payment_date: Optional[date] = None
+    # BUG #318: bugun kapatirsan odenecek ANAPARA. `balance` (kalan taksit toplami) ile
+    # AYNI SEY DEGILDIR; None = bilinmiyor.
+    early_payoff_amount: Optional[float] = None
     fund_code: Optional[str] = None
     lot_count: Optional[float] = None
     cost_per_lot: Optional[float] = None

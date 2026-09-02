@@ -149,3 +149,40 @@ def test_kaynakta_literal_gorunmez_karakter_yok():
         if c in metin
     }
     assert not bulunan, f"kaynakta literal görünmez karakter var: {bulunan}"
+
+
+# ============================================================
+# BUG #321 — ETİKETSİZ OLMAK, İZLENEMEZ OLMAK DEĞİLDİR
+# ============================================================
+# Ölçülen defekt (2 Eyl 2026): koç `"limit 12.000 (%99,8 dolu)"` yazdı. `12000` cockpit'te
+# VAR (`credit_limit`), yalnız para etiketi olmadan yazılmıştı — kapı onu "denetimden kaçış"
+# sayıp cevabı KIRMIZI yaptı. Davranış setinde `grounded` 0/6 çıkıyordu; sebebinin bir kısmı
+# buydu. BUG #256'nın amacı (etiket düşürerek kaçmak) korunur: uydurma sayı cockpit'te de
+# olmadığı için hâlâ yakalanır.
+
+def test_izlenebilir_ama_etiketsiz_sayi_ihlal_DEGIL():
+    from app.grounding import check_grounding
+    r = check_grounding("limit 12.000 (%99,8 dolu)", {"kart_limiti": 12000.0})
+    assert r["etiketsiz"] == [], "cockpit'te olan sayı 'kaçış' sayıldı"
+    assert r["ok"] is True
+
+
+def test_IZLENEMEYEN_etiketsiz_sayi_HALA_yakalanir():
+    """BUG #256'nın amacı bozulmadı: uydurma, etiketi düşürerek kaçamaz."""
+    from app.grounding import check_grounding
+    r = check_grounding("limit 47.500 dolu", {"kart_limiti": 12000.0})
+    assert r["etiketsiz"] == [47500.0]
+    assert r["ok"] is False
+
+
+def test_etiketli_uydurma_yine_unverified():
+    from app.grounding import check_grounding
+    r = check_grounding("borcun 47.500 TL", {"kart_limiti": 12000.0})
+    assert r["unverified"] == [47500.0] and r["ok"] is False
+
+
+def test_kullanici_mesajindaki_tutar_etiketsiz_yazilsa_da_izinli():
+    """Ders LLM-003a'nın etiketsiz hâli: pending action tutarı ihlal üretmemeli."""
+    from app.grounding import check_grounding
+    r = check_grounding("kaydedeyim mi: 1.250,00", {}, user_message="1.250 TL harcadım")
+    assert r["etiketsiz"] == []

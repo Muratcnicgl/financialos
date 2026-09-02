@@ -69,11 +69,31 @@ def test_grounding_kaynak_kodunda_gomulu_para_etiketi_yok():
 
 # ---------------------------------------------------- 2. etiketsiz tutar = KIRMIZI
 
-def test_etiketsiz_tutar_kirmiziya_duser():
-    """Para biçiminde ama etiketsiz yazılmış tutar artık sessizce geçmez."""
+def test_etiketsiz_ve_IZLENEMEYEN_tutar_kirmiziya_duser():
+    """
+    BUG #256'nın ASIL iddiası: halüsinasyon, para etiketini düşürerek denetimden KAÇAMAZ.
+
+    BUG #321 (2 Eyl 2026) bu testin ÖRNEĞİNİ düzeltti — iddiasını değil. Eski kurgu
+    `"Net değerin 31.343 civarında."` idi ve 31.343 `COCKPIT["net_deger"]`in ta kendisiydi;
+    yani kapı, DOĞRU bir cümleyi yalnız yazım biçimi yüzünden kırmızı yapıyordu. Canlı
+    ölçümde aynı sınıf hata `grounded` kriterini **0/6**'ya düşürmüştü (koç
+    `"limit 12.000 (%99,8 dolu)"` yazmıştı ve 12.000 cockpit'te VARDI). Düzeltmeden sonra
+    3/6. Örnek artık izlenemeyen bir tutar kullanır — kaçış senaryosunun kendisi.
+
+    KAPSAM DIŞI (bilinçli): BUG #256 "ya da başka birimde" endişesini de yazmıştı. Değer
+    eşleşmesi birim farkını göremez; ama ürün tek para birimlidir (`money_format` bilerek
+    tek kodludur), yani bu risk bugün yok. Çok para birimi geldiğinde ayrıca ele alınır.
+    """
+    r = check_grounding("Net değerin 99.999 civarında.", COCKPIT)
+    assert r["etiketsiz"] == [99999.0]
+    assert r["ok"] is False, "izlenemeyen etiketsiz tutar grounding'i kırmızıya düşürmeli"
+
+
+def test_etiketsiz_ama_IZLENEBILIR_tutar_yesil_kalir():
+    """BUG #321'in diğer yüzü: doğru cevap, yazım biçimi yüzünden cezalandırılamaz."""
     r = check_grounding("Net değerin 31.343 civarında.", COCKPIT)
-    assert r["etiketsiz"] == [31343.0]
-    assert r["ok"] is False, "etiketsiz tutar grounding'i kırmızıya düşürmeli"
+    assert r["etiketsiz"] == [], "cockpit'te olan sayı 'denetimden kaçış' sayıldı"
+    assert r["ok"] is True
 
 
 def test_etiketsiz_bos_yanit_yesil_kalir():
@@ -125,14 +145,14 @@ def test_kapi_mutasyonu_yakalar():
     orijinal = g._etiketsiz_desen
     try:
         g._etiketsiz_desen = lambda kod: re.compile(r"(?!x)x")  # hiçbir şey eşleşmesin
-        r = check_grounding("Net değerin 31.343 civarında.", COCKPIT)
+        r = check_grounding("Net değerin 99.999 civarında.", COCKPIT)
         assert r["etiketsiz"] == [] and r["ok"] is True, (
             "mutasyon uygulanamadı — test gerçek davranışı ölçmüyor olabilir"
         )
     finally:
         g._etiketsiz_desen = orijinal
     # mutasyon geri alınınca gerçek davranış geri gelmeli
-    assert check_grounding("Net değerin 31.343 civarında.", COCKPIT)["ok"] is False
+    assert check_grounding("Net değerin 99.999 civarında.", COCKPIT)["ok"] is False
 
 
 # ------------------------------------------------------------- 5. sözleşme/kapsam

@@ -56,6 +56,23 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > **Metodoloji dersi:** aynı kodla %88 → %84 → %80 ölçüldü; örneklem büyüklüğü
 > belirtilmeyen bir oran bir iddiadır, ölçüm değil.
 >
+> **K3 NİHAYET ÖLÇÜLDÜ — %100 DEĞİL ~%50 (BUG #321).** Davranış setinde `grounded`
+> kriteri **0/6** çıkıyordu. Sebep koç değil ÖLÇÜT: `etiketsiz` kuralı bir sayının
+> izlenebilir olup olmadığına HİÇ bakmıyordu — koç `"limit 12.000 (%99,8 dolu)"` yazınca
+> (12.000 cockpit'te VAR, yalnız etiketsiz) cevap kırmızıya düşüyordu. Düzeltmeden sonra
+> **0/6 → 3/6**. BUG #256'nın amacı korundu: uydurma sayı cockpit'te de olmadığı için hâlâ
+> yakalanır. Kalan yarının sınıflandırılması açık iş (türev sayı mı, gerçek uydurma mı).
+>
+> **İSTEK BİLEŞİMİ:** sistem promptu **19.444 kar (%78)**, cockpit bağlamı 5.544 kar;
+> 1,93 kar/token. KURAL SIFIR tek başına promptun %32'si — ve `offer_propose=False` iken
+> `propose_action` tool listesinde HİÇ YOK (`no_action` 12/12 ölçüldü), yani büyük kısmı
+> ölü ağırlık. **Ama kırpma tek başına Groq'u AÇMAZ** (8.000'in altı ~5.000 token indirim
+> ister; KURAL SIFIR'ın tamamı 3.258). Kırpma açık iş.
+>
+> **MANŞET ORAN BİR KARIŞTIRICIDIR:** aynı üç koşumda `grounded` 0/6→3/6 İYİLEŞİRKEN
+> manşet %85,7→%82,9 DÜŞTÜ (dokunulmayan `uslup` ekseni, sağlayıcı gürültüsü). Kriter
+> başına tablo olmadan yorumlanamaz.
+>
 > **Stopaj artık kural motorunda** (`app/vergi.py` + `calculate_getiri_esigi`): engel oran =
 > en pahalı borcun aylık faizi; ters hesap = eşiği geçmek için gereken brüt yıllık (%4,75/ay
 > → **%68,49**). Koç vergi aritmetiği YAPMAZ, okur. Prompt'a tek satır eklenmedi (K-KURAL 5).

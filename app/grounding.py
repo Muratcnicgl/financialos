@@ -196,6 +196,19 @@ def check_grounding(
             continue
         if val < min_magnitude:
             continue
+        # BUG #321 — ETİKETSİZ OLMAK, İZLENEMEZ OLMAK DEĞİLDİR.
+        #
+        # Ölçülen defekt (2 Eyl 2026): koç `"limit 12.000 (%99,8 dolu)"` yazdı. `12000`
+        # cockpit'te VAR (`credit_limit`), yalnız para etiketi olmadan yazılmıştı — ve
+        # kapı onu "denetimden kaçış" sayıp cevabı KIRMIZI yaptı. Davranış setinde
+        # `grounded` kriteri 0/6 çıkıyordu; sebebinin bir kısmı buydu.
+        #
+        # BUG #256'nın amacı korunur: "halüsinasyon etiketi düşürerek denetimden kaçmasın".
+        # Uydurma bir sayı cockpit'te de OLMAYACAĞI için hâlâ yakalanır. Değişen tek şey,
+        # izlenebilir bir sayının yalnız YAZIM biçimi yüzünden suçlanmaması.
+        # (Aynı sınıf: bir ölçüt, kabul ettiği yazım kadar iyidir — BUG #316.)
+        if any(abs(val - a) <= max(abs_tol, rel_tol * a) for a in allowed):
+            continue
         etiketsiz.append(round(val, 2))
 
     return {

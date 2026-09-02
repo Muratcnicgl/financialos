@@ -28,6 +28,11 @@ tests/
 scripts/setup_data.py
 # (b) Geliştirici/tarihsel araçlar: prod'da işlevi yok, kişiye özel iz taşıyorlar.
 scripts/eval_runner.py
+# Altın senaryo seti (Wave-K): koçun MUHAKEMESİ 1 Eylül 2026'nın GERÇEK manzarasıyla
+# ölçülür — isim, banka markası, gerçek bakiyeler. Yalnız `eval_runner --altin` kullanır;
+# prod'da işlevi yoktur. `app/`e konulsaydı ürün yüzeyine kişisel veri girerdi (ilk yazımda
+# öyle yapıldı, yedi kapı birden düştü; kapılar haklıydı).
+scripts/coach_altin.py
 scripts/apply_w3_039_is_system.py
 scripts/mcp_sync_report.py
 scripts/install-hooks.sh

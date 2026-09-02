@@ -6,6 +6,7 @@ kılar. Bir prompt/model/kod değişikliği kaliteyi düşürürse pass_rate dü
 
 Kullanım:
     python -m scripts.eval_runner                          # .env'deki LLM_PROVIDER ile
+    python -m scripts.eval_runner --altin                  # ALTIN SENARYO SETİ (G1-G6)
     LLM_PROVIDER=groq python -m scripts.eval_runner
     python -m scripts.eval_runner --saglayicilar gemini,groq,ollama   # YAN YANA
     python -m scripts.eval_runner --judge                   # + öznel boyut (LLM-as-judge)
@@ -37,6 +38,7 @@ from sqlalchemy.orm import sessionmaker                  # noqa: E402
 
 from app.models import Base, User, Account, AccountType  # noqa: E402
 from app.coach import CoachEngine, build_provider        # noqa: E402
+from scripts.coach_altin import ALTIN_SENARYOLAR, altin_db  # noqa: E402
 from app.coach_eval import DEFAULT_SCENARIOS, run_eval, format_report  # noqa: E402
 from app.coach_judge import (JudgeSonucu, degerlendir,   # noqa: E402
                              oz_degerlendirme_mi, rapor_satirlari)
@@ -114,16 +116,21 @@ def _tek_kosum(saglayici_adi: Optional[str], judge_provider, args) -> Optional[D
     print(f"\n=== Sağlayıcı: {ad} ({getattr(provider, 'model', '?')}) ===")
 
     engine = CoachEngine(provider=provider)
-    db = _canonical_db()
+    # Altın set KENDİ manzarasını ister: `_canonical_db` kasten minimaldir (davranış ölçümünü
+    # sağlayıcı gürültüsünden yalıtmak için), altın set ise zorunlu olarak zengindir.
+    senaryolar = ALTIN_SENARYOLAR if args.altin else DEFAULT_SCENARIOS
+    db = altin_db() if args.altin else _canonical_db()
     try:
-        rapor = run_eval(engine, db, 1, DEFAULT_SCENARIOS)
+        if args.altin:
+            print("  [altin] G1-G6 — koçun MUHAKEMESİ ölçülüyor (davranış sözleşmesi değil).")
+        rapor = run_eval(engine, db, 1, senaryolar)
         print(format_report(rapor))
 
         judge_ozet = None
         if judge_provider is not None:
             # Judge, DETERMİNİSTİK KOŞUMUN TAM cevaplarını puanlar (ikinci bir geçiş
             # koşmak başka cevapları puanlardı — ölçüm ile not ayrışırdı).
-            mesajlar = {sc.name: sc.user_message for sc in DEFAULT_SCENARIOS}
+            mesajlar = {sc.name: sc.user_message for sc in senaryolar}
             cevaplar = [(r["name"], mesajlar.get(r["name"], ""), r.get("reply_tam", ""))
                         for r in rapor["scenarios"]]
             judge_ozet, satirlar = _judge_kosumu(judge_provider, cevaplar, ad)
@@ -139,9 +146,13 @@ def _tek_kosum(saglayici_adi: Optional[str], judge_provider, args) -> Optional[D
     finally:
         db.close()
 
-    kayit = kayit_olustur(rapor, ad, getattr(provider, "model", None), judge_ozet)
+    # İki set AYNI dosyaya yazılır ama AYNI ŞEYİ ölçmez. Etiket olmadan geçmiş listesinde
+    # davranış oranı ile muhakeme oranı yan yana durur ve düşüş raporu ikisini kıyaslar —
+    # yani birbirine karışan iki ölçüm sahte bir "regresyon" üretir.
+    kayit = kayit_olustur(rapor, ad, getattr(provider, "model", None), judge_ozet,
+                          senaryo_seti="altin" if args.altin else "varsayilan")
     if args.kaydet:
-        onceki = oku(saglayici=ad)
+        onceki = onceki_ayni_setten(ad, kayit["set"])
         dusus = dusus_raporu(kayit, onceki[-1] if onceki else None)
         yol = kaydet(kayit)
         print(f"\n  [kayıt] {yol}")
@@ -152,16 +163,31 @@ def _tek_kosum(saglayici_adi: Optional[str], judge_provider, args) -> Optional[D
     return kayit
 
 
+def onceki_ayni_setten(saglayici: str, senaryo_seti: str) -> List[Dict]:
+    """
+    Düşüş karşılaştırması için AYNI SETİN önceki koşumları.
+
+    Filtre olmadan `dusus_raporu` davranış setinin oranıyla altın setin oranını kıyaslar;
+    ikisi farklı soruları ölçtüğü için her set değişiminde SAHTE bir "düşüş" basılır — ve
+    sahte alarm veren bir gösterge kısa sürede hiç okunmaz hâle gelir.
+    Etiketsiz eski kayıtlar davranış seti sayılır (o tarihte altın set yoktu).
+    """
+    return [k for k in oku(saglayici=saglayici)
+            if k.get("set", "varsayilan") == senaryo_seti]
+
+
 def _gecmis_yazdir() -> None:
     kayitlar = oku()
     if not kayitlar:
         print(f"Kayıt yok ({VARSAYILAN_YOL}).")
         return
-    print(f"{'zaman':26s} {'saglayici':14s} {'pass_rate':>9s} {'senaryo':>9s} {'judge':>7s}")
+    print(f"{'zaman':26s} {'set':10s} {'saglayici':14s} {'pass_rate':>9s} "
+          f"{'senaryo':>9s} {'judge':>7s}")
     for k in kayitlar:
         judge = (k.get("judge") or {}).get("oran")
         gecerli = "" if k.get("gecerli", True) else "  (GECERSIZ)"
-        print(f"{k['zaman'][:25]:26s} {str(k['saglayici'])[:14]:14s} "
+        print(f"{k['zaman'][:25]:26s} {str(k.get('set', 'varsayilan'))[:10]:10s} "
+              f"{str(k['saglayici'])[:14]:14s} "
               f"{k['pass_rate']:>8.1f}% {k['senaryo_pass']:>4d}/{k['senaryo_total']:<4d} "
               f"{'-' if judge is None else f'{judge:>6.1f}%'}{gecerli}")
 
@@ -177,6 +203,9 @@ def main() -> None:
     ayristirici.add_argument("--kaydet", action="store_true",
                              help="skoru data/eval_runs.jsonl'e ekle ve önceki koşumla karşılaştır")
     ayristirici.add_argument("--gecmis", action="store_true", help="saklanan koşumları listele")
+    ayristirici.add_argument("--altin", action="store_true",
+                             help="ALTIN SENARYO SETİ (G1-G6): koçun muhakemesini ölçer "
+                                  "(1 Eyl 2026 gerçek manzarası; bkz. scripts/coach_altin.py)")
     args = ayristirici.parse_args()
 
     if args.gecmis:

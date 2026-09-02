@@ -156,17 +156,41 @@ def test_attribution_yetersiz_snapshot_available_false(db_session):
 
 
 def test_attribution_available_true(db_session):
-    """reports.py:170 diğer dal — iki snapshot varsa available True + sürücüler."""
+    """
+    reports.py:170 diğer dal — iki snapshot varsa available True + sürücüler.
+
+    TAKVİM BAĞIMLILIĞI GİDERİLDİ (2 Eyl 2026). Eski hâli `date.today()` kullanıyordu ve
+    **ayın 1'inde KIRILIYORDU** — yani süit her ay bir gün kırmızıydı ve fark edilmemişti
+    (`PROJE.md` baseline'ı "hepsi yeşil" sayıyordu). Sebep `calculate_networth_attribution`
+    içinde:
+        ref_date = date(today.year, today.month, 1)
+        ref = <snapshot_date <= ref_date olan en yeni>
+        if ref.id == latest.id: return None
+    Ayın 1'inde BUGÜNÜN snapshot'ı aynı zamanda referans olur → `ref is latest` → None.
+    Deterministik kanıt (offline): aynı iki snapshot ile
+    `today=2026-09-01 → available=False`, `2026-09-02 → True`, `2026-09-15 → True`.
+
+    Düzeltme: "en yeni" snapshot ayın 1'inden KESİNLİKLE sonraya konur; böylece test
+    hangi gün koşulursa koşulsun aynı yolu ölçer. (İleri tarihli snapshot yapaydır ama bu
+    test uç noktanın KABLOLAMASINI ölçüyor, takvim davranışını değil.)
+
+    ÜRÜN NOTU (bu turda kapsam dışı, ayrı iş): ayın 1'inde kullanıcı gerçekten geçmişi
+    olsa bile "ayrıştırma yok" cevabı alıyor. Savunulabilir (o gün ay içi değişim ~0) ama
+    yazılı değil; `ref.id == latest.id` koşulu "geçmiş yok" ile "referans bugünün kendisi"
+    durumlarını aynı sepete koyuyor.
+    """
     try:
         c = _client(db_session)
         today = date.today()
         ay_basi = date(today.year, today.month, 1)
         onceki = ay_basi - timedelta(days=5)
+        # Ayın 1'inde de geçerli olsun diye: latest DAİMA ay başından sonra.
+        en_yeni = max(today, ay_basi + timedelta(days=1))
         db_session.add_all([
             NetWorthSnapshot(user_id=1, snapshot_date=onceki, net_worth_seen=1000,
                              net_worth_full=1000, cash=1000, card_debt=0, loan_debt=0,
                              investment_value=0, receivables=0),
-            NetWorthSnapshot(user_id=1, snapshot_date=today, net_worth_seen=2000,
+            NetWorthSnapshot(user_id=1, snapshot_date=en_yeni, net_worth_seen=2000,
                              net_worth_full=2000, cash=2000, card_debt=0, loan_debt=0,
                              investment_value=0, receivables=0),
         ])
@@ -176,6 +200,57 @@ def test_attribution_available_true(db_session):
         assert "surucureler" in body
     finally:
         app.dependency_overrides.clear()
+
+
+def test_attribution_TAKVIM_semantigi_yazili(db_session):
+    """
+    AYIN 1'İNDE AYRIŞTIRMA YOKTUR — bu davranış artık YAZILI ve kilitli.
+
+    Neden gerekli: `test_attribution_available_true` aylardır ayın 1'inde kırılıyordu ve
+    kimse fark etmemişti (kırmızı, ayda yalnız bir gün görünüyor; `PROJE.md` baseline'ı
+    süiti "hepsi yeşil" sayıyordu). Testi tarihten bağımsız yapmak yetmez — asıl davranış
+    hiçbir yerde YAZILI DEĞİLDİ, dolayısıyla "doğru mu, kaza mı?" sorusu cevapsızdı.
+
+    Sözleşme (`calculate_networth_attribution`): referans, ayın 1'ine ya da öncesine en
+    yakın snapshot'tır. Ayın 1'inde bugünün snapshot'ı AYNI ZAMANDA referanstır → değişim
+    tanımsızdır → `None`. Savunulabilir (o gün ay içi değişim ~0) ama SESSİZ olmamalı.
+
+    Bu test saf fonksiyonu doğrudan çağırır (uç nokta değil): takvim davranışı
+    `date.today()`e bağlı olmadan, her koşumda AYNI şekilde ölçülmelidir.
+    """
+    from app.rules_engine import calculate_networth_attribution
+
+    ay_basi = date(2026, 9, 1)
+    db_session.add_all([
+        NetWorthSnapshot(user_id=1, snapshot_date=ay_basi - timedelta(days=5),
+                         net_worth_seen=1000, net_worth_full=1000, cash=1000,
+                         card_debt=0, loan_debt=0, investment_value=0, receivables=0),
+        NetWorthSnapshot(user_id=1, snapshot_date=ay_basi, net_worth_seen=2000,
+                         net_worth_full=2000, cash=2000,
+                         card_debt=0, loan_debt=0, investment_value=0, receivables=0),
+    ])
+    db_session.commit()
+
+    # Ayın 1'i: en yeni snapshot AYNI ZAMANDA referanstır → ayrıştırma YOK.
+    assert calculate_networth_attribution(1, ay_basi, db_session) is None
+
+    # Ay başından SONRA bir snapshot doğduğu anda ayrıştırma anlam kazanır.
+    # (İlk yazımda bu snapshot eklenmemişti ve test kendi kurgusundan düştü: ayın 2'sinde
+    #  de "en yeni" hâlâ 1 Eylül olduğu için referans yine kendisiydi. Ayrıştırmayı
+    #  doğuran şey TARİHİN İLERLEMESİ değil, AY BAŞINDAN SONRA VERİ OLUŞMASIDIR —
+    #  sözleşmenin asıl noktası bu.)
+    db_session.add(NetWorthSnapshot(
+        user_id=1, snapshot_date=ay_basi + timedelta(days=1), net_worth_seen=2500,
+        net_worth_full=2500, cash=2500, card_debt=0, loan_debt=0,
+        investment_value=0, receivables=0))
+    db_session.commit()
+
+    sonuc = calculate_networth_attribution(1, ay_basi + timedelta(days=1), db_session)
+    assert sonuc is not None
+    # Referans "ay başına EN YAKIN ve ondan sonra olmayan" snapshot'tır — 1 Eylül snapshot'ı
+    # varken referans ODUR, 27 Ağustos değil. (İlk yazımda 27 Ağustos bekledim; yanlıştı.
+    # Sözleşme "ay başından önceki" değil, "ay başına en yakın"dır.)
+    assert sonuc["baslangic_tarih"] == ay_basi.isoformat()
 
 
 def test_real_net_worth_yetersiz_available_false(db_session):

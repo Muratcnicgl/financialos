@@ -33,13 +33,24 @@ VARSAYILAN_YOL = Path(__file__).resolve().parent.parent / "data" / "eval_runs.js
 
 # Kayda giren alanlar SABİTTİR: yeni bir alan eklemek, gizlilik kapısından geçmelidir.
 IZINLI_ALANLAR = {"zaman", "saglayici", "model", "gecerli", "llm_olu_cagri", "pass_rate",
-                  "senaryo_pass", "senaryo_total", "kriterler", "judge"}
+                  # K2: iki oran. `pass_rate` MODEL SOZLESMESI, `pass_rate_kullanici`
+                  # KULLANICIYA GIDEN CIKTI. Ikincisi kaydedilmezse onarimlarin kazanci
+                  # gecmiste izlenemez ve sessizce geri alinabilir (bu modulun varlik
+                  # sebebiyle ayni gerekce). Ikisi de yalnizca ORAN — gizlilik kapisi bozulmaz.
+                  "pass_rate_kullanici", "senaryo_pass", "senaryo_pass_kullanici",
+                  "senaryo_total", "kriterler", "judge",
+                  # Wave-K: HANGİ SETİN oranı olduğu. Etiketsiz kayıtta davranış
+                  # seti (%88) ile altın set (muhakeme) yan yana durur ve düşüş
+                  # raporu ikisini kıyaslayıp SAHTE regresyon üretir. Yalnız bir
+                  # etiket — gizlilik kapısı bozulmaz.
+                  "set"}
 IZINLI_JUDGE_ALANLARI = {"saglayici", "model", "oran", "olculen", "gecersiz",
                          "oz_degerlendirme"}
 
 
 def kayit_olustur(rapor: Dict, saglayici: str, model: Optional[str] = None,
-                  judge: Optional[Dict] = None, zaman: Optional[datetime] = None) -> Dict:
+                  judge: Optional[Dict] = None, zaman: Optional[datetime] = None,
+                  senaryo_seti: str = "varsayilan") -> Dict:
     """`coach_eval.run_eval` raporundan saklanabilir (metinsiz) kayıt üretir."""
     kriterler: Dict[str, Dict[str, int]] = {}
     for satir in rapor.get("scenarios", []):
@@ -49,12 +60,15 @@ def kayit_olustur(rapor: Dict, saglayici: str, model: Optional[str] = None,
             hucre["gecti"] += 1 if gecti else 0
     kayit = {
         "zaman": (zaman or datetime.now(timezone.utc)).isoformat(),
+        "set": senaryo_seti,
         "saglayici": saglayici,
         "model": model,
         "gecerli": bool(rapor.get("gecerli", True)),
         "llm_olu_cagri": int(rapor.get("llm_olu_cagri", 0)),
         "pass_rate": float(rapor.get("pass_rate", 0.0)),
+        "pass_rate_kullanici": float(rapor.get("pass_rate_kullanici", 0.0)),
         "senaryo_pass": int(rapor.get("scenario_pass", 0)),
+        "senaryo_pass_kullanici": int(rapor.get("scenario_pass_kullanici", 0)),
         "senaryo_total": int(rapor.get("scenario_total", 0)),
         "kriterler": kriterler,
         "judge": {k: v for k, v in (judge or {}).items() if k in IZINLI_JUDGE_ALANLARI}

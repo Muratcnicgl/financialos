@@ -71,6 +71,17 @@ class UslupKurali:
     ihlal_ornekleri: Tuple[str, ...]   # kapı: her biri YAKALANMALI
     mesru_ornekler: Tuple[str, ...]    # kapı: hiçbiri yakalanMAMALI
     istisnalar: Tuple[str, ...] = ()   # eşleşmeyi geçersiz kılan katlanmış kelimeler
+    #: K2: ihlal eden CÜMLE silinerek onarılabilir mi?
+    #:
+    #: TRUE yalnız BİLGİ TAŞIMAYAN maddeler için: dalkavukluk, dolgu, boş teselli, nutuk.
+    #: Bu maddelerin yasak olma SEBEBİ zaten hiçbir şey söylememeleridir — cümleyi atmak
+    #: cevaptan bir şey eksiltmez (aynı gerekçeyle `coach.py` sahte-niyet satırlarını da atar).
+    #:
+    #: FALSE bilgi taşıyan maddeler için: `SIZ_HITABI` bilgilendirici cümlenin İÇİNDEDİR
+    #: ("Borcunuzu bu ay kapatabilirsiniz" — silmek cevabı yok eder, doğru onarım biçim
+    #: dönüşümüdür); `IC_JARGON` da öyle ("Cockpit verilerine göre durumun iyi").
+    #: Bu ikisi ölçülmeden onarılmaz — yanlış onarım, ihlalden daha zararlıdır.
+    silinebilir: bool = False
 
     def derle(self) -> List[Pattern[str]]:
         return [re.compile(d) for d in self.desenler]
@@ -85,6 +96,7 @@ KURALLAR: Tuple[UslupKurali, ...] = (
     UslupKurali(
         kod="DALKAVUKLUK",
         baslik="Dalkavukluk YASAK",
+        silinebilir=True,   # K2: bilgi tasimaz
         desenler=(
             r"\b(harika|muhtesem|mukemmel|super|cok\s+guzel|cok\s+iyi|cok\s+akillica)\s+"
             r"(bir\s+)?(soru|yaklasim|tespit|nokta|fikir|karar)\b",
@@ -107,6 +119,7 @@ KURALLAR: Tuple[UslupKurali, ...] = (
     UslupKurali(
         kod="DOLGU",
         baslik="DOLGU YASAK (boş/klişe kapanış)",
+        silinebilir=True,   # K2: bilgi tasimaz
         desenler=(
             r"\bumarim\s+yardimci\s+ol\w*",
             r"\bbenim\s+gorevim\b",
@@ -180,6 +193,7 @@ KURALLAR: Tuple[UslupKurali, ...] = (
     UslupKurali(
         kod="BOS_TESELLI",
         baslik="'Hallederiz' YASAK → 'Matematik buna izin vermiyor'",
+        silinebilir=True,   # K2: bilgi tasimaz
         desenler=(
             r"\bhallederiz\b",
             r"\byoluna\s+girecek\b",
@@ -200,6 +214,7 @@ KURALLAR: Tuple[UslupKurali, ...] = (
     UslupKurali(
         kod="NUTUK",
         baslik="NUTUK/UKALA YASAK — hitabı eleştirme",
+        silinebilir=True,   # K2: bilgi tasimaz
         desenler=(
             r"\bprofesyonel\s+bir\s+(dil|iletisim|uslup)\b",
             r"\b(dille|uslupla)\s+konusma\w*\s+tercih\b",
@@ -287,6 +302,152 @@ def ihlaller(metin: Optional[str]) -> List[str]:
     if not katlanmis.strip():
         return []
     return [k.kod for k in KURALLAR if _kural_eslesmesi(k, katlanmis)]
+
+
+_CUMLE_BOL = re.compile(r"(?<=[.!?])\s+")
+
+
+def silinebilir_kurallar() -> Tuple[UslupKurali, ...]:
+    """`silinebilir=True` işaretli maddeler. Tek kaynak: işaret KURALIN ÜZERİNDEDİR."""
+    return tuple(k for k in KURALLAR if k.silinebilir)
+
+
+def dolgu_temizle(metin: Optional[str]) -> Tuple[str, List[str]]:
+    """
+    K2 — BİLGİ TAŞIMAYAN üslup ihlallerini içeren CÜMLELERİ atar.
+
+    NEDEN VAR (ölçüm, 1 Eyl 2026 / `masterprompt-koc.md` K0):
+        Altı üslup kuralı bu modülde tanımlı ve `ihlaller()` ile ölçülebiliyordu — ama
+        `ihlaller()` yalnız `app/coach_eval.py`'de çağrılıyordu, yani ÜRÜN yolunda hiçbir
+        yerde. Zincir şuydu: prompt "yapma" der → model yapar → eval "yaptın" der →
+        **arada düzelten hiçbir şey yoktur.** K0 baseline'ında `SIZ_HITABI` ×2 ve
+        `IC_JARGON` ×1 tam bu boşluktan kullanıcıya ulaştı.
+        Projenin kendi yazılı ilkesi (`docs/architecture.md`): *"LLM'in prompt'ına
+        güvenilmez, kod seviyesinde bloklanır."* Bu fonksiyon o ilkenin üsluba uygulanmasıdır.
+
+    NEDEN SİLMEK BURADA MEŞRU:
+        Yalnız `silinebilir=True` maddeler işlenir; bu maddelerin YASAK OLMA SEBEBİ zaten
+        bilgi taşımamalarıdır (dalkavukluk / dolgu kapanışı / boş teselli / nutuk). Cümleyi
+        atmak cevaptan bir şey eksiltmez. Aynı gerekçe `coach.py`'de sahte-niyet satırları
+        için zaten uygulanıyor (BUG #277).
+        `SIZ_HITABI` ve `IC_JARGON` **BİLİNÇLİ OLARAK KAPSAM DIŞI**: ikisi de bilgilendirici
+        cümlenin İÇİNDE yaşar ("Borcunuzu bu ay kapatabilirsiniz"), silmek cevabı yok eder.
+        Onların doğru onarımı biçim dönüşümü ya da yeniden üretimdir ve ölçülmeden yapılmaz —
+        yanlış onarım, ihlalden daha zararlıdır.
+
+    ASLA BOŞ DÖNMEZ:
+        Temizlik geriye söz bırakmıyorsa metin OLDUĞU GİBİ döner ve hiçbir kod raporlanmaz.
+        Kullanıcıya boş ekran göstermek, üslup ihlalinden ağır bir kusurdur (aynı kalibrasyon
+        `_ONAY_YOK_NOTU` yolunda da yapıldı).
+
+    Dönüş: `(temizlenmis_metin, atilan_kural_kodlari)`. Kod listesi çağıranın iz/telemetri
+    kaydı içindir — sessiz temizlik, ölçülemeyen temizliktir.
+    """
+    if not metin or not metin.strip():
+        return (metin or ""), []
+    kurallar = silinebilir_kurallar()
+    if not kurallar:
+        return metin, []
+
+    atilan: List[str] = []
+    yeni_satirlar: List[str] = []
+    for satir in metin.splitlines():
+        if not satir.strip():
+            yeni_satirlar.append(satir)
+            continue
+        kalan: List[str] = []
+        for cumle in _CUMLE_BOL.split(satir):
+            katlanmis = normalize(cumle)
+            eslesen = [k.kod for k in kurallar if _kural_eslesmesi(k, katlanmis)]
+            if eslesen:
+                atilan.extend(eslesen)
+            else:
+                kalan.append(cumle)
+        # Satırın TAMAMI dolguysa satır düşer (başlık/madde iskeleti korunur, çünkü
+        # iskelet satırları hiçbir desene uymaz).
+        if kalan:
+            yeni_satirlar.append(" ".join(kalan).strip())
+
+    temiz = "\n".join(yeni_satirlar).strip()
+    if not temiz:
+        return metin, []
+    return temiz, sorted(set(atilan))
+
+
+#: 2. çoğul kuyruğu: `n` + dar ünlü + `z`. Hem FİİL hem İYELİK ekini aynı anda çözer —
+#: ölçüldü, iki ayrı desene gerek yok:
+#:     kapatabilirsiniz → kapatabilirsin   (fiil, -siniz)
+#:     görüyorsunuz     → görüyorsun       (fiil, -sunuz)
+#:     borcunuz         → borcun           (iyelik, eksiz)
+#:     kartınızın       → kartının         (iyelik + hâl eki)
+#:     harcamalarınızı  → harcamalarını    (çoğul + iyelik + hâl)
+#: Dönüşüm "n[ıiuü]z → n" biçiminde tek adımdır; ek listesi TUTULMAZ (tutulsaydı her yeni
+#: hâl eki için liste büyürdü — `SIZ_HITABI` deseninin kendisi bu yüzden bir kez ölçümle
+#: genişletilmek zorunda kalmıştı).
+_SIZ_KUYRUGU = re.compile(r"n([ıiuü])z", re.IGNORECASE)
+
+
+def siz_hitabi_onar(metin: Optional[str]) -> Tuple[str, bool]:
+    """
+    K2 — `SIZ_HITABI` ihlalini DETERMİNİSTİK olarak onarır (2. çoğul → 2. tekil).
+
+    NEDEN BU YÖNTEM (ölçüm, 1 Eyl 2026):
+        Canlı DB'deki 11 gerçek koç cevabının **5'inde (%45)** `SIZ_HITABI` var — üretimdeki
+        en sık üslup ihlali bu. Bu sıklıkta "hedefli yeniden üretim" (ek LLM çağrısı)
+        cevapların yarısında ikinci bir istek demektir; koçun isteği zaten 12.364 token
+        olduğu için sürdürülemez. Silmek ise imkânsız: ihlal, bilgilendirici cümlenin
+        İÇİNDEDİR ("Borcunuzu bu ay kapatabilirsiniz" — silmek cevabı yok eder).
+        Geriye deterministik biçim dönüşümü kalıyor: sıfır maliyet, tekrarlanabilir, test
+        edilebilir.
+
+    YANLIŞ DÖNÜŞÜM İHLALDEN ZARARLIDIR — bu yüzden İKİ savunma var:
+      1. İstisna listesi `_SIZ_ISTISNA` ("yalnız", "deniz", "temiz", "geniz", "beniz",
+         "seksiz"): katlandığında aynı kuyruğu taşıyan gerçek kelimeler. Liste UYDURULMAZ —
+         BUG #277'de canlı koç metniyle ölçülerek kuruldu.
+      2. İstisna, KELİMEYE değil **EŞLEŞMENİN KONUMUNA** bağlanır. Bir eşleşme yalnızca
+         istisna gövdesinin İÇİNE düşüyorsa atlanır. İki ara tasarım ölçümle çürütüldü:
+           · *Alt-dize eşleşmesi* — "azaltm**anız**ı" kelimesini (uydurma "anız" istisnası
+             yüzünden) muaf tutuyordu: uydurulan bir istisna gerçek bir onarımı engelledi.
+           · *Kelime başı eşleşmesi* — bu kez TERS yönde yanlış: "**temiz**lemenizi"
+             kelimesi "temiz" ile başladığı için TAMAMEN muaf kalıyor, oysa sondaki
+             "-nizi" onarılmalı ("temizlemeni"). Yani kelimenin başındaki bir istisna,
+             kelimenin SONUNDAKİ gerçek ihlali koruyordu.
+         Konum kuralı ikisini de çözer: "yalnızca"/"denizde"da eşleşme gövdenin içindedir
+         (atlanır); "temizlemenizi"de gövdenin dışındadır (onarılır).
+
+    ÖLÇÜLEN SINIR (dürüst kayıt): emir kipinde eksik onarım var — "ediniz" → "edin", oysa
+    2. tekil "et"tir. "edin" hâlâ 2. çoğul emirdir ama `SIZ_HITABI` deseni onu YAKALAMAZ,
+    yani bu kalıntı ölçüm tarafından da görülmez. Kapsam bilinçli: emir kipini çözmek fiil
+    gövdesi analizini gerektirir ve bu turda ölçülmedi.
+
+    Dönüş: `(onarilmis_metin, degisti_mi)`.
+    """
+    if not metin or not metin.strip():
+        return (metin or ""), False
+
+    cikti: List[str] = []
+    degisti = False
+    for p in re.split(r"(\W+)", metin):
+        if not p or not p[0].isalpha():
+            cikti.append(p)
+            continue
+        katlanmis = normalize(p)
+        # Kelimenin BAŞINDA duran istisna gövdesinin uzunluğu (yoksa 0). Yalnız bu gövdenin
+        # İÇİNE düşen eşleşmeler korunur; gövdenin dışındakiler onarılır.
+        korunan_uzunluk = max(
+            (len(i) for i in _SIZ_ISTISNA if katlanmis.startswith(i)), default=0
+        )
+
+        def _degistir(m: "re.Match[str]") -> str:
+            if m.start() < korunan_uzunluk:
+                return m.group(0)          # "yalnız", "denizde" → gövdenin içi, dokunma
+            return "n"                     # "temizlemenizi" → gövdenin dışı, onar
+
+        yeni = _SIZ_KUYRUGU.sub(_degistir, p)
+        if yeni != p:
+            degisti = True
+        cikti.append(yeni)
+    return "".join(cikti), degisti
 
 
 def prompt_sahte_niyet_listesi() -> str:

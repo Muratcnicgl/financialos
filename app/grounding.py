@@ -38,7 +38,29 @@ from app.money_format import taninan_etiketler
 # Para biçiminde yazılmış sayı: "42.100,50" / "1.234" / "268,75"
 # (binlik ayıracı ya da ondalık virgül taşıyanlar; ayraçsız düz sayı da yakalanır ama
 #  etiketsiz taramada ayrıca "biçimli mi" kontrolünden geçer.)
-_SAYI = r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?"
+#: BUG #316 — BİNLİK AYIRACI YALNIZ NOKTA DEĞİLDİR. (TEK KAYNAK)
+#:
+#: Ölçülen defekt (1 Eyl 2026, üretim kaydı): koç tutarları BOŞLUKLU binlik ayıraçla
+#: yazıyor — `4 573,52 TL`, `79 625,85 TL`, `15 000 TL`. Türkçede geçerli bir yazımdır ve
+#: LLM'lerin doğal çıktısıdır. Desen yalnız noktayı tanıdığı için `4 573,52` metninden
+#: sadece `573,52` yakalanıyor, cockpit'te bulunamıyor ve **doğru cevap "silent
+#: hallucination" damgası yiyordu**. Üretimde 14 cevabın 6'sı (%43) bu yüzden ihlalli
+#: görünüyordu; işaretlenen sayılar gerçek tutarların KUYRUKLARIYDI (4.**573,52** nakit
+#: kasa, 79.**625,85** kredi borcu, 4.**109,90** ve 2.**747,22** taksitler).
+#: Uçtan uca kanıt: aynı doğru cevap noktalı yazımda `ok=True`, boşluklu yazımda
+#: `ok=False, unverified=[573.52, 625.85]`.
+#:
+#: Zarar sessizdi ve çift yönlüydü: (a) `chat()` doğru cevapta güveni 0.4'e düşürüyordu,
+#: (b) eval'in `grounded` kriteri aynı dedektöre bağlı olduğu için **kalite oranı
+#: olduğundan kötü** görünüyordu.
+#:
+#: Ayıraç kümesi: nokta + boşluk ailesi (normal, kırılmaz, dar kırılmaz, ince boşluk).
+#: Kaçış dizisiyle yazılır, LİTERAL görünmez karakterle DEĞİL: kırılmaz boşluk (U+00A0),
+#: dar kırılmaz boşluk (U+202F) ve ince boşluk (U+2009) kaynakta gözle ayırt edilemez;
+#: kopyala-yapıştırda ya da düzenleyici temizliğinde sessizce kaybolur ve desen körleşir.
+#: (Aynı sınıf: BUG #312 — görünmeyen/kaçan karakterin kaynakta bıraktığı sessiz hasar.)
+_BINLIK = "[.\u0020\u00A0\u202F\u2009]"
+_SAYI = rf"\d{{1,3}}(?:{_BINLIK}\d{{3}})+(?:,\d+)?|\d+(?:,\d+)?"
 
 # Etiketsiz taramada yok sayılacak birimler — bunlar para değildir.
 _BIRIM_SONRASI = (
@@ -53,7 +75,10 @@ def _etiketli_desen(kod: Optional[str]) -> re.Pattern[str]:
     etiketler = "|".join(re.escape(e) for e in taninan_etiketler(kod))
     # `\b` KULLANMA: etiketlerden biri sembol (₺) ve sembol harf-olmayan karakterdir —
     # `\b` orada eşleşmez, yani "4.276,14 ₺" desenin dışında kalırdı (sessiz körlük).
-    return re.compile(rf"(?P<num>{_SAYI})\s*(?:{etiketler})(?!\w)", re.IGNORECASE)
+    return re.compile(
+        # BUG #316: boşluk ayıracı gelince eşleşme bir sayının ORTASINDAN
+        # başlayabilir ("2026 300 TL" → "026 300" = 26300). Geriye-bakış bunu keser.
+        rf"(?<![\d.,])(?P<num>{_SAYI})\s*(?:{etiketler})(?!\w)", re.IGNORECASE)
 
 
 @lru_cache(maxsize=8)
@@ -70,7 +95,7 @@ def _etiketsiz_desen(kod: Optional[str]) -> re.Pattern[str]:
     # yani etiketli tutar "etiketsiz" sayılır. Boşluk lookahead'in İÇİNDE olmalı.
     return re.compile(
         r"(?<![%\d,.])"                                       # önünde % ya da sayı parçası olmasın
-        r"(?P<num>\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+,\d{2})"    # para BİÇİMİ zorunlu
+        rf"(?P<num>\d{{1,3}}(?:{_BINLIK}\d{{3}})+(?:,\d+)?|\d+,\d{{2}})"  # para BİÇİMİ zorunlu (BUG #316: tek kaynak)
         r"(?![\d.,])"                                         # sayının devamı gelmesin
         rf"(?!\s*(?:{etiketler})(?!\w))"                      # para etiketi gelmiyorsa
         rf"(?!\s*(?:{_BIRIM_SONRASI})\b)"                     # ve birim kelimesi de gelmiyorsa
@@ -79,9 +104,15 @@ def _etiketsiz_desen(kod: Optional[str]) -> re.Pattern[str]:
     )
 
 
+#: Silinecek ayıraçlar — `_BINLIK` ile AYNI küme, kaçış dizisiyle yazılır.
+_AYIRAC_SIL = str.maketrans("", "", ".\u0020\u00A0\u202F\u2009")
+
+
 def _to_float_tr(token: str) -> float:
     """TR formatlı sayı ('31.342,86') -> float. Nokta binlik, virgül ondalık."""
-    return float(token.replace(".", "").replace(",", "."))
+    # BUG #316: nokta VE boşluk ailesi binlik ayıracıdır; hepsi silinir, sonra
+    # ondalık virgül noktaya çevrilir (sıra önemli).
+    return float(token.translate(_AYIRAC_SIL).replace(",", "."))
 
 
 def _collect_numeric(obj: Any, out: List[float]) -> None:
@@ -173,3 +204,47 @@ def check_grounding(
         "unverified": unverified,
         "etiketsiz": etiketsiz,
     }
+
+
+#: ALTIN SENARYO ÖLÇÜMÜ (Wave-K, K-B) — "koç DOĞRU sayıyı söyledi mi?" sorusunun tek kaynağı.
+#:
+#: NEDEN BURADA: bu soru, `check_grounding`in sorduğu sorunun AYNASIDIR — orada "cevaptaki
+#: sayı cockpit'te var mı", burada "beklenen sayı cevapta var mı". İkisi de aynı ayıraç
+#: kümesine bağlıdır. Ayrı bir modülde ikinci bir sayı deseni yazmak, BUG #316'nın tam olarak
+#: tekrar etmesi demekti: iki desenden biri boşluklu binlik ayıraca kör kalır, hangisinin kör
+#: olduğu ancak canlı koşumda anlaşılır. Tek kaynak (ders L21).
+_TUTAR_DESENI = re.compile(rf"(?<![\d.,])(?P<num>{_SAYI})(?![\d.,])")
+
+
+def metindeki_tutarlar(metin: str) -> List[float]:
+    """
+    Metindeki para biçimli sayıları float listesine çevirir (etiketli/etiketsiz fark etmez).
+
+    Etiket ARANMAZ: altın senaryoda ölçülen şey koçun tutarı doğru SÖYLEYİP söylemediğidir,
+    doğru ETİKETLEDİĞİ değil (onu `check_grounding` ölçer). Yüzde/tarih gibi para olmayan
+    sayılar da listeye girer — ayıklanmaz, çünkü çağıran taraf BELİRLİ bir değeri arar ve
+    fazladan sayı yalnız gürültüdür; ayıklamaya kalkmak (tarih mi, yüzde mi?) ölçütü
+    kırılganlaştırır.
+    """
+    out: List[float] = []
+    for m in _TUTAR_DESENI.finditer(metin or ""):
+        try:
+            out.append(abs(_to_float_tr(m.group("num"))))
+        except ValueError:
+            continue
+    return out
+
+
+def tutar_gecti(metin: str, deger: float, *,
+                tolerans_mutlak: float = 1.0, tolerans_oransal: float = 0.005) -> bool:
+    """
+    `deger` metinde geçiyor mu? Yazım biçiminden (nokta/boşluk ayıraç) bağımsızdır.
+
+    Tolerans NEDEN var: koç `48.510,41` yerine `48.510` yazabilir — bu bir hata değil,
+    yuvarlamadır ve ölçüt bunu hata sayarsa DOĞRU cevabı düşürür (BUG #316'nın dersi:
+    bir zorlama ancak ölçütü kadar iyidir). Oransal tolerans dar tutulur (%0,5): altın
+    senaryodaki beklenen değerler birbirinden en az %3 uzaktır, yani bu genişlikte iki
+    ayrı beklenti birbirine karışamaz.
+    """
+    esik = max(tolerans_mutlak, tolerans_oransal * abs(deger))
+    return any(abs(v - abs(deger)) <= esik for v in metindeki_tutarlar(metin))

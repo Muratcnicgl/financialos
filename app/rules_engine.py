@@ -117,6 +117,7 @@ def _tl(x: float) -> str:
 
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
+from app import vergi
 from app.models import (
     Account, AccountType, RecurringIncome, RecurringExpense, Transaction,
     TransactionType, PersonalDebt, DebtDirection, MasterCheckpoint, Envelope,
@@ -1741,6 +1742,70 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
     }
 
 
+def calculate_getiri_esigi(user_id: int, db: Session, bugun: date) -> Dict:
+    """
+    ENGEL ORAN (hurdle rate): bir yatırımın MANTIKLI olması için aşması gereken aylık %.
+
+    NEDEN KURAL MOTORUNDA (altın senaryo G4'ün dersi): koç, "yıllık %35,5 brüt mevduat" ile
+    "aylık %4,55 kredi faizi"ni yan yana koyup kıyasladı — iki farklı birimdeki iki sayıyı
+    aynı sayı sanarak. Stopajı hiç anmadı. Bu aritmetiği modelden beklemek mimarinin kendi
+    ilkesine aykırıydı (*Rules Engine karar verir, LLM açıklar*) ve hatanın bedelini
+    kullanıcı öder. Karar burada hesaplanır; koç yalnız okur ve anlatır.
+
+    Eşik, borcun EN PAHALI kaleminin aylık faizidir: elindeki parayla o borcu azaltmak
+    risksiz ve vergisiz bir "getiri"dir; hiçbir yatırım onu geçmiyorsa tartışma biter.
+    `gereken_brut_yillik`, bu eşiği aşmak için bir mevduatın vermesi gereken brüt yıllık
+    orandır — kullanıcının eline geçen teklif bunun altındaysa cevap tek kelimeyle nettir.
+
+    Faiz oranı bilinmeyen borç, eşiğe KATILMAZ (L45: bilinmeyen, sıfır değildir); kaç
+    kalemin oransız olduğu `oransiz_kalem` ile raporlanır — eşik "düşük" görünüyorsa
+    sebebinin eksik veri olabileceği görünsün diye.
+    """
+    accs = db.query(Account).filter(
+        _scope(Account, user_id),
+        Account.account_type.in_([AccountType.loan, AccountType.credit_card]),
+    ).all()
+    kalemler: List[Dict] = []
+    oransiz = 0
+    for a in accs:
+        if float(a.balance or 0.0) <= 0:
+            continue
+        oran = float(a.interest_rate or 0.0)
+        if oran <= 0:
+            oransiz += 1
+            continue
+        kalemler.append({"ad": a.name, "aylik_oran": oran,
+                         "borc": round(D(a.balance or 0.0), 2)})
+    kalemler.sort(key=lambda k: -k["aylik_oran"])
+
+    if not kalemler:
+        return {"esik_aylik_yuzde": None, "esik_kaynak": None, "kalemler": [],
+                "oransiz_kalem": oransiz, "gereken_brut_yillik": None,
+                "stopaj": _stopaj_ozeti(bugun),
+                "neden": "faiz orani bilinen borc yok"}
+
+    esik = kalemler[0]["aylik_oran"]
+    return {
+        "esik_aylik_yuzde": esik,
+        "esik_kaynak": kalemler[0]["ad"],
+        "kalemler": kalemler,
+        "oransiz_kalem": oransiz,
+        "gereken_brut_yillik": vergi.esigi_asmak_icin_gereken_brut(esik),
+        "stopaj": _stopaj_ozeti(bugun),
+        "neden": None,
+    }
+
+
+def _stopaj_ozeti(bugun: date) -> Dict:
+    """Koçun kullanıcıya söyleyebilmesi için stopaj bilgisi + TAZELİK bayrağı."""
+    return {
+        "try_mevduat_6ay_yuzde": vergi.stopaj_orani("try_mevduat_6ay"),
+        "try_para_piyasasi_fonu_yuzde": vergi.stopaj_orani("try_para_piyasasi_fonu"),
+        "yururluk": vergi.STOPAJ_YURURLUK.isoformat(),
+        "bayat": vergi.bayat_mi(bugun),
+    }
+
+
 # FEAT-024: yıllık enflasyon varsayımı — Türkiye'de dominant servet faktörü. .env ile ayarlanır.
 _INFLATION_ANNUAL = float(os.getenv("INFLATION_ANNUAL", "0.40"))
 
@@ -2251,6 +2316,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     _zarf_taahhut = sum((D(max(0.0, z["kalan"])) for z in zarflar_durumu["zarflar"]), ZERO)
     atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
     faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
+    getiri_esigi = calculate_getiri_esigi(user_id, db, today)  # Wave-K / G4
     alacak_yaslanma = calculate_receivables_aging(user_id, today, db)  # FEAT-027
     borc_ilerleme = calculate_debt_progress(user_id, today, db, kart_borcu + kredi_borcu)  # FEAT-017
     kart_kullanim = calculate_card_utilization(user_id, today, db, accounts)  # FEAT-016 (accounts re-query yok)
@@ -2342,6 +2408,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "zarflar": zarflar_durumu,  # FEAT-001: kategori bütçe zarfları durumu
         "atanmamis_nakit": atanmamis_nakit,  # FEAT-002: zarflara taahhüt edilmemiş "boşta" nakit
         "faiz_sizintisi": faiz_sizintisi,  # FEAT-013: aylık/yıllık faiz maliyeti (kredi+kart)
+        # Wave-K (G4): yatırım-borç kıyasının AYNI BİRİMDEKİ hâli. Koç bu aritmetiği
+        # yapmaz, okur — stopaj ve bileşiklendirme modelden beklenmez.
+        "getiri_esigi": getiri_esigi,
         "alacak_yaslanma": alacak_yaslanma,  # FEAT-027: alacakların vade-yaşı grupları (None=alacak yok)
         "borc_ilerleme": borc_ilerleme,  # FEAT-017: başlangıçtan beri borç ödeme ilerlemesi (None=yetersiz geçmiş)
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru

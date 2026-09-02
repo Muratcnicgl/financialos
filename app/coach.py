@@ -171,8 +171,10 @@ from app.insight_schema import (  # BUG #268: içgörü sözleşmesi tek kaynak
 from app.tr_text import normalize as _tr_normalize  # BUG #271: yazımdan bağımsız eşleşme
 from app.workspace_deps import scope_filter  # BUG #277: bekleyen onay sorgusu kapsam-güvenli
 from app.uslup_kurallari import (  # BUG #277: koçun yazılı üslup sözleşmesi tek kaynak
+    dolgu_temizle,                 # K2: bilgi taşımayan üslup ihlalleri ÜRÜN yolunda temizlenir
     prompt_sahte_niyet_listesi as _sahte_niyet_ornekleri,
     sahte_niyet_iddiasi_var,
+    siz_hitabi_onar,               # K2: 2. çoğul → 2. tekil (deterministik, sıfır maliyet)
 )
 from app.intent_rules import (  # noqa: E402  (modül üstündeki import bloğuyla aynı seviye)
     gelecek_niyet_mi as is_future_or_intent,
@@ -1269,6 +1271,33 @@ Statü: {cockpit['statu']}{ilk_adim_block}
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend([fs["aylik_toplam"], fs["yillik_toplam"]])
 
+    # GETİRİ EŞİĞİ (Wave-K / altın senaryo G4): yatırım ile borç ödemenin AYNI BİRİMDEKİ
+    # kıyası. Ölçüm (2 Eyl 2026): koç brüt yıllık mevduat oranını aylık kredi faiziyle
+    # kıyasladı, stopajı hiç anmadı ve kredi oranını da yanlış söyledi. Buraya bir YASAK
+    # cümlesi eklemek çözüm değildi (K-KURAL 5); hesap kural motoruna taşındı, koç okuyor.
+    ge = cockpit.get("getiri_esigi") or {}
+    if ge.get("esik_aylik_yuzde"):
+        st = ge.get("stopaj") or {}
+        context += (
+            f"\n\n## GETİRİ EŞİĞİ (HESAPLANMIŞTIR — yeniden hesaplama, oku ve anlat)\n"
+            f"  - En pahalı borcun: {_guvenli(ge['esik_kaynak'])}, aylık %{ge['esik_aylik_yuzde']}. "
+            f"Parayı oraya koymak RİSKSİZ ve VERGİSİZ bu kadar kazandırır — yatırımın aşması "
+            f"gereken eşik budur."
+        )
+        if ge.get("gereken_brut_yillik"):
+            context += (
+                f"\n  - Bir mevduat/fon bu eşiği geçmek için BRÜT YILLIK en az "
+                f"%{ge['gereken_brut_yillik']} vermeli "
+                f"(stopaj %{st.get('try_mevduat_6ay_yuzde')}, yürürlük {st.get('yururluk')}). "
+                f"Altındaki her teklif, borcu ödemekten daha kötüdür."
+            )
+        if st.get("bayat"):
+            context += (f"\n  - UYARI: stopaj oranı tazelik penceresini aştı; "
+                        f"kullanıcıya oranın teyit edilmesi gerektiğini söyle.")
+        if ge.get("oransiz_kalem"):
+            context += (f"\n  - {ge['oransiz_kalem']} borç kaleminin faiz oranı BİLİNMİYOR, "
+                        f"eşiğe katılmadı — gerçek eşik daha yüksek olabilir.")
+
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
     # Wave-1 enjeksiyonu (is_active + priority enum + created_at) deprecated.
@@ -1824,7 +1853,23 @@ class DeepInfraProvider(_OpenAICompatMixin, LLMProvider):
 # ============================================================
 
 class OpenRouterProvider(LLMProvider):
-    DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+    # BUG #315 — SABİT MODEL KİMLİĞİ SESSİZCE ÇÜRÜR.
+    # Eski varsayılan `meta-llama/llama-3.3-70b-instruct:free` OpenRouter kataloğundan
+    # KALKMIŞTI (ölçüldü: `/api/v1/models` içinde yok; ücretli `:free`-siz hâli duruyor).
+    # Sonuç sessizdi ve yanıltıcıydı: istek ÜCRETLİ modele yönleniyor, bakiye $0 olduğu için
+    # **402 payment_required** dönüyordu — yani "kredi yok" gibi görünen arıza aslında
+    # "model adı bayat"tı. Hesapta kredi sorunu yoktu (`/api/v1/key` → is_free_tier=True,
+    # usage=0); zincirin ikinci halkası bu yüzden aylarca ölüydü.
+    # AYNI SINIF İKİNCİ KEZ: `CerebrasProvider` yorumunda kayıtlı — Cerebras 27 May 2026'da
+    # bir modeli deprecate etmiş ve o da ancak canlı eval koşumunda yakalanmıştı.
+    # Yeni varsayılan ÖLÇÜLEREK seçildi (1 Eyl 2026, ücretsiz modeller taranarak):
+    #   · katalogda MEVCUT · `:free` · tool-calling destekli · 1M bağlam
+    #   · gerçek sistem promptu + gerçek tool ile tek çağrı: 1,9 sn, propose_action ÜRETTİ
+    #   · tam eval iki kez koşuldu, İKİSİ DE GEÇERLİ: %88,6 ve %82,9 (model sözleşmesi)
+    #     — mevcut varsayılan zincirin K0 ölçümü %71,4'tü ve koşum GEÇERSİZDİ.
+    # Elenenler: nemotron-3-ultra (tool çağırmadı, İngilizce sızdırdı), inkling (403),
+    # glm-5.2 (429), nemotron-3-super (bozuk yanıt biçimi).
+    DEFAULT_MODEL = "minimax/minimax-m3:free"
     NAME = "OpenRouter"
 
     def __init__(self, api_key: str, model: Optional[str] = None):
@@ -2023,56 +2068,130 @@ class FallbackProvider(LLMProvider):
 # 11. PROVIDER FACTORY
 # ============================================================
 
+#: BUG #313 — `<ÖNEK>_MODEL` env adları bu listeden TÜRETİLİR. `saglayici_modeli()` adı
+#: f-string ile kurduğu için kaynakta literal olarak geçmez; `tests/test_env_adi_kapisi.py`
+#: (BUG #304a kapısı) bu listeyi import ederek adları türetir — elle beyaz liste TUTMAZ.
+#: Yeni bir sağlayıcı eklendiğinde buraya da eklenir; unutulursa kapı hayalet ad bildirir.
+SAGLAYICI_ONEKLERI: tuple[str, ...] = (
+    "GEMINI", "ANTHROPIC", "GROQ", "CEREBRAS", "OPENROUTER",
+    "TOGETHER", "DEEPINFRA", "OLLAMA",
+)
+
+
+#: BUG #317 — BOŞ GÖRÜNEN BİR AYAR, SATIR SONUNDAKİ YORUMU DEĞER SANABİLİR.
+#:
+#: Ölçülen defekt (2 Eyl 2026): `.env`de satır `LLM_MODEL=   # bos: LLM_PROVIDER ...` idi.
+#: python-dotenv, DEĞER VARSA satır sonu yorumunu ayıklar (`GEMINI_MODEL=x  # not` → `x`),
+#: ama değer BOŞSA ayıklamaz — geriye kalan her şeyi değer sayar. Sonuç:
+#: `LLM_MODEL == "# bos: LLM_PROVIDER degistiginde yanlis modele gitmesin"`.
+#: `LLM_PROVIDER` tek bir sağlayıcıyı adlandırdığı her koşumda bu METİN model adı olarak
+#: sağlayıcıya gitti; OpenRouter/Cerebras/Groq **hiç cevap veremedi** ve arıza ekranda
+#: "kota/erişim" gibi göründü. Yani BUG #315'in (bayat model adı) kardeşi: model adı
+#: çürüdüğünde belirti daima "sağlayıcı bizi istemiyor" biçiminde okunuyor.
+#: Zarar sessizdi: yan yana koşumda üç sağlayıcı da %0 aldı ve suç modellerde sanıldı.
+#:
+#: Aynı tuzak `.env.example`de de vardı — yani kopyalayan HERKESE geçiyordu; bu bir yerel
+#: yazım hatası değil, dağıtılan bir şablon hatasıydı.
+#:
+#: Savunma: değer YAZIMSAL olarak doğrulanır. Geçersizse SESSİZCE yok sayılmaz — hata
+#: seviyesinde loglanır ve sağlayıcının kendi DEFAULT_MODEL'ine düşülür (koç ayakta kalır,
+#: operatör uyarılır). Sessiz düzeltme, sessiz arızanın diğer yüzüdür.
+_MODEL_ADI_DESENI = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/+-]{0,99}$")
+
+
+def _gecerli_model(ham: str, kaynak: str) -> Optional[str]:
+    """Ortam değişkeninden gelen model adını doğrular; geçersizse None döner ve uyarır."""
+    deger = (ham or "").strip()
+    if not deger:
+        return None
+    if _MODEL_ADI_DESENI.match(deger):
+        return deger
+    logger.error(
+        "[model] %s gecersiz bir model adi tasiyor, yok sayildi: %r. "
+        "En sik neden: satir sonu yorumu (`%s=   # not`) bos degerde ayiklanmaz — "
+        "notu satirin USTUNE tasi. Saglayicinin DEFAULT_MODEL'i kullanilacak.",
+        kaynak, deger[:80], kaynak,
+    )
+    return None
+
+
+def saglayici_modeli(onek: str) -> Optional[str]:
+    """
+    BUG #313 — MODEL ADI SAĞLAYICIYA AİTTİR, ZİNCİRE DEĞİL. (TEK KAYNAK)
+
+    Ölçüm (1 Eyl 2026): `.env`'de `LLM_MODEL=gemini-2.5-flash-lite` varken
+    `_build_anthropic()` aynı değişkeni okuyordu → `LLM_PROVIDER=anthropic` diyen
+    operatör Anthropic'e **Gemini model adı** gönderiyordu (API 400/404). Yani tek bir
+    `LLM_MODEL` değişkenini İKİ ayrı sağlayıcı okuyordu; diğer dördü (Groq/Together/
+    DeepInfra/Ollama) zaten kendi `<ÖNEK>_MODEL`'ini kullanıyordu — sözleşme tutarsızdı.
+    Cerebras ve OpenRouter'ın ise model seçimi HİÇ yoktu (daima DEFAULT_MODEL).
+
+    Öncelik sırası:
+      1. `<ÖNEK>_MODEL`  — sağlayıcıya özel, her modda geçerli.
+      2. `LLM_MODEL`     — YALNIZ `LLM_PROVIDER` bu sağlayıcıyı adlandırdığında.
+      3. `None`          — sağlayıcının kendi `DEFAULT_MODEL`'i kullanılır.
+
+    `fallback` modunda `LLM_MODEL` hiçbir sağlayıcıya uygulanmaz: heterojen bir zincir
+    tek model adını paylaşamaz. Bir zincirde tek bir modeli sabitlemek isteyen operatör
+    o sağlayıcının kendi `<ÖNEK>_MODEL`'ini yazar.
+    """
+    ozel = _gecerli_model(os.getenv(f"{onek.upper()}_MODEL", ""), f"{onek.upper()}_MODEL")
+    if ozel:
+        return ozel
+    if os.getenv("LLM_PROVIDER", "gemini").strip().lower() == onek.lower():
+        genel = _gecerli_model(os.getenv("LLM_MODEL", ""), "LLM_MODEL")
+        if genel:
+            return genel
+    return None
+
+
 def _build_gemini() -> Optional[GeminiProvider]:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         return None
-    model = os.getenv("LLM_MODEL", "").strip() or None
-    return GeminiProvider(api_key=api_key, model=model)
+    return GeminiProvider(api_key=api_key, model=saglayici_modeli("GEMINI"))
 
 
 def _build_groq() -> Optional[GroqProvider]:
     api_key = os.getenv("GROQ_API_KEY", "").strip()
     if not api_key:
         return None
-    model = os.getenv("GROQ_MODEL", "").strip() or None
-    return GroqProvider(api_key=api_key, model=model)
+    return GroqProvider(api_key=api_key, model=saglayici_modeli("GROQ"))
 
 
 def _build_anthropic() -> Optional[AnthropicProvider]:
     api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         return None
-    model = os.getenv("LLM_MODEL", "").strip() or None
-    return AnthropicProvider(api_key=api_key, model=model)
+    return AnthropicProvider(api_key=api_key, model=saglayici_modeli("ANTHROPIC"))
 
 
 def _build_cerebras() -> Optional[CerebrasProvider]:
     api_key = os.getenv("CEREBRAS_API_KEY", "").strip()
     if not api_key:
         return None
-    return CerebrasProvider(api_key=api_key)
+    return CerebrasProvider(api_key=api_key, model=saglayici_modeli("CEREBRAS"))
 
 
 def _build_openrouter() -> Optional[OpenRouterProvider]:
     api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None
-    return OpenRouterProvider(api_key=api_key)
+    return OpenRouterProvider(api_key=api_key, model=saglayici_modeli("OPENROUTER"))
 
 
 def _build_together() -> Optional[TogetherProvider]:
     api_key = os.getenv("TOGETHER_API_KEY", "").strip()
     if not api_key:
         return None
-    return TogetherProvider(api_key=api_key, model=os.getenv("TOGETHER_MODEL") or None)
+    return TogetherProvider(api_key=api_key, model=saglayici_modeli("TOGETHER"))
 
 
 def _build_deepinfra() -> Optional[DeepInfraProvider]:
     api_key = os.getenv("DEEPINFRA_API_KEY", "").strip()
     if not api_key:
         return None
-    return DeepInfraProvider(api_key=api_key, model=os.getenv("DEEPINFRA_MODEL") or None)
+    return DeepInfraProvider(api_key=api_key, model=saglayici_modeli("DEEPINFRA"))
 
 
 def _build_ollama() -> Optional[OllamaProvider]:
@@ -2088,29 +2207,58 @@ def _build_ollama() -> Optional[OllamaProvider]:
     return OllamaProvider()
 
 
+#: BUG #314 — ZİNCİRDE OLAN HER SAĞLAYICI TEK BAŞINA DA SEÇİLEBİLMELİDİR. (TEK KAYNAK)
+#:
+#: Ölçülen defekt (1 Eyl 2026): `build_provider` yalnız `gemini | anthropic | groq | ollama`
+#: adlarını tanıyordu; oysa fallback zinciri YEDİ sağlayıcı kuruyor. Yani Cerebras,
+#: OpenRouter, Together ve DeepInfra **hiçbir zaman tek başına koşulamıyordu** — ne
+#: `eval_runner --saglayicilar` ile ölçülebiliyor, ne bir arıza anında zincire alternatif
+#: olarak sabitlenebiliyordu. Zararı K1'de somutlaştı: zincirin üç halkası ölüyken
+#: "Cerebras tek başına ayakta mı?" sorusu **sorulamadı bile** (`LLM_PROVIDER=cerebras`
+#: → "Bilinmeyen LLM_PROVIDER"). Bir sağlayıcının zincire eklenmesi, onu ölçülebilir
+#: yapmalıydı; yapmıyordu.
+#:
+#: Ad kümesi artık BU SÖZLÜKTEN türetilir — hata mesajı da dahil. Yeni bir sağlayıcı
+#: eklendiğinde ayrıca bir `if` dalı yazmak gerekmez; unutulursa ad da listelenmez.
+#: Değer olarak FONKSİYON DEĞİL, FONKSİYON ADI tutulur ve çağrı anında `globals()` ile
+#: çözülür. Sebebi ölçüldü: ilk sürüm doğrudan referans tutuyordu ve import anında
+#: dondurduğu için `monkeypatch.setattr(coach, "_build_gemini", ...)` — bu depoda yerleşik
+#: test dikişi — ARTIK ETKİSİZ kalıyordu (`test_coverage_m88.py`'de iki test kırmızıya döndü).
+#: Zarar testle sınırlı değildi: modül özniteliğini değiştiren biri davranışı değiştirdiğini
+#: sanar, oysa sözlük hâlâ eski fonksiyonu çağırır — sessiz bir ayrışma.
+_SAGLAYICI_KURUCULARI = {
+    "gemini": "_build_gemini",
+    "anthropic": "_build_anthropic",
+    "groq": "_build_groq",
+    "cerebras": "_build_cerebras",
+    "openrouter": "_build_openrouter",
+    "together": "_build_together",
+    "deepinfra": "_build_deepinfra",
+}
+
+
+def _kurucu(ad: str):
+    """Sağlayıcı kurucusunu ÇAĞRI ANINDA modül özniteliğinden çözer (yukarıdaki nota bak)."""
+    return globals()[_SAGLAYICI_KURUCULARI[ad]]
+
+#: Zincir sırası (M13/ADR-034). Ayrı tutulur: SIRA bir politika kararıdır, ad kümesi değil.
+_ZINCIR_SIRASI = ("gemini", "openrouter", "cerebras", "together", "deepinfra", "groq")
+
+
 def build_provider() -> LLMProvider:
     provider_name = os.getenv("LLM_PROVIDER", "gemini").lower().strip()
 
-    if provider_name == "anthropic":
-        p = _build_anthropic()
+    if provider_name in _SAGLAYICI_KURUCULARI:
+        p = _kurucu(provider_name)()
         if not p:
-            raise ValueError("ANTHROPIC_API_KEY bulunamadi (.env kontrol et).")
-        return p
-
-    if provider_name == "gemini":
-        p = _build_gemini()
-        if not p:
-            raise ValueError("GEMINI_API_KEY bulunamadi (.env kontrol et).")
-        return p
-
-    if provider_name == "groq":
-        p = _build_groq()
-        if not p:
-            raise ValueError("GROQ_API_KEY bulunamadi (.env kontrol et).")
+            raise ValueError(
+                f"{provider_name.upper()}_API_KEY bulunamadi (.env kontrol et)."
+            )
         return p
 
     if provider_name == "ollama":
         # DEVRİMSEL #2: egemen/yerel mod — sadece Ollama, internet gerekmez.
+        # Ayrı dal: anahtar gerektirmez, bu yüzden "kurulamadı" dalı da yoktur.
         p = OllamaProvider()
         return p
 
@@ -2120,12 +2268,16 @@ def build_provider() -> LLMProvider:
         # DEVRİMSEL #2: zincirin SON halkasi yerel Ollama (egemen guvenlik agi) —
         # sadece acikca etkinse (OLLAMA_ENABLED/BASE_URL/MODEL) eklenir.
         chain = []
-        # M13/ADR-034 revize sırası: Gemini → OpenRouter → Cerebras → Together → DeepInfra → Groq → Ollama
-        for builder in [_build_gemini, _build_openrouter, _build_cerebras,
-                        _build_together, _build_deepinfra, _build_groq, _build_ollama]:
-            p = builder()
+        # M13/ADR-034 revize sırası: Gemini → OpenRouter → Cerebras → Together → DeepInfra
+        # → Groq → Ollama. BUG #314: kurucular AYNI sözlükten okunur — zincire giren her
+        # sağlayıcı tek başına da seçilebilir olsun diye (iki ayrı liste zamanla ayrışırdı).
+        for ad in _ZINCIR_SIRASI:
+            p = _kurucu(ad)()
             if p:
                 chain.append(p)
+        p = _build_ollama()   # yerel güvenlik ağı — zincirin SON halkası, ad kümesinde ayrı
+        if p:
+            chain.append(p)
         if not chain:
             raise ValueError(
                 "Fallback icin hicbir provider key'i bulunamadi. "
@@ -2142,10 +2294,11 @@ def build_provider() -> LLMProvider:
         )
         return FallbackProvider(chain)
 
-    raise ValueError(
-        f"Bilinmeyen LLM_PROVIDER: {provider_name} "
-        f"(gemini | anthropic | groq | fallback)."
-    )
+    # BUG #314: geçerli adlar sözlükten TÜRETİLİR — elle yazılan liste, sağlayıcı
+    # eklendiğinde sessizce eskiyordu (Cerebras/OpenRouter/Together/DeepInfra yıllarca
+    # zincirde olup adı hiç listelenmemişti).
+    gecerli = " | ".join(sorted(_SAGLAYICI_KURUCULARI) + ["ollama", "fallback"])
+    raise ValueError(f"Bilinmeyen LLM_PROVIDER: {provider_name} ({gecerli}).")
 
 
 # ============================================================
@@ -2317,7 +2470,8 @@ _KAYIT_YOK_NOTU = "_(Not: bu mesajda hiçbir kayıt oluşturmadım.)_"
 
 def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = "",
                         proposed_actions: Optional[List] = None,
-                        bekleyen_onay_var: bool = False) -> str:
+                        bekleyen_onay_var: bool = False,
+                        uslup_izi: Optional[List[str]] = None) -> str:
     """BUG #033/#041 fix: Halüsinasyon bölümlerini output katmanında temizle.
 
     EMANET KASA: cockpit'te 0 ise başlık + içerik satırlarını sil.
@@ -2453,6 +2607,41 @@ def _postprocess_report(text: str, cockpit: Optional[Dict], user_message: str = 
             _niyet = _niyet_cikar(user_message)
             if _niyet.gerceklesmis and not _niyet.soru and not onay_notu_eklendi:
                 cleaned = (cleaned + '\n\n' + _KAYIT_YOK_NOTU).strip()
+
+    # K2 — ÜSLUP ZORLAMASI (masterprompt-koc.md K2).
+    # Ölçüm: altı üslup kuralı `app/uslup_kurallari.ihlaller()` ile TESPİT EDİLEBİLİYORDU
+    # ama o fonksiyon yalnız `app/coach_eval.py`'de çağrılıyordu — yani ürün yolunda hiçbir
+    # yerde. Prompt "yapma" der, model yapar, eval "yaptın" der; ARADA DÜZELTEN YOKTU
+    # (K0 baseline: SIZ_HITABI ×2, IC_JARGON ×1 kullanıcıya ulaştı). `docs/architecture.md`
+    # ilkesi: "LLM'in prompt'ına güvenilmez, kod seviyesinde bloklanır."
+    #
+    # KAPSAM BİLİNÇLİ DAR: yalnız `silinebilir=True` maddeler (dalkavukluk/dolgu/boş
+    # teselli/nutuk) — bilgi taşımadıkları için cümleyi atmak bir şey eksiltmez. SIZ_HITABI
+    # ve IC_JARGON bilgilendirici cümlenin İÇİNDEDİR; onlar burada DOKUNULMADAN bırakılır,
+    # çünkü yanlış onarım ihlalden zararlıdır (K2 ikinci hamlesi, ölçülmeden yazılmaz).
+    # `dolgu_temizle` geriye söz kalmazsa metni OLDUĞU GİBİ döndürür — boş ekran, üslup
+    # ihlalinden ağır bir kusurdur.
+    cleaned, _atilan_uslup = dolgu_temizle(cleaned)
+    # K2 — `SIZ_HITABI` DETERMİNİSTİK ONARIM. Ölçüm: canlı DB'deki 11 gerçek koç cevabının
+    # 5'inde (%45) var; üretimdeki en sık üslup ihlali. Silinemez (bilgilendirici cümlenin
+    # içinde), yeniden ürettirmek bu sıklıkta sürdürülemez (cevapların yarısında ikinci
+    # LLM çağrısı). Biçim dönüşümü sıfır maliyetli ve tekrarlanabilir; doğrulaması
+    # `tests/test_siz_hitabi_onarim_kapisi.py` (canlı korpus + karşı-örnek + tuzak kelimeler).
+    cleaned, _siz_onarildi = siz_hitabi_onar(cleaned)
+    if _siz_onarildi:
+        _atilan_uslup = list(_atilan_uslup) + ["SIZ_HITABI"]
+    if _atilan_uslup:
+        # BUG #180: ham finansal metin loglanmaz — yalnız KURAL KODLARI yazılır.
+        logger.info("[uslup] onarildi: %s", ",".join(_atilan_uslup))
+    # ONARIM, ÖLÇÜMÜ SİLMEZ. Temizlik ihlali kullanıcıdan gizler; ölçüm tarafından da
+    # gizlerse ölçüm YALAN SÖYLER — bir model yarın cevaplarının tamamını dolguyla
+    # doldursa eval "kusursuz" raporlardı, çünkü temizlik izi bırakmadan siliyordu
+    # (kapı `tests/test_uslup_kapisi.py` bunu ANINDA yakaladı: dört persona referanstan
+    # ayrışamaz oldu). Atılan kural kodları çağırana taşınır; `coach_eval` `uslup`
+    # kriterini ham çıktı + bu iz üzerinden puanlar. Ayrıca yeni bir sinyal doğar:
+    # "model ne sıklıkla onarım gerektiriyor" — K2'nin sonraki kararı buna bakar.
+    if uslup_izi is not None:
+        uslup_izi.extend(_atilan_uslup)
 
     return cleaned
 
@@ -3017,8 +3206,12 @@ class CoachEngine:
                 db, user_id, workspace_id)
 
             # BUG #033 fix: Output katmanı — halüsinasyon bölümlerini temizle
+            # K2: `uslup_onarildi`, temizlenen üslup ihlallerinin KURAL KODLARINI toplar —
+            # onarım ölçümü silmesin diye (aşağıda sonuca konur).
+            uslup_onarildi: List[str] = []
             clean_text = _postprocess_report(llm_response.text, cockpit_dict, user_message,
-                                             proposed_actions, bekleyen_onay_var)
+                                             proposed_actions, bekleyen_onay_var,
+                                             uslup_izi=uslup_onarildi)
 
             # Confidence parse + strip (kullaniciya gozukmesin)
             confidence = _parse_confidence(clean_text)
@@ -3125,6 +3318,12 @@ class CoachEngine:
                 # tarafı (coach_eval) ürünle AYNI ölçütü kullansın; farklı ölçüt, kapının
                 # kendi koruduğu sözleşmeden sapması demektir (L46).
                 "bekleyen_onay_var": bekleyen_onay_var,
+                # K2: ÜRÜN onardı ama MODEL ihlal etti — ikisi ayrı gerçek. Bu liste olmadan
+                # ölçüm körleşir: temizlik ihlali sildiği için eval "kusursuz" raporlar ve
+                # bir model regresyonu görünmez olur. `coach_eval` `uslup` kriterini ham
+                # çıktı + bu iz üzerinden puanlar (L46: kapının ölçütü, koruduğu sözleşmeden
+                # sapamaz). Aynı liste "model ne sıklıkla onarım gerektiriyor" sinyalidir.
+                "uslup_onarildi": sorted(set(uslup_onarildi)),
                 # BE-025: fallback zincirinde İSTEĞE FİİLEN CEVAP VEREN alt-sağlayıcı (gemini/groq/...)
                 # → router bunu loglar ki günlük kota (Gemini) doğru izlensin, nominal "fallback" değil.
                 "provider_used": getattr(llm_response, "provider_used", None),

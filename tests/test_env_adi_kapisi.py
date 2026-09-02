@@ -68,8 +68,14 @@ def _dinamik_uretilen_adlar() -> set[str]:
     hatasını yakalamaya devam eder (o bucket `_DEFAULTS`'ta yoktur).
     """
     from app.rate_limit import _DEFAULTS
-    return {f"RATE_LIMIT_{b.upper()}_{sonek}"
-            for b in _DEFAULTS for sonek in ("MAX", "WINDOW")}
+    adlar = {f"RATE_LIMIT_{b.upper()}_{sonek}"
+             for b in _DEFAULTS for sonek in ("MAX", "WINDOW")}
+    # BUG #313: `app/coach.py:saglayici_modeli()` de env adını f-string ile kurar
+    # (f"{onek}_MODEL"). Aynı ilke: beyaz liste DEĞİL, kodun kendi sağlayıcı listesinden
+    # türetilir — böylece `GROK_MODEL` gibi bir yazım hatası hâlâ hayalet olarak yakalanır.
+    from app.coach import SAGLAYICI_ONEKLERI
+    adlar |= {f"{onek}_MODEL" for onek in SAGLAYICI_ONEKLERI}
+    return adlar
 
 _ENV_DESENI = re.compile(
     r"""(?:monkeypatch\.(?:setenv|delenv)|os\.environ(?:\.pop)?)\s*\(\s*["']([A-Z][A-Z0-9_]{2,})["']"""

@@ -7,247 +7,13 @@
     "has_password": true,
     "id": 1,
     "is_active": true,
-    "kvkk_consent_at": "2026-08-07T10:33:57.382635",
+    "kvkk_consent_at": "2026-09-02T10:31:43.725164",
     "name": "Boş Durum",
     "oauth_provider": null
   },
   "/api/cashflow/forecast": {
     "currency": "TRY",
     "days": [
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-07",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-08",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-09",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-10",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-11",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-12",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-13",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-14",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-15",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-16",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-17",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-18",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-19",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-20",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-21",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-22",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-23",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-24",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-25",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-26",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-27",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-28",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-29",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-30",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-08-31",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
-        "date": "2026-09-01",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
       {
         "closing_balance": 0.0,
         "crunch": false,
@@ -553,20 +319,254 @@
         "inflows": 0.0,
         "opening_balance": 0.0,
         "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-06",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-07",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-08",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-09",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-10",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-11",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-12",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-13",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-14",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-15",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-16",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-17",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-18",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-19",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-20",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-21",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-22",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-23",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-24",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-25",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-26",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-27",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-28",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-29",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-30",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-10-31",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
       }
     ],
-    "end_date": "2026-10-05",
+    "end_date": "2026-10-31",
     "horizon_days": 60,
     "sankey": {
       "links": [],
       "nodes": []
     },
-    "start_date": "2026-08-07",
+    "start_date": "2026-09-02",
     "summary": {
       "crunch_count": 0,
       "crunch_dates": [],
       "lowest_balance": 0.0,
-      "lowest_date": "2026-08-07",
+      "lowest_date": "2026-09-02",
       "net_flow": 0.0,
       "opening_balance": 0.0,
       "total_payable": 0.0,
@@ -576,7 +576,7 @@
   "/api/categories": [
     {
       "ad": "Abonelik",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 10,
       "kart_varsayilani": false,
@@ -585,7 +585,7 @@
     },
     {
       "ad": "Alışveriş",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 4,
       "kart_varsayilani": true,
@@ -594,7 +594,7 @@
     },
     {
       "ad": "Diğer",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 14,
       "kart_varsayilani": false,
@@ -603,7 +603,7 @@
     },
     {
       "ad": "Eğlence",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 2,
       "kart_varsayilani": true,
@@ -612,7 +612,7 @@
     },
     {
       "ad": "Fatura",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 7,
       "kart_varsayilani": false,
@@ -621,7 +621,7 @@
     },
     {
       "ad": "Kira",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 9,
       "kart_varsayilani": false,
@@ -630,7 +630,7 @@
     },
     {
       "ad": "Market",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 5,
       "kart_varsayilani": true,
@@ -639,7 +639,7 @@
     },
     {
       "ad": "Sağlık",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 8,
       "kart_varsayilani": false,
@@ -648,7 +648,7 @@
     },
     {
       "ad": "Sigara",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 3,
       "kart_varsayilani": true,
@@ -657,7 +657,7 @@
     },
     {
       "ad": "Sigorta",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 11,
       "kart_varsayilani": false,
@@ -666,7 +666,7 @@
     },
     {
       "ad": "Telefon",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 13,
       "kart_varsayilani": false,
@@ -675,7 +675,7 @@
     },
     {
       "ad": "Ulaşım",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 6,
       "kart_varsayilani": false,
@@ -684,7 +684,7 @@
     },
     {
       "ad": "Yemek",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 1,
       "kart_varsayilani": true,
@@ -693,7 +693,7 @@
     },
     {
       "ad": "İnternet",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 12,
       "kart_varsayilani": false,
@@ -702,7 +702,7 @@
     },
     {
       "ad": "Borç",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 19,
       "kart_varsayilani": false,
@@ -711,7 +711,7 @@
     },
     {
       "ad": "Borç geri ödeme",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 17,
       "kart_varsayilani": false,
@@ -720,7 +720,7 @@
     },
     {
       "ad": "Borç ödeme",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 16,
       "kart_varsayilani": false,
@@ -729,7 +729,7 @@
     },
     {
       "ad": "Borç ödemesi",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 22,
       "kart_varsayilani": false,
@@ -738,7 +738,7 @@
     },
     {
       "ad": "Kredi",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 20,
       "kart_varsayilani": false,
@@ -747,7 +747,7 @@
     },
     {
       "ad": "Kredi taksiti",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 18,
       "kart_varsayilani": false,
@@ -756,7 +756,7 @@
     },
     {
       "ad": "Kredi ödemesi",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 21,
       "kart_varsayilani": false,
@@ -765,7 +765,7 @@
     },
     {
       "ad": "Transfer",
-      "created_at": "2026-08-07T10:33:57.408935+00:00",
+      "created_at": "2026-09-02T10:31:43.733252+00:00",
       "gizli": false,
       "id": 15,
       "kart_varsayilani": false,
@@ -811,7 +811,7 @@
       "beklenen_gelir": 0.0,
       "bu_ayki_taksit": 0,
       "daily_limit": 0.0,
-      "days_remaining": 25,
+      "days_remaining": 29,
       "kart_borcu": 0.0,
       "nakit": 0.0,
       "reel_butce": 0.0
@@ -819,8 +819,8 @@
     "carried_forward": 0.0,
     "category_patterns": [],
     "daily_limit": 0.0,
-    "date": "2026-08-07",
-    "days_remaining": 25,
+    "date": "2026-09-02",
+    "days_remaining": 29,
     "emanet_kasa": 0.0,
     "faiz_sizintisi": {
       "aylik_toplam": 0.0,
@@ -833,6 +833,20 @@
       "bayat_var": false,
       "en_eski_yas": null,
       "hesaplar": []
+    },
+    "getiri_esigi": {
+      "esik_aylik_yuzde": null,
+      "esik_kaynak": null,
+      "gereken_brut_yillik": null,
+      "kalemler": [],
+      "neden": "faiz orani bilinen borc yok",
+      "oransiz_kalem": 0,
+      "stopaj": {
+        "bayat": false,
+        "try_mevduat_6ay_yuzde": 17.5,
+        "try_para_piyasasi_fonu_yuzde": 17.5,
+        "yururluk": "2026-09-01"
+      }
     },
     "gizli_uyari_sayisi": 0,
     "guvenli_borc_odemesi": {
@@ -875,8 +889,8 @@
     },
     "son_islemler": [],
     "sonraki_eylem": null,
-    "statu": "Ay sonuna 25 gün, günlük limit 0 TL. Sıkı dönem.",
-    "tarih_turkce": "7 Ağustos 2026 Cuma",
+    "statu": "Ay sonuna 29 gün, günlük limit 0 TL. Sıkı dönem.",
+    "tarih_turkce": "2 Eylül 2026 Çarşamba",
     "today_target": 0.0,
     "upcoming_payments": [],
     "upcoming_receivables": [],
@@ -924,10 +938,10 @@
   "/api/goals": [],
   "/api/health": {
     "auth_enabled": true,
-    "build": "bilinmiyor",
+    "build": "17e3ff760968+",
     "service": "FinancialOS",
     "status": "ok",
-    "timestamp": "2026-08-07T10:34:04.874607+00:00",
+    "timestamp": "2026-09-02T10:31:48.809348+00:00",
     "version": "0.2.0"
   },
   "/api/incomes": [],
@@ -956,9 +970,9 @@
     ]
   },
   "/api/meta": {
-    "build": "bilinmiyor",
+    "build": "17e3ff760968+",
     "davet_kodu_gerekli": false,
-    "destek": "uygulama içi geri bildirim (Şikâyet/İstek/Öneri)",
+    "destek": "destek@ornek-urun.test",
     "hukuki": {
       "gizlilik": "/api/legal/gizlilik",
       "kullanim-sartlari": "/api/legal/kullanim-sartlari",
@@ -1116,15 +1130,15 @@
       "transaction_count": 0
     },
     "period": {
-      "end": "2026-08-31",
-      "label": "Ağustos 2026",
-      "month": 8,
-      "start": "2026-08-01",
+      "end": "2026-09-30",
+      "label": "Eylül 2026",
+      "month": 9,
+      "start": "2026-09-01",
       "year": 2026
     },
     "previous_period": {
-      "label": "Temmuz 2026",
-      "month": 7,
+      "label": "Ağustos 2026",
+      "month": 8,
       "year": 2026
     },
     "trend": {
@@ -1143,7 +1157,7 @@
     "days": 30,
     "items": [
       {
-        "date": "2026-08-07",
+        "date": "2026-09-02",
         "investment_value": 0.0,
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0
@@ -1162,7 +1176,7 @@
       "total_payable": 0,
       "total_receivable": 0
     },
-    "today": "2026-08-07"
+    "today": "2026-09-02"
   },
   "/api/subscriptions": {
     "abonelikler": [],
@@ -1172,7 +1186,7 @@
   },
   "/api/transactions": [],
   "/api/user": {
-    "created_at": "2026-08-07T10:33:57.386832+00:00",
+    "created_at": "2026-09-02T10:31:43.726726+00:00",
     "currency": null,
     "id": 1,
     "locale": null,
@@ -1186,7 +1200,7 @@
     "categories": [
       {
         "ad": "Abonelik",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 10,
         "kart_varsayilani": false,
@@ -1197,7 +1211,7 @@
       },
       {
         "ad": "Alışveriş",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 4,
         "kart_varsayilani": true,
@@ -1208,7 +1222,7 @@
       },
       {
         "ad": "Borç",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 19,
         "kart_varsayilani": false,
@@ -1219,7 +1233,7 @@
       },
       {
         "ad": "Borç geri ödeme",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 17,
         "kart_varsayilani": false,
@@ -1230,7 +1244,7 @@
       },
       {
         "ad": "Borç ödeme",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 16,
         "kart_varsayilani": false,
@@ -1241,7 +1255,7 @@
       },
       {
         "ad": "Borç ödemesi",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 22,
         "kart_varsayilani": false,
@@ -1252,7 +1266,7 @@
       },
       {
         "ad": "Diğer",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 14,
         "kart_varsayilani": false,
@@ -1263,7 +1277,7 @@
       },
       {
         "ad": "Eğlence",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 2,
         "kart_varsayilani": true,
@@ -1274,7 +1288,7 @@
       },
       {
         "ad": "Fatura",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 7,
         "kart_varsayilani": false,
@@ -1285,7 +1299,7 @@
       },
       {
         "ad": "İnternet",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 12,
         "kart_varsayilani": false,
@@ -1296,7 +1310,7 @@
       },
       {
         "ad": "Kira",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 9,
         "kart_varsayilani": false,
@@ -1307,7 +1321,7 @@
       },
       {
         "ad": "Kredi",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 20,
         "kart_varsayilani": false,
@@ -1318,7 +1332,7 @@
       },
       {
         "ad": "Kredi taksiti",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 18,
         "kart_varsayilani": false,
@@ -1329,7 +1343,7 @@
       },
       {
         "ad": "Kredi ödemesi",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 21,
         "kart_varsayilani": false,
@@ -1340,7 +1354,7 @@
       },
       {
         "ad": "Market",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 5,
         "kart_varsayilani": true,
@@ -1351,7 +1365,7 @@
       },
       {
         "ad": "Sağlık",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 8,
         "kart_varsayilani": false,
@@ -1362,7 +1376,7 @@
       },
       {
         "ad": "Sigara",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 3,
         "kart_varsayilani": true,
@@ -1373,7 +1387,7 @@
       },
       {
         "ad": "Sigorta",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 11,
         "kart_varsayilani": false,
@@ -1384,7 +1398,7 @@
       },
       {
         "ad": "Telefon",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 13,
         "kart_varsayilani": false,
@@ -1395,7 +1409,7 @@
       },
       {
         "ad": "Transfer",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 15,
         "kart_varsayilani": false,
@@ -1406,7 +1420,7 @@
       },
       {
         "ad": "Ulaşım",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 6,
         "kart_varsayilani": false,
@@ -1417,7 +1431,7 @@
       },
       {
         "ad": "Yemek",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 1,
         "kart_varsayilani": true,
@@ -1432,7 +1446,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-07T10:34:05.748058+00:00",
+    "exported_at": "2026-09-02T10:31:49.156805+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -1442,14 +1456,14 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-07T10:34:04.647011",
+        "created_at": "2026-09-02T10:31:48.591149",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0,
         "receivables": 0.0,
-        "snapshot_date": "2026-08-07",
+        "snapshot_date": "2026-09-02",
         "user_id": 1,
         "workspace_id": 1
       }
@@ -1462,14 +1476,14 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-07T10:33:57.386832",
+      "created_at": "2026-09-02T10:31:43.726726",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-07T10:33:57.382635",
-      "kvkk_consent_version": "v3",
+      "kvkk_consent_at": "2026-09-02T10:31:43.725164",
+      "kvkk_consent_version": "v4",
       "locale": null,
       "name": "Boş Durum",
       "oauth_provider": null,
@@ -1481,7 +1495,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-07T10:33:57.403720",
+        "joined_at": "2026-09-02T10:31:43.731240",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1489,7 +1503,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-07T10:33:57.393860",
+        "created_at": "2026-09-02T10:31:43.729735",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1504,7 +1518,7 @@
     "categories": [
       {
         "ad": "Abonelik",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 10,
         "kart_varsayilani": false,
@@ -1515,7 +1529,7 @@
       },
       {
         "ad": "Alışveriş",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 4,
         "kart_varsayilani": true,
@@ -1526,7 +1540,7 @@
       },
       {
         "ad": "Borç",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 19,
         "kart_varsayilani": false,
@@ -1537,7 +1551,7 @@
       },
       {
         "ad": "Borç geri ödeme",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 17,
         "kart_varsayilani": false,
@@ -1548,7 +1562,7 @@
       },
       {
         "ad": "Borç ödeme",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 16,
         "kart_varsayilani": false,
@@ -1559,7 +1573,7 @@
       },
       {
         "ad": "Borç ödemesi",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 22,
         "kart_varsayilani": false,
@@ -1570,7 +1584,7 @@
       },
       {
         "ad": "Diğer",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 14,
         "kart_varsayilani": false,
@@ -1581,7 +1595,7 @@
       },
       {
         "ad": "Eğlence",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 2,
         "kart_varsayilani": true,
@@ -1592,7 +1606,7 @@
       },
       {
         "ad": "Fatura",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 7,
         "kart_varsayilani": false,
@@ -1603,7 +1617,7 @@
       },
       {
         "ad": "İnternet",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 12,
         "kart_varsayilani": false,
@@ -1614,7 +1628,7 @@
       },
       {
         "ad": "Kira",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 9,
         "kart_varsayilani": false,
@@ -1625,7 +1639,7 @@
       },
       {
         "ad": "Kredi",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 20,
         "kart_varsayilani": false,
@@ -1636,7 +1650,7 @@
       },
       {
         "ad": "Kredi taksiti",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 18,
         "kart_varsayilani": false,
@@ -1647,7 +1661,7 @@
       },
       {
         "ad": "Kredi ödemesi",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 21,
         "kart_varsayilani": false,
@@ -1658,7 +1672,7 @@
       },
       {
         "ad": "Market",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 5,
         "kart_varsayilani": true,
@@ -1669,7 +1683,7 @@
       },
       {
         "ad": "Sağlık",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 8,
         "kart_varsayilani": false,
@@ -1680,7 +1694,7 @@
       },
       {
         "ad": "Sigara",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 3,
         "kart_varsayilani": true,
@@ -1691,7 +1705,7 @@
       },
       {
         "ad": "Sigorta",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 11,
         "kart_varsayilani": false,
@@ -1702,7 +1716,7 @@
       },
       {
         "ad": "Telefon",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 13,
         "kart_varsayilani": false,
@@ -1713,7 +1727,7 @@
       },
       {
         "ad": "Transfer",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 15,
         "kart_varsayilani": false,
@@ -1724,7 +1738,7 @@
       },
       {
         "ad": "Ulaşım",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 6,
         "kart_varsayilani": false,
@@ -1735,7 +1749,7 @@
       },
       {
         "ad": "Yemek",
-        "created_at": "2026-08-07T10:33:57.408935",
+        "created_at": "2026-09-02T10:31:43.733252",
         "gizli": false,
         "id": 1,
         "kart_varsayilani": true,
@@ -1750,7 +1764,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-08-07T10:34:05.824003+00:00",
+    "exported_at": "2026-09-02T10:31:49.203486+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -1760,14 +1774,14 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-08-07T10:34:04.647011",
+        "created_at": "2026-09-02T10:31:48.591149",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0,
         "receivables": 0.0,
-        "snapshot_date": "2026-08-07",
+        "snapshot_date": "2026-09-02",
         "user_id": 1,
         "workspace_id": 1
       }
@@ -1780,14 +1794,14 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-08-07T10:33:57.386832",
+      "created_at": "2026-09-02T10:31:43.726726",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-08-07T10:33:57.382635",
-      "kvkk_consent_version": "v3",
+      "kvkk_consent_at": "2026-09-02T10:31:43.725164",
+      "kvkk_consent_version": "v4",
       "locale": null,
       "name": "Boş Durum",
       "oauth_provider": null,
@@ -1799,7 +1813,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-08-07T10:33:57.403720",
+        "joined_at": "2026-09-02T10:31:43.731240",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1807,7 +1821,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-08-07T10:33:57.393860",
+        "created_at": "2026-09-02T10:31:43.729735",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1816,9 +1830,9 @@
     ]
   },
   "/api/users/me/kvkk-consent": {
-    "guncel_surum": "v3",
+    "guncel_surum": "v4",
     "metin_url": "/api/legal/kvkk",
-    "onayli_surum": "v3",
+    "onayli_surum": "v4",
     "veri_isleyenler_url": "/api/legal/veri-isleyenler",
     "yeniden_onay_gerekli": false
   },
@@ -1829,7 +1843,7 @@
   },
   "/api/workspaces": [
     {
-      "created_at": "2026-08-07T10:33:57.393860+00:00",
+      "created_at": "2026-09-02T10:31:43.729735+00:00",
       "id": 1,
       "is_personal": true,
       "name": "Boş Durum (Kişisel)",
@@ -1838,13 +1852,13 @@
     }
   ],
   "/api/workspaces/1": {
-    "created_at": "2026-08-07T10:33:57.393860+00:00",
+    "created_at": "2026-09-02T10:31:43.729735+00:00",
     "id": 1,
     "is_personal": true,
     "members": [
       {
         "email": "bos.durum@example.com",
-        "joined_at": "2026-08-07T10:33:57.403720+00:00",
+        "joined_at": "2026-09-02T10:31:43.731240+00:00",
         "name": "Boş Durum",
         "role": "owner",
         "user_id": 1

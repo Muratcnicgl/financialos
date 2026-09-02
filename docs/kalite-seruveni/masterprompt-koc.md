@@ -482,6 +482,19 @@ yerine (mimarinin kendi ilkesi: *rules engine karar verir, LLM açıklar*).
 
 ## §10. DEĞİŞİKLİK GÜNLÜĞÜ (yalnız ileri yönlü)
 
+- **2 Eylül 2026 (üçüncü tur) — ÜRÜN DÜZELTMELERİ ÖLÇÜYÜ HAREKET ETTİRDİ.**
+  Altın set (OpenRouter) gün içinde dört kez ölçüldü:
+  **%60,0 (1/6) → %76,0 (2/6) → %84,0 (3/6) → %88,0 (3/6 tam geçen).**
+  Kazanımların hiçbiri prompt'a satır eklemekten gelmedi (K-KURAL 5); üçü de ÜRÜN düzeltmesi:
+  **BUG #317** (`.env` yorumu model adı sanıldı → zincir açıldı),
+  **BUG #318** (erken kapama tutarı sayısal alana taşındı → G1'in 31.115,44 TL'lik yanlış
+  tavsiyesi kapandı, cevap birebir altın cevap oldu),
+  **BUG #319** (nakit takvimi parçalıydı → koç gelen parayı gider sayıyordu; artık işaretli,
+  tarihe sıralı tek takvim okuyor ve KYK'yı `+4.000` diye yazıyor).
+  **Dürüst kalan:** G3 kart ödemesini hâlâ atlıyor ama tutar bağlamda VAR — yani kalan kusur
+  ürün değil MODEL kusuru; G2'nin deseni dar ve G3'ün beklentisi bugünkü takvimle
+  ulaşılamaz (yatırım hesabında bekleyen nakit sorusu). Üçü de defterde açık madde.
+
 - **2 Eylül 2026 (aynı gün, ikinci tur)** — **BUG #317** (`.env` yorumu model adı sanıldı;
   aynı tuzak `.env.example`de 13 değişkende) → OpenRouter %0'dan **%76,0'a**, GEÇERLİ.
   Sağlayıcı tablosu ölçüldü (§9.2): Groq canlı ama istek 12.954 tok > 8.000 TPM.

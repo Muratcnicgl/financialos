@@ -7,7 +7,7 @@
     "has_password": true,
     "id": 1,
     "is_active": true,
-    "kvkk_consent_at": "2026-09-02T10:31:43.725164",
+    "kvkk_consent_at": "2026-09-02T18:38:55.094984",
     "name": "Boş Durum",
     "oauth_provider": null
   },
@@ -576,7 +576,7 @@
   "/api/categories": [
     {
       "ad": "Abonelik",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 10,
       "kart_varsayilani": false,
@@ -585,7 +585,7 @@
     },
     {
       "ad": "Alışveriş",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 4,
       "kart_varsayilani": true,
@@ -594,7 +594,7 @@
     },
     {
       "ad": "Diğer",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 14,
       "kart_varsayilani": false,
@@ -603,7 +603,7 @@
     },
     {
       "ad": "Eğlence",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 2,
       "kart_varsayilani": true,
@@ -612,7 +612,7 @@
     },
     {
       "ad": "Fatura",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 7,
       "kart_varsayilani": false,
@@ -621,7 +621,7 @@
     },
     {
       "ad": "Kira",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 9,
       "kart_varsayilani": false,
@@ -630,7 +630,7 @@
     },
     {
       "ad": "Market",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 5,
       "kart_varsayilani": true,
@@ -639,7 +639,7 @@
     },
     {
       "ad": "Sağlık",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 8,
       "kart_varsayilani": false,
@@ -648,7 +648,7 @@
     },
     {
       "ad": "Sigara",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 3,
       "kart_varsayilani": true,
@@ -657,7 +657,7 @@
     },
     {
       "ad": "Sigorta",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 11,
       "kart_varsayilani": false,
@@ -666,7 +666,7 @@
     },
     {
       "ad": "Telefon",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 13,
       "kart_varsayilani": false,
@@ -675,7 +675,7 @@
     },
     {
       "ad": "Ulaşım",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 6,
       "kart_varsayilani": false,
@@ -684,7 +684,7 @@
     },
     {
       "ad": "Yemek",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 1,
       "kart_varsayilani": true,
@@ -693,7 +693,7 @@
     },
     {
       "ad": "İnternet",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 12,
       "kart_varsayilani": false,
@@ -702,7 +702,7 @@
     },
     {
       "ad": "Borç",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 19,
       "kart_varsayilani": false,
@@ -711,7 +711,7 @@
     },
     {
       "ad": "Borç geri ödeme",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 17,
       "kart_varsayilani": false,
@@ -720,7 +720,7 @@
     },
     {
       "ad": "Borç ödeme",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 16,
       "kart_varsayilani": false,
@@ -729,7 +729,7 @@
     },
     {
       "ad": "Borç ödemesi",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 22,
       "kart_varsayilani": false,
@@ -738,7 +738,7 @@
     },
     {
       "ad": "Kredi",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 20,
       "kart_varsayilani": false,
@@ -747,7 +747,7 @@
     },
     {
       "ad": "Kredi taksiti",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 18,
       "kart_varsayilani": false,
@@ -756,7 +756,7 @@
     },
     {
       "ad": "Kredi ödemesi",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 21,
       "kart_varsayilani": false,
@@ -765,7 +765,7 @@
     },
     {
       "ad": "Transfer",
-      "created_at": "2026-09-02T10:31:43.733252+00:00",
+      "created_at": "2026-09-02T18:38:55.103671+00:00",
       "gizli": false,
       "id": 15,
       "kart_varsayilani": false,
@@ -864,6 +864,18 @@
     "kredi_borcu": 0.0,
     "nakit_kasa": 0.0,
     "nakit_runway_gun": 0,
+    "nakit_takvimi": {
+      "acik_var": false,
+      "ay_sonu_bakiye": 0.0,
+      "baslangic_nakit": 0.0,
+      "bugun": "2026-09-02",
+      "en_dusuk_bakiye": 0.0,
+      "en_dusuk_tarih": "2026-09-02",
+      "kalemler": [],
+      "toplam_cikis": 0.0,
+      "toplam_giris": 0.0,
+      "ufuk": "2026-09-30"
+    },
     "net_deger": 0.0,
     "net_deger_tam": 0.0,
     "price_freshness": {
@@ -938,10 +950,10 @@
   "/api/goals": [],
   "/api/health": {
     "auth_enabled": true,
-    "build": "17e3ff760968+",
+    "build": "ee9d51d876e0+",
     "service": "FinancialOS",
     "status": "ok",
-    "timestamp": "2026-09-02T10:31:48.809348+00:00",
+    "timestamp": "2026-09-02T18:39:00.205323+00:00",
     "version": "0.2.0"
   },
   "/api/incomes": [],
@@ -970,7 +982,7 @@
     ]
   },
   "/api/meta": {
-    "build": "17e3ff760968+",
+    "build": "ee9d51d876e0+",
     "davet_kodu_gerekli": false,
     "destek": "destek@ornek-urun.test",
     "hukuki": {
@@ -1186,7 +1198,7 @@
   },
   "/api/transactions": [],
   "/api/user": {
-    "created_at": "2026-09-02T10:31:43.726726+00:00",
+    "created_at": "2026-09-02T18:38:55.095987+00:00",
     "currency": null,
     "id": 1,
     "locale": null,
@@ -1200,7 +1212,7 @@
     "categories": [
       {
         "ad": "Abonelik",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 10,
         "kart_varsayilani": false,
@@ -1211,7 +1223,7 @@
       },
       {
         "ad": "Alışveriş",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 4,
         "kart_varsayilani": true,
@@ -1222,7 +1234,7 @@
       },
       {
         "ad": "Borç",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 19,
         "kart_varsayilani": false,
@@ -1233,7 +1245,7 @@
       },
       {
         "ad": "Borç geri ödeme",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 17,
         "kart_varsayilani": false,
@@ -1244,7 +1256,7 @@
       },
       {
         "ad": "Borç ödeme",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 16,
         "kart_varsayilani": false,
@@ -1255,7 +1267,7 @@
       },
       {
         "ad": "Borç ödemesi",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 22,
         "kart_varsayilani": false,
@@ -1266,7 +1278,7 @@
       },
       {
         "ad": "Diğer",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 14,
         "kart_varsayilani": false,
@@ -1277,7 +1289,7 @@
       },
       {
         "ad": "Eğlence",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 2,
         "kart_varsayilani": true,
@@ -1288,7 +1300,7 @@
       },
       {
         "ad": "Fatura",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 7,
         "kart_varsayilani": false,
@@ -1299,7 +1311,7 @@
       },
       {
         "ad": "İnternet",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 12,
         "kart_varsayilani": false,
@@ -1310,7 +1322,7 @@
       },
       {
         "ad": "Kira",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 9,
         "kart_varsayilani": false,
@@ -1321,7 +1333,7 @@
       },
       {
         "ad": "Kredi",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 20,
         "kart_varsayilani": false,
@@ -1332,7 +1344,7 @@
       },
       {
         "ad": "Kredi taksiti",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 18,
         "kart_varsayilani": false,
@@ -1343,7 +1355,7 @@
       },
       {
         "ad": "Kredi ödemesi",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 21,
         "kart_varsayilani": false,
@@ -1354,7 +1366,7 @@
       },
       {
         "ad": "Market",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 5,
         "kart_varsayilani": true,
@@ -1365,7 +1377,7 @@
       },
       {
         "ad": "Sağlık",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 8,
         "kart_varsayilani": false,
@@ -1376,7 +1388,7 @@
       },
       {
         "ad": "Sigara",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 3,
         "kart_varsayilani": true,
@@ -1387,7 +1399,7 @@
       },
       {
         "ad": "Sigorta",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 11,
         "kart_varsayilani": false,
@@ -1398,7 +1410,7 @@
       },
       {
         "ad": "Telefon",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 13,
         "kart_varsayilani": false,
@@ -1409,7 +1421,7 @@
       },
       {
         "ad": "Transfer",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 15,
         "kart_varsayilani": false,
@@ -1420,7 +1432,7 @@
       },
       {
         "ad": "Ulaşım",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 6,
         "kart_varsayilani": false,
@@ -1431,7 +1443,7 @@
       },
       {
         "ad": "Yemek",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 1,
         "kart_varsayilani": true,
@@ -1446,7 +1458,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-09-02T10:31:49.156805+00:00",
+    "exported_at": "2026-09-02T18:39:00.720309+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -1456,7 +1468,7 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-09-02T10:31:48.591149",
+        "created_at": "2026-09-02T18:38:59.989697",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
@@ -1476,13 +1488,13 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-09-02T10:31:43.726726",
+      "created_at": "2026-09-02T18:38:55.095987",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-09-02T10:31:43.725164",
+      "kvkk_consent_at": "2026-09-02T18:38:55.094984",
       "kvkk_consent_version": "v4",
       "locale": null,
       "name": "Boş Durum",
@@ -1495,7 +1507,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-09-02T10:31:43.731240",
+        "joined_at": "2026-09-02T18:38:55.100064",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1503,7 +1515,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-09-02T10:31:43.729735",
+        "created_at": "2026-09-02T18:38:55.098519",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1518,7 +1530,7 @@
     "categories": [
       {
         "ad": "Abonelik",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 10,
         "kart_varsayilani": false,
@@ -1529,7 +1541,7 @@
       },
       {
         "ad": "Alışveriş",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 4,
         "kart_varsayilani": true,
@@ -1540,7 +1552,7 @@
       },
       {
         "ad": "Borç",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 19,
         "kart_varsayilani": false,
@@ -1551,7 +1563,7 @@
       },
       {
         "ad": "Borç geri ödeme",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 17,
         "kart_varsayilani": false,
@@ -1562,7 +1574,7 @@
       },
       {
         "ad": "Borç ödeme",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 16,
         "kart_varsayilani": false,
@@ -1573,7 +1585,7 @@
       },
       {
         "ad": "Borç ödemesi",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 22,
         "kart_varsayilani": false,
@@ -1584,7 +1596,7 @@
       },
       {
         "ad": "Diğer",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 14,
         "kart_varsayilani": false,
@@ -1595,7 +1607,7 @@
       },
       {
         "ad": "Eğlence",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 2,
         "kart_varsayilani": true,
@@ -1606,7 +1618,7 @@
       },
       {
         "ad": "Fatura",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 7,
         "kart_varsayilani": false,
@@ -1617,7 +1629,7 @@
       },
       {
         "ad": "İnternet",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 12,
         "kart_varsayilani": false,
@@ -1628,7 +1640,7 @@
       },
       {
         "ad": "Kira",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 9,
         "kart_varsayilani": false,
@@ -1639,7 +1651,7 @@
       },
       {
         "ad": "Kredi",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 20,
         "kart_varsayilani": false,
@@ -1650,7 +1662,7 @@
       },
       {
         "ad": "Kredi taksiti",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 18,
         "kart_varsayilani": false,
@@ -1661,7 +1673,7 @@
       },
       {
         "ad": "Kredi ödemesi",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 21,
         "kart_varsayilani": false,
@@ -1672,7 +1684,7 @@
       },
       {
         "ad": "Market",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 5,
         "kart_varsayilani": true,
@@ -1683,7 +1695,7 @@
       },
       {
         "ad": "Sağlık",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 8,
         "kart_varsayilani": false,
@@ -1694,7 +1706,7 @@
       },
       {
         "ad": "Sigara",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 3,
         "kart_varsayilani": true,
@@ -1705,7 +1717,7 @@
       },
       {
         "ad": "Sigorta",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 11,
         "kart_varsayilani": false,
@@ -1716,7 +1728,7 @@
       },
       {
         "ad": "Telefon",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 13,
         "kart_varsayilani": false,
@@ -1727,7 +1739,7 @@
       },
       {
         "ad": "Transfer",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 15,
         "kart_varsayilani": false,
@@ -1738,7 +1750,7 @@
       },
       {
         "ad": "Ulaşım",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 6,
         "kart_varsayilani": false,
@@ -1749,7 +1761,7 @@
       },
       {
         "ad": "Yemek",
-        "created_at": "2026-09-02T10:31:43.733252",
+        "created_at": "2026-09-02T18:38:55.103671",
         "gizli": false,
         "id": 1,
         "kart_varsayilani": true,
@@ -1764,7 +1776,7 @@
     "decision_journal": [],
     "demo_data_markers": [],
     "envelopes": [],
-    "exported_at": "2026-09-02T10:31:49.203486+00:00",
+    "exported_at": "2026-09-02T18:39:00.780631+00:00",
     "feedback": [],
     "goal_allocations": [],
     "goal_rules": [],
@@ -1774,7 +1786,7 @@
       {
         "card_debt": 0.0,
         "cash": 0.0,
-        "created_at": "2026-09-02T10:31:48.591149",
+        "created_at": "2026-09-02T18:38:59.989697",
         "id": 1,
         "investment_value": 0.0,
         "loan_debt": 0.0,
@@ -1794,13 +1806,13 @@
     "schema": "financialos-export-v1",
     "transactions": [],
     "user": {
-      "created_at": "2026-09-02T10:31:43.726726",
+      "created_at": "2026-09-02T18:38:55.095987",
       "currency": null,
       "email": "bos.durum@example.com",
       "email_verified_at": null,
       "id": 1,
       "is_active": true,
-      "kvkk_consent_at": "2026-09-02T10:31:43.725164",
+      "kvkk_consent_at": "2026-09-02T18:38:55.094984",
       "kvkk_consent_version": "v4",
       "locale": null,
       "name": "Boş Durum",
@@ -1813,7 +1825,7 @@
       {
         "id": 1,
         "invited_by": null,
-        "joined_at": "2026-09-02T10:31:43.731240",
+        "joined_at": "2026-09-02T18:38:55.100064",
         "role": "owner",
         "user_id": 1,
         "workspace_id": 1
@@ -1821,7 +1833,7 @@
     ],
     "workspaces": [
       {
-        "created_at": "2026-09-02T10:31:43.729735",
+        "created_at": "2026-09-02T18:38:55.098519",
         "id": 1,
         "is_personal": true,
         "name": "Boş Durum (Kişisel)",
@@ -1843,7 +1855,7 @@
   },
   "/api/workspaces": [
     {
-      "created_at": "2026-09-02T10:31:43.729735+00:00",
+      "created_at": "2026-09-02T18:38:55.098519+00:00",
       "id": 1,
       "is_personal": true,
       "name": "Boş Durum (Kişisel)",
@@ -1852,13 +1864,13 @@
     }
   ],
   "/api/workspaces/1": {
-    "created_at": "2026-09-02T10:31:43.729735+00:00",
+    "created_at": "2026-09-02T18:38:55.098519+00:00",
     "id": 1,
     "is_personal": true,
     "members": [
       {
         "email": "bos.durum@example.com",
-        "joined_at": "2026-09-02T10:31:43.731240+00:00",
+        "joined_at": "2026-09-02T18:38:55.100064+00:00",
         "name": "Boş Durum",
         "role": "owner",
         "user_id": 1

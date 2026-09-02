@@ -1742,6 +1742,113 @@ def calculate_interest_leak(user_id: int, db: Session) -> Dict:
     }
 
 
+def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
+    """
+    AY SONUNA KADAR İŞARETLİ NAKİT TAKVİMİ — tek, sıralı, yönü ADLANDIRILMIŞ liste.
+
+    NEDEN VAR (altın senaryo G3'ün ölçülen kusuru): koça "Eylül boyunca ödemelerimi
+    karşılayabilir miyim?" soruldu. Koç "zorunlu ödemelerin toplamı 10.857 TL" dedi ve
+    listeye **"8 Eylül KYK: 4.000 TL"yi bir ÇIKIŞ olarak** koydu — oysa KYK kullanıcıya
+    GELEN paradır. Üstelik 8.221,13 TL'lik kart ödemesini hiç saymadı.
+
+    Sebep, cockpit'in takvimi PARÇALI vermesiydi: `upcoming_payments` yalnız kredi
+    taksitlerini, `upcoming_receivables` yalnız alacakları taşıyordu; kart ödemesi hiçbir
+    TARİHLİ listede yoktu ve hiçbir kalem YÖNÜNÜ söylemiyordu. Koç takvimi kendisi kurmak
+    zorunda kalıyor, kurarken de işareti karıştırıyordu. Bu aritmetik LLM'in işi değildir
+    (*Rules Engine karar verir, LLM açıklar*).
+
+    YÖN İKİ KEZ YAZILIR — bilerek: her kalem hem `yon` ("giris"/"cikis") hem işaretli
+    `etki` taşır. Tek bir eksi işareti yanlış okunabilir; bir KELİME okunamaz. Ölçülen
+    defekt tam olarak işaretin yanlış okunmasıydı, o yüzden fazlalık kasıtlıdır.
+
+    Kaynaklar: düzenli gelir (+) · vadesi gelen alacak (+) · düzenli gider (−) · kredi
+    taksiti (−) · kredi kartı son ödeme (−) · vadesi gelen borç (−).
+    Bu ay zaten nakde geçmiş yinelenen kalemler ATLANIR (BUG #086'nın çift-sayım dersi).
+    """
+    son_gun = monthrange(bugun.year, bugun.month)[1]
+    ay_sonu = date(bugun.year, bugun.month, son_gun)
+    yil_ay = bugun.strftime("%Y-%m")
+    kalemler: List[Dict] = []
+
+    def _ekle(tarih: date, ad: str, tutar, tip: str, giris: bool) -> None:
+        t = D(tutar or 0)
+        if t <= 0 or not (bugun <= tarih <= ay_sonu):
+            return
+        kalemler.append({
+            "tarih": tarih.isoformat(),
+            "ad": ad,
+            "tutar": round(t, 2),                 # DAİMA POZİTİF büyüklük
+            "yon": "giris" if giris else "cikis",  # yön KELİMEYLE
+            "etki": round(t if giris else -t, 2),  # ve İŞARETLE
+            "tip": tip,
+        })
+
+    for inc in db.query(RecurringIncome).filter(
+            _scope(RecurringIncome, user_id), RecurringIncome.is_active == True).all():
+        if inc.last_triggered_year_month == yil_ay:
+            continue
+        _ekle(date(bugun.year, bugun.month, min(inc.day_of_month, son_gun)),
+              inc.name, inc.amount, "duzenli_gelir", True)
+
+    for exp in db.query(RecurringExpense).filter(
+            _scope(RecurringExpense, user_id), RecurringExpense.is_active == True).all():
+        if exp.last_triggered_year_month == yil_ay:
+            continue
+        _ekle(date(bugun.year, bugun.month, min(exp.day_of_month, son_gun)),
+              exp.name, exp.amount, "duzenli_gider", False)
+
+    for d in db.query(PersonalDebt).filter(
+            _scope(PersonalDebt, user_id), PersonalDebt.is_paid == False).all():
+        if not d.due_date:
+            continue
+        alacak = d.direction == DebtDirection.receivable
+        _ekle(d.due_date, d.counterparty or ("Alacak" if alacak else "Borç"),
+              d.amount, "alacak" if alacak else "borc", alacak)
+
+    for acc in db.query(Account).filter(
+            _scope(Account, user_id),
+            Account.account_type.in_([AccountType.loan, AccountType.credit_card])).all():
+        if acc.account_type == AccountType.loan:
+            if acc.next_payment_date:
+                _ekle(acc.next_payment_date, acc.name, acc.monthly_payment,
+                      "kredi_taksit", False)
+        elif acc.payment_day and D(acc.balance or 0) > 0:
+            # Kart ödemesi HİÇBİR tarihli listede yoktu — G3'te 8.221,13 TL bu yüzden
+            # hesaba hiç girmedi. Tutar GÜNCEL borçtur (bkz. veri modeli tuzağı).
+            _ekle(_get_next_due_date(bugun, acc.payment_day), acc.name, acc.balance,
+                  "kart_odeme", False)
+
+    kalemler.sort(key=lambda k: (k["tarih"], k["yon"]))
+
+    baslangic = D(db.query(func.coalesce(func.sum(Account.balance), 0)).filter(
+        _scope(Account, user_id), Account.account_type == AccountType.cash).scalar() or 0)
+    giris = sum((D(k["tutar"]) for k in kalemler if k["yon"] == "giris"), ZERO)
+    cikis = sum((D(k["tutar"]) for k in kalemler if k["yon"] == "cikis"), ZERO)
+
+    bakiye = baslangic
+    en_dusuk, en_dusuk_tarih = baslangic, bugun.isoformat()
+    for k in kalemler:
+        bakiye += D(k["etki"])
+        k["bakiye_sonrasi"] = round(bakiye, 2)
+        if bakiye < en_dusuk:
+            en_dusuk, en_dusuk_tarih = bakiye, k["tarih"]
+
+    return {
+        "bugun": bugun.isoformat(),
+        "ufuk": ay_sonu.isoformat(),
+        "baslangic_nakit": round(baslangic, 2),
+        "kalemler": kalemler,
+        "toplam_giris": round(giris, 2),
+        "toplam_cikis": round(cikis, 2),
+        "ay_sonu_bakiye": round(bakiye, 2),
+        "en_dusuk_bakiye": round(en_dusuk, 2),
+        "en_dusuk_tarih": en_dusuk_tarih,
+        # Açık, ay sonundaki bakiyeye değil EN DÜŞÜK noktaya bakar: ay sonu artıda
+        # kapanan bir plan, ayın ortasında ödeme kaçırıyorsa yine de açıktır.
+        "acik_var": en_dusuk < 0,
+    }
+
+
 def calculate_getiri_esigi(user_id: int, db: Session, bugun: date) -> Dict:
     """
     ENGEL ORAN (hurdle rate): bir yatırımın MANTIKLI olması için aşması gereken aylık %.
@@ -2327,6 +2434,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     atanmamis_nakit = round(nakit - _zarf_taahhut, 2)
     faiz_sizintisi = calculate_interest_leak(user_id, db)  # FEAT-013
     getiri_esigi = calculate_getiri_esigi(user_id, db, today)  # Wave-K / G4
+    nakit_takvimi = calculate_nakit_takvimi(user_id, db, today)  # Wave-K / G3
     alacak_yaslanma = calculate_receivables_aging(user_id, today, db)  # FEAT-027
     borc_ilerleme = calculate_debt_progress(user_id, today, db, kart_borcu + kredi_borcu)  # FEAT-017
     kart_kullanim = calculate_card_utilization(user_id, today, db, accounts)  # FEAT-016 (accounts re-query yok)
@@ -2421,6 +2529,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         # Wave-K (G4): yatırım-borç kıyasının AYNI BİRİMDEKİ hâli. Koç bu aritmetiği
         # yapmaz, okur — stopaj ve bileşiklendirme modelden beklenmez.
         "getiri_esigi": getiri_esigi,
+        # Wave-K (G3): ay sonuna kadar İŞARETLİ nakit takvimi. Koç takvimi kendisi
+        # kurarken gelen parayı gider sayıyordu; artık kurmuyor, okuyor.
+        "nakit_takvimi": nakit_takvimi,
         "alacak_yaslanma": alacak_yaslanma,  # FEAT-027: alacakların vade-yaşı grupları (None=alacak yok)
         "borc_ilerleme": borc_ilerleme,  # FEAT-017: başlangıçtan beri borç ödeme ilerlemesi (None=yetersiz geçmiş)
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru

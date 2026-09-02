@@ -1307,6 +1307,31 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             context += (f"\n  - {ge['oransiz_kalem']} borç kaleminin faiz oranı BİLİNMİYOR, "
                         f"eşiğe katılmadı — gerçek eşik daha yüksek olabilir.")
 
+    # NAKİT TAKVİMİ (Wave-K / altın senaryo G3): ölçülen defekt — koç ay içi takvimi
+    # KENDİSİ kuruyordu ve "8 Eylül KYK: 4.000 TL" GELEN ödemesini ÇIKIŞ listesine koydu;
+    # ayrıca 8.221,13 TL kart ödemesini hiç saymadı. Takvim artık hazır geliyor ve her
+    # kalemin yönü KELİMEYLE yazılı. Koç toplamıyor, okuyor.
+    nt = cockpit.get("nakit_takvimi") or {}
+    if nt.get("kalemler"):
+        satirlar = "\n".join(
+            f"    {k['tarih']}  {'GİRİŞ +' if k['yon'] == 'giris' else 'ÇIKIŞ -'}"
+            f"{_para(k['tutar'])}  {_guvenli(k['ad'])}  -> kalan {_para(k['bakiye_sonrasi'])}"
+            for k in nt["kalemler"])
+        context += (
+            f"\n\n## NAKİT TAKVİMİ ({nt['bugun']} -> {nt['ufuk']}) — HESAPLANMIŞTIR, toplama yapma\n"
+            f"  - Başlangıç nakit: {_para(nt['baslangic_nakit'])}\n"
+            f"{satirlar}\n"
+            f"  - Toplam giriş {_para(nt['toplam_giris'])} · toplam çıkış "
+            f"{_para(nt['toplam_cikis'])} · ay sonu {_para(nt['ay_sonu_bakiye'])}\n"
+            f"  - EN DÜŞÜK nokta: {_para(nt['en_dusuk_bakiye'])} ({nt['en_dusuk_tarih']})"
+        )
+        if nt.get("acik_var"):
+            context += ("\n  - UYARI: AY İÇİNDE AÇIK VAR — ay sonu artıda kapansa bile bu "
+                        "tarihte ödeme kaçar. Kullanıcıya bu tarihi söyle.")
+        cockpit.setdefault("_coach_extra_numbers", []).extend(
+            [float(nt["toplam_giris"]), float(nt["toplam_cikis"]),
+             float(nt["ay_sonu_bakiye"]), float(nt["en_dusuk_bakiye"])])
+
     # UZUN VADELI HAFIZA - Wave-2: status='active' + sort_priority + last_evidence_at,
     # structured [TIP | GUVEN] etiketli, 1500 token cap, drop > truncate stratejisi.
     # Wave-1 enjeksiyonu (is_active + priority enum + created_at) deprecated.

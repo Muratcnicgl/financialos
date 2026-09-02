@@ -1301,8 +1301,8 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                 f"Altındaki her teklif, borcu ödemekten daha kötüdür."
             )
         if st.get("bayat"):
-            context += (f"\n  - UYARI: stopaj oranı tazelik penceresini aştı; "
-                        f"kullanıcıya oranın teyit edilmesi gerektiğini söyle.")
+            context += ("\n  - UYARI: stopaj oranı tazelik penceresini aştı; "
+                        "kullanıcıya oranın teyit edilmesi gerektiğini söyle.")
         if ge.get("oransiz_kalem"):
             context += (f"\n  - {ge['oransiz_kalem']} borç kaleminin faiz oranı BİLİNMİYOR, "
                         f"eşiğe katılmadı — gerçek eşik daha yüksek olabilir.")

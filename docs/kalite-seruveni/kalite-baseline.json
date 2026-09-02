@@ -10,7 +10,7 @@
   "olcum_komutu": "ruff check . --no-cache --output-format concise  (aileye göre sayım)",
   "tavan": {
     "E9": 0,
-    "F": 203,
+    "F": 202,
     "B": 31,
     "S": 63
   },
@@ -25,6 +25,7 @@
     "S101 (assert) tests/ ve kökteki tarihsel test_*.py için muaf: pytest'in çalışma biçimi budur (tests/ altında 4484 tane var, hepsi doğru kullanım). app/ içindeki tek S101 sayılmaya devam ediyor — üretim kodunda assert, -O bayrağıyla sessizce kaybolur.",
     "E ailesinden yalnız E9 seçildi. E711/E712'nin 22 bulgusunun TAMAMI yanlış alarm: `PersonalDebt.due_date != None` bir SQLAlchemy filtre ifadesidir ve `IS NOT NULL` üretir; `is not None` yazmak sorguyu bozar.",
     "DTZ ailesi (212 bulgu) dışarıda: projede DB datetime alanları BİLİNÇLİ olarak timezone-naive UTC (PROJE.md). Kural burada projenin yazılı kararına karşı çıkıyor.",
-    "Biçimlendirme (ruff format) ve I001/UP aileleri dışarıda: sinyal yok, 403 dosyalık diff var. Toplu biçimlendirme gerçek değişikliği gizler — seen-backend bunu kendi baseline notunda yazılı olarak yasaklamış."
+    "Biçimlendirme (ruff format) ve I001/UP aileleri dışarıda: sinyal yok, 403 dosyalık diff var. Toplu biçimlendirme gerçek değişikliği gizler — seen-backend bunu kendi baseline notunda yazılı olarak yasaklamış.",
+    "B 32 -> 31 ve F 203 -> 202 (2 Eyl 2026): CI kirmizi dondu ve iki gerileme cikti. (a) F541 x2 — yeni yazilan koc baglam blogunda placeholder'siz f-string; `f` oneki kaldirildi. (b) B023 — `siz_hitabi_onar` icindeki `_degistir` kapanisi dongu degiskenini baglamiyordu. BUGUN ZARARSIZDI (kapanis ayni iterasyonda hemen cagriliyor) ama desen bir tuzak: fonksiyon bir gun donguden cikarsa hepsi SON degeri gorur ve hata sessiz olur. Tavani yukseltmek yerine varsayilan argumanla baglandi — bir ratchet kapisina dogru cevap cogu zaman tavani yukseltmek degil, ihtiyaci ortadan kaldirmaktir."
   ]
 }

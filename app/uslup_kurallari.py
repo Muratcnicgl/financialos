@@ -438,8 +438,12 @@ def siz_hitabi_onar(metin: Optional[str]) -> Tuple[str, bool]:
             (len(i) for i in _SIZ_ISTISNA if katlanmis.startswith(i)), default=0
         )
 
-        def _degistir(m: "re.Match[str]") -> str:
-            if m.start() < korunan_uzunluk:
+        # Döngü değişkeni VARSAYILAN ARGÜMANLA bağlanır (B023). Bugün zararsız — kapanış
+        # aynı iterasyonda hemen çağrılıyor — ama desen bir tuzak: fonksiyon bir gün
+        # döngüden çıkarsa (biriktirilip sonra çağrılırsa) hepsi SON değeri görür ve hata
+        # sessiz olur. Tavanı yükseltmektense ihtiyacı ortadan kaldırmak (bugünkü ders).
+        def _degistir(m: "re.Match[str]", _korunan: int = korunan_uzunluk) -> str:
+            if m.start() < _korunan:
                 return m.group(0)          # "yalnız", "denizde" → gövdenin içi, dokunma
             return "n"                     # "temizlemenizi" → gövdenin dışı, onar
 

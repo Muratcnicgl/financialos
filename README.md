@@ -84,7 +84,7 @@ The chain is configured via environment variables; ordering can be changed witho
 | Backend | FastAPI · SQLAlchemy · Pydantic · SQLite |
 | Frontend | React 18 · Vite · Tailwind CSS |
 | LLM | Groq · Cerebras · Google Gemini · OpenRouter |
-| Tooling | Git · PyCharm · asistan araci · MCP |
+| Tooling | Git · PyCharm |
 
 ---
 
@@ -106,7 +106,6 @@ financialos/
 │       └── components/        # 8 components
 ├── docs/                      # Architecture, dev commands, roadmap
 ├── scripts/                   # Setup, seed data
-└── PROJE.md                  # AI-assisted development notes
 ```
 
 ---

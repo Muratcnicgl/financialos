@@ -84,7 +84,7 @@ Zincir environment değişkenleriyle yapılandırılır; sıralama kod değişik
 | Backend | FastAPI · SQLAlchemy · Pydantic · SQLite |
 | Frontend | React 18 · Vite · Tailwind CSS |
 | LLM | Groq · Cerebras · Google Gemini · OpenRouter |
-| Araçlar | Git · PyCharm · asistan araci · MCP |
+| Araçlar | Git · PyCharm |
 
 ---
 

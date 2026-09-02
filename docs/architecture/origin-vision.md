@@ -66,9 +66,9 @@ Kök sohbetlere göre "kusursuz" = **(a)** sıfır matematik/varsayım hatası, 
 
 ---
 
-## 5. Geliştirme tarihi & ileri vizyon (Claude sohbetleri — gap 3)
+## 5. Geliştirme tarihi & ileri vizyon (gap 3)
 
-Rezan'ın Claude hesabındaki ~40+ FinancialOS geliştirme sohbetinden (Nisan 30 – Haziran) çıkan, repo'da tam yer almayan sinyaller:
+30 Nisan – Haziran arası geliştirme notlarından çıkan, repo'da tam yer almayan sinyaller:
 
 - **Geliştirme süreci:** Wave-1 stabilizasyon → Wave-2 (H2G1 cashflow, H2G3 premortem, H2G4 debt strategy, H2G5 goal engine). Memory olarak bir **knowledge-graph MCP** kullanılmış (entity'ler: "FinancialOS Son Durum", "FinancialOS Vizyon", "Architecture Decisions", "Working State", "Master Roadmap"). *Not: bu oturumda bağlı `mcp__memory` grafiği BOŞ döndü — knowledge graph ya farklı bir sunucuda ya da sıfırlanmış; kullanıcı geçmişte "içerik kaybolmuş" (memory desync) sorunları yaşamış.*
 - **İleri roadmap (repo'da eksik):**

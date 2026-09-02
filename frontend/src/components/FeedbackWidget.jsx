@@ -52,12 +52,14 @@ export default function FeedbackWidget({ page, istekId = null, acik = false, onK
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-brand-600 hover:bg-brand-700 text-white px-4 py-3 shadow-lg transition-colors"
+        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-brand-600 hover:bg-brand-700 text-white px-4 py-3 shadow-lg transition-colors [@media(max-height:500px)]:px-3"
         title="Geri bildirim gönder"
         aria-label="Geri bildirim gönder"
       >
         <MessageSquarePlus className="w-5 h-5 shrink-0" />
-        <span className="hidden sm:inline text-sm font-medium">Geri Bildirim</span>
+        {/* Kisa viewport'ta etiket gizlenir: genis pill, yardim dugmesiyle yan yana durmaya
+            yer birakmiyor ve sag kenardaki ortulme seridini buyutuyor. */}
+        <span className="hidden sm:inline [@media(max-height:500px)]:hidden text-sm font-medium">Geri Bildirim</span>
       </button>
 
       {open && (

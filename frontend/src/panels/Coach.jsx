@@ -380,8 +380,12 @@ function CoachInner({ onActionResolved }) {
   const usageWarn = usage && usage.percentage >= 80;
   const usageBlock = usage && usage.block;
 
+  // KISA VIEWPORT (telefon landscape): panel yuksekligi 236px'e duser ve ipucu seridi +
+  // baslik + yazi alani hepsini yer; mesaj listesi 32px'e COKUYORDU (olculdu:
+  // mobil-landscape tanisi). Kisa viewport'ta panel butunuyle kaydirilir, birincil icerik
+  // ezilmez; ayrica liste bir tabanin (8rem) altina inemez, yazi alani da tavanlanir.
   return (
-    <div className="flex-1 flex flex-col overflow-hidden animate-fade-in">
+    <div className="flex-1 flex flex-col overflow-hidden [@media(max-height:500px)]:overflow-y-auto animate-fade-in">
       {/* ===== UST: BASLIK + RESET ===== */}
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -472,7 +476,7 @@ function CoachInner({ onActionResolved }) {
       {/* ===== MESAJ LISTESI ===== */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto card p-4 space-y-4"
+        className="flex-1 overflow-y-auto card p-4 space-y-4 [@media(max-height:500px)]:min-h-[8rem]"
       >
         {!historyLoaded ? (
           <div className="flex items-center justify-center h-full">
@@ -536,7 +540,7 @@ function CoachInner({ onActionResolved }) {
           placeholder="Bir şey sor veya bir aksiyon bildir... (Enter: gönder · Shift+Enter: satır)"
           rows={2}
           disabled={sending || usageBlock}
-          className="input resize-none font-sans"
+          className="input resize-none font-sans [@media(max-height:500px)]:max-h-16"
         />
         <button
           onClick={handleSend}

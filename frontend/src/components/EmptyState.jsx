@@ -20,8 +20,14 @@ export default function EmptyState({
   fullHeight = false,
 }) {
   if (fullHeight) {
+    // `h-full` DEĞİL `min-h-full`: kap kısa olduğunda (telefon landscape — Koç mesaj alanı
+    // 236px'e düşüyor) `h-full` + `justify-center` içeriği kabın DIŞINA, hem de YUKARI
+    // taşırır; kaydırma yukarı taşan kısma ulaşamaz ve başlık, öneri düğmelerinin üstünü
+    // örter (ölçüldü: mobil-landscape tanısı, Koç panelinde 2 örtülü kontrol).
+    // `min-h-full` ile blok gerektiğinde büyür ve kap kaydırılır; yer varken ortalama
+    // davranışı DEĞİŞMEZ.
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center px-4">
+      <div className="min-h-full flex flex-col items-center justify-center text-center px-4 py-4">
         {Icon && (
           <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
             <Icon className="w-6 h-6 text-zinc-500" />

@@ -45,9 +45,18 @@ export default function YardimKosesi({ sekme, onSihirbaz, onKisayollar, onOrnekV
   ].filter((s) => typeof s.fn === 'function');
 
   return (
-    <div ref={kutu} className="fixed right-4 bottom-20 z-40 flex flex-col items-end gap-2">
+    <div
+      ref={kutu}
+      /* KISA VIEWPORT (telefon landscape, ~390px yukseklik): iki yuzer dugmeyi UST
+         USTE dizmek sag kenarda 120px'lik bir serit yaratiyor — icerige kalan
+         236px'in %51'i (olculdu: mobil-landscape kapisi). O seride denk gelen satir
+         dugmeleri ("Sil", "Gizle", "Yeni") ORTULU kaliyordu. Kisa viewport'ta stack
+         yataya doner: serit 120px -> 44px ve en alt kenara iner. */
+      className="fixed right-4 bottom-20 z-40 flex flex-col items-end gap-2 [@media(max-height:500px)]:bottom-4 [@media(max-height:500px)]:right-[4.5rem]"
+    >
       {acik && (
-        <div className="card w-[min(20rem,calc(100vw-2rem))] p-3 shadow-xl animate-fade-in">
+        <div className="card w-[min(20rem,calc(100vw-2rem))] p-3 shadow-xl animate-fade-in
+                        max-h-[calc(100dvh-8rem)] overflow-y-auto">
           {rehber && (
             <div className="mb-2 pb-2 border-b border-zinc-200 dark:border-zinc-700">
               <p className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-0.5">

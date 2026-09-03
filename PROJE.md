@@ -56,6 +56,26 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > **Metodoloji dersi:** aynı kodla %88 → %84 → %80 ölçüldü; örneklem büyüklüğü
 > belirtilmeyen bir oran bir iddiadır, ölçüm değil.
 >
+> **BUG #323 — ÜRÜN, SÖYLEDİĞİ ŞEYİ YAPMAYI REDDEDİYORDU (3 Eyl 2026).** Kullanıcı
+> *"Bugün 500 TL yemek harcadım nakitten"* diyor; harcama **kaydedilmiyor** ve koç
+> *"Tarih bilgisi tutarsız… tarih yoksa bugün olarak kaydederim"* cevabını veriyor.
+> Kök: BUG #044 koruması "özette tarih var, payload'da yok" durumunu reddeder (amacı
+> kaydın sessizce BUGÜNE düşüp kalıcı yanlış gün olması); ama ifade **"bugün"** ise yedek
+> değer zaten özetin söylediği gündür → sessiz hata İMKÂNSIZ. Muafiyet dar: özetteki TEK
+> tarih ifadesi "bugün" iken. "dün" · "3 Mayıs'ta" · "dün değil bugün" hâlâ reddediliyor.
+> Dedektörün sözleşmesi değişmedi. 8 test, **mutasyon 3/4** — biri eşdeğer mutant, bir
+> diğeri (payload tarihinin erken dönüşü) **194 testten kaçtı** ve testi kendisi yazdırdı.
+> Sebep **ürün koduna DOKUNMADAN** ölçüldü (`AksiyonReddi.__init__` ayrı süreçte geçici
+> sarmalandı, 6 denemede bulundu). Süit **3400 passed · 18 skipped · 0 failed**.
+>
+> **GÜNÜN DESENİ: ÜRÜN, KOÇU DOĞRU DAVRANDIĞI İÇİN CEZALANDIRIYOR.** #322 koç kullanıcının
+> söylediğini hatırladığı için, #323 kullanıcının kelimesini tekrarladığı için, `IC_JARGON`
+> ise kullanıcının kendi ekranındaki `Reel Bütçe` etiketini kullandığı için düşürüyor —
+> üstelik o etiketi koça prompt'un kendisi veriyor (`coach.py:966`) ve yine kendisi
+> yasaklıyor (`:327`), arayüz de kullanıcıya öğretiyor (`Cockpit.jsx:312`). Ölçüm:
+> üslup düşüşlerinin **%71'i IC_JARGON**, onun da **%85'i "reel bütçe"**. Kararı ürün
+> dili yargısı olduğu için **Murat'a bırakıldı** (§8 insan-kapısı).
+>
 > **K3'ÜN KALAN YARISI SINIFLANDIRILDI — GERÇEK UYDURMA YOK (3 Eyl 2026).** `grounded`
 > düşüşlerinin 13'ü de tek tek okundu: **4 türev sayı** (koçun meşru senaryo aritmetiği:
 > 9.700 = 11.976 − 2.276 gibi) · **2 kullanıcı beyanı** (BUG #322) · **1 örnekleyici

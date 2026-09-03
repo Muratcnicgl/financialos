@@ -544,8 +544,8 @@ yerine (mimarinin kendi ilkesi: *rules engine karar verir, LLM açıklar*).
 
 ### ⏸️ KALDIĞIMIZ YER — 3 Eylül 2026 (SIRADAKİ OTURUM BURADAN BAŞLAR)
 
-**DURUM:** her şey commit'li ve push'lu. **Backend süiti 3392 passed · 18 skipped ·
-0 failed** (7:54; önceki taban 3380 → +12 yeni test). Kalite kapısı (ruff aile tavanları
+**DURUM:** her şey commit'li ve push'lu. **Backend süiti 3400 passed · 18 skipped ·
+0 failed** (9:38; önceki taban 3380 → +20 yeni test). Kalite kapısı (ruff aile tavanları
 B31/E9-0/F202/S63), belge denetimi ve ölü kod kapısı geçiyor. Frontend/e2e bu turda
 KOŞULMADI — değişikliklerin hepsi backend, ama iddia da o kadarıyla sınırlı.
 
@@ -565,6 +565,16 @@ KOŞULMADI — değişikliklerin hepsi backend, ama iddia da o kadarıyla sını
 5. **BUG #322 kapandı** — izin listesi modelin gördüğü veriden dardı; kullanıcının bir tur
    önce söylediği tutarı doğru hatırlayan koç halüsinasyon damgası yiyordu (üretimde güven
    0,4). 9 test, **mutasyon 5/5** (M1 önce hayatta kaldı, kapının kendi kör noktasını buldu).
+6. **BUG #323 kapandı — KULLANICIYA DOĞRUDAN ZARAR.** *"Bugün 500 TL yemek harcadım
+   nakitten"* → harcama KAYDEDİLMİYOR, koç *"Tarih bilgisi tutarsız… tarih yoksa bugün
+   olarak kaydederim"* diyor. Ürün, söylediği şeyi yapmayı reddediyordu. 8 test,
+   **mutasyon 3/4** (biri eşdeğer mutant; bir diğeri 194 testten kaçıp testi yazdırdı).
+
+**GÜNÜN DESENİ — ÜRÜN, KOÇU DOĞRU DAVRANDIĞI İÇİN CEZALANDIRIYOR.** Üç bulgunun üçü de
+aynı kalıpta: koç kullanıcının söylediğini hatırlıyor (#322), kullanıcının kelimesini
+tekrarlıyor (#323), kullanıcının ekranındaki etiketi kullanıyor (`IC_JARGON`) — ve her
+üçünde de ürün onu düşürüyor. **Bir koçu "yalan söylüyor" diye ölçmeden önce, ona neyi
+verdiğimizi ve neyi yasakladığımızı yan yana koymak gerekiyor.**
 
 **ÖLÇÜM — DÜRÜST KAYIT (3 koşum, OpenRouter sabit, öncesi/sonrası):**
 
@@ -619,10 +629,24 @@ dersi, yine).
    Önce onu logla, hangi alanın düştüğünü ÖLÇ, sonra `PayloadGecersiz`'e kendi kullanıcı
    mesajını yaz (bugün taban sınıfın genel mesajını miras alıyor).
 4. **G3/G5 kararsızlığı (1/3)** — kart ödemesi bağlamda VAR ama koç bazen atlıyor.
-5. **Dalkavukça hizalanma** — `uslup_kurallari.py`'de karşılığı yok.
-6. **G2 deseni dar** — ölçüt turu AYRI, gerekçesi ÖNCE yazılarak.
-7. Açık ürün soruları: kredi `balance`i anapara olmalı mı · `IC_JARGON` · emir kipi ·
-   K4 stigmerji · K5 caching.
+5. **`IC_JARGON` — üslup düşüşlerinin %71'i, VE YASAKLANAN TERİMİ ÜRÜN KULLANICIYA
+   KENDİ ÖĞRETİYOR.** 6 koşumun `uslup` düşüşleri sayıldı: **IC_JARGON 10 · SIZ_HITABI 3 ·
+   DALKAVUKLUK 1.** Eşleşmeler çıkarıldı: **13'ün 11'i `reel butce`/`reel butcen`**
+   (kalan 2 `cockpit`). Üç ölçüm arka arkaya:
+   `app/coach.py:966` koça bağlamı **`- Reel Bütçe : ...`** diye etiketli VERİYOR ·
+   aynı promptun `:327` satırı *"reel bütçe"*yi iç jargon diye YASAKLIYOR ·
+   `frontend/src/panels/Cockpit.jsx:312` bunu kullanıcıya **`title="Reel Bütçe"`**
+   başlıklı bir kart olarak GÖSTERİYOR. Yani terim iç jargon değil, **arayüz etiketi**;
+   koç kullanıcının ekranında okuduğu kelimeyi kullandığı için düşürülüyor.
+   **⛔ KARAR MURAT'A AİT (§8: "K7'de dilin sınırları"):**
+   **(a)** kuraldan "reel bütçe"yi çıkar (kural amacını korur, prompt bir satır kısalır), ya da
+   **(b)** terimi hem prompttan hem arayüzden kaldır, yerine düz Türkçe koy.
+   Ölçüm şunu söylüyor: bugünkü hâl ikisi de değil — ürün terimi öğretiyor, koça veriyor,
+   sonra kullanınca cezalandırıyor.
+6. **Dalkavukça hizalanma** — `uslup_kurallari.py`'de karşılığı yok.
+7. **G2 deseni dar** — ölçüt turu AYRI, gerekçesi ÖNCE yazılarak.
+8. Açık ürün soruları: kredi `balance`i anapara olmalı mı · emir kipi kalıntısı ·
+   K4 stigmerji · K5 caching. (`IC_JARGON` artık 5. maddede, ölçülmüş hâliyle.)
 
 **BU TURUN DERSLERİ:**
 - **Bir dedektörün BERAATI, mahkûmiyeti kadar ölçülmelidir.** K3 boyunca yalnız yanlış

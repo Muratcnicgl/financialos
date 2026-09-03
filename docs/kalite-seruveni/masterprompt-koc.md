@@ -603,11 +603,21 @@ dersi, yine).
    sözleşmeden düşüyor ve `PayloadGecersiz` kendi `kullanici_mesaji`nı tanımlamadığı için
    **taban sınıfın genel mesajını** miras alıyor. **Bu turdan ÖNCE de vardı** (2 kez) —
    regresyon değil, mevcut defekt.
-   **İLK ADIM ÖLÇÜM, DÜZELTME DEĞİL:** `logger.warning("propose_action reddedildi: %s",
-   red.kod)` (`app/coach.py:2943`) yalnız KODU basıyor; `red.gorunur_neden` kesin teşhisi
-   taşıyor (`"tool argumaninda eksik alan: X"`) ve **bilinçli olarak para içermiyor**
-   (ADR-052). Önce onu logla, hangi alanın düştüğünü ÖLÇ, sonra `PayloadGecersiz`'e kendi
-   kullanıcı mesajını yaz. (Bugün alınmadı: tam süit koşumu mevcut koddan alınmış kanıttır.)
+   **YARISI AYNI GÜN KAPANDI — BUG #323.** Sebep, ürün koduna DOKUNMADAN ölçüldü
+   (`AksiyonReddi.__init__` ayrı bir süreçte geçici sarmalandı; 6 denemede bulundu):
+   gerekçe *"özette tarih geçiyor ama işleme tarih yazılmadı"*. `bugun` kelimesi
+   `_DATE_KEYWORD_RE`'de olduğu için koç kullanıcının "Bugün"ünü özete yankıladığında
+   BUG #044 koruması tetikleniyordu — **oysa yedek değer zaten bugündür, yani sessiz
+   yanlış gün İMKÂNSIZ**. Muafiyet dar tutuldu (özetteki tek ifade "bugün" iken);
+   8 test, mutasyon 3/4.
+
+   **KALAN YARISI AÇIK — `PAYLOAD_GECERSIZ`.** Kart senaryosundaki ret bu turda
+   yeniden üretilemedi (3 denemede 0 kez). İlk adım ölçüm:
+   `logger.warning("propose_action reddedildi: %s", red.kod)` (`app/coach.py:2943`)
+   yalnız KODU basıyor; `red.gorunur_neden` kesin teşhisi taşıyor
+   (`"tool argumaninda eksik alan: X"`) ve **bilinçli olarak para içermiyor** (ADR-052).
+   Önce onu logla, hangi alanın düştüğünü ÖLÇ, sonra `PayloadGecersiz`'e kendi kullanıcı
+   mesajını yaz (bugün taban sınıfın genel mesajını miras alıyor).
 4. **G3/G5 kararsızlığı (1/3)** — kart ödemesi bağlamda VAR ama koç bazen atlıyor.
 5. **Dalkavukça hizalanma** — `uslup_kurallari.py`'de karşılığı yok.
 6. **G2 deseni dar** — ölçüt turu AYRI, gerekçesi ÖNCE yazılarak.

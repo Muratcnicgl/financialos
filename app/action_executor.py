@@ -19,6 +19,16 @@ KRITIK: MC1 (Emanet) gibi kuralları bu modül ENFORCE eder.
 Emanet hesabı satma aksiyonu DB'ye yazılmaz, hata döner.
 
 GÜNCELLEMELER:
+- 3 Eyl 2026 BUG #323 fix: **"bugün", BUG #044 korumasının YANLIŞ OLAMAYACAĞI tek tarih
+  ifadesiydi ve koruma yine de tetikleniyordu.** Kullanıcı *"Bugün 500 TL yemek harcadım
+  nakitten"* dedi; harcama KAYDEDİLMEDİ ve koç *"Tarih bilgisi tutarsız ... tarih yoksa
+  bugün olarak kaydederim"* cevabını verdi — ürün, söylediği şeyi yapmayı reddetti ve
+  kullanıcıdan ZATEN VERDİĞİ bilgiyi istedi. Koruma özette tarih görüp payload'da
+  görmeyince reddeder (amacı: kayıt sessizce BUGÜNE düşüp kalıcı yanlış gün olmasın);
+  ama ifade "bugün" ise yedek değer zaten özetin söylediği gündür. Tek kaynak
+  `_tarih_belirsiz_mi`; muafiyet DAR (özetteki tek tarih ifadesi "bugün" iken).
+  Dedektörün (`_tarih_ifadesi_var_mi`) sözleşmesi DEĞİŞMEDİ. 8 test, mutasyon 3/4
+  (dördüncüsü eşdeğer mutant, gerekçesi testte yazılı).
 - 4 May 2026 BUG #031 fix: execute_pending_action response'una Türkçe 'message' field eklendi.
   _fmt() Türkçe sayı formatı yardımcısı + _build_action_message() helper eklendi.
   _execute_add_transaction return'üne 'account_name' eklendi.
@@ -185,8 +195,42 @@ _DATE_KEYWORD_RE = _re.compile(
 
 
 def _tarih_ifadesi_var_mi(metin: Optional[str]) -> bool:
-    """Metinde bir tarih ifadesi geçiyor mu? (BUG #044 korumasının tek girişi — BUG #267)"""
+    """Metinde bir tarih ifadesi geçiyor mu? (BUG #267 — yazımdan bağımsız)"""
     return bool(_DATE_KEYWORD_RE.search(_tr_normalize(metin or "")))
+
+
+#: BUG #323 — "BUGÜN", KORUMANIN YANLIŞ OLAMAYACAĞI TEK TARİH İFADESİDİR.
+#:
+#: BUG #044 koruması şunu engeller: özet bir GÜN söyler ("3 Mayıs'ta"), payload'da
+#: `transaction_date` yoktur, kayıt sessizce BUGÜNE düşer → kalıcı olarak yanlış gün.
+#: `bugun` de `_DATE_KEYWORD_RE`'de olduğu için koç kullanıcının "Bugün"ünü özete
+#: yankıladığında koruma tetikleniyordu — oysa YEDEK DEĞER (bugün) tam olarak özetin
+#: söylediği gündür; bu durumda sessiz hata İMKÂNSIZDIR.
+#:
+#: Ölçülen zarar (3 Eyl 2026, davranış seti): kullanıcı *"Bugün 500 TL yemek harcadım
+#: nakitten"* dedi; harcama KAYDEDİLMEDİ ve koç *"Tarih bilgisi tutarsız. ... tarih
+#: yoksa bugün olarak kaydederim"* cevabını verdi — yani ürün, söylediği şeyi yapmayı
+#: reddetti ve kullanıcıdan ZATEN VERDİĞİ bilgiyi istedi. Üstelik bu, koçun kullanıcının
+#: kelimesini tekrar etmesine bağlıydı: doğru davranış cezalandırılıyordu.
+#:
+#: Muafiyet DAR: yalnız özetteki TEK tarih ifadesi "bugün" iken geçerli. "bugün ve dün"
+#: yazılırsa koruma çalışmaya devam eder. Dedektörün (`_tarih_ifadesi_var_mi`) sözleşmesi
+#: DEĞİŞMEZ — "tarih ifadesi var mı" sorusunun cevabı hâlâ evettir; değişen, KORUMANIN o
+#: cevabı nasıl kullandığıdır. (Bir muafiyet, gerekçesinin geçerli olduğu yerde durmalı.)
+_BUGUN_RE = _re.compile(r"\bbugun\b")
+
+
+def _tarih_belirsiz_mi(summary: Optional[str], payload: dict) -> bool:
+    """BUG #044 koruması: özet bir tarih söylüyor ama payload'a yazılmamış mı?"""
+    if payload.get("transaction_date"):
+        return False
+    if not summary:
+        return False
+    normal = _tr_normalize(summary)
+    if not _DATE_KEYWORD_RE.search(normal):
+        return False
+    # BUG #323: "bugün" çıkarıldığında geriye BAŞKA bir tarih ifadesi kalıyor mu?
+    return bool(_DATE_KEYWORD_RE.search(_BUGUN_RE.sub(" ", normal)))
 
 
 def _fmt(x: float) -> str:
@@ -340,10 +384,10 @@ def propose_action(
                 and user_message
                 and not _mentions_account(user_message, db, user_id)):  # BUG #168: kullanıcının kendi hesap adları da sayılır
             raise HesapBelirsiz()  # BUG #273: tipli sinyal (metin taramasi yok)
-        # BUG #044 fix: Summary'de tarih var ama payload'da yok → tutarsızlık
-        if (summary
-                and _tarih_ifadesi_var_mi(summary)   # BUG #267: yazımdan bağımsız
-                and not payload.get("transaction_date")):
+        # BUG #044 fix: Summary'de tarih var ama payload'da yok → tutarsızlık.
+        # BUG #323: "bugün" bu kuralın kapsamı DIŞINDA — yedek değer zaten bugündür,
+        # yani sessiz yanlış gün imkânsızdır (tek kaynak: `_tarih_belirsiz_mi`).
+        if _tarih_belirsiz_mi(summary, payload):
             raise TarihBelirsiz()  # BUG #273: tipli sinyal (retry yolu bu dali KAÇIRIYORDU)
         
         # M43: normalization işlemi workspace scope'unda olmalı ki doğru hesapları bulabilsin

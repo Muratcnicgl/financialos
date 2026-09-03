@@ -237,6 +237,7 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
         # yani iki oran AYNI koşumdan çıkar (BUG #278'in dersi: ikinci geçiş başka cevapları
         # puanlar ve ölçüm ile not ayrışır).
         scores_kullanici = score_result(res, sc.checks, kullanici_gozu=True, senaryo=sc)
+        grounding_ham = res.get("grounding") or {}
         rows.append({
             "name": sc.name,
             "scores": scores,
@@ -254,6 +255,23 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
             "uslup_ihlalleri": (
                 sorted(set(ihlaller(res.get("reply") or "")) | set(res.get("uslup_onarildi") or []))
                 if "uslup" in scores else []
+            ),
+            # Wave-K / K3: "grounded=-" TEK BAŞINA EYLEME GEÇİRİLEMEZ — `uslup` için BUG
+            # #277'de öğrenilen dersin aynısı. Bir `grounded` düşüşünün iki farklı sebebi
+            # olabilir ve ikisi ZIT müdahale ister:
+            #   · TÜREV sayı  — koçun meşru aritmetiği (toplam/fark); cockpit'te bulunmaz
+            #                   ama uydurma da değildir. Müdahale: ölçüt/bağlam tarafı.
+            #   · UYDURMA     — hiçbir yere dayanmayan tutar. Müdahale: ürün/prompt tarafı.
+            # Hangisi olduğunu SAYIYI görmeden ayırt etmek mümkün değil; bu yüzden düşüren
+            # tutarlar rapora yazılır. (Bir düşüşü sınıflandıramayan ölçüm, sonraki turda
+            # tahmine dayanır — ve bu projede tahmin yasaktır.)
+            "grounding_detay": (
+                {
+                    "unverified": list(grounding_ham.get("unverified") or []),
+                    "etiketsiz": list(grounding_ham.get("etiketsiz") or []),
+                    "checked": grounding_ham.get("checked", 0),
+                }
+                if "grounded" in scores else {}
             ),
         })
 
@@ -346,4 +364,17 @@ def format_report(report: Dict) -> str:
         lines.append(f"  [{mark}] {r['name']}: {detay}")
         if r.get("uslup_ihlalleri"):
             lines.append(f"         uslup ihlali: {', '.join(r['uslup_ihlalleri'])}")
+        # K3: `grounded` düşünce DÜŞÜREN TUTARLAR yazılır — sınıflandırma (türev mi, uydurma mı)
+        # ancak sayıya bakılarak yapılabilir. Geçen koşumda basılmaz: gürültü, okunmayan
+        # rapor demektir (L22).
+        if r["scores"].get("grounded") is False:
+            d = r.get("grounding_detay") or {}
+            parcalar = []
+            if d.get("unverified"):
+                parcalar.append(f"etiketli-izlenemez={d['unverified']}")
+            if d.get("etiketsiz"):
+                parcalar.append(f"etiketsiz={d['etiketsiz']}")
+            lines.append(
+                f"         grounding: {' '.join(parcalar) or '(cevap yok / denetlenmedi)'}"
+                f"  [denetlenen={d.get('checked', 0)}]")
     return "\n".join(lines)

@@ -62,6 +62,13 @@ GUNCELLEMELER:
   koc'un KENDI mutasyon-tamamlama iddiasini (1. tekil + edilgen) yakalar;
   proposed_actions bossa iddia iceren cumleyi atip netlestirme sorusu ekler.
   Kullanicinin gecmisine ("kaydettin/kaydettigin") DOKUNMAZ. Bkz. tests/test_coach_fake_completion.py.
+- BUG #322 fix (3 Eyl 2026, K3): grounding izin listesi, modele VERILEN veriden dardi.
+  chat() modele son max_history_turns turu veriyor; check_grounding ise yalniz o anki
+  user_message'i sayiyordu -> kullanicinin bir tur once soyledigi tutari dogru hatirlayan
+  koc "halusinasyon" damgasi yiyip guveni 0.4'e dusuyordu. Liste artik gecmis YUKLENDIGI
+  anda, yalniz role=="user" mesajlarindan alinir. Tur ICINDEN alinamaz: ic plan
+  yonlendirmesi (BUG #272 tasarimi) modelin KENDI ciktisini role="user" olarak messages'a
+  ekliyor ve uydurma sayi kendi kendini akliyordu (olculdu). Bkz. tests/test_grounding_gecmis_kapisi.py.
 - BUG #083 fix (LLM-003 grounding): chat() cikisinda check_grounding ile koc
   cevabindaki her TL tutari cockpit'e izlenebilir mi denetlenir. Izlenemeyen
   tutar (silent hallucination suphesi) -> logger.warning + confidence<=0.4 +
@@ -2977,6 +2984,16 @@ class CoachEngine:
                     s.inference = f"Uyarilar: {kodlar}"
 
             messages = self._load_history(db, user_id)
+            # BUG #322: grounding izin listesi için KULLANICININ önceki turlardaki
+            # mesajları. TAM BURADA yakalanır — `messages` tur içinde MUTASYONA UĞRUYOR:
+            # iç plan yönlendirmesi (BUG #272 tasarımı) modelin KENDİ çıktısını
+            # `role="user"` olarak listeye ekliyor. Aşağıda `messages`ten süzmek bu yüzden
+            # yetmez ve ÖLÇÜLDÜ: uydurma "47.800 TL" iç plan turunda listeye girip kendi
+            # kendini aklıyordu (`test_grounding_halusinasyon_uctan_uca` yakaladı).
+            # Kalıcı defterde (`CoachMemory`) yalnız ham kullanıcı mesajı `role="user"`
+            # ile saklanır, yönlendirmeler saklanmaz — yani buradaki liste temizdir.
+            _gecmis_kullanici = [m.get("content") or "" for m in messages
+                                 if m.get("role") == "user"]
             messages.append({"role": "user", "content": user_message})
 
             # --------------------------------------------------------
@@ -3285,7 +3302,13 @@ class CoachEngine:
             # LLM-003 (grounding): Koc cevabindaki her TL tutari cockpit'e izlenebilir mi?
             # Izlenemeyen tutar = potansiyel "silent hallucination" (varsayim yasak mandati).
             # UYARI sinyali — sert blok degil; guveni dusurur ve trace'e islenir.
-            grounding = check_grounding(reply, cockpit_dict or {}, user_message=user_message)
+            # BUG #322: izin listesi, MODELE VERİLEN veriyle aynı olmalı. Model son
+            # `max_history_turns` turu görüyor; kullanıcının orada söylediği tutarı doğru
+            # hatırlayan koç, izin listesi dar olduğu için halüsinasyon damgası yiyor ve
+            # aşağıdaki dalda güveni 0.4'e düşüyordu. Liste yukarıda, geçmiş YÜKLENDİĞİ
+            # anda yakalandı (tur içi yönlendirmeler karışmasın diye).
+            grounding = check_grounding(reply, cockpit_dict or {}, user_message=user_message,
+                                        gecmis_kullanici_mesajlari=_gecmis_kullanici)
             if not grounding["ok"]:
                 logger.warning(
                     "grounding ihlali user_id=%s: cockpit'te bulunamayan TL tutarlari=%s",

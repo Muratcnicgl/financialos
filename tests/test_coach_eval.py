@@ -202,3 +202,40 @@ def test_cevapsiz_kalan_senaryoda_diger_kriterler_gecmis_sayilmaz():
            "llm_kullanilamadi": True}
     s = score_result(res, ["cevapladi", "no_action", "no_fake", "grounded"])
     assert s == {"cevapladi": False, "no_action": False, "no_fake": False, "grounded": False}
+
+
+# ---- K3: grounding düşüşü TEŞHİS EDİLEBİLİR olmalı ------------------------
+#
+# Neden test: `grounded=-` tek başına eyleme geçirilemez. Bir düşüş TÜREV sayıdan da
+# (koçun meşru aritmetiği) UYDURMADAN da gelebilir ve ikisi zıt müdahale ister. Düşüren
+# tutarlar raporda yoksa sınıflandırma tahmine kalır. Aynı ders `uslup` için BUG #277'de
+# öğrenilmişti; bu, o dersin grounding tarafındaki karşılığıdır.
+
+def test_grounding_dususu_hangi_tutardan_geldigini_yazar(db):
+    prov = ScriptedProvider(text="Dikkat, 47.800 TL beklenmedik borç var.")
+    engine = CoachEngine(provider=prov)
+    rapor = run_eval(engine, db, 1,
+                     [EvalScenario("analiz", "durumu göster", ["grounded"], include_cockpit=True)])
+    detay = rapor["scenarios"][0]["grounding_detay"]
+    assert 47800.0 in detay["unverified"], detay
+    # ve rapor METNİNDE de görünür — kimse JSON'a bakmıyor
+    assert "47800" in format_report(rapor).replace(".0", "")
+
+
+def test_grounding_gecen_kosumda_detay_satiri_BASILMAZ(db):
+    # L22: gürültü üreten rapor okunmaz. Sayı yalnız düşüşte basılır.
+    prov = ScriptedProvider(text="Nakit hesabında 5.000 TL var, durum sakin.")
+    engine = CoachEngine(provider=prov)
+    rapor = run_eval(engine, db, 1,
+                     [EvalScenario("analiz", "durumu göster", ["grounded"], include_cockpit=True)])
+    assert rapor["scenarios"][0]["scores"]["grounded"] is True
+    assert "grounding:" not in format_report(rapor)
+
+
+def test_grounding_detayi_yalniz_grounded_olcen_senaryoda_toplanir(db):
+    # Ölçülmeyen bir kriter için detay taşımak ölü yüktür (ve "ölçüldü" yanılsaması verir).
+    prov = ScriptedProvider(text="Kart borcun kontrol altında.")
+    engine = CoachEngine(provider=prov)
+    rapor = run_eval(engine, db, 1,
+                     [EvalScenario("soru", "Kart borcum ne?", ["no_action"], include_cockpit=False)])
+    assert rapor["scenarios"][0]["grounding_detay"] == {}

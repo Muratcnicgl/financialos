@@ -56,7 +56,34 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > **Metodoloji dersi:** aynı kodla %88 → %84 → %80 ölçüldü; örneklem büyüklüğü
 > belirtilmeyen bir oran bir iddiadır, ölçüm değil.
 >
-> **K3 NİHAYET ÖLÇÜLDÜ — %100 DEĞİL ~%50 (BUG #321).** Davranış setinde `grounded`
+> **K3'ÜN KALAN YARISI SINIFLANDIRILDI — GERÇEK UYDURMA YOK (3 Eyl 2026).** `grounded`
+> düşüşlerinin 13'ü de tek tek okundu: **4 türev sayı** (koçun meşru senaryo aritmetiği:
+> 9.700 = 11.976 − 2.276 gibi) · **2 kullanıcı beyanı** (BUG #322) · **1 örnekleyici
+> yuvarlak sayı** · **0 uydurma.** Yani "zorlama tasarımı" sorusunun cevabı **hiçbiri**:
+> bu dedektöre dayanan bir blok, engelleyecek uydurma bulamaz, yalnız koçun matematiğini
+> engellerdi. **ASIL BULGU DEDEKTÖRÜN KENDİSİ:** aynı cevapta koçun YANLIŞ hesabı (3.536,
+> doğrusu 3.776) alakasız bir kokpit yaprağına (%2 tolerans, `saglikli_borc_hedefi`=3.600)
+> denk geldiği için GEÇTİ, doğrusu DÜŞERDİ. **Tesadüf yüzeyi ölçüldü: %10,7** (200.000
+> örneklem, 27 yaprak — canlı kokpit daha zengin). Tolerans daraltılmadı (yuvarlanmış
+> doğru cevabı düşürürdü, BUG #316 dersi); doğru yön eşleşmeyi izlenebilir kılmak — açık iş.
+> **Ders: bir dedektörün BERAATI, mahkûmiyeti kadar ölçülmelidir.**
+>
+> **BUG #322 — İZİN LİSTESİ MODELİN GÖRDÜĞÜ VERİDEN DARDI.** `chat()` modele son turları
+> veriyor, `check_grounding` yalnız O ANKİ mesajı sayıyordu → kullanıcının bir tur önce
+> söylediği tutarı **doğru hatırlayan** koç halüsinasyon damgası yiyor ve üretimde güveni
+> **0,4'e** düşüyordu. Koçun KENDİ cevapları bilinçli olarak izinli değil (döngüsellik
+> yasağı) — ve ürün bunu zaten ihlal ediyordu: iç plan yönlendirmesi (BUG #272) modelin
+> çıktısını `role="user"` olarak listeye ekliyor, uydurma sayı kendi kendini aklıyordu.
+> 9 test, **mutasyon 5/5** — M1 (rol filtresi) önce HAYATTA KALDI ve kapının kendi kör
+> noktasını buldurdu: *bir kapı, sözleşmeyi yazdığı yerde değil ZORLANDIĞI yerde ölçmelidir.*
+>
+> **ÖLÇÜMÜN KARIŞTIRICISI: `.env` = `fallback`.** Çıplak `eval_runner` koşumu zorunlu
+> olarak karışık sağlayıcıdır (Gemini 10 istek/dk; tek koşumda **3 geçiş** ölçüldü).
+> Kayıtlı %82,9 davranış tabanı bir kalite ölçümü değil, sağlayıcı karışımı ölçümüymüş:
+> **OpenRouter sabit taban medyan %88,6 · `uslup` 13/24 → 18/24.** Kalite karşılaştırması
+> artık `--saglayicilar openrouter` ile yapılır; `--dokum` bayrağı TAM cevapları JSON'a yazar.
+>
+> **K3 ÖNCEKİ TUR — %100 DEĞİL ~%50 (BUG #321).** Davranış setinde `grounded`
 > kriteri **0/6** çıkıyordu. Sebep koç değil ÖLÇÜT: `etiketsiz` kuralı bir sayının
 > izlenebilir olup olmadığına HİÇ bakmıyordu — koç `"limit 12.000 (%99,8 dolu)"` yazınca
 > (12.000 cockpit'te VAR, yalnız etiketsiz) cevap kırmızıya düşüyordu. Düzeltmeden sonra

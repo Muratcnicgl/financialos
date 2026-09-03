@@ -4,7 +4,8 @@
 > GEÇMEZ, yanında durur. Publish hattı "uygulama yayına çıkabilir mi?" sorusunu yönetir;
 > bu hat **"koç yeterince iyi mi?"** sorusunu yönetir. İkisi bağımsız ilerleyebilir.
 >
-> **Tek doğruluk kaynağı: §9.0 KALDIĞIMIZ YER.** Yeni oturum oradan devam eder.
+> **Tek doğruluk kaynağı: §10'un başındaki ⏸️ KALDIĞIMIZ YER bloğu (3 Eylül 2026).**
+> Yeni oturum oradan devam eder; §9.0-§9.4 tarihsel ölçüm kaydıdır.
 
 ---
 
@@ -228,7 +229,7 @@ uygulanabilir madde`. Kopyalanan içerik değil, çıkarılan ders yazılır.)*
 |---|---|---|
 | R1 | Sağlayıcı zincirinin 4 halkasından 3'ü ölü → koç tek modele bağımlı, o da en zayıfı | AÇIK (K1) |
 | R2 | Prompt şişmesi kısır döngü kuruyor: her düzeltme sonrakini zorlaştırıyor | AÇIK (K2) |
-| R3 | Koç cockpit'te olmayan rakam üretiyor (`grounded=-`) | AÇIK (K3) |
+| R3 | ~~Koç cockpit'te olmayan rakam üretiyor (`grounded=-`)~~ **PREMİS ÇÜRÜDÜ (3 Eyl):** 13 düşüşün 13'ü okundu, **gerçek uydurma 0**. Risk yön değiştirdi → **dedektör yanlış beraat veriyor (ölçülen tesadüf yüzeyi %10,7)** | DEĞİŞTİ — bkz. §9.4 |
 | R4 | Eval üç haftadır koşulmamıştı; kalite sessizce %82,9 → %71,4 düştü | AZALDI — K0 ile yeniden ölçüldü; kalıcı çözüm düzenli koşum |
 | R5 | Güçlü modele geçiş maliyeti (Opus 5 tek istek girdi ≈ $0,062) K2 yapılmazsa sürdürülemez | AÇIK (K2→K5) |
 
@@ -467,6 +468,65 @@ Sıkılaştırma ayrı bir turda, gerekçesi önce yazılarak yapılır.
 toplamıdır, anapara 14.023,29). Bu, (b) maddesinin — erken kapama tutarının sayısal alan
 olması — neden sıradaki en önemli iş olduğunun ikinci kanıtı.
 
+### §9.4 K3 SINIFLANDIRMASI — KALAN YARIDA UYDURMA YOK (3 Eylül 2026)
+
+§10'un 1. sıradaki işi: *"`grounded` hâlâ 3/6 düşüyor. Her düşüşü tek tek oku ve ayır:
+TÜREV sayı mı, GERÇEK uydurma mı? Zorlama tasarımı ancak bu ayrımdan sonra seçilir."*
+
+**ÖNCE ÖLÇÜM ARACI ONARILDI.** Rapor `grounded=-` diyor ama hangi tutarın düşürdüğünü
+yazmıyordu — bu ayrım tam olarak o listeyi ister. Düşüren tutarlar rapora eklendi
+(`uslup` için BUG #277'de yapılanın aynısı) ve `--dokum` bayrağıyla koşumun TAM cevapları
+JSON'a yazılır hâle geldi (§9.3'ün kendi dersi: *skor bir ölçüm değildir*).
+
+**SONRA BİR KARIŞTIRICI BULUNDU — VE KAYITLI TABAN ONUNLA KİRLİYDİ.** `.env`de
+`LLM_PROVIDER=fallback`; Gemini ücretsiz katmanı dakikada 10 istek verir ve davranış seti
+8 senaryodur, yani kota **koşumun ortasında** dolar. Ölçüldü: tek koşumda **3 kez**
+`Gemini → OpenRouter` geçişi. §9.1 bu karıştırıcıyı altın set için kaldırmıştı, davranış
+seti için kaldırmamıştı.
+
+| Davranış seti, 3 koşum | kriter | `grounded` | `uslup` |
+|---|---|---|---|
+| Karışık zincir (2 Eyl kaydı) | medyan **%82,9** | 3/6 | 13/24 |
+| **OpenRouter sabit (3 Eyl)** | min %88,6 · medyan **%88,6** · maks %91,4 | 2/6 | 18/24 |
+
+Yani kayıtlı %82,9 bir kalite ölçümü değil, bir **sağlayıcı karışımı ölçümüydü**;
+#2'nin (prompt kırpma) karşılaştıracağı taban da bu yüzden kirliydi.
+
+**SINIFLANDIRMA — 13 düşüren tutarın tamamı okundu:**
+
+| Sınıf | Tutarlar | Yorum |
+|---|---|---|
+| **TÜREV** (koçun meşru senaryo aritmetiği) | `9.700` = 11.976 − 2.276 · `8.440` · `3.424` = 7.700 − 4.276 · `5.424` = 7.700 − 2.276 | Kokpit'te tek yaprak olarak yok, ama uydurma da değil |
+| **KULLANICININ KENDİ BEYANI** | `500` · `240` | Kullanıcı önceki turlarda söyledi → **BUG #322** |
+| **ÖRNEKLEYİCİ YUVARLAK SAYI** | `1.000` (*"her 1.000 TL ödeme çukuru 1.000 TL azaltır"*) | Bir orana örnek; bakiye iddiası değil |
+| **GERÇEK UYDURMA** | **yok** | **0/13** |
+
+**ZORLAMA TASARIMININ CEVABI: HİÇBİRİ.** Bu dedektöre dayanan bir blok/yeniden-üretim,
+engelleyecek uydurma bulamaz; engelleyeceği tek şey koçun matematiği olur. K3'ün sorusu
+"hangi zorlama?" idi; ölçüm soruyu değiştirdi: **"bu dedektör ne ölçüyor?"**
+
+**VE ASIL BULGU BU — DEDEKTÖR AYNI CEVAPTA TAM TERS KARAR VERDİ.** Koşum 2:
+*"Nakit: 4.276 → **3.536** TL · Kart borcu: 11.976 → 12.216 TL"*. 3.536 **yanlıştır**
+(koç 240 TL'lik KART harcamasını nakitten de düşmüş; doğrusu 3.776). Ölçüldü:
+
+- `3.536` (**yanlış**) → **GEÇTİ**, alakasız `saglikli_borc_hedefi` = 3.600'e %2 içinde denk geldiği için
+- `3.776` (**doğru**) → **DÜŞERDİ**
+- `500` · `240` (doğru, kullanıcı beyanı) → düştü
+- `8.440` · `9.700` · `3.424` · `5.424` (doğru türev) → düştü
+
+**Tesadüf yüzeyi ölçüldü (200.000 örneklem): 100-20.000 aralığından rastgele bir tutar,
+hiçbir dayanağı olmasa da %10,7 olasılıkla "izlenebilir" sayılıyor** — ve bu yalnız 27
+benzersiz kokpit yaprağıyla; canlı kokpit çok daha zengin, yani beraat kararı üretimde
+daha da anlamsız.
+
+**Tolerans DARALTILMADI:** `48.510,41`'i `48.510` diye yuvarlayan doğru cevabı düşürürdü
+(BUG #316'nın dersi). Doğru yön eşleşmeyi **izlenebilir** kılmak (hangi yaprağa denk
+geldiği raporlansın) — ayrı iş, §10'da açık madde.
+
+**K-DERSİ (yeni): bir dedektörün BERAATI, mahkûmiyeti kadar ölçülmelidir.** K3 boyunca
+yalnız yanlış mahkûmiyetler (#316, #321, #322) sayıldı; yanlış beraatler hiç sayılmamıştı
+ve bugün ölçülünce oran %10,7 çıktı.
+
 ---
 
 **SIRADAKİ SOMUT ADIM:** düşüşlerin ortak paydası tek bir cümlede toplanıyor —
@@ -482,7 +542,93 @@ yerine (mimarinin kendi ilkesi: *rules engine karar verir, LLM açıklar*).
 
 ## §10. DEĞİŞİKLİK GÜNLÜĞÜ (yalnız ileri yönlü)
 
-### ⏸️ KALDIĞIMIZ YER — 2 Eylül 2026, gün sonu (SIRADAKİ OTURUM BURADAN BAŞLAR)
+### ⏸️ KALDIĞIMIZ YER — 3 Eylül 2026 (SIRADAKİ OTURUM BURADAN BAŞLAR)
+
+**DURUM:** her şey commit'li ve push'lu. **Backend süiti 3392 passed · 18 skipped ·
+0 failed** (7:54; önceki taban 3380 → +12 yeni test). Kalite kapısı (ruff aile tavanları
+B31/E9-0/F202/S63), belge denetimi ve ölü kod kapısı geçiyor. Frontend/e2e bu turda
+KOŞULMADI — değişikliklerin hepsi backend, ama iddia da o kadarıyla sınırlı.
+
+**BUGÜN — K3'ÜN 1. SIRADAKİ İŞİ KAPANDI (sınıflandırma) VE SORU DEĞİŞTİ.**
+
+1. **Ölçüm teşhis edilebilir hâle getirildi.** `grounded=-` artık hangi tutarın düşürdüğünü
+   yazıyor; `--dokum` bayrağı koşumun TAM cevaplarını JSON'a döküyor. (Bir düşüşü
+   sınıflandırmak, metni görmeden yapılamaz — §9.3'ün kendi dersi.)
+2. **KARIŞTIRICI BULUNDU:** `.env` = `fallback`, Gemini 10 istek/dk → çıplak davranış
+   koşumu **zorunlu olarak karışık sağlayıcı** (tek koşumda 3 geçiş ölçüldü). Kayıtlı
+   %82,9 tabanı bu yüzden kirliydi. **Sağlayıcı sabit taban: medyan %88,6 · `uslup` 18/24.**
+3. **SINIFLANDIRMA (13/13 okundu): GERÇEK UYDURMA YOK.** 4 türev sayı · 2 kullanıcı beyanı ·
+   1 örnekleyici yuvarlak sayı. → **Zorlama tasarımının cevabı: hiçbiri eklenmeyecek.**
+4. **ASIL BULGU — DEDEKTÖR YANLIŞ BERAAT VERİYOR.** Aynı cevapta koçun YANLIŞ hesabı
+   (3.536) alakasız bir yaprağa %2 içinde denk geldiği için geçti, DOĞRUSU (3.776)
+   düşerdi. **Tesadüf yüzeyi %10,7** (200.000 örneklem, 27 yaprak). Ayrıntı §9.4.
+5. **BUG #322 kapandı** — izin listesi modelin gördüğü veriden dardı; kullanıcının bir tur
+   önce söylediği tutarı doğru hatırlayan koç halüsinasyon damgası yiyordu (üretimde güven
+   0,4). 9 test, **mutasyon 5/5** (M1 önce hayatta kaldı, kapının kendi kör noktasını buldu).
+
+**ÖLÇÜM — DÜRÜST KAYIT (3 koşum, OpenRouter sabit, öncesi/sonrası):**
+
+| | kriter (min/medyan/maks) | `grounded` | `action` | düşüren tutarlar |
+|---|---|---|---|---|
+| Öncesi | %88,6 / %88,6 / %91,4 | 2/6 | 5/6 | 240 · 500 · 1.000 · 3.424 · 5.424 · 8.440 · 9.700 |
+| Sonrası | %85,7 / %85,7 / %88,6 | 2/6 | **3/6** | 1.000 · 1.305 · 1.500 · 2.500 · 9.700 |
+
+**Manşet DÜŞTÜ ama sebebi bu değişiklik değil:** düşüş tamamen `action` ekseninde ve o
+eksene dokunulmadı (sağlayıcı gürültüsü — `uslup` dünkü koşumda aynısını yapmıştı).
+**BUG #322'nin kanıtı manşette değil:** `500` ve `240` düşüren tutarlar listesinden
+TAMAMEN kalktı ve geriye kalanların **hepsi türev/örnekleyici**. Yani (a) düzeltme hedefini
+vurdu, (b) sınıflandırma bağımsız olarak doğrulandı. Deterministik kanıt 9 test + mutasyon
+5/5'tedir; **8 senaryoluk 3 koşum bu büyüklükte bir kazancı manşette çözemez** (örneklem
+dersi, yine).
+
+**SIRADAKİ İŞLER — ÖNCELİK SIRASIYLA:**
+1. **YANLIŞ BERAAT (K3'ün yeni yarısı).** Eşleşmeyi **izlenebilir** kıl: bir tutar geçtiğinde
+   HANGİ kokpit yaprağına denk geldiği raporlansın. Beraatı gerekçesiz bir dedektör,
+   mahkûmiyeti ölçülmüş ama beraatı ölçülmemiş bir kapıdır. **Tolerans DARALTILMAZ** —
+   yuvarlanmış doğru cevabı düşürür (BUG #316 dersi); meşruluk sınaması önce yapılır.
+2. **Prompt kırpma — TABAN ARTIK TEMİZ.** Karşılaştırma tabanı: OpenRouter sabit, medyan
+   **%88,6** (3 koşum). Sistem promptu isteğin %78'i; KURAL SIFIR %32 ve `offer_propose=False`
+   iken `propose_action` tool listesinde HİÇ YOK (`no_action` 12/12 · şimdi 24/24 kanıt).
+   **Groq beklentisi yok** (8.000 altına inmek ~5.000 token indirim ister).
+3. **KOÇ, KULLANICIDAN ZATEN VERDİĞİ BİLGİYİ İSTİYOR (yeni, ürün defekti).** `action`
+   ekseni 5/6 ↔ 3/6 dalgalandı; "gürültü" diye geçilecekken METİNLERE bakıldı ve gürültü
+   çıkmadı:
+
+   | Kullanıcı | Koç |
+   |---|---|
+   | "**240 TL** market aldım **kartla**" | *"Tutarı rakamla ve hangi hesap olduğunu yazar mısın?"* |
+   | "**Bugün** **500 TL** yemek harcadım **nakitten**" | *"Tarih bilgisi tutarsız. Tarihi açıkça belirt…"* |
+
+   Üçünde de tutar/hesap/tarih mesajda AÇIKÇA var. Kök: `propose_action` payload'ı
+   sözleşmeden düşüyor ve `PayloadGecersiz` kendi `kullanici_mesaji`nı tanımlamadığı için
+   **taban sınıfın genel mesajını** miras alıyor. **Bu turdan ÖNCE de vardı** (2 kez) —
+   regresyon değil, mevcut defekt.
+   **İLK ADIM ÖLÇÜM, DÜZELTME DEĞİL:** `logger.warning("propose_action reddedildi: %s",
+   red.kod)` (`app/coach.py:2943`) yalnız KODU basıyor; `red.gorunur_neden` kesin teşhisi
+   taşıyor (`"tool argumaninda eksik alan: X"`) ve **bilinçli olarak para içermiyor**
+   (ADR-052). Önce onu logla, hangi alanın düştüğünü ÖLÇ, sonra `PayloadGecersiz`'e kendi
+   kullanıcı mesajını yaz. (Bugün alınmadı: tam süit koşumu mevcut koddan alınmış kanıttır.)
+4. **G3/G5 kararsızlığı (1/3)** — kart ödemesi bağlamda VAR ama koç bazen atlıyor.
+5. **Dalkavukça hizalanma** — `uslup_kurallari.py`'de karşılığı yok.
+6. **G2 deseni dar** — ölçüt turu AYRI, gerekçesi ÖNCE yazılarak.
+7. Açık ürün soruları: kredi `balance`i anapara olmalı mı · `IC_JARGON` · emir kipi ·
+   K4 stigmerji · K5 caching.
+
+**BU TURUN DERSLERİ:**
+- **Bir dedektörün BERAATI, mahkûmiyeti kadar ölçülmelidir.** K3 boyunca yalnız yanlış
+  mahkûmiyetler sayıldı (#316, #321, #322); yanlış beraat hiç sayılmamıştı → %10,7.
+- **Bir kapı, sözleşmeyi YAZDIĞI yerde değil ZORLANDIĞI yerde ölçmelidir.** Rol filtresini
+  kaldıran mutasyon 51 testten kaçtı; sözleşme `check_grounding`de yazılıydı ama çağıran
+  tarafta ölçülmüyordu.
+- **Ürünün kendisi döngüselliği zaten üretiyordu:** iç plan yönlendirmesi modelin çıktısını
+  `role="user"` olarak listeye ekliyor. "Rolüne göre süz" yetmez; **kaynağın kalıcı olup
+  olmadığına** bakmak gerekir.
+- **Bir ölçüm aracının varsayılanı, ölçümün karıştırıcısı olabilir.** `.env=fallback` bir
+  ürün ayarıdır; ölçüm aracı onu miras aldığı için taban aylarca karışık kaldı.
+
+---
+
+### ⏸️ (ÖNCEKİ) KALDIĞIMIZ YER — 2 Eylül 2026, gün sonu
 
 **DURUM:** her şey commit'li ve push'lu (`main` = `origin/main`, fark yok).
 Süitler: **backend 3380 · frontend 214 · e2e 8** — hepsi yeşil.

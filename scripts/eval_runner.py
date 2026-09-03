@@ -26,8 +26,10 @@ GUNCELLEMELER
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -146,6 +148,38 @@ def _tek_kosum(saglayici_adi: Optional[str], judge_provider, args) -> Optional[D
     finally:
         db.close()
 
+    # TEŞHİS DÖKÜMÜ — skor bir ölçüm değildir, METİN de ölçümün parçasıdır (§9.3 dersi:
+    # "öncesi koşumun METNİNİ almamıştım, yalnız skorunu almıştım").
+    # `eval_store` bilinçli olarak metin taşımaz (kalıcı defter) ve o sözleşme bozulmuyor:
+    # bu dosya KALICI DEĞİL, tek bir turun teşhisidir ve yolunu operatör verir.
+    if args.dokum:
+        dokum_yolu = Path(args.dokum)
+        dokum_yolu.parent.mkdir(parents=True, exist_ok=True)
+        mevcut = []
+        if dokum_yolu.exists():
+            try:
+                mevcut = json.loads(dokum_yolu.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                mevcut = []   # bozuk/boş dosya koşumu düşürmez; teşhis aracı ölçümü durdurmaz
+        mevcut.append({
+            "zaman": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "saglayici": ad,
+            "model": getattr(provider, "model", None),
+            "set": "altin" if args.altin else "varsayilan",
+            "pass_rate": rapor["pass_rate"],
+            "gecerli": rapor["gecerli"],
+            "senaryolar": [
+                {"name": r["name"], "scores": r["scores"],
+                 "grounding_detay": r.get("grounding_detay") or {},
+                 "uslup_ihlalleri": r.get("uslup_ihlalleri") or [],
+                 "reply_tam": r.get("reply_tam", "")}
+                for r in rapor["scenarios"]
+            ],
+        })
+        dokum_yolu.write_text(json.dumps(mevcut, ensure_ascii=False, indent=2),
+                              encoding="utf-8")
+        print(f"  [dokum] {dokum_yolu} ({len(mevcut)} kosum)")
+
     # İki set AYNI dosyaya yazılır ama AYNI ŞEYİ ölçmez. Etiket olmadan geçmiş listesinde
     # davranış oranı ile muhakeme oranı yan yana durur ve düşüş raporu ikisini kıyaslar —
     # yani birbirine karışan iki ölçüm sahte bir "regresyon" üretir.
@@ -203,6 +237,9 @@ def main() -> None:
     ayristirici.add_argument("--kaydet", action="store_true",
                              help="skoru data/eval_runs.jsonl'e ekle ve önceki koşumla karşılaştır")
     ayristirici.add_argument("--gecmis", action="store_true", help="saklanan koşumları listele")
+    ayristirici.add_argument("--dokum", default=None, metavar="YOL",
+                             help="koşumun TAM cevaplarını + grounding detayını JSON'a yaz "
+                                  "(teşhis; skor bir ölçüm değildir, metin de ölçümün parçasıdır)")
     ayristirici.add_argument("--altin", action="store_true",
                              help="ALTIN SENARYO SETİ (G1-G6): koçun muhakemesini ölçer "
                                   "(1 Eyl 2026 gerçek manzarası; bkz. scripts/coach_altin.py)")

@@ -57,6 +57,23 @@ karşılaştırır. Ayrıntı: `docs/kalite-seruveni/masterprompt-koc.md` §9.1.
 Ücretsiz Gemini katmanı **dakikada 10 istek** verir; altı senaryoluk altın koşum sınıra
 değip zincirde bir sonraki sağlayıcıya düşebilir — o koşum sağlayıcı-başına ölçüm SAYILMAZ.
 
+⚠️ **KALİTE ÖLÇERKEN SAĞLAYICIYI SABİTLE — çıplak koşum karışıktır.** `.env`de
+`LLM_PROVIDER=fallback` yazar; yani bayraksız `python -m scripts.eval_runner` zinciri
+koşar ve Gemini kotası **koşumun ortasında** dolup OpenRouter devralır. **Ölçüldü
+(3 Eyl 2026): tek bir davranış koşumunda 3 kez geçiş.** Karışık koşumun manşet oranı bir
+kalite ölçümü değil, bir sağlayıcı karışımı ölçümüdür — aynı sette sabitleyince taban
+%82,9'dan medyan **%88,6**'ya çıktı. Kalite karşılaştırması yapacaksan daima:
+
+```powershell
+.\venv\Scripts\python.exe -m scripts.eval_runner --saglayicilar openrouter
+.\venv\Scripts\python.exe -m scripts.eval_runner --saglayicilar openrouter --dokum kosum.json
+```
+
+`--dokum` koşumun **TAM cevaplarını** + grounding detayını JSON'a yazar. Bir düşüşü
+sınıflandırmak (koç mu hatalı, ölçüt mü) cevabın METNİNİ görmeden yapılamaz; skor tek
+başına ölçüm değildir. Dosya kalıcı defter DEĞİLDİR (`data/eval_runs.jsonl` metin taşımaz),
+tek bir turun teşhisidir.
+
 ## Stopaj / Getiri Eşiği (Wave-K, G4)
 
 Koç artık vergi aritmetiği YAPMAZ; kural motoru hesaplar, koç okur (`app/vergi.py` +

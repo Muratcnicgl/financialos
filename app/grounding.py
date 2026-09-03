@@ -11,6 +11,18 @@ Bu bir UYARI sinyalidir, sert blok değil (koç meşru türev sayılar üretebil
 Saf/deterministik — LLM/ağ gerektirmez, birim-test edilebilir.
 
 GUNCELLEMELER
+- BUG #322 fix (3 Eyl 2026, K3): **izin listesi, modelin GÖRDÜĞÜ veriyle aynı olmalıydı.**
+  `CoachEngine` modele son turları veriyor; izin listesi ise yalnız O ANKİ mesajı sayıyordu.
+  Kullanıcının bir tur önce söylediği tutarı doğru hatırlayan koç halüsinasyon damgası
+  yiyor, üretimde güveni 0,4'e düşüyordu. `gecmis_kullanici_mesajlari` eklendi; koçun
+  KENDİ cevapları bilinçli olarak dışarıda (döngüsellik yasağı — bkz. fonksiyon docstring'i).
+- **ÖLÇÜLMÜŞ SINIR (3 Eyl 2026, açık iş): bu dedektör YANLIŞ BERAAT de veriyor.**
+  Eşleşme %2 oransal toleransla yapılır ve kokpit onlarca sayısal yaprak taşır; ölçüldü:
+  100-20.000 aralığından rastgele bir tutar, hiçbir dayanağı olmasa da **%10,7** olasılıkla
+  "izlenebilir" sayılıyor (27 yaprakla; canlı kokpit daha zengin). Canlı bir örnekte koçun
+  YANLIŞ hesabı (3.536) alakasız bir yaprağa denk geldiği için geçti, DOĞRUSU (3.776)
+  düşerdi. Tolerans daraltılmadı — yuvarlanmış doğru cevabı düşürürdü (BUG #316 dersi).
+  Doğru yön eşleşmeyi izlenebilir kılmak; `masterprompt-koc.md` §9.4'te açık madde.
 - BUG #256 fix (7 Agu 2026, H4): iki sessiz körlük kapatıldı.
   (1) **Etiket koda gömülüydü.** Desen `…\\s*TL` sabitiyle yazılmıştı; para birimi etiketi
       değişirse desen hiçbir tutar bulamaz, `checked=0` olur ve fonksiyon `{"ok": True}`
@@ -138,6 +150,7 @@ def check_grounding(
     rel_tol: float = 0.02,
     abs_tol: float = 1.0,
     para_kodu: Optional[str] = None,
+    gecmis_kullanici_mesajlari: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Koç cevabındaki para tutarlarını cockpit değerleriyle karşılaştır.
@@ -150,6 +163,18 @@ def check_grounding(
     Ders LLM-003a: Kullanıcının az önce söylediği tutar cockpit'e henüz girmediği
     için (pending action) grounding ihlali vermemeli. user_message içindeki
     tutarlar da 'geçici izinli' sayılır.
+
+    BUG #322 — İZİN LİSTESİ, MODELİN GÖRDÜĞÜ VERİYLE AYNI OLMALI.
+    Yukarıdaki ders TEK TURLUK bir konuşma için yazılmıştı; oysa `CoachEngine` modele son
+    `max_history_turns` turu veriyor. Ölçülen defekt (3 Eyl 2026): kullanıcı bir turda
+    *"Bugün 500 TL yemek harcadım"* dedi, koç iki tur sonra bunu doğru hatırlayıp yazdı ve
+    **halüsinasyon damgası yedi** (üretimde güven 0.4'e düşer). `gecmis_kullanici_mesajlari`
+    bu boşluğu kapatır.
+
+    **KOÇUN KENDİ ÖNCEKİ CEVAPLARI BİLİNÇLİ OLARAK İZİNLİ DEĞİLDİR** — çağıran taraf yalnız
+    `role == "user"` mesajlarını geçirir. Aksi halde bir turda uydurulan sayı sonraki turda
+    aklanırdı: denetlenen şey modelin çıktısıyken izin listesini yine modelin çıktısından
+    beslemek döngüseldir. Kullanıcı mesajı DIŞ bir olgudur, koç cevabı denetlenenin kendisi.
     """
     etiketli = _etiketli_desen(para_kodu)
     etiketsiz_re = _etiketsiz_desen(para_kodu)
@@ -157,13 +182,14 @@ def check_grounding(
     allowed_raw: List[float] = []
     _collect_numeric(cockpit, allowed_raw)
 
-    # Kullanıcı mesajındaki tutarları da izinli listesine ekle
-    if user_message:
-        for m in etiketli.finditer(user_message):
-            try:
-                allowed_raw.append(_to_float_tr(m.group("num")))
-            except ValueError:
-                continue
+    # Kullanıcı mesajındaki tutarları da izinli listesine ekle. BUG #322: yalnız BU TURUN
+    # mesajı değil, modele verilen geçmişteki kullanıcı mesajları da.
+    # `metindeki_tutarlar` kullanılır, `etiketli` deseni DEĞİL: kullanıcı "bugün 500
+    # harcadım" diye etiketsiz yazar, koç "500 TL" diye etiketleyerek tekrarlar — yazım
+    # biçimi bir ayrım yaratmamalı (BUG #316/#321'in aynı dersi).
+    for _mesaj in [user_message, *(gecmis_kullanici_mesajlari or [])]:
+        if _mesaj:
+            allowed_raw.extend(metindeki_tutarlar(_mesaj))
 
     allowed = {round(abs(v), 2) for v in allowed_raw}
 

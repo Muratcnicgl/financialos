@@ -43,7 +43,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [RESIL-007] LLM çağrılarında timeout yok — asılı istek tüm chain'i bekletir
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: yalnız Ollama timeout, bulut sağlayıcı timeout'suz (coach.py:1234)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: **BUG #263** maddenin Aksiyon'unu birebir uyguladı. `app/coach.py:1491` `llm_timeout_saniye()` TEK KAYNAK olarak eklendi ve Anthropic (:1570) · Gemini (:1639) · Groq (:1792) dahil altı çağrı yerinde kullanılıyor. M85 notu (*"yalnız Ollama timeout"*) artık yanlış. Docstring sebebi de yazıyor: SDK varsayılanı Anthropic/OpenAI ailesinde **600 sn**'dir ve eşzamanlı LLM tavanı 3 iken asılı üç bağlantı koçu on dakika kapatırdı.
 - **Kanıt:** `app/coach.py` provider çağrıları (explicit timeout yok)
 - **Aksiyon:** Her provider çağrısına timeout (örn. 30sn); aşınca bir sonraki provider'a geç.
 - **Etki:** Orta · **Efor:** S
@@ -69,7 +69,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [RESIL-011] Backup var ama restore süreci test edilmemiş
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: scripts/restore.py yok, restore test edilmemiş
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `tests/test_backup_restore_drill.py` (7 test, yeşil) GERÇEK bir tatbikat koşuyor — *veri yaz → yedek al → **veriyi yok et** → geri yükle → birebir aynı mı*; ayrıca yıkıcı betiğin emniyet kilitleri (onaysız yazmama, bozuk yedeği reddetme, geri yüklemeden önce mevcut DB'yi kopyalama) doğrulanıyor. Postgres için ayrı tatbikat da var (`test_postgres_restore_drill.py`) ve geri yükleme yolu `scripts/restore.py` olarak yazılı. Maddenin endişesi (*"geri yüklenebildiği kanıtlanmamış yedek yoktur"*) testin kendi docstring'inde gerekçe olarak duruyor.
 - **Kanıt:** `scripts/backup.py`; `docs/dev-commands.md` backup bölümü (restore adımı yok)
 - **Aksiyon:** `scripts/restore.py` + belgelenmiş restore prosedürü; periyodik "restore tatbikatı" (yedekten ayağa kalkıyor mu).
 - **Etki:** Orta · **Efor:** M

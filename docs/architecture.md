@@ -12,7 +12,15 @@ LLM hiçbir zaman doğrudan DB'yi yazmaz; akış her zaman propose → kullanıc
 
 ## LLM Provider Mimarisi (`app/coach.py`)
 
-`LLMProvider` soyut sınıfı + üç implementation (`AnthropicProvider`, `GeminiProvider`, `GroqProvider`) + `FallbackProvider` (zincir). `LLM_PROVIDER=fallback` ile birincil 429/quota dolarsa veya boş/bozuk cevap dönerse otomatik bir sonrakine geçilir. Gemini'nin `MALFORMED_FUNCTION_CALL` gibi finish_reason'ları `ProviderEmptyResponseError` olarak raise edilir, FallbackProvider bunları quota gibi davranıp atlar.
+`LLMProvider` soyut sınıfı + **sekiz** implementation + `FallbackProvider` (zincir).
+Tek doğruluk kaynağı `app/coach.py`'deki `_SAGLAYICI_KURUCULARI` sözlüğüdür:
+`gemini` · `anthropic` · `groq` · `cerebras` · `openrouter` · `together` · `deepinfra`
+— artı koşullu olarak eklenen `ollama` (`OLLAMA_ENABLED=1`, yerel/egemen yol).
+Zincir SIRASI ayrı tutulur (`_ZINCIR_SIRASI`), çünkü sıra bir **politika** kararıdır,
+ad kümesi değil (M13/ADR-034).
+*(5 Eyl 2026 düzeltmesi — DOCS-005: bu satır "üç implementation" diyordu; kod sekiz
+taşıyor. Liste artık `tests/test_saglayici_belgesi_kapisi.py` ile koda bağlı, yani bir
+sağlayıcı eklenip belge unutulursa süit kırmızı verir.)* `LLM_PROVIDER=fallback` ile birincil 429/quota dolarsa veya boş/bozuk cevap dönerse otomatik bir sonrakine geçilir. Gemini'nin `MALFORMED_FUNCTION_CALL` gibi finish_reason'ları `ProviderEmptyResponseError` olarak raise edilir, FallbackProvider bunları quota gibi davranıp atlar.
 
 `V3_GOD_MODE_PROMPT` system prompt'u koç davranışının tek kaynağıdır — özellikle:
 - **KURAL SIFIR**: `propose_action` SADECE kullanıcı gerçekleşmiş bir eylemi bildirdiğinde çağrılır. Soru/analiz/selamlaşmada asla.

@@ -8,7 +8,7 @@
 - **Etki:** Yüksek · **Efor:** S
 
 ### [TEST-002] Belge çelişkisi: "pytest kullanılmıyor" derken olgun pytest suite var
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: dev-commands pytest kullanilmiyor der (yanlis)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: maddenin kendi **Aksiyon**'u uygulanmış. `docs/dev-commands.md:29` artık *"GÜNCEL (M87, Wave-6): Aşağıdaki eski not artık YANLIŞ. `tests/` olgun bir **pytest** süiti"* diyor ve kök `test_*.py` dosyalarını tarihsel/manuel araç olarak ayırıyor. Belge çelişkisi kalmadı.
 - **Kanıt:** `docs/dev-commands.md` vs `tests/conftest.py`, `tests/test_cashflow.py`, `.pytest_cache` (pytest-9.0.3)
 - **Aksiyon:** dev-commands.md'yi güncelle: (a) `tests/` pytest suite, (b) kök legacy smoke; hedef tam pytest geçişi.
 - **Etki:** Orta · **Efor:** S
@@ -101,7 +101,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [TEST-017] Coverage eşiği CI gate — önce gerçekçi baseline
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: cov-fail-under esigi yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `.github/workflows/ci.yml:97` `--cov-fail-under=93` ile koşuyor (eşik bilinçli olarak `pyproject.toml`'da değil, o satırda; gerekçesi `ci.yml:81`'de yazılı). Maddenin önerdiği 60 değil **93** seçilmiş — ölçülen gerçek %94,02 üzerine kurulu bir ratchet.
 - **Kanıt:** pytest-cov #444 (dosya-bazlı eşik yok)
 - **Aksiyon:** Global `--cov-fail-under=60` + kritik modüller için ayrı per-modül gate; matrix `coverage combine`.
 - **Etki:** Orta · **Efor:** M

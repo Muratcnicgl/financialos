@@ -26,7 +26,7 @@ npm run build                          # üretim build'i frontend/dist
 
 ## Test Scriptleri
 
-**GÜNCEL (M87, Wave-6):** Aşağıdaki eski not artık YANLIŞ. `tests/` olgun bir **pytest** süiti (1150+ test,
+**GÜNCEL (M87, Wave-6):** Aşağıdaki eski not artık YANLIŞ. `tests/` olgun bir **pytest** süiti (5 Eyl 2026'da **3.560 test**,
 in-memory SQLite + FakeProvider + hypothesis + Playwright e2e). Ana komut: `.\venv\Scripts\python.exe -m pytest tests/ -q`.
 Kök `test_*.py` scriptleri tarihsel/manuel araçlardır (pytest `testpaths=["tests"]` ile toplanmaz). Aşağısı o eski manuel scriptlerin tarihsel notudur:
 
@@ -120,7 +120,12 @@ Yedekler `data/backups/` altında, 30 günden eskisi otomatik silinir.
 Repo kökünde, `.gitignore`'da:
 
 ```
-LLM_PROVIDER=gemini          # gemini | anthropic | groq | ollama | fallback
+LLM_PROVIDER=gemini          # gemini | anthropic | groq | cerebras | openrouter |
+                             # together | deepinfra | ollama | fallback
+                             # (DOCS-005, 5 Eyl 2026: bu satir dordunu atliyordu —
+                             #  ustelik asagidaki MODEL degiskenleri onlari sayiyordu.
+                             #  Tek kaynak app/coach.py `_SAGLAYICI_KURUCULARI`;
+                             #  tests/test_saglayici_belgesi_kapisi.py bunu zorlar.)
 GEMINI_API_KEY=...
 GROQ_API_KEY=...             # fallback için opsiyonel
 ANTHROPIC_API_KEY=...        # opsiyonel

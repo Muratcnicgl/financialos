@@ -28,7 +28,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [DOCS-005] Provider listesi belgeler arası tutarsız
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: README/dev-commands/coach.py provider listesi uyumsuz
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü ve düzeltmesi: çelişki GERÇEKTİ. Kod sekiz sağlayıcı taşıyor (`_SAGLAYICI_KURUCULARI`'nin 7 anahtarı + koşullu `ollama`); `architecture.md` *"üç implementation"* diyordu, `dev-commands.md`'nin `LLM_PROVIDER` satırı **dördünü atlıyordu** — üstelik aynı belgenin birkaç satır altında `CEREBRAS_MODEL`/`TOGETHER_MODEL`/`DEEPINFRA_MODEL` sayılıyordu, yani belge kendi içinde de çelişiyordu. İkisi de koddan düzeltildi ve **koda bağlandı**: `tests/test_saglayici_belgesi_kapisi.py` her sağlayıcı adının iki belgede de geçmesini şart koşar (mutasyon 2/2). Bu, BUG #317'nin kardeşi: operatörün belgede göremediği bir sağlayıcı, onun için var olmayan bir sağlayıcıdır.
 - **Sorun/Fırsat:** README (Groq/Cerebras/Gemini/OpenRouter) vs PROJE.md/architecture.md (gemini/anthropic/groq/fallback) vs kod (6 provider). Yeni geliştirici/agent yanlış model kurar.
 - **Kanıt:** `README.md:54-63` vs `docs/dev-commands.md` .env şeması vs `app/coach.py` provider'lar
 - **Aksiyon:** Tek doğruluk kaynağı (kod/Settings) + belgeleri senkronla.

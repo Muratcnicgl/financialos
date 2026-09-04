@@ -99,17 +99,22 @@ if ($arayuzBayat) {
         Yaz "arayuz bayat — derleniyor (npm run build)"
         $fLog = Join-Path $LOGDIZIN "guncelle-build.out"
         $fe = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "frontend"
+        $t0 = Get-Date
         $n = Start-Process -FilePath "cmd" -ArgumentList @("/c", "npm", "run", "build") `
              -WorkingDirectory $fe -PassThru -WindowStyle Hidden `
              -RedirectStandardOutput $fLog -RedirectStandardError "$fLog.err"
         Wait-Process -Id $n.Id -Timeout 600
-        if ($n.ExitCode -ne 0) {
-            Yaz "BASARISIZ: arayuz derlemesi cikis $($n.ExitCode) verdi — bkz. $fLog.err"
-            exit 3
-        }
-        # KULLANIM-GATE'in arayuz ayagi: derleme "kostu" demek yetmez, CIKTI olculur.
-        if (-not (Test-Path $distIndex)) {
-            Yaz "BASARISIZ: derleme 0 dondu ama dist/index.html YOK"
+
+        # CIKIS KODUNA DEGIL, CIKTIYA BAKILIR (L68 — 5 Eyl 2026'da bu betikte OLCULDU).
+        # Ilk yazimda `$n.ExitCode -ne 0` kontrolu vardi ve derleme BASARILI oldugu halde
+        # basarisiz sayildi: `Start-Process -PassThru` ile alinan nesnenin ExitCode alani
+        # `Wait-Process` sonrasi BOS kalabiliyor ve `$null -ne 0` DOGRU donuyor. Yani
+        # kapinin kendisi, olcmedigi bir seye guvenip yanlis alarm uretti.
+        # Dogru olcum, isin URUNUdur: dist/index.html VAR MI ve BU KOSUMDA mi yazildi.
+        $uretildi = (Test-Path $distIndex) -and `
+                    ((Get-Item $distIndex).LastWriteTime -ge $t0.AddSeconds(-2))
+        if (-not $uretildi) {
+            Yaz "BASARISIZ: arayuz derlemesi cikti uretmedi — bkz. $fLog.err"
             exit 3
         }
         Set-Content -Path $damgaDosya -Value $fKaynak -Encoding utf8

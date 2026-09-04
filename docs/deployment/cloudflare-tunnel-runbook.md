@@ -11,7 +11,60 @@ başlatmada değişir ve telefona kurulmuş PWA'yı kırar.
 
 ---
 
-## 0.0 ⚠️ ÖNCE nginx TÜNEL ŞABLONUNA GEÇ (BUG #283 — bu adım atlanırsa uygulama AÇILMAZ)
+## 0.0-A ⚠️ KULLANILAN YOL (Windows / Docker'sız) — 4 Eylül 2026'da ÖLÇÜLDÜ
+
+> **Bu bölüm, aşağıdaki 0.0'ın YERİNE geçer.** 0.0 Docker + nginx yolunu anlatıyor ve
+> **bu makinede o yol kullanılmıyor** — canlı beta `deploy/windows/baslat.ps1` ile doğrudan
+> uvicorn olarak koşuyor (`SERVE_SPA=1`, nginx yok, Docker yok). Runbook'u olduğu gibi
+> uygulamak, **ilk adımda** çakılmak demekti.
+>
+> **Bu, BUG #326 / L64'ün üçüncü tekrarı:** bir adımın başka bir yolda olması, KULLANILAN
+> yolda olduğu anlamına gelmez. (#326 göç adımı · #339 güncelleme adımı · bu, runbook.)
+> Ölçüm: `grep -c nginx deploy/windows/*.ps1` → **hepsi 0**.
+
+### Neden nginx'e gerek YOK — ölçümle
+
+0.0'ın varlık sebebi nginx'in `:80`'i koşulsuz HTTPS'e yönlendirmesi ve tünelde **sonsuz
+döngü** üretmesiydi (BUG #283). Bu makinede nginx olmadığı için o risk **yapısal olarak
+yok**. Doğrulandı (4 Eylül 2026):
+
+| Ölçüm | Sonuç |
+|---|---|
+| `curl http://127.0.0.1:8000/api/health` (düz HTTP) | **200** — yönlendirme YOK, döngü riski yok |
+| Düz HTTP yanıtında `strict-transport-security` | **yok** (yalnız `permissions-policy`) |
+| Tailscale Funnel bugünkü yapılandırması | `proxy http://127.0.0.1:8000` — **zaten TLS'i dışarıda sonlandırıp düz HTTP yolluyor** |
+| Windows betiklerinde `nginx` atfı | **0** |
+
+**En güçlü kanıt sonuncusudan önceki:** uygulama 11 Ağustos'tan beri TLS'i dışarıda
+sonlandıran bir tünelin (Funnel) arkasında sorunsuz koşuyor. Cloudflare Tunnel de aynı
+şeyi yapar; tek fark adın kimde olduğudur.
+
+### Adım 0.0-A (yapılacak olan)
+
+Tünel doğrudan uvicorn'a bakar — araya nginx **konmaz**:
+
+```
+service: http://127.0.0.1:8000
+```
+
+Aşağıdaki 1. bölümden (cloudflared kurulumu) itibaren runbook **aynen geçerlidir**;
+yalnız `service:` satırında `localhost:80` yerine `127.0.0.1:8000` yazılır.
+
+### Tailscale Funnel'a ne olacak
+
+Alan adı yayına girdikten ve `live_gate.py` yeni adreste geçtikten **sonra** kapatılır —
+önce değil. İki yol bir süre yan yana durur; böylece yeni yol çalışmazsa geri dönüş
+anlıktır. (`deploy/windows/saglik.ps1` funnel'ı onarmaya çalıştığı için, kapatma
+kararı verildiğinde o adım da güncellenmeli — yoksa bekçi kapattığımız tüneli her 10
+dakikada bir geri açar. **Bu, kapanış adımına yazılı bir uyarıdır.**)
+
+---
+
+## 0.0 (TARİHSEL — Docker/nginx yolu; bu makinede KULLANILMIYOR)
+
+**⚠️ Yukarıdaki 0.0-A geçerlidir. Bu bölüm, prod Docker yoluna geçilirse diye korunuyor.**
+
+### Orijinal metin: ÖNCE nginx TÜNEL ŞABLONUNA GEÇ (BUG #283 — bu adım atlanırsa uygulama AÇILMAZ)
 
 Bu runbook'un ilk hâlinde bu adım **yoktu** ve `service: http://localhost:80` yazıyordu.
 Ölçünce hata çıktı: varsayılan `deploy/nginx.conf.template` :80'i **koşulsuz**

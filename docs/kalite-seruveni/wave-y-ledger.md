@@ -502,6 +502,25 @@ ikinci kez kapalı bir kapıya yollamak olur — ve ilk seferinde neden dönmedi
 aynı hatayı tekrarlamak, sorunun kendisini kanıtlamış olmaz, **tekrarlamış** olur.
 **Karar: `y4-davetli-mesaji.md` SÜRÜM B (yeni adresle), Y3'ten sonra.**
 
+
+### Denenen onarım ve sonucu (kayda geçsin — işe yaramadı)
+
+Tünel kapatılıp yeniden açıldı (`funnel off` → `funnel --bg --https=443`). `Funnel on`
+döndü ve proxy doğru kuruldu, **ama DNS değişmedi**: iki çözümleyici de hâlâ 0/4.
+Yetkili tarafın cevabı `Status:3` — yani kayıt **hiç yayınlanmamış**, önbellek sorunu değil.
+Node `Online`, `BackendState: Running`.
+
+**Hipotez (ölçülebilir, henüz doğrulanmadı):** makine uzun süre uykuda kalınca Tailscale
+funnel DNS kaydını **geri çekiyor** ve dönüşü hemen olmuyor. Doğruysa, Ağustos'ta
+davetlilerin gördüğü şey *"site kapalı"* değil **"site yok"**tur — ve bu, ölü betanın
+en makul açıklamasıdır. *(Hâlâ hipotez: bugün node 10+ dakikadır online ve kayıt dönmedi;
+başka bir sebep de olabilir. Sağlık görevi 10 dakikada bir ölçtüğü için dönüş anı
+`logs/erisilebilirlik.csv` ve `saglik.log`'a kendiliğinden düşecek.)*
+
+**Yapılabilecek bir şey yok — ve asıl mesele bu.** Uygulama ayakta, tünel açık, node
+online; çözülmeyen tek şey **başkasının DNS'i**. Kendi alan adı bu bağımlılığı bitirir:
+kayıt Cloudflare'de, Murat'ın hesabında olur.
+
 ### Erişilebilirlik — kararın (a) faturası ilk kez göründü
 
 `python -m scripts.erisilebilirlik_raporu`:

@@ -99,6 +99,11 @@ def _env_sabitle() -> None:
     os.environ["SERVE_SPA"] = "0"
     os.environ["ENVIRONMENT"] = "development"
     os.environ.setdefault("SECRET_KEY", "sozlesme-dondurma-icin-kullanilmayan-anahtar-0123")
+    # BUG #349 — `app.main` import edildiği an `setup_logging()` koşar ve CANLI betanın
+    # `logs/financialos.log` dosyasına döner bir handler bağlanır. Windows'ta ikinci bir
+    # tutucu, canlı uygulamanın log rotasyonunu imkânsız kılar ve uygulama sessizce
+    # loglamayı bırakır (5 Eyl 2026'da ölçüldü). Sunucu OLMAYAN her süreç kendi dizinine yazar.
+    os.environ.setdefault("LOG_DIR", "logs/arac")
     os.environ.pop("SPA_DIST", None)
 
 

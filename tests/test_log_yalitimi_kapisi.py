@@ -87,3 +87,34 @@ def test_KAPI_VAKUMDA_YESIL_OLAMAZ():
         "Dosya handler'ı var ama hiçbiri DÖNER değil; bu kapının anlattığı rotasyon "
         "çakışması o hâlde oluşamaz — kapı gerçeği yansıtmıyor."
     )
+
+
+def test_APP_MAIN_ice_aktaran_BETIKLER_de_LOG_DIR_ayarlar():
+    """Kural yalnız süite değil, `app.main`'i içe aktaran HER sürece uygulanır.
+
+    `conftest.py` düzeltmesi pytest süreçlerini (ve onların alt süreçlerini, ortam
+    miras alındığı için) korur. Ama bir geliştirici `scripts/` altındaki bir betiği
+    canlı uygulama koşarken ELLE çalıştırırsa aynı çakışma yeniden doğar. Bu test o
+    kapıyı kapatır: import satırından ÖNCE `LOG_DIR` sabitlenmiş olmalı.
+
+    Bugün kapsamdaki tek betik `scripts/sozlesme_dondur.py`. Yeni bir betik `app.main`
+    içe aktarırsa burada düşer ve sebebini okur.
+    """
+    ihlal = []
+    betikler = sorted((KOK / "scripts").glob("*.py"))
+    assert betikler, "scripts/ altında .py bulunamadı — tarayıcı bozuk (vakumsal yeşil)"
+    for yol in betikler:
+        satirlar = yol.read_text(encoding="utf-8").splitlines()
+        import_satiri = next(
+            (i for i, s in enumerate(satirlar)
+             if "from app.main import" in s or "import app.main" in s), None)
+        if import_satiri is None:
+            continue
+        if not any("LOG_DIR" in s for s in satirlar[:import_satiri]):
+            ihlal.append(f"{yol.name}:{import_satiri + 1}")
+    assert not ihlal, (
+        "Bu betikler `app.main`'i içe aktarıyor ama öncesinde `LOG_DIR` sabitlemiyor; "
+        "canlı uygulama koşarken çalıştırılırlarsa onun log rotasyonunu kilitlerler "
+        f"(BUG #349):\n  {ihlal}\n"
+        'Düzelt: import satırından ÖNCE `os.environ.setdefault("LOG_DIR", "logs/arac")`.'
+    )

@@ -751,3 +751,9 @@ eşikle karşılaştırıp "tetiklendi" diyen bir adım yok. Bu, bu defterin en 
   *"bir madde düzeltildiğinde Durum satırını güncelle, böylece backlog bir daha sessizce
   bayatlamaz"* diye bitiyor: önlem tuttu, ama **yalnız ayrıntıda**. Özeti kimse güncellemedi.
   Doğru çözüm sayıları elle yazmak değil, `sections/*.md`'den ÜRETMEK.
+* **L75 — Satır numarası bir kanıt değil, bir ADRESTİR; adresler taşınır.** `faz-3-durum.md`
+  her maddeye `dosya:satır` kanıtı iliştirmişti — bugün rastgele seçilen **4 işaretçinin
+  4'ü de** yanlış yeri gösteriyor, biri artık var olmayan bir sembolü işaret ediyor
+  (`_daily_constrained_provider`). Kararların kendisi ölçülünce sağlam çıktı: biri taşınmış
+  (`app/llm_quota.py`), ikisi yerinde. **Kalıcı kanıt sembol adı ve onu kilitleyen testtir**;
+  satır numarası altı hafta ömürlüdür ve okuyanı "düzeltme geri alınmış" sanmaya iter.

@@ -1,5 +1,13 @@
 # Goal Charter — WAVE-6 İSKELETİ (aday girdiler)
 
+> ## ℹ️ 5 Eylül 2026 DENETİMİ — BU İSKELET GERÇEKLEŞTİ, aktif hat başka
+>
+> Wave-6 (M82-M91) **koşuldu ve kapandı**; bu iskelet artık bir yol haritası değil,
+> onun girdi kaydıdır. **Bugün aktif iki hat var:**
+> `docs/kalite-seruveni/masterprompt-koc.md` (Wave-K — koç zekâsı) ve
+> `docs/kalite-seruveni/wave-y-ledger.md` (Wave-Y — yayın/kalite). Planlama için
+> bu belge değil, o ikisi okunur.
+
 **Durum:** 🔲 TASLAK/İSKELET — Wave-5 kapanışında (M81) oluşturuldu. **Henüz aktif goal DEĞİL.**
 **Tarih:** 2026-07-18 · **Öncül:** Wave-5 SAĞLAMLAŞTIRMA (M66-M81) TAMAM.
 

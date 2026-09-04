@@ -1,5 +1,19 @@
 # Goal Charter — WAVE-7 İSKELETİ (Murat'a ürün-DNA soruları)
 
+> ## ℹ️ 5 Eylül 2026 DENETİMİ — GİRİŞ DURUMU SAYILARI ARTIK YANLIŞ
+>
+> Aşağıda *"1235 test · coverage %92 · tek user id=1"* yazıyor. **Bugün ölçülen:
+> 3.527 test (+18 skipped, 5 Eyl gecesi) · coverage %94,02 (**4 Eyl ölçümü** — bu gece
+> yeniden ölçülmedi) · CI eşiği `--cov-fail-under=93` · beş kullanıcı
+> (kurucu profili u5, u1 DEĞİL).** Yani bu belge bir plan olarak değil, 18 Temmuz
+> 2026'nın fotoğrafı olarak okunmalı.
+>
+> Belgedeki *"4 kapsam-dışı blok Murat'ın kararını bekliyor"* çerçevesi de aşıldı:
+> Wave-Y §0.6 kararı tersine çevirdi (*"karar gerekiyorsa seç, uygula, bildir;
+> Murat veto eder"*) — gerekçesi `docs/architecture/adr-057-barindirma.md` başında
+> yazılı: eski kural kararın **24 gün açık kalmasına** sebep olmuştu.
+> Aktif hatlar: `masterprompt-koc.md` · `wave-y-ledger.md`.
+
 **Durum:** 🔲 TASLAK — Wave-6 kapanışında (M91) oluşturuldu. **Henüz aktif goal DEĞİL.**
 **Tarih:** 2026-07-18 · **Öncül:** Wave-6 İÇ SAĞLAMLAŞTIRMA (M82-M91) TAMAM.
 **Giriş durumu:** 1235 test · coverage %92 · auth ON · tek user id=1 · flaky yok.

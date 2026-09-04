@@ -1,5 +1,18 @@
 # Goal Charter — WAVE-8 İSKELETİ (DEPLOY + MOBİL) — Murat kararı bekliyor
 
+> ## ⚠️ 5 Eylül 2026 DENETİMİ — BEKLEDİĞİ KARAR VERİLDİ (bu belge artık kapıda değil)
+>
+> Bu iskelet *"deploy + mobil; İKİSİ DE PARA/HESAP gerektiriyor → Murat kararı
+> olmadan başlamaz"* diyor. **Barındırma kararı 4 Eylül 2026'da verildi:**
+> `docs/architecture/adr-057-barindirma.md` (seçenek A — kendi makine + Cloudflare
+> Tunnel + satın alınmış alan adı). Deploy işi Wave-Y/Y3'te yürüyor ve **kod
+> tarafında engel yok**; kalan adımlar insan-kapısı olarak ayrıca kayıtlı
+> (alan adı satın alma · `cloudflared` UAC onayı · vitrin deposu · ping yenileme).
+>
+> Yani bu belgeyi okuyup *"deploy kararı hâlâ bekliyor"* sonucuna varmak bugün
+> **yanlıştır**. Giriş durumu satırı da bayat: *"1251 test · coverage %92"* →
+> bugün **3.527 test** (5 Eyl gecesi ölçüldü) · coverage **%94,02** (4 Eyl ölçümü). Mobil/PWA kısmı hâlâ açık bir konudur.
+
 **Durum:** 🔲 TASLAK — Wave-7 kapanışında (Blok E) oluşturuldu. **Henüz aktif goal DEĞİL.**
 **Tarih:** 2026-07-18 · **Öncül:** Wave-7 PostgreSQL geçişi (M49-M92) TAMAM.
 **Giriş durumu:** 1251 test · coverage %92 · hibrit DB (SQLite dev / Postgres prod) · RLS · BIST+fon otomasyonu canlı.

@@ -1,5 +1,28 @@
 # Faz 3 Durum (M6) — Kalite/Güvenlik Denetimi
 
+> ## ⚠️ 53 GÜN DOKUNULMADI — 5 Eylül 2026'da DENETLENDİ: **KANITLAR ÇÜRÜMÜŞ, KARARLAR SAĞLAM**
+>
+> Bu belgenin gücü, her maddeye bir `dosya:satır` kanıtı iliştirmesiydi. Dört kanıt
+> işaretçisi rastgele seçilip bugün açıldı — **dördü de yanlış yeri gösteriyor:**
+>
+> | Belgedeki kanıt | Bugün o satırda ne var | Gerçek yer |
+> |---|---|---|
+> | `cockpit.py:42` (alacak yeniden-hesap) | net değer snapshot'ı (BUG #292) | değişti |
+> | `coach.py:163` `_daily_constrained_provider` | logger + BUG #267 notu | **sembol ARTIK YOK** |
+> | `schemas.py:346` GoalRuleCreate validator | `sinking_fund_plan` gövdesi | `schemas.py:376` |
+> | `rules_engine.py:594` `min(day, last_day)` | `upcoming` sıralaması | `:210` · `:222` · `:648` |
+>
+> **Ama KARARLAR yerinde — ayrı ayrı ölçüldü:** P1-9'un `percent ∈ (0,100]` doğrulayıcısı
+> `GoalRuleCreate` içinde duruyor · P1-16'nın ay-sonu klempi üç yerde canlı ·
+> P1-6'nın günlük limit/istatistik işi **kaldırılmadı, TAŞINDI**: bugün `app/llm_quota.py`
+> (`kullanici_gunluk_tavan`, `bugunku_cagri_sayisi`, `paylasilan_cagri_sayisi`) ve kendi
+> kapısı var (`tests/test_llm_kota_kapisi.py`).
+>
+> **DERS (L75): satır numarası bir kanıt değildir, bir ADRESTİR — ve adresler taşınır.**
+> Kalıcı kanıt SEMBOL ADI (fonksiyon/sınıf) ve onu kilitleyen TESTtir. Bu belgeyi bugün
+> okuyan biri satırlara güvenirse *"düzeltme geri alınmış"* sanır; oysa dördünde de yalnız
+> adres eskimiş. Aşağıdaki gövde 18 Temmuz 2026 kaydı olarak korunuyor.
+
 **Milestone 6.** Kaynak plan: `MASTER-FIX-LIST.md` (P1: 27 madde, P2: ~20 grup, P3). Charter M6: P1 tam + P2 üst yarı + P3 üst %25.
 
 ## KRİTİK R3 BULGUSU (M6'nın gerçek doğası)

@@ -1,5 +1,32 @@
 # Tam Süit + Performans Smoke (M90, Wave-6 — 18 Tem 2026)
 
+> ## ⚠️ 48 GÜN DOKUNULMADI — 5 Eylül 2026'da DENETLENDİ
+>
+> **Bu belgedeki hiçbir sayı bugünü anlatmıyor** ve en tehlikelisi de sonuçtur:
+> *"Toplam süit ~44s — CI için hızlı."*
+>
+> | | M90 (18 Tem 2026) | 5 Eyl 2026 (bu gece ölçüldü) |
+> |---|---|---|
+> | Test sayısı | 1.235 | **3.527** (+18 skipped) |
+> | Tam süit süresi | ~44 s | **202,8 s** |
+>
+> Süit **2,9 kat büyüdü, 4,6 kat yavaşladı** — yani test başına maliyet de arttı.
+> "CI için hızlı" cümlesi bugün bir ölçüm değil, bir hatıradır.
+>
+> **ASIL BULGU — BU BÜTÇE YENİDEN ÖLÇÜLEMİYOR.** §3'teki p95 tablosu (cockpit p95 19,3 ms,
+> bütçe <200 ms) tek seferlik, elle kurulmuş bir koşumdan geliyor: depoda onu tekrarlayan
+> **hiçbir betik yok** (`scripts/` altında perf/smoke/bench aranır — sonuç sıfır) ve hiçbir
+> test p95 ölçmüyor. **Tekrarlanamayan bir bütçe bütçe değildir**; ihlal edildiğinde kimse
+> öğrenmez — L61'in performans karşılığı: ölçmek, haber vermek değildir.
+> Bu yüzden §3 tablosu bugün *"bütçe içindeyiz"* kanıtı olarak KULLANILAMAZ; yalnız
+> 18 Temmuz'da öyle olduğunu söyler.
+>
+> **Açık iş:** p95 smoke'unu `scripts/` altında tekrarlanabilir bir ölçüme çevirmek
+> (o zaman bu tablo bir kapıya bağlanabilir). Süre büyümesi ayrıca kendi başına bir konu:
+> 202 s'lik bir pre-commit kancası, atlanmaya davet eden bir kancadır (L22).
+>
+> Aşağıdaki gövde 18 Temmuz 2026 kaydı olarak korunuyor.
+
 ## 1. Flaky kontrolü — 3× tam süit
 | Koşum | Sonuç | Süre |
 |---|---|---|

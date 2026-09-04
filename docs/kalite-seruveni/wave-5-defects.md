@@ -1,5 +1,20 @@
 # Wave-5 Defect Log (M66-M67 KULLANIM-GATE bulguları)
 
+> ## ✅ 5 Eylül 2026'da DENETLENDİ — iddiaları TUTUYOR, kapsamı ise ARTIK DAHA GENİŞ
+>
+> `belge_denetimi` bu belgeyi 48 gün dokunulmamış diye işaretledi. Denetlendi ve
+> **yanlış bir iddia bulunmadı** — bu belge, düzeltmeleri kaydedilmiş tarihsel bir
+> defterdir. Tek bayat nokta, kendi lehine: M70 bölümü tarayıcının kapsamını
+> *"app/routers/*.py + rules_engine + goal_engine + debt_strategy"* diye anlatıyor.
+>
+> **Bugün ölçüldü:** `tests/test_scope_enforcement.py` artık **`app/` ağacının tamamını**
+> tarıyor (`rglob("*.py")`, `models.py` hariç) — **104 dosya**, 18 dosyada gerekçeli
+> `# scope-exempt` işareti, **17 test yeşil**. Yani M70'in *"ÖRNEKLEME değil KAPSAMA"*
+> hedefi yalnız korunmakla kalmamış, dosya listesinden glob'a geçerek **genişlemiş**;
+> bugün eklenen yeni bir router hiçbir şey yapılmadan kapsama giriyor.
+>
+> Belgenin gövdesi 18 Temmuz 2026 kaydı olarak aynen duruyor.
+
 Charter: her defect BUG #161+ numarası + MCP. Kapatma M68'de (kök neden + fix + test + tarayıcı tekrar-kanıt).
 
 ---

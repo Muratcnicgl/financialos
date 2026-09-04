@@ -270,6 +270,11 @@ def run_eval(engine, db, user_id: int, scenarios: List[EvalScenario]) -> Dict:
                     "unverified": list(grounding_ham.get("unverified") or []),
                     "etiketsiz": list(grounding_ham.get("etiketsiz") or []),
                     "checked": grounding_ham.get("checked", 0),
+                    # BUG #324: GEÇEN tutarların gerekçesi de dökülür. Bir düşüşü
+                    # sınıflandırmak için sayıyı görmek gerekiyordu; bir BERAATI
+                    # sınıflandırmak için de gerekçeyi görmek gerekiyor — sapması
+                    # büyük bir eşleşme, tesadüf olabilir (ölçülen tesadüf yüzeyi %10,7).
+                    "dogrulanan": list(grounding_ham.get("dogrulanan") or []),
                 }
                 if "grounded" in scores else {}
             ),

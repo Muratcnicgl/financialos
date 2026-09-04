@@ -16,7 +16,14 @@ GUNCELLEMELER
   Kullanıcının bir tur önce söylediği tutarı doğru hatırlayan koç halüsinasyon damgası
   yiyor, üretimde güveni 0,4'e düşüyordu. `gecmis_kullanici_mesajlari` eklendi; koçun
   KENDİ cevapları bilinçli olarak dışarıda (döngüsellik yasağı — bkz. fonksiyon docstring'i).
-- **ÖLÇÜLMÜŞ SINIR (3 Eyl 2026, açık iş): bu dedektör YANLIŞ BERAAT de veriyor.**
+- BUG #324 fix (4 Eyl 2026, K3): **beraatin de gerekçesi olmalı.** Aşağıdaki ölçülmüş
+  sınır artık GÖRÜNÜR: her doğrulanan tutar `dogrulanan` listesinde hangi değere, yüzde
+  kaç sapmayla ve hangi KAYNAKTAN (kokpit / kullanıcı beyanı) denk geldiğini taşır.
+  Sıfır sapmalı eşleşme kanıttır; %1,78 sapmayla alakasız bir alana denk gelmek tesadüf
+  olabilir — fark ancak sayı yazılınca görülür. **Karar ve tolerans DEĞİŞMEDİ**
+  (`ok` semantiği aynı); değişen tek şey kararın izlenebilirliği. 8 test, mutasyon 4/4.
+- **ÖLÇÜLMÜŞ SINIR (3 Eyl 2026, hâlâ açık — kararı değiştiren bir çözüm YOK):
+  bu dedektör YANLIŞ BERAAT de veriyor.**
   Eşleşme %2 oransal toleransla yapılır ve kokpit onlarca sayısal yaprak taşır; ölçüldü:
   100-20.000 aralığından rastgele bir tutar, hiçbir dayanağı olmasa da **%10,7** olasılıkla
   "izlenebilir" sayılıyor (27 yaprakla; canlı kokpit daha zengin). Canlı bir örnekte koçun
@@ -181,6 +188,10 @@ def check_grounding(
 
     allowed_raw: List[float] = []
     _collect_numeric(cockpit, allowed_raw)
+    #: BUG #324 — dayanağın KAYNAĞI da kaydedilir. Kokpit değeri kural motorunun
+    #: deterministik çıktısıdır; kullanıcı beyanı ise doğrulanmamış bir iddiadır.
+    #: İkisi aynı güçte kanıt değildir ve bir beraat gerekçesi bunu gizleyemez.
+    _kaynak: Dict[float, str] = {round(abs(v), 2): "cockpit" for v in allowed_raw}
 
     # Kullanıcı mesajındaki tutarları da izinli listesine ekle. BUG #322: yalnız BU TURUN
     # mesajı değil, modele verilen geçmişteki kullanıcı mesajları da.
@@ -189,11 +200,17 @@ def check_grounding(
     # biçimi bir ayrım yaratmamalı (BUG #316/#321'in aynı dersi).
     for _mesaj in [user_message, *(gecmis_kullanici_mesajlari or [])]:
         if _mesaj:
-            allowed_raw.extend(metindeki_tutarlar(_mesaj))
+            for _v in metindeki_tutarlar(_mesaj):
+                allowed_raw.append(_v)
+                # Kokpit'te de varsa "cockpit" etiketi KORUNUR: daha güçlü kanıt kazanır.
+                _kaynak.setdefault(round(abs(_v), 2), "kullanici")
 
     allowed = {round(abs(v), 2) for v in allowed_raw}
 
     unverified: List[float] = []
+    #: BUG #324 — doğrulanan tutarların GEREKÇESİ (hangi değere, ne kadar sapmayla,
+    #: hangi kaynaktan). Karar değil, kararın izi.
+    dogrulanan: List[Dict[str, Any]] = []
     checked = 0
     etiketli_araliklar: List[tuple[int, int]] = []
     for m in etiketli.finditer(reply):
@@ -205,9 +222,28 @@ def check_grounding(
         if val < min_magnitude:
             continue
         checked += 1
-        matched = any(abs(val - a) <= max(abs_tol, rel_tol * a) for a in allowed)
-        if not matched:
+        # BUG #324: BERAATIN DA GEREKÇESİ OLMALI. Eskiden yalnız "eşleşti mi" sorulurdu ve
+        # cevap `True` ise hiçbir iz kalmazdı. Ölçüldü (3 Eyl 2026): koçun YANLIŞ hesabı
+        # 3.536, alakasız bir yaprağa (`saglikli_borc_hedefi`=3.600) %1,78 uzaklıkta olduğu
+        # için geçmişti; DOĞRUSU 3.776 ise düşecekti (ertesi gün canlı doğrulandı).
+        # Tesadüf yüzeyi %10,7 ölçüldü — yani "geçti" tek başına zayıf bir bilgidir.
+        # KARAR DEĞİŞMİYOR, tolerans DARALTILMIYOR (yuvarlanmış doğru cevabı düşürürdü —
+        # BUG #316 dersi); değişen tek şey, kararın gerekçesinin görünür olması.
+        en_yakin = None
+        for a in allowed:
+            if abs(val - a) <= max(abs_tol, rel_tol * a) and (
+                    en_yakin is None or abs(val - a) < abs(val - en_yakin)):
+                en_yakin = a
+        if en_yakin is None:
             unverified.append(round(val, 2))
+        else:
+            dogrulanan.append({
+                "tutar": round(val, 2),
+                "dayanak": en_yakin,
+                # Sapma sıfırsa eşleşme kanıttır; büyüdükçe tesadüf ihtimali artar.
+                "sapma_yuzde": round(abs(val - en_yakin) / en_yakin * 100, 2) if en_yakin else 0.0,
+                "kaynak": _kaynak.get(en_yakin, "cockpit"),
+            })
 
     # BUG #256: etiketi düşürülmüş tutarlar artık görünür. Etiketli eşleşmelerin içindeki
     # sayılar tekrar sayılmaz (aynı tutar iki kez raporlanmasın).
@@ -242,6 +278,9 @@ def check_grounding(
         "checked": checked,
         "unverified": unverified,
         "etiketsiz": etiketsiz,
+        # BUG #324: beraatin izi. Tüketiciler bunu yok sayabilir (`ok` semantiği
+        # değişmedi), ama bir "geçti" kararı artık gerekçesiz değil.
+        "dogrulanan": dogrulanan,
     }
 
 

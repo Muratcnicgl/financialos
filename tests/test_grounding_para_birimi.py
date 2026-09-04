@@ -99,7 +99,9 @@ def test_etiketsiz_ama_IZLENEBILIR_tutar_yesil_kalir():
 def test_etiketsiz_bos_yanit_yesil_kalir():
     """L6: kapı ürünü kıramaz — tutar içermeyen normal cümle yeşil."""
     r = check_grounding("Merhaba, bugün nasıl yardımcı olabilirim?", COCKPIT)
-    assert r == {"ok": True, "checked": 0, "unverified": [], "etiketsiz": []}
+    # BUG #324: `dogrulanan` sözleşmeye EKLENDİ (beraatin gerekçesi). Hiç tutar yoksa boş.
+    assert r == {"ok": True, "checked": 0, "unverified": [], "etiketsiz": [],
+                 "dogrulanan": []}
 
 
 def test_etiketli_tutar_etiketsiz_sayilmaz():
@@ -158,9 +160,15 @@ def test_kapi_mutasyonu_yakalar():
 # ------------------------------------------------------------- 5. sözleşme/kapsam
 
 def test_donus_sozlesmesi_alanlari():
-    """Yeni alan `etiketsiz` sözleşmenin parçası — tüketiciler ona güvenebilmeli."""
+    """
+    `etiketsiz` ve (BUG #324) `dogrulanan` sözleşmenin parçası — tüketiciler güvenebilmeli.
+
+    Bu test, alan EKLEMEYİ de yakalar ve bu bilinçli: dönüş sözleşmesi sessizce büyürse
+    tüketiciler (eval, chat, trace) hangi alana güvenebileceğini bilemez. BUG #324'te
+    kapı değişikliği YAKALADI ve sözleşme burada yazıya döküldü — gevşetilmedi.
+    """
     r = check_grounding("Kart borcun 42.100,50 TL.", COCKPIT)
-    assert set(r) == {"ok", "checked", "unverified", "etiketsiz"}
+    assert set(r) == {"ok", "checked", "unverified", "etiketsiz", "dogrulanan"}
 
 
 def test_para_etiketi_varsayilani_tl():

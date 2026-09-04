@@ -612,10 +612,15 @@ KENDİ önceki cevabından tekrarlıyor — o kaynak bilinçli olarak izinli de�
 yasağı). Sözleşme birebir tutuyor.
 
 **SIRADAKİ İŞLER — ÖNCELİK SIRASIYLA:**
-1. **YANLIŞ BERAAT (K3'ün yeni yarısı).** Eşleşmeyi **izlenebilir** kıl: bir tutar geçtiğinde
-   HANGİ kokpit yaprağına denk geldiği raporlansın. Beraatı gerekçesiz bir dedektör,
-   mahkûmiyeti ölçülmüş ama beraatı ölçülmemiş bir kapıdır. **Tolerans DARALTILMAZ** —
-   yuvarlanmış doğru cevabı düşürür (BUG #316 dersi); meşruluk sınaması önce yapılır.
+1. **YANLIŞ BERAAT — birinci ayağı KAPANDI (BUG #324), ikinci ayağı açık.**
+   ✅ *İzlenebilirlik:* her doğrulanan tutar artık `dayanak` · `sapma_yuzde` · `kaynak`
+   (kokpit / kullanıcı beyanı) taşıyor ve eval dökümüne düşüyor. Karar ve tolerans
+   DEĞİŞMEDİ — yalnız gerekçe görünür oldu. 8 test, mutasyon 4/4.
+   🟡 *Açık kalan:* gerekçe artık VAR ama henüz KULLANILMIYOR. Sıradaki soru ölçülebilir
+   hâle geldi: **canlı koşumlarda beraatlerin sapma dağılımı nedir?** Sapması sıfıra yakın
+   olanlar gerçek eşleşme, kuyruktakiler tesadüf adayı. O dağılım ölçülmeden bir eşik
+   (ör. "sapma > %1 ise zayıf beraat, ayrı raporla") seçilmemeli — **tolerans DARALTILMAZ**,
+   yuvarlanmış doğru cevabı düşürür (BUG #316 dersi).
 2. **Prompt kırpma — TABAN ARTIK TEMİZ.** Karşılaştırma tabanı: OpenRouter sabit, medyan
    **%88,6** (3 koşum). Sistem promptu isteğin %78'i; KURAL SIFIR %32 ve `offer_propose=False`
    iken `propose_action` tool listesinde HİÇ YOK (`no_action` 12/12 · şimdi 24/24 kanıt).

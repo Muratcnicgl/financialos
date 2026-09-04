@@ -826,3 +826,20 @@ makinenin uyuması ve adın makineye bağlı olması.
   dosyasının hiç var olmaması, rotasyonun **bir kez bile tamamlanmadığını** söylüyordu;
   yani arıza bu gece doğmadı, bu gece TETİKLENDİ. Bir mekanizmanın hiç çalışmamış olması,
   çalıştığının kanıtı sanılabilir — çünkü hata da üretmez.
+
+### BUG #349'un CANLI DOĞRULAMASI (5 Eyl 2026, 01:25)
+
+Düzeltme iki ayrı koşulda ölçüldü:
+
+1. **Süit koşarken (olayı yaratan koşulun ta kendisi).** 3.500 testlik tam süit
+   pre-commit kancasında koşarken canlı log dosyası ölçüldü: **boyut ve damga
+   DEĞİŞMEDİ** (`10.485.727` · `01:08:18`), buna karşılık `logs/test/financialos.log`
+   büyüdü (454 KB). Yani süit artık ölçtüğü sisteme dokunmuyor.
+2. **Dağıtım sonrası.** `guncelle.ps1` uygulamayı yeniden başlattı (`canlı damga
+   ce2214bf2259 = hedef`, kesinti ~10 sn) ve **rotasyon ilk denemede tamamlandı**:
+   `logs/financialos.log.1` **projede İLK KEZ oluştu** (donmuş 10 MB'lık dosya oraya
+   taşındı), yeni `financialos.log` yazmaya başladı. Yerel `/api/health` 200, funnel
+   `/api/health` 200, zamanlayıcı ayakta, telafi `0/5 iş (hepsi güncel)`.
+
+`.1`'in bugüne kadar hiç var olmaması, arızanın bu gece **doğmadığını, tetiklendiğini**
+söylüyordu (L81) — ve şimdi var olması, mekanizmanın ilk kez gerçekten çalıştığının kanıtı.

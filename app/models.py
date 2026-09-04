@@ -249,6 +249,17 @@ class Account(Base):
     # HESABIN özelliğidir; sabit yalnızca BİLİNMİYORSA kullanılan yedektir.
     # NULL = bilinmiyor → yedek orana düşülür (davranış değişmez, L45).
     min_payment_ratio = Column(Float, nullable=True)    # Kart asgari ödeme oranı (0-1)
+    # BUG #337: BİR KARTIN DA İKİ SAYISI VARDIR (BUG #318'in kart karşılığı).
+    #   `balance`           = GÜNCEL BORÇ (veri modeli kuralı; motor bunu faizlendirir,
+    #                         nakit takvimi bunu öder)
+    #   `statement_balance` = SON EKSTREDEN KALAN BORÇ — **asgari ödeme BUNUN yüzdesidir**
+    # Ölçüldü (bir bankanın kart ekranı, 4 Eyl 2026): ekstre 8.221,13 · güncel 8.338,13.
+    # Ürün güncel borcu kullandığı için asgariyi 1.667,63 hesaplıyordu; bankanın dediği
+    # 1.644,23. Bugün 23,40 TL, ama YÖN yanlış: ekstre kesildikten sonraki her harcama
+    # asgariyi olduğundan büyük gösterir.
+    # NULL = BİLİNMİYOR → `balance`e düşülür (davranış değişmez, L45).
+    # SIFIR ise GEÇERLİ bir değerdir ("ekstre kapandı") ve bilinmiyor ile karıştırılmaz.
+    statement_balance = Column(Numeric(19, 4), nullable=True)
     monthly_payment = Column(Numeric(19, 4), nullable=True)       # Aylık taksit
     remaining_installments = Column(Integer, nullable=True)
     next_payment_date = Column(Date, nullable=True)

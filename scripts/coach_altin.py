@@ -115,12 +115,12 @@ def altin_db():
                   balance=KREDI1_KALAN_TAKSIT_TOPLAMI, monthly_payment=4109.90,
                   remaining_installments=4, next_payment_date=date(2026, 9, 11),
                   interest_rate=4.75, early_payoff_amount=KREDI1_ERKEN_KAPAMA,
-                  notes="Hesap No: KREDI-HESAP-1."))
+                  notes="Ihtiyac kredisi 1."))   # BUG #338: gercek hesap numarasi cikarildi
     s.add(Account(user_id=1, name="Garanti Kredi 2", account_type=AccountType.loan,
                   balance=KREDI2_KALAN_TAKSIT_TOPLAMI, monthly_payment=2747.22,
                   remaining_installments=23, next_payment_date=date(2026, 9, 15),
                   interest_rate=4.55, early_payoff_amount=KREDI2_ERKEN_KAPAMA,
-                  notes="Hesap No: KREDI-HESAP-2."))
+                  notes="Ihtiyac kredisi 2."))   # BUG #338: gercek hesap numarasi cikarildi
     s.commit()
     return s
 

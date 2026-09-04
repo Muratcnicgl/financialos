@@ -129,7 +129,12 @@ def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
 
         asgari_oran = gecerli_asgari_oran(getattr(a, "min_payment_ratio", None))
         if is_card:
-            min_pay = max(float(a.balance) * asgari_oran, 50.0)
+            # BUG #337: asgari, GUNCEL borcun degil SON EKSTRE borcunun yuzdesidir.
+            # Ekstre bilinmiyorsa (None) guncel borca dusulur — davranis degismez (L45).
+            # SIFIR gecerli bir degerdir ("ekstre kapandi") ve `is not None` ile ayrilir;
+            # `or` kullanmak sifiri "bilinmiyor" sanip guncel borca duserdi.
+            _taban = a.statement_balance if a.statement_balance is not None else a.balance
+            min_pay = max(float(_taban) * asgari_oran, 50.0)
         else:
             min_pay = float(a.monthly_payment or 0.0)
             if min_pay <= 0:

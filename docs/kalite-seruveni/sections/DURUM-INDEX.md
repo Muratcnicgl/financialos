@@ -37,6 +37,41 @@
 Rapor §B (tam-proje-durum-raporu) tespiti: `sections/` 521 maddenin **DURUM alanı yoktu** →
 neyin açık neyin sessizce kapandığı bilinmiyordu ("gerçek stale oranı KANIT YOK"). M76 bunu kapattı.
 
+## Bugünkü sayılar — ÜRETİLİYOR, elle yazılmıyor (BUG #348)
+
+Aşağıdaki blok `sections/*.md`'nin **kendisinden** üretilir; elle düzenlenmez.
+Güncellemek için: `python scripts/backlog_ozeti.py --yaz`.
+Güncelliğini `tests/test_backlog_tutarliligi_kapisi.py` doğrular — yani bu tablo
+bir daha sessizce bayatlayamaz (L74'ün mekanizma karşılığı).
+
+<!-- OTOMATIK-BACKLOG-OZETI:BASLA — elle düzenleme; `python scripts/backlog_ozeti.py --yaz` -->
+
+**Üretildi:** `scripts/backlog_ozeti.py` · **Toplam madde:** 521
+
+| Boyut | ⏸ kapsam dışı | ⚪ defekt değil | ⛔ yapılmayacak | ✅ kapandı | 🔲 açık | 🟡 kısmen | toplam |
+|---|---|---|---|---|---|---|---|
+| A11Y | 2 | 0 | 0 | 2 | 10 | 6 | 20 |
+| API | 1 | 0 | 0 | 2 | 12 | 5 | 20 |
+| BE | 0 | 0 | 0 | 9 | 24 | 7 | 40 |
+| DATA | 0 | 0 | 0 | 8 | 18 | 9 | 35 |
+| DEVOPS | 0 | 0 | 0 | 5 | 11 | 4 | 20 |
+| DOCS | 0 | 0 | 0 | 7 | 5 | 3 | 15 |
+| DVIZ | 0 | 0 | 0 | 1 | 12 | 2 | 15 |
+| FE | 0 | 0 | 0 | 8 | 25 | 2 | 35 |
+| FEAT | 0 | 0 | 0 | 22 | 17 | 2 | 41 |
+| LLM | 0 | 0 | 0 | 14 | 22 | 4 | 40 |
+| MOB | 6 | 0 | 2 | 5 | 12 | 0 | 25 |
+| OBS | 0 | 0 | 0 | 4 | 18 | 3 | 25 |
+| PERF | 0 | 0 | 0 | 3 | 15 | 2 | 20 |
+| RESIL | 1 | 0 | 0 | 10 | 4 | 5 | 20 |
+| RULE | 0 | 6 | 0 | 30 | 0 | 4 | 40 |
+| SEC | 1 | 1 | 0 | 13 | 9 | 11 | 35 |
+| TEST | 0 | 0 | 0 | 26 | 4 | 5 | 35 |
+| UX | 0 | 0 | 0 | 2 | 31 | 7 | 40 |
+| **TOPLAM** | **11** | **7** | **2** | **171** | **249** | **81** | **521** |
+
+<!-- OTOMATIK-BACKLOG-OZETI:BITTI -->
+
 ## Ne yapıldı
 1. **521 maddenin HEPSİNE açık `- **Durum:**` alanı eklendi** (greplenebilir). Kaynak: inline `✅` işareti.
    - Başlangıç: 50 madde inline `✅ KAPANDI`, 471 madde işaretsiz (`🔲 AÇIK — kod-doğrulaması bekliyor`).

@@ -31,69 +31,61 @@ NE ZORLAR
 Bu bir ÜSLUP kapısı değil, bir ÖLÇÜM kapısıdır: greplenebilir alan yanlışsa, ona dayanan
 her sayım — durum raporları dahil — yanlış olur.
 
-MUTASYON 3/3 — celiskili madde sok -> yalniz celiski testi kirmizi · isaretsiz Durum sok ->
-yalniz isaret testi kirmizi · tarayici korlestir -> yalniz kapsam tabani kirmizi
+MUTASYON 4/4 — celiskili madde sok · isaretsiz (girintili) Durum sok · tarayiciyi korlestir ·
+uretilmis ozeti ELLE degistir. Dorduncusu BUG #348'in kilidi: ozet, sections/*.md ile
+uyusmazsa kirmizi. (Son iki mutasyon guncellik testini de dusurur — veri degisince uretilen
+ozet de degisir; bu asiri atesleme degil, gercek bagimlilik.)
+
+AYRICA BU KAPI KENDI KOR NOKTASINI BULDURDU: isaretsiz maddeyi arayan kontrol
+`isaret not in ISARETLER` diye yazilmisti; Python'da `"" in "abc"` **True** doner, yani
+hic isareti olmayan madde sessizce GECIYORDU. Sentetik ornek mutasyonu bunu yakalatti.
 """
 from __future__ import annotations
 
-import re
+import sys
 from pathlib import Path
 
 import pytest
 
 KOK = Path(__file__).resolve().parent.parent
-BOLUMLER = KOK / "docs" / "kalite-seruveni" / "sections"
+if str(KOK) not in sys.path:
+    sys.path.insert(0, str(KOK))
 
-#: İndeks bir madde dosyası değil; türetilmiş özettir (kendi bayatlığı ayrı bir konu — L74).
-HARIC = {"DURUM-INDEX.md"}
+# AYRIŞTIRICI KOPYALANMAZ — tek kaynak `scripts/backlog_ozeti.py`. Kapı ile üretici aynı
+# maddeleri görmezse biri diğerini doğrulamaz; `git ls-files`in beş kopyasıyla aynı ders (L71).
+from scripts.backlog_ozeti import (  # noqa: E402
+    BASLA, BITTI, INDEKS, ISARET_ANLAMI, KAPSAM_TABANI, maddeler, metin,
+)
 
-#: Tanınan durum işaretleri. `⛔` = "denendi/ölçüldü, bilinçli olarak YAPILMAYACAK"
-#: (MOB-004/005: BUG #288'de canlıda çöktüğü için geri alınan offline önbellek).
-#: Yeni bir işaret eklenecekse ANLAMI da buraya yazılır — işaretsiz durum yasaktır.
-ISARETLER = "✅🔲🟡⏸⚪⛔"
-
-#: Bugün 521 madde var. Taban, tarayıcı bozulduğunda kapının SESSİZCE geçmesini engeller.
-KAPSAM_TABANI = 400
-
-_MADDE = re.compile(r"^### \[([A-Z0-9]+-\d+)\]([^\n]*)\n(.*?)(?=^### |\Z)", re.M | re.S)
-_DURUM = re.compile(r"^- \*\*Durum:\*\* *(.)", re.M)
+ISARETLER = "".join(ISARET_ANLAMI)
 
 
-def _maddeler(kaynaklar: dict[str, str] | None = None) -> list[tuple[str, str, str, str]]:
-    """(dosya, kod, başlık, gövde) dörtlüleri. `kaynaklar` verilirse diskten okumaz."""
-    if kaynaklar is None:
-        kaynaklar = {f.name: f.read_text(encoding="utf-8")
-                     for f in sorted(BOLUMLER.glob("*.md")) if f.name not in HARIC}
-    return [(ad, m.group(1), m.group(2), m.group(3))
-            for ad, metin in kaynaklar.items() for m in _MADDE.finditer(metin)]
+def _isaretsizler(kayitlar) -> list[str]:
+    # `""` her dizgenin alt dizgesidir: `"" in ISARETLER` **True** döner. Boşluk ayrıca
+    # kontrol edilmezse işaretsiz madde sessizce geçerdi — kapının kendi kör noktasıydı,
+    # sentetik örnek mutasyonu buldurdu.
+    return [f"{ad}:{kod}" for ad, kod, _baslik, isaret in kayitlar
+            if not isaret or isaret not in ISARETLER]
 
 
-def _isaretsizler(maddeler) -> list[str]:
-    return [f"{ad}:{kod}" for ad, kod, _, govde in maddeler
-            if not (_DURUM.search(govde) and _DURUM.search(govde).group(1) in ISARETLER)]
-
-
-def _celiskiler(maddeler) -> list[str]:
-    out = []
-    for ad, kod, baslik, govde in maddeler:
-        d = _DURUM.search(govde)
-        if "✅" in baslik and d and d.group(1) != "✅":
-            out.append(f"{ad}:{kod} — başlık ✅ diyor, Durum '{d.group(1)}'")
-    return out
+def _celiskiler(kayitlar) -> list[str]:
+    return [f"{ad}:{kod} — başlık ✅ diyor, Durum '{isaret}'"
+            for ad, kod, baslik, isaret in kayitlar
+            if "✅" in baslik and isaret and isaret != "✅"]
 
 
 def test_KAPSAM_TABANI_tarayici_bozuksa_kapi_BOZULUR():
     """Vakumsal yeşil yasağı: hiçbir madde bulamayan bir tarayıcı 'tutarlı' diyemez."""
-    maddeler = _maddeler()
-    assert len(maddeler) >= KAPSAM_TABANI, (
-        f"KAPI BOZUK: yalnız {len(maddeler)} backlog maddesi tarandı (taban {KAPSAM_TABANI}). "
+    kayitlar = maddeler()
+    assert len(kayitlar) >= KAPSAM_TABANI, (
+        f"KAPI BOZUK: yalnız {len(kayitlar)} backlog maddesi tarandı (taban {KAPSAM_TABANI}). "
         "Bu 'backlog tutarlı' DEMEK DEĞİLDİR — tarayıcı ya da dosya düzeni değişmiş."
     )
 
 
 def test_HER_maddenin_DURUM_isareti_var():
     """DATA-020 regresyon kilidi: girintili ya da işaretsiz Durum satırı sayımdan düşer."""
-    kotu = _isaretsizler(_maddeler())
+    kotu = _isaretsizler(maddeler())
     assert not kotu, (
         "Bu maddelerin `- **Durum:**` satırı yok ya da tanınan bir işaretle başlamıyor "
         f"({ISARETLER}). Böyle bir madde HER otomatik sayımdan düşer ve 'durumu bilinmeyen' "
@@ -103,7 +95,7 @@ def test_HER_maddenin_DURUM_isareti_var():
 
 def test_BASLIK_ve_DURUM_celismez():
     """FEAT-022/024 regresyon kilidi: aynı girdinin iki satırı birbirini yalanlayamaz."""
-    kotu = _celiskiler(_maddeler())
+    kotu = _celiskiler(maddeler())
     assert not kotu, (
         "Başlığı kapandığını söyleyen ama Durum satırı öyle demeyen maddeler var. "
         "Greplenebilir alan Durum satırıdır; yanlış kalırsa raporlar da yanlış olur:\n  "
@@ -125,7 +117,29 @@ _TEMIZ = "### [XX-003] Ucuncu sey ✅ UYGULANDI\n- **Durum:** ✅ KAPANDI\n\n- *
 ])
 def test_KAPI_sentetik_ornekleri_dogru_ayirir(kaynak, celiski, isaretsiz):
     """Kapı, iki ihlali BİRBİRİNDEN de ayırmalı — tek bir 'bozuk' kovası yetmez."""
-    m = _maddeler({"sentetik.md": kaynak})
+    m = maddeler({"sentetik.md": kaynak})
     assert len(m) == 1
     assert len(_celiskiler(m)) == celiski
     assert len(_isaretsizler(m)) == isaretsiz
+
+
+def test_INDEKS_OZETI_GUNCEL_kalir():
+    """BUG #348 / L74 — türetilmiş özet, türetildiği şeyden bağımsız bayatlayamaz.
+
+    `DURUM-INDEX.md` 48 gün boyunca *"RULE'da hâlâ açık: 12"* dedi; `RULE.md` ise 0 açık
+    gösteriyordu. Özeti elle güncellemeyi hatırlamak bir mekanizma değildir — bu test,
+    indeksteki üretilmiş bloğun BUGÜNKÜ `sections/*.md`'den üretilenle birebir aynı
+    olmasını şart koşar.
+    """
+    belge = INDEKS.read_text(encoding="utf-8")
+    i, j = belge.find(BASLA), belge.find(BITTI)
+    assert i >= 0 and j > i, (
+        "DURUM-INDEX.md içinde otomatik özet bloğu yok. Sayılar elle yazılırsa bayatlar. "
+        f"Blok işaretleri geri konmalı: {BASLA} ... {BITTI}"
+    )
+    mevcut = belge[i:j + len(BITTI)]
+    beklenen = metin(maddeler())
+    assert mevcut == beklenen, (
+        "DURUM-INDEX.md'deki özet, sections/*.md ile uyuşmuyor (yani bayat). "
+        "Düzelt: python scripts/backlog_ozeti.py --yaz"
+    )

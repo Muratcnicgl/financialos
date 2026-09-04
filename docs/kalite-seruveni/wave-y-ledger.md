@@ -773,3 +773,47 @@ eşikle karşılaştırıp "tetiklendi" diyen bir adım yok. Bu, bu defterin en 
   Ve bir üçüncü madde, Durum satırı yalnızca GİRİNTİLİ yazıldığı için 48 gün boyunca
   hiçbir sayıma girmedi: **biçim hatası, içerik hatası kadar sessizdir.**
   Çözüm not değil kapı oldu (`tests/test_backlog_tutarliligi_kapisi.py`).
+
+---
+
+## Y2 — İZLEMENİN İLK GERÇEK OLAYI (5 Eylül 2026, gece)
+
+Bugüne kadarki Y2 kanıtları **kurulmuş** olaylardı (bekçiyi kapat, sahte 503 dinleyici koy).
+Bu gece izleme, kimse kurmadan **gerçek bir kesintiyi baştan sona kaydetti** — ve kaydı,
+tamamen bağımsız bir ölçüm yoluyla doğrulandı.
+
+**Olay:** dış adres DNS'te çözülmüyor (uygulama ve tünel sağlam; kesinti yalnız dışarıdan).
+
+| Saat (yerel) | `saglik.ps1`'in kendi kaydı | Aynı anda ELLE yapılan DoH ölçümü |
+|---|---|---|
+| 23:07-23:30 | `DIS ADRES HIC COZULMUYOR` ×3 | Cloudflare **0/8** · Google 6/8 |
+| 23:40 | `DNS KISMI KESINTI — çözmeyen: cloudflare` | — |
+| 23:50 | `DNS KISMI KESINTI — çözmeyen: google` (yön değişti) | — |
+| 00:00 | `[OK] uygulama + tünel + dış yol sağlam` | — |
+| 00:07 | — | Cloudflare 2/3 · Google 2/3 (toparlanıyor) |
+| 00:10 | son kısmi kesinti | — |
+| **00:20'den sonra** | **kesintisiz `1,0`** (10 dk'da bir, boşluksuz) | 00:22'de **4/4 · 4/4** |
+
+**İki bağımsız yol, aynı zaman çizgisi.** Biri makinedeki zamanlanmış görevin CSV'si, diğeri
+sohbetten atılan DoH sorguları. Üstelik ikisi de, ölçülen **SOA negatif TTL'i (3491 sn ≈ 58 dk)**
+ile önceden hesaplanan pencereye oturuyor: 23:07 + ~58 dk ≈ 00:05, ilk temiz `OK` 00:00'da.
+Yani arıza *"kendiliğinden geçti"* değil; **süresi önceden söylenebilir** bir önbellek olayı.
+
+**BUNUN B0 İÇİN ANLAMI (ve alarm taahhüdünün sınanması).** BUG #342 kurulurken şu yazılmıştı:
+*"alarm gürültülü gelirse çözüm susturmak değil B0'dır."* Bu gece alarmı çaldıran şey bir
+gürültü değil, **gerçek bir dış erişim kesintisiydi** — ve o kesintiyi ortadan kaldıran tek
+düzeltme, kaydın Murat'ın kontrolüne geçmesi, yani **alan adı**. Susturma seçeneği bu yüzden
+gündeme bile gelmiyor.
+
+**Doğrulanacak (Murat, sabah):** telefonda ~23:30 civarı bir DOWN, ~00:25 civarı bir UP
+bildirimi olmalı. Bu ikisi görülürse zincirin **gerçek bir olayda** uçtan uca çalıştığı
+kanıtlanmış olur; görülmediyse ölü adam anahtarının ping tarafı ayrıca ölçülmelidir.
+
+**Erişilebilirlik (aynı pencere, `scripts/erisilebilirlik_raporu.py`):** %26,15 (17/65 slot).
+Kayıp 39 slotun büyük kısmı **öğleden sonraki 382 dakikalık uyku**; sağlık başarısızlıkları
+ise yukarıdaki DNS olayı. Yani düşük oranın iki ayrı sebebi var ve **ikisi de B0'a çıkıyor**:
+makinenin uyuması ve adın makineye bağlı olması.
+* **L79 — "Bir daha güncellemeyi unutma" bir mekanizma değildir.** `DURUM-INDEX.md`'nin
+  kendi metodoloji notu tam olarak bunu diyordu ve 48 gün tutmadı. Özet artık
+  `scripts/backlog_ozeti.py` ile ÜRETİLİYOR ve güncelliği bir testle kilitli. Bir belgeyi
+  bayatlamaktan koruyan şey disiplin değil, **türetilmiş olmasıdır.**

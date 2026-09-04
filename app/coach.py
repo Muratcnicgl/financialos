@@ -2985,7 +2985,18 @@ class CoachEngine:
                 # BUG #273: ize ve log'a giden metin TUTAR İÇERMEZ (KVKK, BUG #180 ilkesi);
                 # değer taşıyan teşhis yalnız `red.teshis` alanında, süreç içinde kalır.
                 s.observation = red.iz_gozlemi
-                logger.warning("propose_action reddedildi: %s", red.kod)
+                # BUG #335 — RET KODU TEK BAŞINA EYLEME GEÇİRİLEMEZ.
+                # Ölçüldü (4 Eyl 2026, davranış seti): `action` kriteri 5/6 ↔ 3/6
+                # dalgalanıyordu. Operatörün elindeki tek iz `PAYLOAD_GECERSIZ` idi —
+                # HANGİ alanın düştüğü görünmüyordu. Oysa `AksiyonReddi` bunu tam olarak
+                # taşımak için İKİ alana bölünmüş (BUG #273 / ADR-052):
+                #   `gorunur_neden` -> YALNIZ alan adları, para/değer İÇERMEZ  -> loglanır
+                #   `teshis`        -> geçersiz DEĞERİ de yankılar             -> LOGLANMAZ
+                # Yani teşhis zaten nesnenin İÇİNDE duruyordu; basılmaması bir tasarım
+                # eksiği değil, bir BAĞLAMA eksiğiydi. Aynı sınıf bu projede üçüncü kez:
+                # `uslup=-` (BUG #277), `grounded=-` (BUG #322 turu), ve bu.
+                logger.warning("propose_action reddedildi: %s — %s", red.kod,
+                               red.gorunur_neden)
                 return None, red
             except Exception as e:  # noqa: BLE001 — beklenmeyen hata cevabı kilitlemesin
                 s.observation = f"Hata: {type(e).__name__}"
@@ -3238,9 +3249,26 @@ class CoachEngine:
                     with recorder.step(OperationName.LLM_CALL, intent="Retry: propose_action zorla",
                                        parent_step_id=first_llm_step_db_id) as s:
                         try:
+                            # BUG #336 — RETRY, NEDEN REDDEDİLDİĞİNİ BİLMİYORDU.
+                            # Ölçüldü (4 Eyl 2026, canlı): model `transaction_type`'ı
+                            # bazen HİÇ göndermiyor (None) ve öneri düşüyor; ikinci
+                            # deneme aynı genel yönlendirmeyi alıyor ("propose_action
+                            # çağırman gerekiyor") — yani hatayı bilmeden tekrar deniyor.
+                            # `gorunur_neden` eksik ALAN ADINI taşıyor ve sözleşme gereği
+                            # para/değer İÇERMEZ (ADR-052), yani modele verilebilir.
+                            # Teşhis zaten üretiliyordu; eksik olan onu KULLANMAKTI —
+                            # bugün üçüncü kez aynı sınıf (log, koç bağlamı, ve bu).
+                            # Sözleşme SABİT kalır: yönlendirme `messages`e eklenir (#272).
+                            _nudge = dict(_RETRY_NUDGE_PROPOSE)
+                            if redler:
+                                _nedenler = "; ".join(sorted({r.gorunur_neden for r in redler}))
+                                _nudge["content"] += (
+                                    f" Önceki denemen reddedildi: {_nedenler}. "
+                                    f"Eksik ya da yanlış alanı düzelt, aynısını gönderme."
+                                )
                             retry_response = self.provider.chat(
                                 system_prompt=system_prompt,   # BUG #272: SÖZLEŞME SABİT
-                                messages=messages + [_RETRY_NUDGE_PROPOSE],
+                                messages=messages + [_nudge],
                                 tools=active_tools,
                             )
                             s.observation = (retry_response.text or "")[:500]

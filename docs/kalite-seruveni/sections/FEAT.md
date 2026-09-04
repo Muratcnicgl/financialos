@@ -1,5 +1,20 @@
 # Finansal ürün özellikleri (kod: FEAT)
 
+> ## ⚠️ 48 GÜN DOKUNULMADI — 5 Eylül 2026'da DENETLENDİ: **İKİ MADDE KENDİ İÇİNDE ÇELİŞİYORDU**
+>
+> `FEAT-022` ve `FEAT-024` maddelerinin **başlığında `✅ UYGULANDI` yazıyor, `- **Durum:**`
+> satırında ise `🔲 AÇIK` / `🟡`.** Aynı girdinin iki satırı birbirini yalanlıyordu.
+>
+> Bu tam olarak `sections/DURUM-INDEX.md`'nin metodoloji notunun uyardığı şey:
+> *"bir madde düzeltildiğinde inline başlığa `✅ UYGULANDI` + `- **Durum:**` satırını
+> güncelle."* Yarısı yapılmış, yarısı unutulmuş — ve greplenebilir olan (`Durum`) yanlış
+> kalan yarıymış, yani **otomatik sayımlar bu iki maddeyi 48 gün boyunca "açık" saydı.**
+>
+> **Kodla ölçüldü, ikisi de KAPALI:** `rules_engine.calculate_health_score()` (cockpit
+> `saglik_skoru`, koç `app/coach.py:1286`'da okuyor) · `rules_engine.calculate_real_networth()`
+> (nominal vs enflasyona göre deflate edilmiş reel değişim). İki Durum satırı düzeltildi.
+> Diğer açık maddelere (FEAT-018 · 028 · 035 · 037 · 039) dokunulmadı — ölçülmediler.
+
 Kapsam: FinancialOS'e YENİ finansal değer katacak özellikler. Kod kalitesi değil,
 yeni yetenek. Her madde mevcut mimariye oturur: Rules Engine hesaplar, LLM açıklar,
 akış her zaman propose_action → onay → execute; LLM asla DB yazmaz.
@@ -171,7 +186,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-022] Finansal sağlık skoru (composite) ✅ UYGULANDI
-- **Durum:** ✅ KAPANDI (inline işaret)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `rules_engine.calculate_health_score()` var, cockpit'e `saglik_skoru` {skor, seviye, bilesenler} olarak giriyor ve koç okuyor (`app/coach.py:1286`). Başlıkta zaten "✅ UYGULANDI" yazıyordu; ÇELİŞEN yalnız bu satırdı.
 - **Değer/Fırsat:** Tasarruf oranı + borç/gelir + kart kullanımı + nakit tamponu birleşik 0-100 skoru; sistemin genel durumunu tek bakışta özetler ve trendini gösterir.
 - **Kaynak/İlham:** Copilot/Monarch health score, CFPB Financial Well-Being.
 - **Nasıl (mimari):** rules_engine'de bileşen metrikleri (çoğu FEAT-016/023/010'dan) ağırlıklı skor. Cockpit; salt hesap.
@@ -185,7 +200,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Orta · **Efor:** S
 
 ### [FEAT-024] Enflasyon-düzeltilmiş (reel) net değer ✅ UYGULANDI
-- **Durum:** ✅ KAPANDI (inline işaret)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `rules_engine.calculate_real_networth()` var (nominal net değer değişimi vs enflasyona göre deflate edilmiş REEL değişim); yıllık enflasyon varsayımı `.env` ile ayarlanabilir (`rules_engine.py:2022`). Başlıkta zaten "✅ UYGULANDI" yazıyordu; ÇELİŞEN yalnız bu satırdı.
 - **Değer/Fırsat:** Nominal net değer artsa bile TÜFE karşısında satın alma gücünün ne olduğunu gösterir; Türkiye yüksek enflasyon bağlamında kritik gerçeklik kontrolü.
 - **Kaynak/İlham:** Türkiye enflasyon muhasebesi; reel getiri kavramı.
 - **Nasıl (mimari):** Kullanıcı aylık TÜFE'yi manuel girer (fund_tracker manuel fiyat paterni gibi); rules_engine NetWorthSnapshot'ı baz aya deflate eder. Salt okuma, nötr.

@@ -766,3 +766,10 @@ eşikle karşılaştırıp "tetiklendi" diyen bir adım yok. Bu, bu defterin en 
   komut yoksa `subprocess.run` sonuç dönmez, **fırlatır**. Yani koruma kodu vardı, yolu
   yoktu. Hata yolları da en az başarı yolu kadar KOŞULARAK sınanır (bu turda deney:
   yokluk taklit edildi, atlama ölçüldü).
+* **L78 — Bir gerçeğin iki yerde yazılı olması, iki kat güvence değil; ikiye bölünmüş bir
+  gerçektir.** Backlog maddelerinin durumu hem başlıkta hem `- **Durum:**` satırında
+  duruyordu ve iki madde bunları BİRBİRİNE ZIT söylüyordu. Kötüsü şu: yanlış kalan yarı,
+  otomatik sayımların okuduğu yarıydı — yani çelişki görünmez tarafta yaşadı.
+  Ve bir üçüncü madde, Durum satırı yalnızca GİRİNTİLİ yazıldığı için 48 gün boyunca
+  hiçbir sayıma girmedi: **biçim hatası, içerik hatası kadar sessizdir.**
+  Çözüm not değil kapı oldu (`tests/test_backlog_tutarliligi_kapisi.py`).

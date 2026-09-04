@@ -130,7 +130,9 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DATA-020] Seed script `account_id=2` hard-code — kırılgan FK varsayımı ✅ UYGULANDI (12 Tem 2026)
-  - **Durum:** setup_data recurring giderlerde hard-coded account_id=2 → `ziraat.id` (flush sonrası değişken referansı). Hesap yaratım sırası değişirse abonelikler yanlış hesaba bağlanmaz. py_compile OK (setup_data drop_all yaptığından çalıştırılmadı — canlı DB korunur).
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `scripts/setup_data.py`'de hard-coded `account_id=2` KALMADI; recurring giderler `account_id=ziraat.id` kullanıyor (satır 211-215), yani maddenin kendi **Aksiyon** satırı uygulanmış.
+  *(Bu satır 48 gün GİRİNTİLİ yazıldığı ve durum işareti taşımadığı için her otomatik sayımdan düştü; madde düzelmiş olduğu hâlde "durumu bilinmeyen" tek madde olarak kaldı. Artık `tests/test_backlog_tutarliligi_kapisi.py` bunu yakalıyor.)*
+  Tarihsel not: setup_data recurring giderlerde hard-coded account_id=2 → `ziraat.id` (flush sonrası değişken referansı). Hesap yaratım sırası değişirse abonelikler yanlış hesaba bağlanmaz. py_compile OK (setup_data drop_all yaptığından çalıştırılmadı — canlı DB korunur).
 - **Kanıt:** `scripts/setup_data.py:197,199,201`
 - **Aksiyon:** `db.flush()` sonrası `ziraat.id` değişkenini kullan.
 - **Etki:** Düşük · **Efor:** S

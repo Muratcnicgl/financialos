@@ -1,0 +1,38 @@
+{
+  "olculdu": "2026-09-05",
+  "not": "Bu sayılar ÖLÇÜLDÜĞÜ makineye aittir; makineler arası kıyaslanmaz. Bütçeler gürültüyü değil gerilemeyi yakalamak için kat kat üstte tutulur.",
+  "olcum": {
+    "/api/health": {
+      "p50": 2.69,
+      "p95": 3.05,
+      "n": 40.0
+    },
+    "/api/cockpit": {
+      "p50": 16.45,
+      "p95": 22.14,
+      "n": 40.0
+    },
+    "/api/accounts": {
+      "p50": 5.2,
+      "p95": 5.76,
+      "n": 40.0
+    },
+    "/api/transactions": {
+      "p50": 7.35,
+      "p95": 9.03,
+      "n": 40.0
+    },
+    "/api/reports/upcoming-cashflow": {
+      "p50": 5.78,
+      "p95": 7.56,
+      "n": 40.0
+    }
+  },
+  "butce_p95_ms": {
+    "/api/health": 200.0,
+    "/api/cockpit": 200.0,
+    "/api/accounts": 200.0,
+    "/api/transactions": 200.0,
+    "/api/reports/upcoming-cashflow": 200.0
+  }
+}

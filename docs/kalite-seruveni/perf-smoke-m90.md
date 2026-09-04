@@ -25,6 +25,33 @@
 > (o zaman bu tablo bir kapıya bağlanabilir). Süre büyümesi ayrıca kendi başına bir konu:
 > 202 s'lik bir pre-commit kancası, atlanmaya davet eden bir kancadır (L22).
 >
+> ---
+>
+> ### ✅ AÇIK İŞ AYNI GECE KAPANDI — ölçüm artık TEKRARLANABİLİR (BUG #350)
+>
+> `scripts/perf_smoke.py` yazıldı: aynı beş ucu, aynı yöntemle, tek komutla ölçer.
+> **Yeni ölçüm (5 Eyl 2026, 40 iterasyon/uç) ve 18 Temmuz karşılaştırması:**
+>
+> | Uç | M90 p95 | 5 Eyl p95 | bütçe |
+> |---|---|---|---|
+> | /api/health | 3,1 | **3,05** | 200 |
+> | /api/cockpit | 19,3 | **22,14** | 200 |
+> | /api/accounts | 7,1 | **5,76** | 200 |
+> | /api/transactions | 9,4 | **9,03** | 200 |
+> | /api/reports/upcoming-cashflow | 7,5 | **7,56** | 200 |
+>
+> **Sonuç: belgenin SAYILARI bayattı ama YARGISI ayakta.** Süit 2,9 kat büyürken uygulama
+> katmanının maliyeti pratikte değişmemiş; hepsi bütçenin bir onda birinde. Bu, 48 gün
+> sonra ilk kez **ölçülerek** söylenebiliyor.
+>
+> **İki tasarım kararı kayda geçsin.** (1) Ölçüm, kullanıcının koştuğu yolu koşmalı:
+> workspace'i olmayan sentetik bir kullanıcı ürünün ESKİ `user_id` yoluna düşüyordu ve
+> her istekte uyarı basıyordu — `create_personal_workspaces.run()` çağrılarak gerçek yola
+> geçildi (backfill kopyalanmadı, tek kaynak kullanıldı). (2) **CI'a bağlanmadı:**
+> paylaşımlı runner'ların hızı değişkendir, oraya bağlanan bir p95 kapısı düzenli sahte
+> kırmızı üretir ve okunmaz hâle gelir (L22). Bütçeler de gerçek değerin kat kat üstünde —
+> amaç gürültüyü değil GERİLEMEYİ yakalamak.
+>
 > Aşağıdaki gövde 18 Temmuz 2026 kaydı olarak korunuyor.
 
 ## 1. Flaky kontrolü — 3× tam süit

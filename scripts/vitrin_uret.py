@@ -76,9 +76,14 @@ ILKELER = [
      "Kalite kapıları mevcut bulgu sayısını dondurur; büyümesini engeller. Tavan aile "
      "bazında tutulur — tek toplam takasa izin verirdi. Araç sürümü sabittir, yoksa sayının "
      "anlamı sessizce kayar."),
+    # NOT: burada bir zamanlar "sekiz kez reddetti" yazıyordu. Sayı o gün doğruydu ama
+    # ELLE yazılmıştı — yani dokuzuncusunda sessizce yanlışa dönecekti. Vitrinin var olma
+    # sebebi tam olarak bunu önlemek (BUG #310); anlatısının kendisi o hastalığı
+    # taşıyamaz. **Makineyle doğrulanamayan bir sayı yayınlanmaz.** Olgu kaldı, sayı gitti.
     ("Bir kapı reddettiğinde doğru cevap tavanı yükseltmek değildir",
-     "Kapılar bu projede değişiklikleri sekiz kez reddetti ve sekizinde de haklı çıktı. "
-     "Her seferinde tasarım düzeldi, tavan değil."),
+     "Kapılar bu projede değişiklikleri defalarca reddetti ve her seferinde haklı çıktı: "
+     "tavan değil TASARIM düzeldi. En sık düzeltme, aynı kodun ikinci kopyasını yazmak "
+     "yerine tek kaynağa bağlamak oldu."),
     ("Her kapıya mutasyon testi",
      "Bir kapı, onu kırması gereken mutasyonlarla sınanmadan kapı sayılmaz. Mutasyon "
      "birçok kez kapının kendi kör noktasını buldurdu — ve bir kez yanlış bir TEŞHİSİ çürüttü."),
@@ -90,7 +95,7 @@ ILKELER = [
      "anahtarıdır: sessizlik, her şeyin yolunda olduğunun değil, alarmın kendisidir."),
 ]
 
-YIGIN = ["Python 3.11", "FastAPI", "SQLAlchemy 2.x", "Alembic", "Pydantic V2",
+YIGIN = ["FastAPI", "SQLAlchemy 2.x", "Alembic", "Pydantic V2",
          "SQLite / PostgreSQL (dual-dialect)", "React", "Vite", "Tailwind",
          "pytest", "vitest", "Playwright", "ruff"]
 
@@ -111,12 +116,17 @@ def olc_backend(hizli: bool) -> tuple[int, int, float | None]:
         c = _kos(py, "-m", "pytest", "tests/", "-q", "--collect-only", timeout=300)
         m = re.search(r"(\d+) tests collected", c)
         return (int(m.group(1)) if m else 0), 0, None
-    # `--cov-fail-under=0`: eşik olarak DEĞİL, coverage'ın "Total coverage: 94.02%" satırını
+    # `--cov-fail-under=1`: eşik olarak DEĞİL, coverage'ın "Total coverage: 94.02%" satırını
     # bastırmak için. O satır olmadan yalnız TOTAL satırındaki YUVARLANMIŞ tam sayı (94)
-    # okunabiliyor ve vitrin "%94.0" yazıyordu — yayınlanan bir sayıda gereksiz hassasiyet
-    # kaybı. 0 eşiği hiçbir zaman kırmızı vermez, yani ölçümü etkilemez.
+    # okunabiliyor ve vitrin "%94.0" yazıyordu — yayınlanan bir sayıda uydurma hassasiyet.
+    #
+    # Değer neden 1, 0 değil: ÖLÇÜLDÜ — `=0` o satırı **bastırmıyor**, `=1` bastırıyor.
+    # (İlk düzeltme 0 yazmıştı ve hiçbir şeyi değiştirmedi; yeniden üretim yapılmasaydı
+    # "düzeltildi" sanılacaktı — L68'in aynı gün dördüncü biçimi.)
+    # 1 eşiği pratikte hiç kırmızı vermez; verse bile bu fonksiyon çıkış kodunu değil
+    # ÇIKTIYI ayrıştırır, yani ölçüm etkilenmez.
     c = _kos(py, "-m", "pytest", "tests/", "-q", "--cov=app", "--cov-report=term",
-             "--cov-fail-under=0")
+             "--cov-fail-under=1")
     gecen = re.search(r"(\d+) passed", c)
     atlanan = re.search(r"(\d+) skipped", c)
     kapsam = re.search(r"Total coverage: ([\d.]+)%", c) or re.search(r"TOTAL.*?(\d+)%", c)
@@ -158,6 +168,26 @@ def olc_e2e() -> int:
     # Araç konuşmuyorsa SIFIR dönmek "e2e yok" demek olurdu (L45: bilinmeyen ≠ sıfır).
     # -1, üretici tarafında görünür bir işaret; markdown'da "ölçülemedi" yazılır.
     return -1
+
+
+def olc_coverage_tavan() -> int | None:
+    """
+    CI eşiği **CI dosyasından okunur**, buraya elle yazılmaz.
+
+    Elle yazılmış bir eşik, CI'da değiştiği gün vitrinde yanlışa döner ve kimse fark etmez —
+    vitrinin var olma sebebi tam olarak bunu önlemek (BUG #310). Okunamazsa `None` döner ve
+    satır BASILMAZ; uydurma bir sayı yazmaktansa hiç yazmamak doğrudur (L45).
+    """
+    y = KOK / ".github" / "workflows" / "ci.yml"
+    if not y.exists():
+        return None
+    m = re.search(r"--cov-fail-under=(\d+)", y.read_text(encoding="utf-8", errors="replace"))
+    return int(m.group(1)) if m else None
+
+
+def olc_python_surumu() -> str:
+    """Yığındaki Python sürümü de ÖLÇÜLÜR — elle yazılan sürüm numarası bayatlar."""
+    return "Python " + ".".join(str(x) for x in sys.version_info[:2])
 
 
 def olc_kapilar() -> list[dict]:
@@ -253,13 +283,13 @@ def veri_topla(hizli: bool) -> dict:
         "frontend_test": olc_frontend(hizli),
         "e2e_test": olc_e2e(),
         "coverage_yuzde": kapsam,
-        "coverage_tavan": 93,
+        "coverage_tavan": olc_coverage_tavan(),
         "kapilar": olc_kapilar(),
         "adr_sayisi": adr_n,
         "adr_belge_sayisi": adr_belge,
         "adr_basliklari": adr_b,
         "mutasyon": olc_mutasyon(),
-        "yigin": YIGIN,
+        "yigin": [olc_python_surumu(), *YIGIN],
         "goc_sayisi": len(list((KOK / "alembic" / "versions").glob("*.py"))),
         "kod_satiri": olc_kod_satiri(),
         "ilke": ILKELER,
@@ -290,8 +320,10 @@ def markdown_uret(v: dict) -> str:
          f"| Frontend testi | **{v['frontend_test']}** |",
          (f"| Uçtan uca (Playwright) | **{v['e2e_test']}** |" if v["e2e_test"] >= 0
           else "| Uçtan uca (Playwright) | ölçülemedi |"),
-         (f"| Kapsam (coverage) | **%{v['coverage_yuzde']}** — CI'da ≥%{v['coverage_tavan']} kilitli |"
-          if v["coverage_yuzde"] else f"| Kapsam | CI'da ≥%{v['coverage_tavan']} kilitli |"),
+         (f"| Kapsam (coverage) | **%{v['coverage_yuzde']}**"
+          + (f" — CI'da ≥%{v['coverage_tavan']} kilitli" if v['coverage_tavan'] else "")
+          + " |") if v["coverage_yuzde"] else
+         (f"| Kapsam | CI'da ≥%{v['coverage_tavan']} kilitli |" if v['coverage_tavan'] else ""),
          (f"| Mimari karar kaydı (ADR) | **{v['adr_sayisi']}** karar"
           + (f" · {v['adr_belge_sayisi']} belge (ekler dahil)"
              if v['adr_belge_sayisi'] != v['adr_sayisi'] else "") + " |"),

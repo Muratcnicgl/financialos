@@ -673,6 +673,23 @@ Y5 (defterler) · Y6 (ADR borcu) · Y7'nin kod tarafı.
 sürece kanıt değildir — ve bu, en çok **dışarıya gidecek** sayılarda tehlikelidir.
 
 
+
+### İzleme şu an GERÇEK bir kısmi kesinti raporluyor — ve bu doğru davranış
+
+23:30 ve 23:40 kayıtları `0,0` (sağlıksız, onarım gerekmedi). Sebep uygulama değil:
+uygulama 200 dönüyor, Google'ın çözdüğü IP'ye pinlenmiş HTTPS isteği de 200. Kırmızı
+veren şey **kısmi DNS kesintisi** — Cloudflare 0/3, Google 3/3.
+
+`saglik.ps1` bunu bilinçli olarak kesinti sayıyor (BUG #303 kararı): *"çözümleyiciler
+ÇELİŞİYORSA bu bir kesintidir: kullanıcıların bir kısmı giremiyordur."* Chrome ve Brave
+Cloudflare'e sorduğu için **davetlilerin çoğu şu an giremiyor**; "yarısı girebiliyor"
+demek, kesinti olmadığı anlamına gelmez.
+
+**Sonuç:** ölü adam anahtarı ping atmıyor ve alarm çalıyor — **kurulduğu iş tam olarak bu.**
+Alarm bir kez çalar (Healthchecks düşüşte bir, toparlanmada bir bildirir), spam olmaz.
+Yani izleme bu gece **ilk gerçek kesintisini** yakaladı ve bu kesinti **uydurma değil**:
+Chrome kullanan bir davetli şu an siteyi açamaz.
+
 ### 🟡 AÇIK BIRAKILAN, GEREKÇESİYLE: B-geçiş tetikleyicisini ÖLÇEN bir şey yok
 
 ADR-057 B'ye (7/24 VPS) geçiş için üç tetikleyici yazdı; ikincisi ölçülebilir:

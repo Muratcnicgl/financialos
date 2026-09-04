@@ -87,9 +87,29 @@ if ($KuruKosum) {
 # Yedek + göç + sağlık ölçümü ORADA yazılı (BUG #326). Buraya kopyalamak, aynı kararı
 # iki yerde tutmak olurdu — bir sonraki düzeltme birini güncelleyip diğerini unuturdu.
 Yaz "guncelleniyor: baslat.ps1 -Zorla (yedek + goc + saglik onun icinde)"
-& (Join-Path $PSScriptRoot "baslat.ps1") -Zorla -Port $Port
-if ($LASTEXITCODE -ne 0) {
-    Yaz "BASARISIZ: baslat.ps1 cikis $LASTEXITCODE — canli durum yukaridaki loglarda"
+
+# BUG #341 — ÇIKIŞ KODU OKUNAMAYAN DEPLOY BETİĞİ YARIM ARAÇTIR.
+#
+# Ölçülen: `guncelle.ps1 | tail` çağrısı betik 9 saniyede bittiği hâlde 2 dakika boyunca
+# dönmedi. Sebep boru: `baslat.ps1` uvicorn'u `Start-Process` ile açıyor ve TORUN SÜREÇ
+# çağıranın stdout tanıtıcısını miras alıyor — uvicorn günlerce yaşadığı için boru asla
+# kapanmıyor ve çağıran taraf çıkış kodunu HİÇ göremiyor. (Ölçümle elendi: `-KuruKosum`,
+# yani `Start-Process` çalışmayan yol, boruyu 0,3 saniyede kapatıyor.)
+#
+# Çözüm torunu boruya HİÇ SOKMAMAK: `baslat.ps1` ayrı bir PowerShell sürecinde, std
+# tanıtıcıları DOSYAYA bağlanmış olarak koşar. Miras alınan tanıtıcı artık bir dosyadır;
+# bizim borumuz serbest kalır. Çıkış kodu `-Wait -PassThru` ile okunur.
+$bLog = Join-Path $LOGDIZIN "guncelle-baslat.out"
+$bHata = Join-Path $LOGDIZIN "guncelle-baslat.err"
+$b = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $PSScriptRoot "baslat.ps1"), "-Zorla", "-Port", "$Port"
+    ) -Wait -PassThru -WindowStyle Hidden `
+      -RedirectStandardOutput $bLog -RedirectStandardError $bHata
+
+if (Test-Path $bLog) { Get-Content $bLog | ForEach-Object { if ($_) { Write-Output "  | $_" } } }
+if ($b.ExitCode -ne 0) {
+    Yaz "BASARISIZ: baslat.ps1 cikis $($b.ExitCode) — ayrinti: $bLog / $bHata"
     exit 1
 }
 

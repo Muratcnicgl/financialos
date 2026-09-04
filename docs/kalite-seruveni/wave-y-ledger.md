@@ -521,6 +521,45 @@ başka bir sebep de olabilir. Sağlık görevi 10 dakikada bir ölçtüğü içi
 online; çözülmeyen tek şey **başkasının DNS'i**. Kendi alan adı bu bağımlılığı bitirir:
 kayıt Cloudflare'de, Murat'ın hesabında olur.
 
+
+### 🔬 MEKANİZMA BULUNDU (23:18) — ve bu, ölü betanın en güçlü açıklaması
+
+Kayıt geri gelmeye başladı ama **çözümleyiciye göre değişiyor.** Sekizer sorgu:
+
+| Çözümleyici | 23:07 | 23:17 | 23:18 |
+|---|---|---|---|
+| **Cloudflare** | 0/4 | **0/8** | **0/6** |
+| Google | 0/4 | 6/8 | 5/6 |
+
+A kaydı Google'da geliyor: `185.40.234.55` (Tailscale public ingress). O IP'ye
+pinlenmiş HTTPS isteği **200** dönüyor — yani **servis sağlam, ingress sağlam.**
+
+**Cloudflare'in cevabındaki kritik ayrıntı:** `Authority` bölümünde SOA ile birlikte
+**`TTL: 3491`**. Yani Cloudflare, makine uyurken aldığı **NXDOMAIN'i negatif önbelleğe
+almış** ve o kaydı ~58 dakika daha tutacak. Kayıt yeniden yayınlansa bile Cloudflare
+**"bu ad yok" demeye devam ediyor.**
+
+**Chrome ve Brave'in "Güvenli DNS"i varsayılan olarak Cloudflare'e gider** (BUG #303'te
+ölçülmüştü) ve işletim sisteminin DNS'ini **atlar**. Sonuç zinciri:
+
+> makine uyur → Tailscale kaydı çeker → Cloudflare NXDOMAIN'i **saatlerce** önbellekler →
+> makine uyanıp servis 200 dönse bile **Chrome/Brave kullanıcısı "site bulunamadı" görür**
+
+**Bu, Ağustos'taki davranışın en makul açıklamasıdır** ve artık mekanizmasıyla ölçülü:
+davetliler makinenin uyuduğu ya da yeni uyandığı bir anda denediyse, gördükleri şey
+*"site kapalı"* değil **"böyle bir site yok"**tur. İnsan ikincisine geri dönmez.
+
+**Hâlâ kanıtlanmayan:** o beş kişinin tam olarak bu yüzden dönmediği (onlara sorulmadı).
+**Artık ölçülen:** bu arızanın gerçek, tekrarlayan ve **bizim düzeltemeyeceğimiz** olduğu.
+
+**Karara etkisi — ADR-057 güçlendi, ama bir uyarıyla:** kendi alan adı DNS kaydını
+Murat'ın kontrolüne alır ve Cloudflare Tunnel'da kayıt **kalıcıdır** (makine uykuda olsa
+bile ad çözülür; site "kapalı" görünür, "yok" değil). Ama **A seçeneği makinenin
+uykusunu çözmez** — yalnız görünürlüğünü düzeltir. Uyku sürdükçe kullanıcı hâlâ kapalı
+bir siteye gelir. **B'ye (7/24 VPS) geçiş tetikleyicilerinden biri bu gece fiilen
+oluştu** (erişilebilirlik %20,75); tetikleyici 7 günlük pencere istediği için henüz
+resmen tetiklenmedi, ama yön artık ölçülü.
+
 ### Erişilebilirlik — kararın (a) faturası ilk kez göründü
 
 `python -m scripts.erisilebilirlik_raporu`:

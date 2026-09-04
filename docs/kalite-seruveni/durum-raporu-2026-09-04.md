@@ -224,6 +224,74 @@ defter ilerliyor, backlog donuk kalıyor. İki kayıt sistemi arasındaki senkro
 
 ---
 
+## 5.1) BETA KULLANIMI — ÖLÇÜLDÜ, VE BU RAPORUN EN AĞIR BULGUSU
+
+Kapı tabloları ve test sayıları "ürün hazır mı" sorusunu cevaplıyor. Bu bölüm
+**"ürün kullanılıyor mu"** sorusunu cevaplıyor — ve cevap hayır.
+
+Ölçüm (canlı DB, kullanıcı başına gerçek etkinlik):
+
+| Kullanıcı | Kayıt | İşlem | Koç kullanımı | Son etkinlik |
+|---|---|---|---|---|
+| Davetli 1 | 11 Ağu 13:05 | **0** | **0** | **hiç** |
+| Davetli 2 | 11 Ağu 13:11 | 9 | 5 | 11 Ağu |
+| Davetli 3 | 11 Ağu 15:37 | 2 | 0 | 11 Ağu |
+| **Kurucu (u5)** | 11 Ağu 15:48 | 2 | 8 | **4 Eyl** |
+| Davetli 4 | 12 Ağu 11:20 | **0** | **0** | **hiç** |
+
+**13 Ağustos'tan bu yana sistemdeki TEK kullanıcı etkinliği kurucununkidir**
+(`transactions` 13 Ağu sonrası: hiç yok · `reasoning_traces`: yalnız u5).
+Sistemdeki **2 geri bildirimin ikisi de kurucuya ait.** Yani B2'nin kurduğu geri
+bildirim makinesi çalışıyor ama **dışarıdan hiç sinyal almıyor.**
+
+**VE SEBEBİ KAYITLI — TAHMİN DEĞİL.** `BUG #303` (12 Ağustos): davetliler siteyi
+**Chrome'da da Brave'de de açamıyor**. Tailscale adı Cloudflare çözümleyicisinde
+**12 sorgunun 11'inde NXDOMAIN** dönüyor ve tarayıcıların "Güvenli DNS"i işletim
+sisteminin DNS'ini ATLAYIP oraya gidiyor. Ölçüm o gün yapıldı; **son davetli aynı gün
+kaydoldu ve bir daha dönmedi.** Geçici çözüm ("davetliye Güvenli DNS'i kapattır")
+belgede duruyor, kalıcı çözüm olarak **kendi alan adı** yazılmış — yani **B0**.
+
+**BUNUN ANLAMI:** B0 bir idari tercih ya da "sonra hallederiz" maddesi değil;
+**betanın ölü olmasının ölçülmüş sebebidir.** Kalite kapıları, coverage ve 3.486 test
+bu tabloyu değiştirmez — insanlar kapıya varamıyor. Raporun §9'daki "yayına geçişi
+engelleyen şey kalite değil" tespiti burada somutlaşıyor: engel kalite değil **adres**.
+
+### ⚠️ AYNI GÜN DÜZELTME — "DAVETLİLER GİREMİYOR" İDDİASI BUGÜN GEÇERLİ DEĞİL
+
+Yukarıdaki sebep-sonuç zinciri **12 Ağustos ölçümüne** dayanıyordu ve yayımlanmadan önce
+tekrarlanmadı. Tekrarlandı (4 Eylül, aynı yöntem, 6'şar sorgu):
+
+| Çözümleyici | 12 Ağu (BUG #303) | **4 Eylül (bugün)** |
+|---|---|---|
+| Cloudflare | 12 sorgunun 11'i NXDOMAIN | **6/6 ÇÖZDÜ** |
+| Google | 12/12 çözdü | **6/6 ÇÖZDÜ** |
+| `GET /api/health` (ad üzerinden) | — | **200** |
+
+**Yani arıza kendiliğinden geçmiş.** Adres bugün her iki çözümleyiciden de çözülüyor ve
+site ad üzerinden cevap veriyor. *"Davetliler siteye giremiyor"* cümlesi **bugün yanlıştır**.
+
+**Bunun sonuçları:**
+1. Betanın 23 gündür ölü olması **ÖLÇÜLMÜŞ bir gerçek** (tablo yukarıda, değişmedi).
+2. Ama **sebebi artık kanıtlı değil.** DNS arızası 11-12 Ağustos'ta gerçekti ve ilk iki
+   günü — davetlilerin tek denediği günleri — vurmuş olabilir; bu makul bir hipotezdir,
+   ölçülmüş bir sebep DEĞİLDİR.
+3. **B0 bu yüzden "betanın ölü olmasının sebebi" olarak sunulamaz.** B0 hâlâ meşru ve açık
+   bir karardır (kalıcı barındırma, makine kapalıyken erişim), ama aciliyeti bu bulgudan
+   TÜREMEZ.
+
+**ASİSTANIN HATASI, kayda geçsin:** 23 günlük bir sessizliği 23 günlük bir ölçümle
+açıkladım ve o ölçümü tekrarlamadan "sebep kayıtlı, tahmin değil" diye yazdım. Bu, KURAL R3'ün
+ihlalidir — *bir iddiayı ancak onu ölçen bir KOŞUM kapatır, ve koşum bayatlayabilir.*
+Aynı turda `alembic check` teşhisinde iki kez düşülen hatanın üçüncüsü: **eski bir ölçümü
+bugünkü bir olgu sanmak.**
+
+**AÇIK KALAN GERÇEK SORU:** davetliler neden dönmedi? Bugün ölçülü tek şey dönmedikleri.
+Cevap ancak onlara sorularak öğrenilir (B2 geri bildirim yüzeyi diskte hazır ve çalışıyor) —
+ürün tarafında tahminle kapatılacak bir madde değil.
+
+
+---
+
 ## 6) ASKIDA KALANLAR
 
 | Madde | Durum | Kanıt |

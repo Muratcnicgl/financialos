@@ -4,7 +4,7 @@
 > GEÇMEZ, yanında durur. Publish hattı "uygulama yayına çıkabilir mi?" sorusunu yönetir;
 > bu hat **"koç yeterince iyi mi?"** sorusunu yönetir. İkisi bağımsız ilerleyebilir.
 >
-> **Tek doğruluk kaynağı: §10'un başındaki ⏸️ KALDIĞIMIZ YER bloğu (3 Eylül 2026).**
+> **Tek doğruluk kaynağı: §10'un başındaki ⏸️ KALDIĞIMIZ YER bloğu (4 Eylül 2026, öğleden sonra).**
 > Yeni oturum oradan devam eder; §9.0-§9.4 tarihsel ölçüm kaydıdır.
 
 ---
@@ -542,7 +542,89 @@ yerine (mimarinin kendi ilkesi: *rules engine karar verir, LLM açıklar*).
 
 ## §10. DEĞİŞİKLİK GÜNLÜĞÜ (yalnız ileri yönlü)
 
-### ⏸️ KALDIĞIMIZ YER — 4 Eylül 2026 (SIRADAKİ OTURUM BURADAN BAŞLAR)
+### ⏸️ KALDIĞIMIZ YER — 4 Eylül 2026, ÖĞLEDEN SONRA (SIRADAKİ OTURUM BURADAN BAŞLAR)
+
+**DURUM:** her şey commit'li ve push'lu (`main` = `origin/main`). Süit **3.504 passed ·
+18 skipped · 0 failed** (ölçüldü, 3:19) · coverage **%94,02** (CI'da ≥93 kilitli) · vitest 214 · e2e 8.
+Kalite kapısı 296 (E9 0 / F 202 / S 63), ölü kod 0, belge denetimi, sır taraması, temiz-DB
+göç kilidi, API sözleşmesi — hepsi geçiyor. **Kapalı beta AYAKTA** (health/ready 200).
+
+**BU TUR ÜÇ İŞ YAPTI.**
+
+**1) DURUM RAPORU (`durum-raporu-2026-09-04.md`).** 11 Ağu → 4 Eyl penceresi R3 ile ölçüldü:
+66 commit / **7 aktif gün** / 265 dosya. Test 2.969 → 3.486, vitest 175 → 214, e2e 6 → 8,
+coverage ölçülmüyordu → **%94,02**, kalite kapısı 0 → 7. ADR 56 (yeni yok). Backlog
+164/251/81 — **çıpadan beri hiç değişmedi** (60 BUG kapandı, backlog güncellenmedi: açık iş).
+
+**2) ŞEMA FK KAPISI + İKİ YANLIŞ TEŞHİS (kayda geçsin).** `alembic check` ilk kez koşuldu,
+başarısız çıktı. **(a)** *"14 FK sessizce eksik, kimse görmedi"* dedim — **yanlış**, sapma
+`d4e5f6a7b8c9`'nin docstring'inde belgeliydi (ADR-036/M50: SQLite ALTER ADD CONSTRAINT
+yapamaz). **(b)** *"`categories` listeye yazılmamış"* dedim ve düzeltici bir göç yazdım —
+**yine yanlış**; `b4c5d6e7f8a9:83-87` FK'yı kendi göçünde kuruyor ve yazdığım göç Postgres'te
+**aynı kısıtı ikinci kez kurup patlayacaktı**. **Mutasyon M1'in hayatta kalması** bunu ortaya
+çıkardı, göç silindi. Şemada defekt YOK. Gerçek boşluk ölçümdü: `alembic check` SQLite'ta
+bilerek kalıcı kırmızı ve hiçbir kapı onu koşmuyor → `tests/test_fk_sapmasi_kapisi.py`
+(5 test, mutasyon 3/3), muafiyet listeye değil **karşılığına** bağlı (L67).
+
+**3) BUG #340 — DÜZELTME VERİYE BAĞLIYDI.** #330/#337 doğruydu ama kart taşıyan **5 hesabın
+4'ünde** `min_payment_ratio`/`statement_balance` boş → koç sabit %25 yedeğini **ölçüm gibi**
+söylüyordu (#330'un 411 TL yanlış çıkardığı sabit). Artık yedeğe düşüldüğünde koç bunu
+**söylüyor** ve ekstre istiyor. Sayı DEĞİŞMEDİ, kaynağı görünür oldu. Uyarı depoda zaten
+var olan *"FAİZSİZ varsayıldı"* deseniyle aynı kanaldan; **L61 ayağı:** uyarı
+`compare_strategies`teydi ama oraya yalnız UI bakıyor — zarar koçun cevabında oluştuğu için
+bayrak `asgari_tuzagi`ye ve koç bağlamının METNİNE taşındı. Prompt'a yasak satırı EKLENMEDİ
+(K-KURAL 5). 13 test, **mutasyon 8/8** (sonuncusu testin kendi kör noktasını buldurdu).
+
+---
+
+## ⛔ BU RAPORUN EN AĞIR BULGUSU — BETA 23 GÜNDÜR ÖLÜ
+
+| Kullanıcı | Kayıt | İşlem | Koç | Son etkinlik |
+|---|---|---|---|---|
+| Davetli 1 | 11 Ağu 13:05 | **0** | **0** | **hiç** |
+| Davetli 2 | 11 Ağu 13:11 | 9 | 5 | 11 Ağu |
+| Davetli 3 | 11 Ağu 15:37 | 2 | 0 | 11 Ağu |
+| **Kurucu (u5)** | 11 Ağu 15:48 | 2 | 8 | **4 Eyl** |
+| Davetli 4 | 12 Ağu 11:20 | **0** | **0** | **hiç** |
+
+**13 Ağustos'tan beri sistemdeki tek kullanıcı etkinliği kurucununkidir.** Sistemdeki
+2 geri bildirimin ikisi de ona ait. **Sebep kayıtlı:** `BUG #303` (12 Ağu) — davetliler
+siteyi Chrome/Brave'de **açamıyor** (Cloudflare çözümleyici 12 sorgunun 11'inde NXDOMAIN;
+tarayıcı "Güvenli DNS"i işletim sistemini atlıyor). Son davetli aynı gün kaydoldu ve dönmedi.
+Belgedeki kalıcı çözüm **kendi alan adı = B0**.
+
+**⚠️ AYNI GÜN DÜZELTİLDİ — SEBEP KANITLI DEĞİL.** Yukarıdaki DNS zinciri 12 Ağustos
+ölçümüne dayanıyordu ve yayımlanmadan önce TEKRARLANMADI. Tekrarlandı (4 Eyl, 6'şar sorgu):
+**Cloudflare 6/6 ÇÖZDÜ · Google 6/6 ÇÖZDÜ · `/api/health` ad üzerinden 200.** Arıza
+kendiliğinden geçmiş. *"Davetliler giremiyor"* cümlesi **bugün yanlıştır**.
+
+Betanın 23 gündür ölü olması ölçülmüş bir gerçek olarak KALIR; **sebebi ise kanıtlı değildir.**
+DNS arızası 11-12 Ağustos'ta gerçekti ve davetlilerin tek denediği günleri vurmuş OLABİLİR —
+bu makul bir hipotez, ölçülmüş bir sebep değil. **Dolayısıyla B0, "betanın ölü olmasının
+sebebi" olarak sunulamaz;** meşru ve açık bir karar olarak kalır (kalıcı barındırma, makine
+kapalıyken erişim) ama aciliyeti bu bulgudan türemez.
+
+**ASİSTANIN HATASI (KURAL R3 ihlali):** 23 günlük sessizliği 23 günlük bir ölçümle açıkladım
+ve o ölçümü tekrarlamadan *"sebep kayıtlı, tahmin değil"* diye yazdım. Bu turun üçüncü aynı
+sınıf hatası (önce `alembic check` teşhisinde iki kez). **Bir koşum bayatlar; bayat koşum
+kanıt değildir.**
+
+**AÇIK KALAN GERÇEK SORU:** davetliler neden dönmedi? Bugün ölçülü tek şey dönmedikleri.
+Cevap ancak onlara sorularak öğrenilir (B2 yüzeyi diskte hazır ve çalışıyor) — ürün tarafında
+tahminle kapatılacak bir madde değil.
+
+**SIRADAKİ TEK ADIM — ⛔ İNSAN-KAPISI:** B0 barındırma kararı, tek soru olarak Murat'a
+sunulur (KURAL 2: tek mesaj, tek karar). Fiyatlar 11 Ağu'dan; sunmadan önce KURAL D1 ile
+tazelenir. Karar geldiği anda B4 ve kapı 9-12 arka arkaya kapanabilir; kod tarafında engel
+yok (`scripts/deploy.sh` ve `scripts/live_gate.py` diskte, hiç koşulmamış).
+
+**AYRICA AÇIK:** canlı sürüm yerel HEAD'den geride (bugünün düzeltmeleri kullanıcılarda
+değil) · backlog 60 BUG'dır güncellenmedi · `IC_JARGON`/"reel bütçe" §8 insan-kapısı ·
+prompt kırpma (taban medyan %88,6) · koç kötü hali kararına yansıtmıyor.
+
+---
+
+### ⏸️ (ÖNCEKİ) KALDIĞIMIZ YER — 4 Eylül 2026, sabah
 
 **DURUM:** her şey commit'li ve push'lu (`main` = `origin/main`). Süit **3468 passed ·
 18 skipped · 0 failed**. Kalite kapısı 296 (63/63), ölü kod 0, belge denetimi geçiyor,

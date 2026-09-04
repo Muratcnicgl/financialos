@@ -6,6 +6,7 @@
 - `frontend/src/panels/` — Cockpit, Coach, Accounts, Transactions, IncomeDebt, RedLines.
 - `frontend/src/components/` — paylaşılan UI bileşenleri.
 - `frontend/src/api.js` — **tüm** backend çağrıları buradan geçer. `ApiError` fırlatır; panel'ler try/catch ile yakalar. Doğrudan fetch/axios çağrısı panel içine yazılmaz.
+  **Bu kural 5 Eyl 2026'dan beri ÖLÇÜLÜYOR** (`tests/test_frontend_api_kapisi.py`): yazılı olup zorlanmayan bir kural, ilk acelede delinir. Sarmalayıcıdan geçmemesi GEREKEN bir çağrı varsa (ör. giriş yapamayan kullanıcıya bakan `SistemDurumu`, orada 503 hata değil ölçümün kendisidir) çağrının üstüne `// api-kapisi-muaf: <gerekçe>` yazılır — gerekçesiz muafiyet kabul edilmez.
 
 ## Geliştirme
 

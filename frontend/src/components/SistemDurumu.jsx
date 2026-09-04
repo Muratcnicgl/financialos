@@ -23,6 +23,13 @@ const DURUMLAR = {
 
 async function durumOku() {
   try {
+    // api-kapisi-muaf: bu cagri BILEREK api.js'i atlar ve gerekcesi tasarimin kendisidir.
+    // `api.js`in `request()` sarmalayicisi (a) 401'de oturum kurtarmaya calisir, (b) 2xx
+    // disinda `ApiError` FIRLATIR. Bu yuzey ise tam olarak GIRIS YAPAMAYAN kullanici icin
+    // var ve burada 503 bir hata degil, OLCUMUN KENDISIDIR ("sunucu hazir degil"). Sarmalayici
+    // kullanilirsa 503 bir istisnaya donusur ve kullanici yine "bir seyler ters gitti" gorur —
+    // yani bilesenin var olma sebebi ortadan kalkar. Kural `tests/test_frontend_api_kapisi.py`
+    // ile zorlanir; muafiyet dosyaya degil, YAZILI GEREKCEYE baglidir.
     const r = await fetch('/api/ready', { headers: { Accept: 'application/json' } });
     // 503 = hazır değil (DB/şema). Gövde yine JSON'dur; ayrıntı KULLANICIYA gösterilmez.
     if (r.status === 200) return { durum: 'saglikli', api: true, veritabani: true };

@@ -843,3 +843,9 @@ Düzeltme iki ayrı koşulda ölçüldü:
 
 `.1`'in bugüne kadar hiç var olmaması, arızanın bu gece **doğmadığını, tetiklendiğini**
 söylüyordu (L81) — ve şimdi var olması, mekanizmanın ilk kez gerçekten çalıştığının kanıtı.
+* **L82 — Yazılı ama ölçülmeyen bir kural, kuralın hatırasıdır.** `frontend/PROJE.md`
+  *"tüm backend çağrıları api.js'ten geçer"* diyordu; 64 dosyalık frontend'de **hiçbir
+  statik analiz koşmuyordu** ve kural hiç ölçülmemişti. Ölçülünce tek ihlal çıktı ve o
+  ihlal **haklıydı** — ama gerekçesi hiçbir yerde yazılı değildi. İki ders bir arada:
+  kural zorlanmalı, ve haklı istisna **yazılmalı** (yoksa bir sonraki okuyan onu ya
+  yanlışlıkla siler ya da emsal sayıp gerekçesiz tekrarlar).

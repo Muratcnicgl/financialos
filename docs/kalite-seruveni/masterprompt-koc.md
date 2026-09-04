@@ -551,7 +551,7 @@ temiz-DB göç kilidi geçiyor. **Kapalı beta AYAKTA** (health/ready 200).
 **BU TUR GERÇEK KULLANIMDAN DOĞDU.** Murat bankalardan güncel verisini çekmek istedi;
 o iş sırasında ürün üç yerde yalan söylediği ölçüldü ve canlı sistem bir kez kurtarıldı.
 
-**KAPANAN (11 defekt):**
+**KAPANAN (14 defekt):**
 `#322` grounding izin listesi modelin gördüğü veriden dardı · `#323` "bugün" diyen
 kullanıcının harcaması kaydedilmiyordu · `#324` beraatin gerekçesi yoktu ·
 `#325` zayıf beraat işaretlenir (eşik ölçüldü, seçilmedi) · `#326` göç adımı
@@ -559,7 +559,9 @@ başlatma yolunda yoktu (**beta 24,5 saat kapalıydı**) · `#327` `balance`ın 
 yanlış yazılmıştı · `#328` kesinti sessiz kalıyordu · `#329` CI kırmızıydı ama açık
 yoktu (npm 503) · `#330` kart asgari oranı koda gömülüydü (%25 → gerçek %20) ·
 `#331` karta yazılan gider nakit çıkışı sayılıyordu · `#332` "hesabı o an belli olur"
-seçeneği yoktu · `#333` koçtan aritmetik bekleniyordu.
+seçeneği yoktu · `#333` koçtan aritmetik bekleniyordu · `#334` tek "ay sonu" sayısı
+koçu iyi hale demirliyordu · `#335` ret kodu sebebini söylemiyordu · `#336` retry neden
+reddedildiğini bilmiyordu.
 
 **CANLI OLAY:** beta 03/09 08:50 → 04/09 09:21 arası KAPALIYDI (45 başarısız deneme).
 `schema_guard` doğru davrandı; eksik olan göçü UYGULAYAN adımdı ve o adım kullanılmayan
@@ -582,8 +584,10 @@ Hiçbiri prompt'a satır eklenerek yapılmadı (K-KURAL 5); üçü de ÜRÜN dü
    ayrıca terimi YANLIŞ etiketle kullandı (1.893 dedi, gerçek −7.700).
 3. **Yanlış beraat — sapma dağılımı ölçüldü** (%87,5 tam · %4,7 yuvarlama · %7,8 zayıf,
    ortası BOŞ). İşaretleme var (#325); eşiği kapıya çevirmek daha geniş canlı dağılım ister.
-4. **`PAYLOAD_GECERSIZ` dalı** — log yalnız `red.kod`u basıyor; `red.gorunur_neden`
-   kesin teşhisi taşıyor ve para içermiyor (ADR-052). Önce logla, ÖLÇ, sonra düzelt.
+4. ~~`PAYLOAD_GECERSIZ` dalı~~ **KAPANDI (#335/#336).** Loglanınca gerçek sebep çıktı:
+   model `transaction_type`'ı bazen HİÇ göndermiyor (eksik alan, yanlış değer değil).
+   Retry artık sebebi biliyor. Ölçüm: `action` **8/8** (4 tur × 2 senaryo; öncesi 5/6↔3/6).
+   Dürüst sınır: 8 gözlem tek koşumdur, aralık ölçümü ayrı bir turda alınmalı.
 5. **Asgari, EKSTRE borcu üzerinden hesaplanmalı** — motor güncel borcu kullanıyor
    (1.667,63 vs bankanın 1.644,23). Ekstre borcu ürüne sayısal alan olarak girmeli.
 6. **Prompt kırpma — taban temiz** (OpenRouter sabit, medyan %88,6).

@@ -73,8 +73,54 @@ if ($kirli) {
 $canli = CanliDamga $Port
 Yaz "canli=$canli  hedef=$hedef"
 
+# --- 1b) ARAYUZ DERLEMESI (BUG #353) ------------------------------------------------
+# OLCULEN OLAY (5 Eylul 2026): bu betik BACKEND'i guncelliyordu, arayuzu HIC derlemiyordu.
+# `frontend/dist` 2 Eylul 18:05'ten kalmaydi ve o tarihten beri `frontend/src` 9 commit
+# almisti — #318 erken kapama, #319 nakit takvimi, #320 bekleyen nakit, #330/#331 kart,
+# #332 "hesabi o an belli olur" secenegi. Yani bu duzeltmelerin BACKEND yarisi canlida,
+# ARAYUZ yarisi degildi. Bir duzeltmeyi ikiye bolmek, hic yapmamaktan daha yaniltici:
+# urun "duzeldi" diye kaydedilir, kullanici eski ekrani gormeye devam eder (L64).
+#
+# `dist/` gitignore'da (bilincli — derleme ciktisi depoya girmez), dolayisiyla onu
+# URETMEK dagitimin isidir. Yeniden baslatma GEREKMEZ: `app/spa.py` StaticFiles +
+# FileResponse kullanir, yani diski HER ISTEKTE okur (olculdu).
+$fKaynak = (git log -1 --format=%H -- frontend/src frontend/package.json frontend/vite.config.js frontend/index.html).Trim()
+$distDizin = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "frontend/dist"
+$damgaDosya = Join-Path $distDizin ".kaynak-damgasi"
+$distIndex = Join-Path $distDizin "index.html"
+$fMevcut = ""
+if (Test-Path $damgaDosya) { $fMevcut = (Get-Content $damgaDosya -Raw).Trim() }
+
+$arayuzBayat = (-not (Test-Path $distIndex)) -or ($fMevcut -ne $fKaynak)
+if ($arayuzBayat) {
+    if ($KuruKosum) {
+        Yaz "KURU KOSUM: arayuz BAYAT (dist damgasi '$fMevcut' != kaynak '$fKaynak')"
+    } else {
+        Yaz "arayuz bayat — derleniyor (npm run build)"
+        $fLog = Join-Path $LOGDIZIN "guncelle-build.out"
+        $fe = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "frontend"
+        $n = Start-Process -FilePath "cmd" -ArgumentList @("/c", "npm", "run", "build") `
+             -WorkingDirectory $fe -PassThru -WindowStyle Hidden `
+             -RedirectStandardOutput $fLog -RedirectStandardError "$fLog.err"
+        Wait-Process -Id $n.Id -Timeout 600
+        if ($n.ExitCode -ne 0) {
+            Yaz "BASARISIZ: arayuz derlemesi cikis $($n.ExitCode) verdi — bkz. $fLog.err"
+            exit 3
+        }
+        # KULLANIM-GATE'in arayuz ayagi: derleme "kostu" demek yetmez, CIKTI olculur.
+        if (-not (Test-Path $distIndex)) {
+            Yaz "BASARISIZ: derleme 0 dondu ama dist/index.html YOK"
+            exit 3
+        }
+        Set-Content -Path $damgaDosya -Value $fKaynak -Encoding utf8
+        Yaz "arayuz derlendi — damga $fKaynak"
+    }
+} else {
+    Yaz "arayuz guncel (damga $fKaynak)"
+}
+
 if ($canli -eq $hedef) {
-    Yaz "GUNCEL — yapilacak bir sey yok"
+    Yaz "GUNCEL — backend icin yapilacak bir sey yok"
     exit 0
 }
 

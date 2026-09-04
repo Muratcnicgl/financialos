@@ -123,6 +123,24 @@ def _etiketsiz_desen(kod: Optional[str]) -> re.Pattern[str]:
     )
 
 
+#: BUG #325 — ZAYIF BERAAT EŞİĞİ (%). ÖLÇÜLDÜ, SEÇİLMEDİ.
+#:
+#: 4 Eylül 2026, davranış seti, OpenRouter sabit, 3 koşum, 64 beraat:
+#:     sapma %0,00 (tam eşleşme)     56   %87,5
+#:     sapma %0,00-0,10 (yuvarlama)   3   %4,7    (`2.317` ↔ `2.317,93`)
+#:     sapma %0,10-1,00               0   %0,0    <-- BOŞ
+#:     sapma > %1,00                  5   %7,8    (hepsi `12.216` ↔ `12.000`)
+#: Dağılım çift tepeli ve ortası boş; %0,5 iki yığının da uzağında ve 18 katlık
+#: boşluğun içinde. Eşik bir tahmin değil, bu boşluğun adıdır.
+#:
+#: BU BİR KARAR KAPISI DEĞİL, SAYAÇTIR: `ok` semantiği değişmez, tolerans daraltılmaz
+#: (yuvarlanmış doğru cevabı düşürürdü — BUG #316), cevap kırmızıya düşmez. Zayıf beraat
+#: yalnız İŞARETLENİR ki bir sonraki tur canlı veride sayılabilsin.
+#: Dürüst not: ölçülen 5 zayıf beraatın 5'i de AYNI tutarın tekrarı — bağımsız gözlem
+#: sayısı esasen 1. Kapıya dönüşmesi daha geniş bir dağılım ister.
+ZAYIF_BERAAT_ESIGI = 0.5
+
+
 #: Silinecek ayıraçlar — `_BINLIK` ile AYNI küme, kaçış dizisiyle yazılır.
 _AYIRAC_SIL = str.maketrans("", "", ".\u0020\u00A0\u202F\u2009")
 
@@ -243,6 +261,9 @@ def check_grounding(
                 # Sapma sıfırsa eşleşme kanıttır; büyüdükçe tesadüf ihtimali artar.
                 "sapma_yuzde": round(abs(val - en_yakin) / en_yakin * 100, 2) if en_yakin else 0.0,
                 "kaynak": _kaynak.get(en_yakin, "cockpit"),
+                # BUG #325: gerekçesi zayıf beraat İŞARETLENİR, ama ihlal SAYILMAZ.
+                "zayif": (abs(val - en_yakin) / en_yakin * 100) > ZAYIF_BERAAT_ESIGI
+                         if en_yakin else False,
             })
 
     # BUG #256: etiketi düşürülmüş tutarlar artık görünür. Etiketli eşleşmelerin içindeki

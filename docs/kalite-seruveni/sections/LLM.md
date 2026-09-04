@@ -183,7 +183,7 @@
 - **Etki:** Orta · **Efor:** L
 
 ### [LLM-015] coach.py 1865 satır — modülerleştirme
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: coach.py 2641 satir
+- **Durum:** 🔲 AÇIK — ama **rakam bayattı ve borç BÜYÜMÜŞ**: madde *"1865 satır"* diyordu; 5 Eyl 2026 ölçümü **3.501 satır** (yaklaşık 1,9 katı). Yani modülerleştirme yapılmadığı gibi, yapılmadıkça maliyeti de artıyor. Maddeyi okuyan biri eski sayıya bakıp işi olduğundan küçük sanmasın diye kayda geçiyor.
 - **Kanıt:** `app/coach.py`
 - **Aksiyon:** `app/coach/` paketi (providers/prompts/tools/memory/postprocess/engine); public API `__init__.py` (premortem import kırılmasın). Eval harness (LLM-004) ÖNCE.
 - **Etki:** Orta · **Efor:** L · **Not:** BE-001 ile aynı.
@@ -313,7 +313,7 @@ Harcamanı kaydettim."`
 - **Etki:** Orta · **Efor:** S
 
 ### [LLM-031] Rate limiting yok — bug avında tüm provider'lar dolar
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: token-bucket throttle yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `app/llm_quota.py` üç katmanlı bir kota taşıyor. **(1)** Kullanıcı başına günlük tavan (`kullanici_gunluk_tavan`, varsayılan 80 çağrı ≈ 40 mesaj; BUG #188) — çok kullanıcıda hem maliyet tavanı hem ADALET guard'ı. **(2)** Sağlayıcı-PAYLAŞIMLI sayım (`paylasilan_cagri_sayisi`, BUG #234/D14) — sağlayıcı kotası tek havuzdur, kullanıcı filtresiyle sayılırsa havuz görünmez. **(3)** Sayaç çağrı ÖNCESİ rezerve ediliyor (BUG #212/H17: *"oku → çağır → yaz"* yarışı kapandı). Maddenin senaryosu (*"bug avında tüm provider'lar dolar"*) tam olarak bu üçüyle engelleniyor.
 - **Kanıt:** `routers/coach.py:284-290`; wave3-vision:163
 - **Aksiyon:** In-memory token-bucket (10/dk); gerçek 429'da `retry-after` oku.
 - **Etki:** Düşük · **Efor:** S · **Not:** SEC-004 ile örtüşür.
@@ -367,7 +367,7 @@ Harcamanı kaydettim."`
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-040] Fallback sonuç kalitesi kontrol edilmiyor — boş/bozuk metin geçebilir
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: FallbackProvider kalite gecidi yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: boş/bozuk cevap `ProviderEmptyResponseError` olarak fırlatılıyor (`app/coach.py:1747,1758`) ve yeniden-deneme sarmalayıcısı bunu **bilerek yakalamıyor** (`:707` `raise`), böylece `FallbackProvider` bir sonraki sağlayıcıya geçiyor. Yani "boş metin geçebilir" yolu kapalı; Gemini'nin `MALFORMED_FUNCTION_CALL` gibi finish_reason'ları da bu kanaldan atlanıyor (`docs/architecture.md`).
 - **Kanıt:** `coach.py:1139-1173,1413-1440`
 - **Aksiyon:** Fallback sonrası minimal kalite geçidi (çok kısa+tool yok+soru değil veya grounding-ihlali → sonraki provider); max_attempts ile sınırla.
 - **Etki:** Orta · **Efor:** M

@@ -40,6 +40,38 @@ if ($dinleyen -and $Zorla) {
     Start-Sleep -Seconds 4
 }
 
+# BUG #326 — GÖÇÜ UYGULAYAN ADIM BU YOLDA YOKTU.
+#
+# Ölçülen olay (4 Eylül 2026): kapalı beta SABAHTAN BERİ KAPALIYDI. `app/schema_guard.py`
+# doğru davrandı ve uygulamayı açmayı reddetti (DB e7f8a9b0c1d2, kod f8a9b0c1d2e3 —
+# BUG #318'in göçü canlı DB'ye hiç uygulanmamıştı). Sağlık görevi 10 dakikada bir yeniden
+# denedi ve her seferinde aynı hatayla düştü; arıza yalnız servis.log'a yazıldı.
+#
+# Adım YANLIŞ YOLLARDAYDI: `deploy/financialos.service` (systemd) ve `scripts/deploy.sh`
+# (Docker) göçü uyguluyordu — ama ikisi de KULLANILMIYOR. Betanın gerçekte koştuğu yol
+# burasıydı ve burada adım yoktu. (L64'ün sınıfı: bir adımın başka bir yolda olması,
+# kullanılan yolda olduğu anlamına gelmez.)
+#
+# SIRA BİLİNÇLİ: önce ÖLÇ, gerekiyorsa YEDEKLE, sonra UYGULA. Her başlatmada yedek almak
+# (sağlık görevi bunu 10 dakikada bir çağırıyor) diski gereksiz doldururdu; yedek yalnız
+# gerçekten göç uygulanacakken alınır. SQLite'ta `batch_alter_table` tabloyu YENİDEN
+# KURAR — yedeksiz göç, canlı beta verisini tek bir migration'a emanet etmektir.
+& $PY -m scripts.goc_durumu
+$gocDurumu = $LASTEXITCODE
+if ($gocDurumu -eq 10) {
+    Yaz "goc bekliyor — once yedek, sonra alembic upgrade head"
+    & $PY -m scripts.backup
+    if ($LASTEXITCODE -ne 0) { Yaz "GOC BASARISIZ: yedek alinamadi, goc KOSULMADI"; exit 1 }
+    & $PY -m alembic upgrade head
+    if ($LASTEXITCODE -ne 0) { Yaz "GOC BASARISIZ: alembic upgrade head dustu"; exit 1 }
+    Yaz "goc uygulandi"
+} elseif ($gocDurumu -ne 0) {
+    # Bilinmeyen, "guncel" DEĞİLDİR (L45). Yarım göçle açılan uygulama, eksik kolonu
+    # okuyan her uçta 500 verir — kapalı olmaktan DAHA KÖTÜ (bu dosyanın kendi gerekçesi).
+    Yaz "GOC BASARISIZ: goc durumu OLCULEMEDI (cikis $gocDurumu) — baslatilmiyor"
+    exit 1
+}
+
 Yaz "baslatiliyor (port $Port)"
 $p = Start-Process -FilePath $PY `
     -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$Port" `

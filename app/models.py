@@ -45,6 +45,16 @@ import enum
 # ENUM'LAR
 # ============================================================
 
+#: KREDIDE `balance` ALANININ ANLAMI — MAKINE-OKUR SOZLESME (BUG #327).
+#:
+#: Duz yazi bir sozlesme tasiyamaz: ilk kapi `models.py` metninde "kalan taksit toplami"
+#: ifadesini ARIYORDU ve duzeltmenin KENDI olcum tablosu o ifadeyi icerdigi icin kirmizi
+#: verdi (L67'nin aynisi: bir kapi, kendisini aciklayan belge yuzunden kor/kirik kalamaz).
+#: Anlam artik burada, tek bir degerde durur; degistirmek BILINCLI bir edimdir ve kapi
+#: onu gorur. Deger degisirse `app/debt_strategy.py`nin faiz tabani da degismelidir.
+KREDI_BALANCE_ANLAMI = "erken_kapama"   # "erken_kapama" | "kalan_taksit_toplami"
+
+
 class AccountType(str, enum.Enum):
     cash = "cash"
     credit_card = "credit_card"
@@ -233,9 +243,26 @@ class Account(Base):
     monthly_payment = Column(Numeric(19, 4), nullable=True)       # Aylık taksit
     remaining_installments = Column(Integer, nullable=True)
     next_payment_date = Column(Date, nullable=True)
-    # BUG #318: bir kredinin IKI ayri sayisi vardir ve karistirilirsa kullanici yanlis
-    # karar verir. `balance` = KALAN TAKSIT TOPLAMI (gelecek faizi icerir); bu alan =
-    # bugun kapatirsan odenecek ANAPARA ("Erken Kapama Tutari"). Onceden yalniz `notes`
+    # BUG #327 DUZELTMESI (4 Eyl 2026): asagidaki tanim YANLISTI. "balance = KALAN TAKSIT
+    # TOPLAMI" yaziyordu, ama `debt_strategy.py:182` her ay `interest = bal * oran` yapar —
+    # yani `balance`i FAIZLENDIRIR. Zaten gelecek faizini iceren bir sayiyi faizlendirmek
+    # faizi IKI KEZ saymaktir. Garanti'nin gercek verisiyle olculdu:
+    #   balance = ERKEN KAPAMA       -> 4 / 23 ay sonra bakiye 0,00           DOGRU
+    #   balance = KALAN TAKSIT TOPL. -> 1.782,60 / 102.266,40 KALIYOR         YANLIS
+    # 34.500 TL'lik bir krediyi 102 bin TL borc gosteren yorum, urunun kendi "kredi asla
+    # bitmiyor" defektiydi. Kapi: tests/test_kredi_balance_anlami_kapisi.py
+    #
+    # BIR KREDININ UC AYRI SAYISI VARDIR (odeme planindan olculdu):
+    #   kalan taksit toplami 63.186,20  = taksit x adet; hicbir alana GIRMEZ (notta durur)
+    #   kalan ANAPARA        32.604,08  = gercek anapara; URUN BUNU HENUZ MODELLEMIYOR
+    #   erken kapama         34.688,87  = anapara + islemis faiz -> `balance` VE bu alan
+    # Ayrica planda `fon`+`vergi` (KKDF+BSMV) faizin %30'u kadar ek yuk getirir; nominal
+    # faiz tek basina aylik yuku anlatmaz (oran odeme planindan turetilmelidir).
+    #
+    # BUG #318: bir kredinin bu sayilari karistirilirsa kullanici yanlis karar verir.
+    # `balance` = bugun kapatirsan odenecek tutar; bu alan ayni sayiyi ACIKCA adlandirir
+    # ("Erken Kapama Tutari") ki koc onu cockpit'te SAYI olarak bulabilsin.
+    # Onceden yalniz `notes`
     # icinde METINDI: koc "iki kredimi kapatsam ne oderim?" sorusuna 79.625,85 dedi,
     # dogrusu 48.510,41'di -> 31.115,44 TL fazla odeme tavsiyesi. Ayrica dogru cevap
     # cockpit'te sayi olarak bulunamadigi icin "izlenemeyen tutar" damgasi yiyordu.

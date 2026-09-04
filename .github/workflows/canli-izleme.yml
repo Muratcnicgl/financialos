@@ -37,10 +37,16 @@ name: canli-izleme
 # gider ve kesinti **kalıcı bir kayıt** bırakır (masterprompt Y2: "kesinti ve toparlanma
 # bir yere yazılıyor"). Açık issue varken ikincisi açılmaz — alarm spam'e dönüşmez.
 
+# CRON BİLEREK YOK — ölçüldü ve tasarım değişti.
+# GitHub belgesi: ödeme yöntemi yoksa Actions kotası (özel depoda 2.000 dk/ay) bitince
+# kullanım BLOKLANIR. Yani saatlik bir izleme işi, tükendiği gün YEDİ KALİTE KAPISINI da
+# beraberinde susturur — izleme uğruna CI'yi riske atmak yanlış takas (asimetrik bedel).
+# Ve daha önemlisi: YOKLAYAN bir izleyici sessizce ölebilir; öldüğünde sessizlik "her şey
+# yolunda" gibi görünür — Y2'nin kapatmak için var olduğu körlüğün ta kendisi.
+# Asıl izleme bu yüzden ÖLÜ ADAM ANAHTARI'dır (`deploy/windows/saglik.ps1`): makine ping
+# atar, ping kesilirse alarm çalar. Bu iş ikinci göz olarak ELLE tetiklenebilir kalır.
 on:
-  schedule:
-    - cron: '7 * * * *'        # saat başı (7. dakika: GitHub'ın yoğun :00 kuyruğundan kaçınır)
-  workflow_dispatch:            # elle tetikleme (mutasyon kanıtı için)
+  workflow_dispatch:            # elle: istendiğinde dışarıdan bağımsız kontrol
   push:
     paths:
       - '.github/workflows/canli-izleme.yml'   # izleyici değişince KENDİSİ doğrulanır

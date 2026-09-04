@@ -27,7 +27,6 @@ Bir sonraki `.ps1` BOM'suz eklenirse burada düşer; hata mesajı sebebi de söy
 """
 from __future__ import annotations
 
-import subprocess  # noqa: S404 — yalnız `git ls-files`, kullanıcı girdisi yok
 import sys
 from pathlib import Path
 
@@ -37,6 +36,7 @@ if str(KOK) not in sys.path:
 
 # `git ls-files` BEŞİNCİ kez yeniden yazılmaz — tek kaynak (BUG #338'in dersi).
 from scripts.sir_taramasi import izlenen_dosyalar as _izlenen  # noqa: E402
+from scripts.kabuk import powershell as _ps  # noqa: E402  (S607 tek kaynakta)
 
 BOM = b"\xef\xbb\xbf"
 
@@ -83,10 +83,7 @@ def test_HER_ps1_AYRISTIRILABILIR():
         "Write-Output ($f + ' :: satir ' + $e[0].Extent.StartLineNumber + ' :: ' "
         "+ $e[0].Message) } }; exit $h"
     )
-    sonuc = subprocess.run(  # noqa: S603 — sabit argümanlar
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", kod],
-        capture_output=True, text=True, timeout=120,
-    )
+    sonuc = _ps(kod)
     if sonuc.returncode == 127 or "not recognized" in (sonuc.stderr or ""):
         import pytest
         pytest.skip("powershell yok (Windows dışı ortam)")

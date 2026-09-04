@@ -163,11 +163,65 @@ if ($ipler.Count -eq 0) {
 
 if (-not $disOk) { $sorun += $disNot }
 
+# ── ÖLÜ ADAM ANAHTARI (Wave-Y / Y2, BUG #342) ──────────────────────────────
+#
+# NEDEN YOKLAMA DEĞİL: yoklayan bir izleyici SESSİZCE ÖLEBİLİR ve öldüğünde sessizlik
+# "her şey yolunda" gibi görünür. Y2'nin kapatmak için var olduğu körlük tam budur —
+# 24,5 saatlik kesinti de tam böyle görünmüştü (BUG #326/#328).
+#
+# Ölü adam anahtarı YÖNÜ TERSİNE ÇEVİRİR: makine dışarı ping atar, ping kesilirse alarm
+# çalar. Ping'in kesilme sebepleri — servis öldü · makine kapandı · ağ gitti · bu görev
+# bozuldu — HEPSİ kesintidir ve hepsi aynı alarmı üretir. **Sessizlik, her şeyin yolunda
+# olduğunun değil, alarmın kendisidir.** "Bekçiyi kim bekliyor?" sorusu böylece ortadan
+# kalkar: bekçinin ölümü de kesinti sayılır.
+#
+# PING YALNIZ SAĞLIK TAMKEN ATILIR. Koşulsuz ping, "süreç ayakta" ile "servis çalışıyor"u
+# karıştırırdı — Y1'in kök nedeni tam olarak buydu (eski süreç de 200 veriyordu).
+# Buradaki `$sorun.Count -eq 0`, uygulama + tünel + DIŞ yolun üçünü birden kapsar.
+#
+# Adres YAPILANDIRMADAN okunur ve depoya GİRMEZ (`izleme-url.txt` .gitignore'da): o URL
+# bir kimlik taşır, commit edilirse herkes sahte "sağlıklıyım" sinyali gönderebilir ve
+# alarm kalıcı olarak susturulabilirdi.
+function PingAt($durum) {
+    $dosya = Join-Path $PSScriptRoot "izleme-url.txt"
+    $url = $env:FOS_IZLEME_PING_URL
+    if (-not $url -and (Test-Path $dosya)) { $url = (Get-Content $dosya -Raw).Trim() }
+    if (-not $url) {
+        # Yapılandırılmamış olmak SESSİZ kalmamalı — ama 10 dakikada bir yazmak da log'u
+        # boğar; saat başı bir satır, "izleme yok" durumunun kendisini görünür tutar.
+        if ((Get-Date).Minute -lt 10) { Yaz "UYARI" "olu adam anahtari YAPILANDIRILMAMIS (izleme-url.txt yok)" }
+        return
+    }
+    try {
+        Invoke-WebRequest $url -UseBasicParsing -TimeoutSec 10 -Method Get | Out-Null
+    } catch {
+        # İzleme servisi düşse bile SAĞLIK GÖREVİ düşmez: bekçi, beklediği şeyi bozmamalı.
+        Yaz "UYARI" "izleme ping'i gonderilemedi (izleme servisi tarafi): $($_.Exception.Message)"
+    }
+}
+
+# Erişilebilirlik kaydı: HER koşumda tek satır. Yüzde hesabı üçüncü tarafa değil buna
+# dayanır — ve KAYIP SATIRLAR da veridir: görev 10 dakikada bir koştuğu için, olması
+# gereken slot sayısıyla gerçekleşen satır sayısı arasındaki fark **kesintinin kendisidir**
+# (makine kapalıyken satır yazılmaz). Böylece "veri yok" sessizce %100'e dönüşemez (L45).
+function KayitYaz($ok) {
+    $csv = Join-Path $LOGDIZIN "erisilebilirlik.csv"
+    if (-not (Test-Path $csv)) {
+        Add-Content -Path $csv -Value "zaman_utc,saglikli" -Encoding UTF8
+    }
+    $satir = "{0},{1}" -f (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"), $ok
+    Add-Content -Path $csv -Value $satir -Encoding UTF8
+}
+
 # ── Sonuç ──────────────────────────────────────────────────────────────────
 if ($sorun.Count -eq 0) {
+    KayitYaz 1
+    PingAt "saglam"
     # Sessiz başarı: her 10 dakikada bir satır, log'u boğmasın diye YALNIZ saat başı yaz.
     if ((Get-Date).Minute -lt 10) { Yaz "OK" "uygulama + tunel + dis yol saglam" }
     exit 0
 }
+# Sorun varken ping ATILMAZ — susmak, alarmın kendisidir.
+KayitYaz 0
 Yaz "HATA" ($sorun -join " | ")
 exit 1

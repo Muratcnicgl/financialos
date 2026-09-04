@@ -74,3 +74,6 @@ openapi.json
 # Gelistirme araci yapilandirmasi — depoya girmez (proje bilgisi degil).
 .asistan/
 PROJE.md
+
+# Wave-Y/Y2: olu adam anahtari ping adresi KIMLIK tasir — depoya girmez
+deploy/windows/izleme-url.txt

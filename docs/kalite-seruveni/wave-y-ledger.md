@@ -141,7 +141,95 @@ koşumda "asıldı" diye yanlış teşhis konmasın.
 
 ---
 
-## Y2 — KESİNTİ KÖRLÜĞÜ ▸ SIRADAKİ
+## 🟡 Y2 — KESİNTİ KÖRLÜĞÜ ▸ MEKANİZMA HAZIR, TEK İNSAN ADIMI BEKLİYOR
+
+### Tasarım İKİ KEZ değişti — ikisi de ölçümle
+
+**İlk tasarım (yoklama):** GitHub Actions saat başı `/api/health` yoklar, düşerse issue açar.
+Kotayı hesaplayıp saatlik seçmiştim (5 dk → 8.640 koşum/ay, bütçenin 4 katı; 60 dk → 720, %36).
+
+**Ama iki itiraz ölçüldü ve biri tasarımı devirdi:**
+
+| İtiraz | Ölçüm | Sonuç |
+|---|---|---|
+| "5 dakikalık cron kotayı 7 günde bitirir" | Tasarım zaten **saatlikti**, gerekçesi dosyanın içinde | ❌ Geçersiz — dosya okunmadan aritmetik yapılmış |
+| "60 gün etkinliksizlikte zamanlanmış iş devre dışı kalır" | GitHub belgesi: bu kural **public** depolar için. Depo private. **Ve kural, önerilen çözümde (workflow'u public vitrine taşımak) geçerli OLURDU** | ❌ Geçersiz — ve öneri riski yaratırdı |
+| "Kota bitince Actions bloklanır" | GitHub belgesi doğruladı: ödeme yöntemi yoksa kullanım **bloklanır** | ✅ **Geçerli** — izleme, yedi kalite kapısını da susturabilirdi (asimetrik bedel) |
+| "Bekçiyi kim bekliyor?" | — | ✅ **Geçerli ve tasarımı devirdi** |
+
+**Devirici argüman:** *yoklayan bir izleyici sessizce ölebilir, ve öldüğünde sessizlik
+"her şey yolunda" gibi görünür* — Y2'nin kapatmak için var olduğu körlüğün ta kendisi.
+
+### Yeni tasarım: ÖLÜ ADAM ANAHTARI (BUG #342)
+
+Yön tersine çevrildi. Makine **dışarı ping atar**; ping kesilirse alarm çalar. Kesilme
+sebeplerinin hepsi kesintidir: servis öldü · makine kapandı · ağ gitti · **görev bozuldu**.
+**Sessizlik, her şeyin yolunda olduğunun değil, alarmın kendisidir.** İstenen iki mutasyon
+(servisi durdur → alarm; izlemeyi durdur → yokluğu fark edilsin) **tek mekanizmayla**
+karşılanır; "bekçiyi kim bekliyor" sorusu ortadan kalkar.
+
+* Ping `saglik.ps1`'in **yalnız `$sorun.Count -eq 0`** dalında atılır (uygulama + tünel +
+  dış yol, üçü birden). Koşulsuz ping alarmı **kalıcı olarak** susturur — en tehlikeli
+  arıza biçimi, çünkü sistem "izleniyorum" der ve izlenmez.
+* Ping hatası sağlık görevini **düşürmez** (bekçi, beklediği şeyi bozmamalı).
+* Ping adresi **depoya girmez** (`.gitignore`) — o URL kimlik taşır; commit edilirse
+  herkes sahte "sağlıklıyım" gönderip alarmı susturabilir.
+* `canli-izleme.yml`'den **cron kaldırıldı** (kota riski sıfır); `workflow_dispatch`
+  ikinci göz olarak kaldı.
+
+**Kapı:** `tests/test_olu_adam_anahtari_kapisi.py` — 3 test, **mutasyon 4/4**. Ölçüm metin
+araması değil, PowerShell'in **kendi sözdizimi ağacı** (çağrının hangi `if` bloğunda
+olduğu ancak AST'den bilinir).
+
+### ⚠️ KARAR (a): MAKİNE KAPALI = KESİNTİ
+
+Beta Murat'ın kendi bilgisayarında koşuyor; makine kapanınca ping duracak ve alarm çalacak.
+İki seçenek vardı ve **kod yazılmadan önce seçildi**:
+
+**(a) SEÇİLDİ — makine kapalı kesintidir.** Kullanıcı açısından zaten öyle: site erişilemiyor.
+Susturma bayrağı eklemek, ölçmek için kurulan şeyi ölçülemez kılardı. **Yan etkisi
+tasarımın en değerli parçası:** B0 kâğıt üzerindeki bir maddeden **her gece hissedilen bir
+maliyete** dönüşür — 24 gündür bekleyen karar kendini dayatır. Y2 böylece Y0'ın kanıt
+toplayıcısı olur.
+
+**YAZILI TAAHHÜT:** alarm gürültülü gelirse çözüm **susturmak değil B0'dır.** Bu satır,
+iki hafta sonra sessizce bir mute bayrağı eklenmesini engellemek için buraya yazıldı.
+
+### Erişilebilirlik yüzdesi — açık uç kapatıldı (BUG #343)
+
+Cron kaldırılınca raporun veri kaynağı boşta kaldı. Rapor artık **üçüncü tarafa hiç bağlı
+değil**: `saglik.ps1` her koşumda `logs/erisilebilirlik.csv`'ye tek satır yazar.
+
+**Raporun kalbi:** payda **beklenen slot**tur (10 dk'da bir → 7 gün = 1.008). Makine
+kapalıyken satır yazılmaz; yalnız yazılmış satırlara bakan bir rapor o geceyi **%100
+sağlıklı** gösterirdi — ölçmediğini mükemmel sanmak (L45). **Kayıp slot kesinti sayılır.**
+
+**Ve yazarken tam bu sınıftan bir defekt üretildi:** rapor, diskte DURAN gerçek kaydı
+*"OLCUM YOK"* diye okudu. Sebep BOM'du — PowerShell'in `Add-Content -Encoding UTF8`'i
+dosya başına BOM koyuyor, düz `utf-8` okuyan `DictReader`'ın ilk sütun adı `﻿zaman_utc`
+oluyor ve **her satır sessizce eleniyordu**. (`test_ps1_bom_kapisi` ile aynı bayt, ters
+yönde: orada yokluğu, burada varlığı kırıyor.) `tests/test_erisilebilirlik_raporu_kapisi.py`
+— 6 test, **mutasyon 3/3**.
+
+### KABUL EDİLEN SINIR (yazılı, incelenmemiş varsayım değil)
+
+**Ping servisi kendisi ölürse kimse haber vermez.** Bilinçli kabul: bir SaaS'ın ölme
+olasılığı ev bilgisayarının kapanma olasılığından kat kat düşüktür, ve yerel kayda dayanan
+erişilebilirlik raporu o servisten **bağımsız ikinci bir gözdür**.
+
+### ⛔ KALAN TEK ADIM — MURAT'TA (hesap açma asistanda yasak)
+
+Ücretsiz bir ölü-adam-anahtarı servisinde (Healthchecks.io / Better Stack / UptimeRobot
+heartbeat) bir kontrol oluştur:
+* **Periyot 10 dk, grace 20 dk** (sağlık görevi 10 dakikada bir koşuyor; 20 dk = iki
+  kaçırılan slot, tek bir gecikmede alarm çalmaz).
+* Bildirim kanalı **telefona push** — e-posta bu iş için zayıf: 24,5 saatlik kesinti zaten
+  fark edilmemişti.
+* Verdiği ping URL'sini şu dosyaya yapıştır (depoya girmez):
+  `deploy/windows/izleme-url.txt`
+
+Sonra iki mutasyon koşulacak: **(1)** servis durdurulacak → alarm telefona ulaşmalı;
+**(2)** sağlık görevi durdurulacak → yokluğu da alarm üretmeli. İkisinin kanıtı buraya yazılacak.
 ## Y0 — B0 BARINDIRMA KARARI ▸ BEKLİYOR
 ## Y3 — YAYIN + KAPI 9-12 ▸ BEKLİYOR
 ## Y4 — GERÇEK KULLANICI SİNYALİ ▸ BEKLİYOR

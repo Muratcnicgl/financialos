@@ -1165,10 +1165,24 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                     f"  - {_guvenli(k['ad'])}: yalnız asgariyle {k['ay']} ay, toplam {_para(k['toplam_faiz'])} faiz "
                     f"(biter {k['payoff_tarih']})"
                 )
+        # BUG #340: asgarisi VARSAYILAN kartlar ayrıca işaretlenir. Bu bir prompt kuralı
+        # değil, kural motorunun hesapladığı bir OLGU (K-KURAL 5): koça "şunu söyleme"
+        # denmiyor, elindeki sayının nereden geldiği veriliyor. Ölçüldü (canlı, 4 Eyl):
+        # 6 kullanıcının 4'ünde bu alanlar boş ve koç yedek oranı ölçüm gibi sunuyordu.
+        _varsayim = [_guvenli(k["ad"]) for k in at["kartlar"] if k.get("asgari_varsayimsal")]
+        _not = ""
+        if _varsayim:
+            _not = (
+                f"\n  - ⚠️ Şu kart(lar)ın asgarisi VARSAYIM: {', '.join(_varsayim)} — "
+                "asgari oranı ya da son ekstre borcu girilmemiş, varsayılan oran ve güncel "
+                "borç kullanıldı. Bu tutarı KESİN gibi söyleme; kullanıcıya ekstresindeki "
+                "asgariyi sor ya da teyit etmesini iste."
+            )
         context += (
             "\n\n## KART ASGARİ ÖDEME TUZAĞI (sadece asgari ödeme senaryosu)\n"
             + "\n".join(t_lines)
             + "\n  - Asgarinin üstüne her ek ödeme süreyi ve toplam faizi hızla düşürür."
+            + _not
         )
         cockpit.setdefault("_coach_extra_numbers", []).extend(
             [k["toplam_faiz"] for k in at["kartlar"]] + [k["bakiye"] for k in at["kartlar"]]

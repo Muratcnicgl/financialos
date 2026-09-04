@@ -50,6 +50,24 @@ STRATEGY_EQUIVALENCE_THRESHOLD_TL = 50
 MIN_CARD_PAYMENT_RATIO = 0.25         # YEDEK kart asgari odeme orani (TR)
 
 
+def asgari_oran_cozumle(oran) -> tuple[float, bool]:
+    """
+    (gecerli_oran, VARSAYIMSAL_MI) dondurur.
+
+    BUG #340: yedege dusuldugu bilgisi bugune kadar SESSIZ kayboluyordu. Yedegin kendisi
+    dogru (L45: bilinmeyen != sifir), ama kullaniciya "asgarin 5.000 TL" demek ile
+    "asgarin ~5.000 TL VARSAYILAN oranla" demek ayni sey degildir — birincisi olculmemis
+    bir sayiyi olcum gibi sunar. Bayrak bu ayrimi tasir; karar yine kural motorunun.
+    """
+    try:
+        o = float(oran)
+    except (TypeError, ValueError):
+        return MIN_CARD_PAYMENT_RATIO, True
+    if 0 < o <= 1:
+        return o, False
+    return MIN_CARD_PAYMENT_RATIO, True
+
+
 def gecerli_asgari_oran(oran) -> float:
     """
     Hesabin asgari oranini dogrular; gecersizse YEDEGE duser.
@@ -57,11 +75,7 @@ def gecerli_asgari_oran(oran) -> float:
     Sifir/negatif/1'den buyuk bir oran sessizce kabul edilirse plan bozulur: %0 kart hic
     odenmemis gibi sonsuza kadar surer, %150 bir ayda kapanir. Bilinmeyen, yedektir (L45).
     """
-    try:
-        o = float(oran)
-    except (TypeError, ValueError):
-        return MIN_CARD_PAYMENT_RATIO
-    return o if 0 < o <= 1 else MIN_CARD_PAYMENT_RATIO
+    return asgari_oran_cozumle(oran)[0]
 MAX_MONTHS = 600                      # Sonsuz dongu koruma
 
 
@@ -81,6 +95,9 @@ class DebtItem:
     # BUG #330: kart asgari orani HESABIN ozelligi. None = bilinmiyor -> yedek kullanilir.
     # Simulasyonun HER AYINDA gecerlidir (BUG #079: asgari her ay guncel bakiyeden).
     min_payment_ratio: float = MIN_CARD_PAYMENT_RATIO
+    # BUG #340: asgari, hesabin GERCEK verisinden mi hesaplandi yoksa YEDEK oran/taban ile
+    # mi VARSAYILDI. Yedegin kendisi mesru (L45); sessiz kalmasi degil.
+    asgari_varsayimsal: bool = False
 
 
 @dataclass
@@ -127,7 +144,9 @@ def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
         if rate is None or rate <= 0:
             rate = DEFAULT_CARD_INTEREST_MONTHLY if is_card else 0.0
 
-        asgari_oran = gecerli_asgari_oran(getattr(a, "min_payment_ratio", None))
+        asgari_oran, _oran_varsayimsal = asgari_oran_cozumle(
+            getattr(a, "min_payment_ratio", None))
+        varsayimsal = False
         if is_card:
             # BUG #337: asgari, GUNCEL borcun degil SON EKSTRE borcunun yuzdesidir.
             # Ekstre bilinmiyorsa (None) guncel borca dusulur — davranis degismez (L45).
@@ -135,6 +154,10 @@ def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
             # `or` kullanmak sifiri "bilinmiyor" sanip guncel borca duserdi.
             _taban = a.statement_balance if a.statement_balance is not None else a.balance
             min_pay = max(float(_taban) * asgari_oran, 50.0)
+            # BUG #340: iki bilinmeyenden HERHANGI biri asgariyi varsayima cevirir —
+            # oran (hangi banka/limit?) ya da taban (ekstre borcu bilinmiyorsa guncel
+            # borc kullanilir, ki bu ay ici harcamayla birlikte asgariyi SISIRIR).
+            varsayimsal = _oran_varsayimsal or a.statement_balance is None
         else:
             min_pay = float(a.monthly_payment or 0.0)
             if min_pay <= 0:
@@ -151,6 +174,7 @@ def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
             interest_rate_monthly=float(rate),
             min_payment_ratio=asgari_oran,
             min_payment=float(min_pay),
+            asgari_varsayimsal=varsayimsal,
         ))
 
     return items
@@ -383,6 +407,20 @@ def compare_strategies(
             f"({', '.join(interest_free_loans)}) — gerçek maliyet ve süre daha yüksek olabilir."
         )
 
+    # BUG #340: yukarıdakiyle AYNI SINIF, kartlarda. Asgari oran ya da ekstre borcu
+    # bilinmiyorsa yedeğe düşülür (L45, doğru) ama sonuç bugüne kadar SESSİZCE bir ölçüm
+    # gibi sunuluyordu. Ölçüldü (canlı DB, 4 Eyl): 6 kullanıcının 4'ünde bu alanlar boş —
+    # yani BUG #330/#337 düzeltmeleri VERİYE bağlı ve verisi olmayan kullanıcıda koç hâlâ
+    # varsayılan %25'i gerçekmiş gibi söylüyordu (BUG #330'da ölçülen gerçek oran %20).
+    varsayimsal_kartlar = [d.name for d in debts if getattr(d, "asgari_varsayimsal", False)]
+    if varsayimsal_kartlar:
+        warnings.append(
+            f"{len(varsayimsal_kartlar)} kartın asgari ödemesi VARSAYILDI "
+            f"({', '.join(varsayimsal_kartlar)}) — asgari oranı ya da son ekstre borcu "
+            f"girilmemiş; %{MIN_CARD_PAYMENT_RATIO * 100:.0f} ve güncel borç kullanıldı. "
+            "Bankalar farklı oran uygular; gerçek asgari için ekstreni gir."
+        )
+
     return {
         'debts': [
             {
@@ -561,6 +599,12 @@ def calculate_min_payment_trap(
             "toplam_odeme": r.total_paid,
             "payoff_tarih": r.payoff_date.isoformat() if r.payoff_date else None,
             "asla_bitmez": asla_bitmez,
+            # BUG #340: bu blok KOÇUN okuduğu yerdir (`coach.py` KART ASGARİ ÖDEME TUZAĞI).
+            # Uyarı `compare_strategies`te de var ama oraya yalnız UI bakıyor; zarar ise
+            # koçun cevabında oluşuyordu (kullanıcıya varsayılan asgariyi ölçüm gibi
+            # söylemek — BUG #330'da 411 TL fark). Ölçmek haber vermek değildir (L61):
+            # bayrak, sözleşmenin ZORLANDIĞI yüzeye taşınır.
+            "asgari_varsayimsal": bool(getattr(c, "asgari_varsayimsal", False)),
         })
     kartlar.sort(key=lambda k: -k["toplam_faiz"])  # en çok sızdıran önce
     return {

@@ -103,7 +103,10 @@ $bLog = Join-Path $LOGDIZIN "guncelle-baslat.out"
 $bHata = Join-Path $LOGDIZIN "guncelle-baslat.err"
 $b = Start-Process -FilePath "powershell" -ArgumentList @(
         "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-        "-File", (Join-Path $PSScriptRoot "baslat.ps1"), "-Zorla", "-Port", "$Port"
+        # Yol BOŞLUK içeriyor (kullanıcı dizini "Ad Soyad"). `Start-Process -ArgumentList`
+        # dizi elemanlarını TIRNAKLAMAZ: tırnaksız verilince `-File` argümanı bölünüyor,
+        # PowerShell etkileşimli açılıyor, banner basıyor ve -196608 ile düşüyor (ölçüldü).
+        "-File", ('"' + (Join-Path $PSScriptRoot "baslat.ps1") + '"'), "-Zorla", "-Port", "$Port"
     ) -Wait -PassThru -WindowStyle Hidden `
       -RedirectStandardOutput $bLog -RedirectStandardError $bHata
 

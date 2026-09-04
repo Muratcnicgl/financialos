@@ -113,7 +113,7 @@ scripts/sir_taramasi     -> TEMIZ: sır izi yok
 tests/test_api_sozlesmesi.py -> 3 passed
 ```
 
-### ⚠️ `alembic check` BAŞARISIZ — VE BU YENİ BİR BULGU
+### `alembic check` BAŞARISIZ — İLK OKUMA (AŞILDI, aşağıdaki düzeltmeye bakın)
 
 ```
 alembic check -> FAILED: New upgrade operations detected:
@@ -121,7 +121,10 @@ alembic check -> FAILED: New upgrade operations detected:
   add_fk personal_debts.settlement_account_id -> accounts.id
 ```
 
-Ölçüldü, ve göründüğünden ağır:
+> ⚠️ **Bu blok, o anki teşhisi olduğu gibi bırakıyor; SONUCU aşağıdaki düzeltme verir.**
+> Kayıt böyle tutuluyor çünkü teşhisin nasıl düzeldiği, teşhisin kendisi kadar önemli.
+
+İlk okuma şöyleydi:
 
 1. Göç dosyası **FK'yı kurmayı gerçekten deniyor** —
    `alembic/versions/f2a3b4c5d6e7_debt_settlement_account.py:35`
@@ -138,15 +141,46 @@ alembic check -> FAILED: New upgrade operations detected:
    yalnız `get_columns` ve `get_indexes` karşılaştırıyor — `get_foreign_keys`
    HİÇ çağrılmıyor. Kapı yine de çıktısında **"şema create_all ile TAM ÖZDEŞ"** diyor.
 
-**Yaşı ölçüldü — bu pencerenin regresyonu DEĞİL:** `categories.workspace_id` 17 Tem
-(`e5944eb`, M40), `personal_debts.settlement_account_id` 6 Ağu (`96b99b0`, BUG #241).
-Yani en az **bir aydır** böyle ve hiçbir kapı görmedi.
+### ✅ DÜZELTME (aynı gün, tam envanter) — YUKARIDAKİ TEŞHİS YANLIŞTI
 
-**Sınıfı tanıdık:** *bir kapı, ölçmediği eksende "özdeş" diyemez.* Bu, BUG #308'in
-(coverage hiç ölçülmüyordu) ve BUG #338'in (kişisel veri kapısı yanlış yüzeydeydi)
-aynı ailesi. **Açık iş olarak kaydedildi**, bugün kapatılmadı: PostgreSQL tarafında
-göç FK'yı GERÇEKTEN kurar, yani dev (SQLite) ile prod (Postgres) şeması **ayrışıyor**
-ve dual-dialect kapıları da bu ekseni ölçmüyor.
+İlk yazımda "hiçbir kapı görmedi, sessiz bir defekt" demiştim. **Ölçüm bunu çürüttü.**
+Tam envanter alındı (model FK'ları ↔ göçün kurduğu FK'lar, 31 tablo): eksik FK **2 değil 14**.
+Ama 12'si **bilinçli ve belgelenmiş**:
+
+`alembic/versions/d4e5f6a7b8c9_workspace_id_fks_postgres.py` — adı bile "postgres" diyor:
+> *"**Postgres:** 12 scoped tabloya fiziksel FK ekler. **SQLite:** SKIP (ALTER ADD FK yapamaz;
+> batch recreate inbound-FK'li tabloları kırar, M11 dersi). SQLite'ta `alembic check` bu
+> FK-sapmasını göstermeye devam eder — BELGELENMİŞ ADR-036/ADR-013 divergence."*
+
+Telafi edici kontroller de adlandırılmış: model-seviyesi FK (ORM relationship) +
+uygulama-katmanı scope filtresi (Wave-5 AST kapısı) + Postgres RLS (M51).
+`personal_debts.settlement_account_id` de aynı desende **doğru yazılmış**
+(`f2a3b4c5d6e7:32` — `if dialect.name == "postgresql"`). Yani o da defekt değil.
+
+**İKİNCİ TEŞHİS DE YANLIŞ ÇIKTI (ve bunu mutasyon testi yakaladı).** Sapmanın 14'ünü tek
+tek karşılığına bağlayınca `categories.workspace_id`'nin `_SCOPED_TABLES`'ta olmadığını
+görüp *"Postgres'te de FK almıyor, ADR-036'nın sözü delinmiş"* dedim ve düzeltici bir göç
+yazdım. **Yanlıştı:** `b4c5d6e7f8a9_kullanici_kategorileri.py:83-87` FK'yı **kendi göçünde**
+kuruyor (yorumu da `d4e5f6a7b8c9` desenine atıf yapıyor) — yani tablo listeye yazılmamış,
+çünkü ihtiyacı yok. Yazdığım göç Postgres'te **aynı kısıtı ikinci kez kurup patlayacaktı**;
+mutasyon testinde M1'in hayatta kalması bunu ortaya çıkardı ve göç **silindi**.
+
+**ÖLÇÜLMÜŞ SONUÇ: ŞEMADA DEFEKT YOK.** 14 sapmanın 14'ü de dialect-korumalı bir Postgres
+göçüyle karşılanmış durumda. Rapor bu satırı, ilk iki yanlış teşhisiyle birlikte kayda
+geçiriyor — çünkü *"kimse görmedi"* demeden önce belgeleyen dosyayı aramak, bu turun dersi.
+
+**AMA GERÇEK BİR BOŞLUK VAR — SAPMA DEĞİL, SAPMANIN ÖLÇÜLEMEZLİĞİ.** `alembic check`
+SQLite'ta **bilerek kalıcı kırmızı** (belgelenmiş sapmayı her koşumda basar). Ölçüldü:
+`grep -rn "alembic check" .github/workflows/ scripts/` → **boş**; hiçbir CI adımı, hiçbir
+kapı onu koşmuyor. Yani şema bugün temiz olsa bile **yarın eklenecek karşılıksız bir FK
+görünmez olurdu**. **L22'nin (gürültülü kapı okunmaz) şema tarafındaki karşılığı.**
+
+**BU TURDA KAPATILDI — `tests/test_fk_sapmasi_kapisi.py` (5 test, mutasyon 3/3).**
+Muafiyet elle yazılan bir listeye değil, **sapmayı Postgres'te gerçekten kuran göçe**
+bağlı (L67): bir FK ancak karşılığı varsa meşru. Mutasyonlar: bir tablonun Postgres FK
+bloğu silindi → kırmızı · modele karşılıksız FK eklendi (14→15) → kırmızı · sapma
+azaltıldı (14→13) → kazanım kilidi kırmızı. Kapı bugün **defekt bulmuyor**; değeri
+bundan sonrasını tutmakta — BUG #306 (API sözleşmesi) ve #307 (ağ kapısı) ile aynı sınıf.
 
 ---
 
@@ -271,7 +305,7 @@ karardır. Kalite bu işin önünde değil, **arkasında** duruyor.
 
 1. **B0 barındırma kararı** — insan-kapısı, tek soru. Açıldığı anda B4 ve kapı 9-12
    arka arkaya kapanabilir. *(Kod tarafında engel yok.)*
-2. **`alembic check` bulgusu** — iki FK veritabanında hiç kurulmuyor, taze-DB kapısı
-   FK eksenini ölçmüyor, ve SQLite ↔ Postgres şeması bu noktada ayrışıyor.
+2. ~~`alembic check` bulgusu~~ **KAPANDI (bkz. §3 düzeltmesi).** Şemada defekt çıkmadı;
+   eksik olan ÖLÇÜMDÜ ve `tests/test_fk_sapmasi_kapisi.py` ile kapatıldı (mutasyon 3/3).
 3. **Canlı sürüm drift'i** — canlıdaki bina 24 commit geride; bugünün 21 defekt
    düzeltmesinin hiçbiri kullanıcılarda değil.

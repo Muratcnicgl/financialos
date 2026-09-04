@@ -58,7 +58,14 @@ MUAFIYET_ISARETI = "secret-ornek:"
 ATLA = ("node_modules/", "venv/", "dist/", ".git/", "__pycache__/", "playwright-report/")
 
 
-def _izlenen_dosyalar() -> list[str]:
+def izlenen_dosyalar() -> list[str]:
+    """Depoda İZLENEN tüm yollar (üretilen/dış içerik hariç — bkz. `ATLA`).
+
+    Public: `tests/test_depo_kisisel_veri_kapisi.py` de aynı listeyi ister ve
+    `git ls-files`'ı BEŞİNCİ kez yeniden yazmasın diye buradan alır. Her yeni kopya
+    ruff'ta bir `S607` daha üretiyor ve tavanı yükseltiyordu; `olu_kod_kapisi.izlenen_py`
+    ile aynı desen (o `.py`, bu HEPSİ).
+    """
     cikti = subprocess.run(["git", "ls-files"], cwd=KOK, capture_output=True, text=True).stdout
     return [s for s in cikti.splitlines() if s and not s.startswith(ATLA)]
 
@@ -88,7 +95,7 @@ def _baseline() -> set[str]:
 
 def tara_calisma_agaci() -> list[str]:
     bulgular: list[str] = []
-    for rel in _izlenen_dosyalar():
+    for rel in izlenen_dosyalar():
         yol = KOK / rel
         try:
             metin = yol.read_text(encoding="utf-8", errors="ignore")

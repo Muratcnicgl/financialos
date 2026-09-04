@@ -30,10 +30,18 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess  # noqa: S404 — yalnız `git ls-files`; kullanıcı girdisi yok
+import sys
 from pathlib import Path
 
 KOK = Path(__file__).resolve().parent.parent
+if str(KOK) not in sys.path:
+    sys.path.insert(0, str(KOK))
+
+# İzlenen dosya listesi BİLEREK yeniden yazılmadı. `test_kacis_dizisi_kapisi.py` bunu zaten
+# yazmıştı: `git ls-files`'ı çağıran her yeni kopya ruff'ta bir `S607` daha üretiyor ve
+# tavan bu sebeple üst üste üç kez yükselmişti. İlk yazımda bu kapı BEŞİNCİ kopyayı ekledi
+# ve tavanı 63 → 64 kırdı; doğru cevap tavanı yükseltmek değil, kopyayı kaldırmaktı.
+from scripts.sir_taramasi import izlenen_dosyalar as _izlenen_yollar  # noqa: E402
 TAVAN_DOSYASI = KOK / "docs" / "kalite-seruveni" / "kisisel-veri-baseline.json"
 
 #: Hiçbir yerde bulunamaz — tek başına kimliklendirici.
@@ -76,10 +84,8 @@ _METIN = {".py", ".md", ".txt", ".json", ".yml", ".yaml", ".ini", ".cfg", ".sh",
 
 def izlenen_dosyalar() -> list[Path]:
     """Git'in izlediği METİN dosyaları — yayın yüzeyi budur."""
-    ciktı = subprocess.run(["git", "ls-files"], cwd=str(KOK), capture_output=True,
-                           text=True, encoding="utf-8", errors="replace").stdout
     yollar = []
-    for satir in ciktı.splitlines():
+    for satir in _izlenen_yollar():
         p = KOK / satir
         if p.suffix.lower() in _METIN and p.is_file():
             yollar.append(p)

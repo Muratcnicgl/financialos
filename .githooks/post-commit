@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# M24 — MCP memory auto-sync (CAPTURE adımı).
+# M24 — MCP memory auto-sync: **DEFTER KAPATILDI (4 Eylül 2026, Wave-Y / Y5).**
 #
-# R3 GERÇEĞİ: Bir git hook (shell) MCP memory'ye DOĞRUDAN yazamaz — MCP çalışma-anı
-# aracıdır. Bu yüzden hook yalnız commit'i bir ledger'a YAKALAR; asistan aracı (oturum
-# başında/milestone'da) ledger'ı okur ve MCP Working State'e FLUSH eder, sonra temizler.
-# Böylece "graph 2 ay bayat kalır" (Wave-3 dersi) sorunu yarı-otomatik çözülür.
+# NEDEN KAPATILDI (ölçümle)
+# -------------------------
+# Bu hook, commit'leri `.mcp-sync-pending.log`'a YAKALIYORDU; ledger'ı MCP Working
+# State'e AKTARAN adım ise elle koşuluyordu. Ölçümler:
+#   * 7 Ağu 2026: flush 19 gündür hiç koşulmamış, **186 satır** birikmişti.
+#   * Aynı gün MCP resmen **tarihsel arşiv** ilan edildi (güncel durumun kaynağı repo).
+#   * 4 Eyl 2026: ledger **300 satıra** çıkmış, flush hâlâ hiç koşulmamış.
 #
-# Kurulum: core.hooksPath=.githooks (W3-058 install-hooks.sh ile zaten aktif).
+# Yani yakalama, **hiç koşulmayacak bir flush için** çalışıyordu. Böyle bir defter
+# zararsız değildir: her bakan "300 satır bekleyen iş var" sanır. **Sahte yükümlülük,
+# borçtan daha kötüdür — çünkü ödenmez ve unutulmaz.** (L24'ün devamı: izleme çağrısı
+# işin gövdesine yazılmıştı; şimdi iş yok, çağrı da kaldırıldı.)
+#
+# Karar: yakalama durduruldu. `.mcp-sync-pending.log` izlenmiyor; tarihsel olarak
+# diskte kalabilir, kimse ondan iş beklemiyor. Güncel durumun tek kaynağı repo'dur
+# (PROJE.md + `docs/kalite-seruveni/`).
 set -e
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-cd "$repo_root" || exit 0
-
-hash="$(git log -1 --format='%h' 2>/dev/null)" || exit 0
-subject="$(git log -1 --format='%s' 2>/dev/null)"
-iso="$(git log -1 --format='%cI' 2>/dev/null)"
-
-# .mcp-sync-pending.log gitignore'da (repo kirletmez). Satır: <hash>|<iso>|<subject>
-printf '%s|%s|%s\n' "$hash" "$iso" "$subject" >> .mcp-sync-pending.log 2>/dev/null || true
 exit 0

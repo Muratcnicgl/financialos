@@ -301,7 +301,7 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
   tarihsel arşiv*. Güncel durumun kaynağı **repo + master durum raporu**. Gerekçe: `memory-auto-sync.md`'nin capture→flush
   tasarımında FLUSH adımı elle koşuluyordu ve 19 gün hiç koşulmadı (`.mcp-sync-pending.log`'da 186 commit birikti) — yani
   izleme çağrısı işin gövdesine yazılmıştı (**L24**). 186 satırlık birikim bilinçli olarak MCP'ye özet halinde YAZILMADI:
-  ikinci bir "gerçek kaynak" üretmek borcu ödemez, çoğaltır. Ledger'ın büyümesini ölçen kapı: `scripts/mcp_sync_report.py`.
+  ikinci bir "gerçek kaynak" üretmek borcu ödemez, çoğaltır. **DEFTER 4 EYLÜL 2026'DA KAPATILDI (Wave-Y/Y5).** Ölçüm: flush hiç koşulmadı, ledger **300 satıra** çıktı. Yakalama, hiç koşulmayacak bir flush için çalışıyordu — **sahte yükümlülük borçtan kötüdür, çünkü ödenmez ve unutulmaz.** `post-commit` yakalaması ve `scripts/mcp_sync_report.py` kaldırıldı; güncel durumun tek kaynağı repo.
 - **BUG ENVANTERİ (7 Ağu 2026 — karar):** `docs/kalite-seruveni/uygulanan-fixler.md` **tek resmî envanterdir**; her yeni BUG
   numarası oraya satır yazar. **Dürüst kayıt:** repoda 235 benzersiz BUG numarası geçiyor, ledger'da 114'ü var (kalanlar
   `milestone-log.md` + `masterprompt-publish.md` içinde dağınık). Geriye dönük toplama YAPILMADI — ayrı iş.

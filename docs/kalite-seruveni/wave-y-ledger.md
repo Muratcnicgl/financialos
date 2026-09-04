@@ -275,7 +275,56 @@ makinenin kapalı olmasıysa · 3. Kurucu dışında **düzenli kullanan 2 kulla
 Bu, bu fazın **tek zorunlu masrafıdır**.
 ## Y3 — YAYIN + KAPI 9-12 ▸ BEKLİYOR
 ## Y4 — GERÇEK KULLANICI SİNYALİ ▸ BEKLİYOR
-## Y5 — DEFTER SENKRONU ▸ BEKLİYOR
+## ✅ Y5 — DEFTER SENKRONU KAPANDI (4 Eylül 2026)
+
+### Backlog: 164/251/81 → **165/250/81** — ve asıl bulgu bu SAYI DEĞİL
+
+Masterprompt *"çıpadan bu yana kapanan 60 BUG backlog'a işlenir"* diyordu. Ölçüldü:
+
+| Ölçüm | Değer |
+|---|---|
+| Çıpadan bu yana `uygulanan-fixler.md`'ye eklenen satır | **413** |
+| O satırlarda geçen **backlog kodu** | **5** (`FEAT-017`, `FEAT-033`, `FEAT-034`, `LLM-002`, `UX-001`) |
+| Çıpa sonrası BUG'ların backlog `sections/`te geçme sayısı (#322/#326/#330/#338/#339/#342) | **0** |
+
+**Yani backlog dağılımının hiç kımıldamaması bir defter ihmali değildi:** backlog Temmuz
+2026'da yapılmış bir **denetim listesidir**; çıpadan bu yanaki 60 defektin neredeyse tamamı
+**ölçümden ve gerçek kullanımdan** doğdu (banka verisi girildiği gün 21 tanesi) ya da kapı
+inşasının yan ürünüydü. İki akış farklı kaynaklardan besleniyor ve 413 satırda yalnız
+**5 kez** kesişiyor. **Toplu ✅ atılmadı; tek tek bakıldı.**
+
+**Durumu değişen tek madde — kanıtla:**
+
+* **`UX-001` (ilk açılış onboarding'i yok) 🔲 → ✅.** FEAT-034 turunda (11 Ağu) fiilen
+  yapılmış ama backlog'a işlenmemiş. Doğrulandı: `OgreticiSihirbaz.jsx` · `Ipucu.jsx` ·
+  `YardimKosesi.jsx` · içerik tek kaynak `lib/ogretici.js` (13 panel) · adım durumu
+  **backend'de** (`GET /api/onboarding/rehber`) · `ogretici.test.jsx` · `App.jsx:30` bağlı.
+  *Not:* maddenin aksiyonu "localStorage flag" diyordu; ürün bunu backend'de tek kaynağa
+  çevirdi — çünkü flag'e dayalı ilk sürüm ilk hesap eklenince kayboluyordu (BUG #262).
+  **Backlog'un önerdiği çözüm ile uygulanan çözüm farklı; kapanışı belirleyen SONUÇ.**
+
+**Değişmeyenler ve NEDEN (gerekçesiz bırakılmadı):**
+* `LLM-002` (prompt caching) 🔲 kalır — **bilinçli ertelendi**, gerekçesi ölçülü: canlı
+  sağlayıcıda kazanç ölçülemiyor ve tool kümesi istek başına değiştiği için prefix cache
+  her seferinde geçersiz olurdu.
+* `FEAT-033` 🟡 kalır — MoM trend var, kategori kaymaları yok; durum doğru.
+
+### MCP defteri: **KAPATILDI** (boşaltılmadı — kapatıldı)
+
+| Ölçüm | Değer |
+|---|---|
+| 7 Ağu 2026 | flush 19 gündür hiç koşulmamış, **186 satır** |
+| 4 Eyl 2026 | **300 satır**, flush hâlâ hiç koşulmamış |
+| MCP'nin statüsü | 7 Ağu'da resmen **tarihsel arşiv** ilan edilmiş |
+
+Yani `post-commit` yakalaması, **hiç koşulmayacak bir flush için** çalışıyordu. Böyle bir
+defter zararsız değildir: her bakan *"300 satır bekleyen iş var"* sanır.
+**Sahte yükümlülük, borçtan daha kötüdür — çünkü ödenmez ve unutulmaz.**
+
+Yapılan: `post-commit` yakalaması durduruldu (gerekçe dosyanın içinde), obsolete
+`scripts/mcp_sync_report.py` **silindi** (BUG #311: ölü kod zararsız değildir), ona atıf
+yapan `canli-smoke-testleri.md` ve `PROJE.md` düzeltildi — yoksa belge denetimi kırmızı
+verirdi (ölü yönlendirme). Belge denetimi + ölü kod kapısı **geçiyor**.
 ## ✅ Y6 — ADR BORCU KAPANDI (4 Eylül 2026)
 
 **ADR 56 → 61.** Masterprompt'un istediği beş kararın beşi de yazıldı:

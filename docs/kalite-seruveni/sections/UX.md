@@ -3,7 +3,14 @@
 > Kullanıcının gerçek baskısı: kart ~%99.8, 5 kredi, 13 dağınık alacak, günlük limit ~62 TL. Kişisel yatırım tavsiyesi yok; yatırımla ilgili maddeler yalnız görünürlük/giriş kolaylığı.
 
 ### [UX-001] İlk açılış onboarding'i yok — sistem kendini tanıtmıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: onboarding/coach-mark turu yok
+- **Durum:** ✅ KAPANDI (11 Ağu 2026, FEAT-034 turu — Wave-Y/Y5'te ÖLÇÜLEREK doğrulandı)
+- **Kanıt (4 Eyl 2026):** `frontend/src/components/OgreticiSihirbaz.jsx` (zorunlu-olmayan
+  kurulum sihirbazı) · `Ipucu.jsx` (panel içi ipucu şeridi) · `YardimKosesi.jsx` (her
+  panelde duran yardım) · içerik tek kaynak `frontend/src/lib/ogretici.js` (13 panel) ·
+  adım durumu backend'de deterministik: `GET /api/onboarding/rehber`
+  (`app/routers/onboarding.py`) · test `frontend/src/ogretici.test.jsx` · `App.jsx:30`
+  bağlı. Aksiyon "localStorage flag" diyordu; ürün bunu **backend'de tek kaynağa** çevirdi
+  (BUG #262: flag'e dayalı ilk sürüm ilk hesap eklenince kayboluyordu).
 - **Kanıt:** `App.jsx:98-110`; Cockpit stratejik kartları `Cockpit.jsx:164-204`
 - **Aksiyon:** localStorage `onboarded` flag ile 3-4 adımlık coach-mark turu (bugünkü hedef, kart doluluk, koça harcama yaz).
 - **Etki:** Yüksek · **Efor:** M

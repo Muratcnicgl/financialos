@@ -10,7 +10,7 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [DEVOPS-002] Lint/format aracı yok (ruff/black) — stil tutarsız
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ruff/black yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `ruff` var, **tam sürümle sabit** (`requirements-dev.txt`: `ruff==0.16.4`), yapılandırması `ruff.toml`'da ve CI'da bir GERİLEME SAYACI olarak koşuyor (`ci.yml:57` → `scripts/kalite_kapisi.py`). Yani madde "araç yok" diyordu; bugün araç hem var hem tavana bağlı (B 31 · E9 0 · F 202 · S 62).
 - **Kanıt:** `pyproject.toml`/`.ruff.toml` yok
 - **Aksiyon:** `ruff` (lint+format, black-uyumlu) + `pyproject` config; CI'da `ruff check`.
 - **Etki:** Orta · **Efor:** S
@@ -22,13 +22,13 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DEVOPS-004] pre-commit hook yok — kalite kontrolü commit'e bağlı değil
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: pre-commit test-kapısı var ama pre-commit-config (lint/gitleaks) yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `.githooks/pre-commit` var ve staged dosyalara göre pytest/vitest koşuyor; kurulumu `bash scripts/install-hooks.sh` (`core.hooksPath=.githooks`). Bu gecenin her commit'i o kancadan geçti — birkaç kez de gerçekten ENGELLEDİ (kişisel veri tavanı, ölü kod kapısı).
 - **Kanıt:** `.pre-commit-config.yaml` yok
 - **Aksiyon:** pre-commit: ruff, prettier, gitleaks (secret), büyük-dosya kontrolü.
 - **Etki:** Orta · **Efor:** S
 
 ### [DEVOPS-005] Bağımlılıklar pin/lock değil — tekrarlanabilir build yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: hash'li lock yok, >= pin
+- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü: `requirements.txt` **24/27 satır** tam sürümle sabit ve `frontend/package-lock.json` var; yani ürün bağımlılıkları tekrarlanabilir. AÇIK KALAN: `requirements-dev.txt` yalnız **1/5** pinli (`ruff==0.16.4` — o da bilinçli, tavan bir araç sürümüne aittir); `pytest>=8.0`, `pytest-cov>=5.0`, `httpx>=0.27`, `hypothesis>=6.100` alt sınırla duruyor. Yani bir gün süit, kod değişmeden başka bir pytest sürümüyle koşabilir.
 - **Kanıt:** `requirements.txt` bazı `>=` (anthropic>=0.79.0 vb.); lock dosyası yok
 - **Aksiyon:** `pip-tools`/`uv` ile `requirements.lock` (hash'li); `requirements.in` kaynak. (SEC-021)
 - **Etki:** Orta · **Efor:** S
@@ -64,19 +64,19 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DEVOPS-011] Python sürümü pin'lenmemiş
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: python 3.11 pin ama .python-version yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `.github/workflows/ci.yml` üç işin üçünde de `python-version: '3.11'` sabitliyor (satır 46 · 109 · 163).
 - **Kanıt:** `.python-version`/`pyproject` `requires-python` yok
 - **Aksiyon:** `.python-version` (3.11) + `requires-python`; deprecated `datetime.utcnow` (DATA-008) gibi sürüm-bağımlı sorunları netleştir.
 - **Etki:** Düşük · **Efor:** S
 
 ### [DEVOPS-012] Güvenlik taraması CI'da yok (pip-audit/bandit/gitleaks)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: CI pip-audit/bandit/gitleaks yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: CI'da **dört** ayrı tarama koşuyor — `pip-audit -r requirements.txt --strict` (`ci.yml:115-119`, her push + haftalık cron) · sır taraması (`scripts/sir_taramasi`, geçmiş dahil) · npm denetimi (`scripts/npm_denetim`) · ruff'ın **S** ailesi (bandit kuralları, tavana bağlı). BUG #260'ın kendi yorumu bu maddenin haklı olduğunu ve nasıl kapandığını yazıyor: *"bir kez yeşil, sürekli yeşil demek değildir"* (L28).
 - **Kanıt:** CI yok (SEC-020/035)
 - **Aksiyon:** CI job: `pip-audit`, `bandit`, `gitleaks`; kritik bulguda fail.
 - **Etki:** Orta · **Efor:** S
 
 ### [DEVOPS-013] Coverage CI gate yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: cov-fail-under gate yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `ci.yml:97` `--cov-fail-under=93` ile koşuyor (eşik bilinçli olarak workflow satırında, `pyproject.toml`'da değil; gerekçesi `ci.yml:81`'de). `TEST-017` ile aynı iş — iki boyutta iki kez kaydedilmiş.
 - **Kanıt:** coverage config yok (TEST-016/017)
 - **Aksiyon:** `pytest --cov=app --cov-fail-under=60`; kademeli yükselt.
 - **Etki:** Orta · **Efor:** S

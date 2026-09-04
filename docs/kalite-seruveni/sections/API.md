@@ -129,7 +129,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [API-019] Health/readiness ayrımı yok — orkestrasyon/uptime için yetersiz
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: /healthz + /readyz ayrımı yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: ayrım **BUG #247 (D39)** ile yapılmış ve kodda gerekçesiyle yazılı. `app/routers/meta.py:95`: *"`/api/health` CANLILIK ölçer: süreç ayakta mı (bağımlılık yok, her zaman 200)"*; `:117` `@hazir_router.get("/api/ready")` HAZIR OLMA'yı ayrı yolda ölçer (DB/şema; **503 dönebilir** ve bu bir hata değil, ölçümün kendisidir). `main.py:359` ikisini de kimliksiz olarak bağlar. Canlıda doğrulandı: `/api/health` 200 · `/api/ready` 200. Ayrıca `components/SistemDurumu.jsx` bu ayrımı kullanıcıya bakan bir yüzeye çevirmiş durumda.
 - **Sorun/Fırsat:** Tek `/api/health`; DB/scheduler/LLM hazır mı ayrı readiness yok. Deploy/mobil için liveness vs readiness gerekir.
 - **Kanıt:** `app/main.py:200-206`
 - **Aksiyon:** `/healthz` (liveness, minimal) + `/readyz` (DB ping, scheduler, provider config). (OBS ile)

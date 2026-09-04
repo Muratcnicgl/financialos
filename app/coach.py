@@ -1345,8 +1345,24 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             f"{_bekleyen_satir}"
             f"{satirlar}\n"
             f"  - Toplam giriş {_para(nt['toplam_giris'])} · toplam çıkış "
-            f"{_para(nt['toplam_cikis'])} · ay sonu {_para(nt['ay_sonu_bakiye'])}\n"
-            f"  - EN DÜŞÜK nokta: {_para(nt['en_dusuk_bakiye'])} ({nt['en_dusuk_tarih']})"
+            f"{_para(nt['toplam_cikis'])}\n"
+            # BUG #334 — TEK BİR "AY SONU" SAYISI, KOÇU İYİ HALE DEMİRLİYOR.
+            # Ölçüldü (canlı, 4 Eyl 2026): hesabı belirsiz 8.800 TL bağlamda YAZILIYDI ve
+            # kötü hal (−6.906,65) ayrı satırda HESAPLANMIŞ olarak duruyordu; koç ikisini
+            # de gördü, tehdit diye yazdı, hatta SORDU — ama tavsiyesini yine "ay sonu
+            # 1.893,35" üzerine kurdu. Sebep bir yasak eksikliği değil, BİLGİ MİMARİSİ:
+            # özet satırında niteliksiz TEK bir sayı vardı ve model ona demirledi.
+            # Belirsizlik varken tek sayı YAZILMAZ; iki ihtimal yan yana durur.
+            # (K-KURAL 5: prompt'a yasak eklenmedi, sayının sunumu değişti.)
+            + (
+                f"  - AY SONU İKİ İHTİMAL: belirsiz harcama KARTTAN çıkarsa "
+                f"{_para(nt['ay_sonu_bakiye'])} · NAKİTTEN çıkarsa "
+                f"{_para(nt.get('ay_sonu_belirsiz_nakitse'))}"
+                f"  <- İKİSİ DE HESAPLANMIŞTIR; hangisi olduğunu SOR, tek sayı verme\n"
+                if float(nt.get("hesabi_belirsiz_toplam") or 0) > 0
+                else f"  - Ay sonu: {_para(nt['ay_sonu_bakiye'])}\n"
+            )
+            + f"  - EN DÜŞÜK nokta: {_para(nt['en_dusuk_bakiye'])} ({nt['en_dusuk_tarih']})"
         )
         # BUG #331: karta yazılacak giderler NAKİT takvimini etkilemez ama görünmez de
         # kalmaz — koç "bu ay kart borcun şu kadar daha büyüyecek" diyebilmeli. Motorun

@@ -170,3 +170,51 @@ def test_KOC_KOTU_HALI_SAYIYLA_gorur(db):
     CoachEngine(provider=_P()).chat(db, 1, "durumu göster", include_cockpit=True)
     assert "NAKİTTEN ÇIKARSA" in _P.gorulen.upper(), "kötü hal sayısı koça verilmiyor"
     assert "6.400,00" in _P.gorulen, "hesaplanmış kötü hal rakamı bağlamda yok"
+
+
+# ---- BUG #334: TEK BİR "AY SONU" SAYISI KOÇU İYİ HALE DEMİRLİYOR ---------
+
+def test_BELIRSIZLIK_VARKEN_TEK_ay_sonu_sayisi_YAZILMAZ(db):
+    """
+    Ölçülen davranış (canlı, 4 Eyl 2026): kötü hal HESAPLANMIŞ olarak bağlamda duruyordu,
+    koç onu gördü, tehdit diye yazdı, hatta SORDU — ama tavsiyesini yine niteliksiz tek
+    sayının ("ay sonu 1.893,35") üzerine kurdu. Sebep bir yasak eksikliği değil, BİLGİ
+    MİMARİSİ: özet satırında demirlenecek TEK bir sayı vardı.
+
+    Belirsizlik varken özet satırı iki ihtimali YAN YANA verir; tek sayı vermez.
+    """
+    from app.coach import CoachEngine, LLMResponse
+
+    class _P:
+        NAME = "S"; model = "s"; last_used_provider = "s"
+
+        def chat(self, system_prompt, messages, tools):
+            _P.gorulen = system_prompt
+            return LLMResponse(text="ok", tool_calls=[], usage={"input_tokens": 1,
+                               "output_tokens": 1}, provider_used="s", model_name="s")
+
+    _gider(db, "Sigara", 3600, hesap_id=None)
+    CoachEngine(provider=_P()).chat(db, 1, "durumu göster", include_cockpit=True)
+    metin = _P.gorulen
+    assert "AY SONU İKİ İHTİMAL" in metin, "özet hâlâ tek sayı veriyor"
+    assert "10.000,00" in metin and "6.400,00" in metin, "iki ihtimal de yazılı değil"
+    assert "· ay sonu 10.000,00" not in metin, \
+        "niteliksiz tek 'ay sonu' sayısı hâlâ duruyor — model ona demirler"
+
+
+def test_BELIRSIZLIK_YOKKEN_ozet_SADE_kalir(db):
+    """Gürültü üretme: belirsizlik yoksa iki-ihtimal cümlesi anlamsızdır (L22)."""
+    from app.coach import CoachEngine, LLMResponse
+
+    class _P:
+        NAME = "S"; model = "s"; last_used_provider = "s"
+
+        def chat(self, system_prompt, messages, tools):
+            _P.gorulen = system_prompt
+            return LLMResponse(text="ok", tool_calls=[], usage={"input_tokens": 1,
+                               "output_tokens": 1}, provider_used="s", model_name="s")
+
+    _gider(db, "Kira", 5000, hesap_id=1)
+    CoachEngine(provider=_P()).chat(db, 1, "durumu göster", include_cockpit=True)
+    assert "AY SONU İKİ İHTİMAL" not in _P.gorulen
+    assert "Ay sonu: 5.000,00" in _P.gorulen

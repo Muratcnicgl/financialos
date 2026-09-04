@@ -457,4 +457,39 @@ her şey **varsayılan olarak düşer**.
 temizse yayınlanır. Mutasyon: vitrine bilerek gerçek bir rakam enjekte edilir → kapı
 kırmızı vermeli.
 
-## Y8 — KAPANIŞ KAPISI ▸ BEKLİYOR
+## 🟡 Y8 — KAPANIŞ KAPISI: 10 maddenin 6'sı kapalı, 3'ü İNSAN-KAPISI
+
+**4 Eylül 2026, 15:36 ölçümü** (§0.1'in aynı komutları):
+
+| Madde | Durum | Kanıt |
+|---|---|---|
+| Canlı SHA = `main` HEAD (drift 0) | ✅ | `TAMAM: canli damga e4bc5471b0f0 = hedef e4bc5471b0f0` · deploy 17 sn · funnel 200 |
+| Dışarıdan izleme + gerçek alarm, mutasyonla | ✅ | iki halka ayrı ayrı (yukarıda) |
+| B0 kararı yazılı, ADR'de | ✅ | ADR-057 |
+| Backlog ölçülerek güncellendi, MCP defteri | ✅ | 165/250/81 · defter kapatıldı |
+| En az 5 yeni ADR | ✅ | 057-061 |
+| Depo görünürlük kararı + kapı kapsamı CI'da | ✅ | ADR-060 · `sir_taramasi` `ci.yml:152` · kişisel veri kapısı süitte |
+| Tam süit yeşil, coverage ≥%93, kapılar | ✅ | **3.525 passed · 18 skipped · 0 failed** (7:37) · %94 · kapı 296 · ölü kod 0 |
+| Kendi alan adı üzerinden HTTPS, B4 | ⛔ | **alan adı alınmadı** — insan-kapısı |
+| Kapı 9-12 kanıtla → 15/15 | ⛔ | B4'e bağlı |
+| En az 3 davetliden gerçek cevap | ⛔ | Y3 sonrası |
+
+**Wave-Y kapanmıyor ve kapanmamalı:** kalan üç madde kod işi değil. İkisi tek bir satın
+almaya (alan adı), biri beş kişiye mesaj atmaya bağlı. Bunları "yapıldı" saymak, Wave-Y'nin
+teşhis ettiği hatanın kendisi olurdu — **kanıtsız ✅**.
+
+### BUGÜNÜN DERSLERİ (L68'den devam)
+
+* **L68 — Bir komutun çıktısı "başarılı" görünüyor diye iş yapılmış olmaz.** `git commit -F-`
+  zincir içinde sessizce çalışmadı, `push` "Everything up-to-date" dedi ve iki hedefin işi
+  commit'siz kaldı; HEAD kontrol edilmeseydi "tamam" diye raporlanacaktı. Y1'in kök
+  nedeninin (`baslat.ps1` "zaten çalışıyor" deyip geçmesi) commit tarafındaki aynısı.
+* **L69 — Aynı sinyali üreten farklı kod yolları ayrı ayrı ölçülür.** "Tek arıza sinyali
+  var, bir kez kanıtlamak hepsini kanıtlar" iddiası yanlıştı: bekçinin ölümü ile sağlıksız
+  dalın ping atmaması **iki ayrı yoldur**; ikincisi bir karar dalıdır ve ters yazılsa alarm
+  hiç çalmazdı.
+* **L70 — Onarım, ölçümü yiyebilir.** Kendi kendini iyileştiren bir sistem, iyileştirmeyi
+  kayda geçirmezse kendi arıza geçmişini siler (BUG #344).
+* **L71 — Bir kapının deseni ikinci bir kapıya KOPYALANMAZ.** Vitrin kapısına kopyalanan
+  desenler, depo kapısında "yeni sızıntı" olarak sayıldı. Muafiyet yazmak kapıyı
+  körleştirirdi; doğru cevap tek kaynaktı — `git ls-files`'ın beş kopyasıyla aynı ders.

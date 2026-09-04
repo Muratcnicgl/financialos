@@ -56,7 +56,30 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > **Metodoloji dersi:** aynı kodla %88 → %84 → %80 ölçüldü; örneklem büyüklüğü
 > belirtilmeyen bir oran bir iddiadır, ölçüm değil.
 >
-> **GÜNCEL BASELINE — 4 EYLÜL 2026. Süit 3468 passed · 18 skipped · 0 failed.**
+> **GÜNCEL BASELINE — 4 EYLÜL 2026 (akşam, Wave-Y sonrası). Süit 3525 passed ·
+> 18 skipped · 0 failed** (7:37) · coverage **%94** · kalite kapısı 296 · ölü kod 0.
+> **AKTİF HAT: Wave-Y (yayın) — tek doğruluk kaynağı `docs/kalite-seruveni/wave-y-ledger.md`.**
+> Wave-K (koç hattı) Y8 kapanana kadar **DONDURULDU**.
+>
+> **Wave-Y'de kapananlar:** Y1 canlı drift **0** (BUG #339: güncelleme adımı kullanılan
+> yolda yoktu — `deploy.sh` Docker içindi; `deploy/windows/guncelle.ps1` yazıldı ve
+> KULLANIM-GATE damga eşitliğini ölçüyor) · Y2 kesinti körlüğü bitti (BUG #342 **ölü adam
+> anahtarı**: makine ping atar, ping kesilirse alarm çalar — *sessizlik, her şeyin yolunda
+> olduğunun değil ALARMIN KENDİSİDİR*; iki halka da canlı kanıtlandı) · Y0 **B0 kararı
+> 24 gün sonra kapandı** (ADR-057: kendi makine + Cloudflare Tunnel + satın alınmış alan
+> adı; B'ye geçiş tetikleyicileri şimdiden yazılı) · Y5 defter senkronu (MCP defteri
+> **kapatıldı** — hiç koşulmayacak bir flush için yakalama yapıyordu) · Y6 **ADR 56 → 61** ·
+> Y7 vitrin üreticisi (allowlist) + kapısı.
+>
+> **BEKLEYEN (üçü de insan-kapısı):** alan adı satın alma (Y3'ün tamamı buna bağlı) ·
+> vitrin için boş public depo · davetlilerden geri bildirim (Y4).
+>
+> **BU TURUN YENİ DEFEKTLERİ:** `#339` güncelleme adımı yoktu · `#340` düzeltme veriye
+> bağlıydı, verisi olmayan kullanıcıda ürün hâlâ varsayıyordu · `#341` deploy betiğinin
+> çıkış kodu okunamıyordu (üç tur, üçü de "çocuk süreç ebeveynin tanıtıcısını miras
+> alıyor") · `#342` kesinti körlüğü · `#343` rapor diskte duran gerçek ölçümü "ölçüm yok"
+> sanıyordu (BOM) · `#344` **onarım ölçümü yiyordu** — kendi kendini iyileştiren sistem
+> kendi arıza kaydını siliyordu.
 > Kalite kapısı 296 (63/63) · ölü kod 0 · belge denetimi ve temiz-DB göç kilidi geçiyor.
 > **Kapalı beta AYAKTA.** Tek doğruluk kaynağı: `masterprompt-koc.md` §10 başındaki
 > ⏸️ KALDIĞIMIZ YER (4 Eylül).

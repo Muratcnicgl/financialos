@@ -230,7 +230,49 @@ heartbeat) bir kontrol oluştur:
 
 Sonra iki mutasyon koşulacak: **(1)** servis durdurulacak → alarm telefona ulaşmalı;
 **(2)** sağlık görevi durdurulacak → yokluğu da alarm üretmeli. İkisinin kanıtı buraya yazılacak.
-## Y0 — B0 BARINDIRMA KARARI ▸ BEKLİYOR
+## ✅ Y0 — B0 BARINDIRMA KARARI KAPANDI (4 Eylül 2026) — **24 gün sonra**
+
+**KARAR: A — kendi makine + Cloudflare Tunnel + SATIN ALINMIŞ alan adı.**
+Tam gerekçe: `docs/architecture/adr-057-barindirma.md` (ADR sayısı 56 → **57**).
+
+**Yöntem değişikliği kayda geçti.** `masterprompt-kapali-beta.md` §5 *"asistan seçmez"*
+diyordu; ölçülen sonuç: kural yürürlükteyken B0 **24 gün açık kaldı** — her turda
+seçenekler yeniden sunuldu, karar hiç verilmedi. **Sunmak, karar vermek değildir.**
+Charter'daki o cümle üstü çizilerek düzeltildi, sebebiyle birlikte.
+
+### Kararı belirleyen DÖRT yeni ölçüm (11 Ağustos notundan sonra)
+
+| Ölçüm | Sonuç | Karara etkisi |
+|---|---|---|
+| Kaçırılan iş telafisi | `kacirilan_isleri_telafi_et()` **5/5** planlı işi kapsıyor (BUG #302) | B0 notunun A'ya yazdığı **2. bedel maddesi kapandı** — not *"B4'te ölçülecek"* diyordu, bugün ölçüldü |
+| DNS arızası (BUG #303) | Cloudflare 6/6 · Google 6/6 · ad üzerinden 200 | Alan adının **aciliyet** gerekçesi düştü; **kalıcılık** gerekçesi durdu |
+| Beta kullanımı | 23 gündür dışarıdan sıfır | 7/24'ün bugünkü değeri düşük → aylık gider erken |
+| **Y2 kararı (a)** | Makine kapalı = kesinti **ve artık alarm çalıyor** | A'nın 1. bedeli **sessiz olmaktan çıktı** → görünür olduğu için kabul edilebilir |
+
+### Ölçüt uygulaması (beraberlik kuralı: en ucuz + geri dönülebilir)
+
+* **eu.org (0 TL)** en ucuz görünüyor ama **alınabilir değil** — elle onay günler–haftalar.
+  **24 gündür bekleyen bir maddeyi yeni bir kuyruğa bağlamak karar vermek değildir.**
+* Alınabilirlerin en ucuzu **A**: alan adı ~**10,44 $/yıl**, B'nin (**€3,79/ay**) beşte biri.
+* **A→B görünmezdir** (aynı alan adı, DNS yön değiştirir; PWA kısayolu bozulmaz) — yani A,
+  B'yi dışlamıyor, B'ye giden yolu ucuzlatıyor.
+* **C (Oracle)** elendi: kuyruk **ölçülmedi**; ölçülmemiş bir beklentiye karar bağlamak,
+  ertelemenin başka adıdır (L45).
+
+### B'ye geçiş tetikleyicileri — ŞİMDİDEN yazılı ("sonra bakarız" değil)
+
+Biri gerçekleşirse B'ye geçilir, karar yeniden tartışılmaz:
+1. P8 (açık beta) açılıyorsa · 2. Erişilebilirlik 7 günde **%90'ın altına** inip sebebi
+makinenin kapalı olmasıysa · 3. Kurucu dışında **düzenli kullanan 2 kullanıcı** varsa.
+
+### ⛔ KALAN TEK İNSAN ADIMI (seçenek listesi değil, tek talimat)
+
+> **Cloudflare Registrar'dan (`domains.cloudflare.com`) bir alan adı al.** ~10,44 $/yıl,
+> maliyetine, yenilemede zam yok, WHOIS gizliliği ücretsiz. Adı sen seç. Aldıktan sonra
+> **alan adını söylemen yeterli** — gerisi (cloudflared, tünel, TLS, deploy, kapı 9-12)
+> asistanda.
+
+Bu, bu fazın **tek zorunlu masrafıdır**.
 ## Y3 — YAYIN + KAPI 9-12 ▸ BEKLİYOR
 ## Y4 — GERÇEK KULLANICI SİNYALİ ▸ BEKLİYOR
 ## Y5 — DEFTER SENKRONU ▸ BEKLİYOR

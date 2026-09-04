@@ -111,7 +111,12 @@ def olc_backend(hizli: bool) -> tuple[int, int, float | None]:
         c = _kos(py, "-m", "pytest", "tests/", "-q", "--collect-only", timeout=300)
         m = re.search(r"(\d+) tests collected", c)
         return (int(m.group(1)) if m else 0), 0, None
-    c = _kos(py, "-m", "pytest", "tests/", "-q", "--cov=app", "--cov-report=term")
+    # `--cov-fail-under=0`: eşik olarak DEĞİL, coverage'ın "Total coverage: 94.02%" satırını
+    # bastırmak için. O satır olmadan yalnız TOTAL satırındaki YUVARLANMIŞ tam sayı (94)
+    # okunabiliyor ve vitrin "%94.0" yazıyordu — yayınlanan bir sayıda gereksiz hassasiyet
+    # kaybı. 0 eşiği hiçbir zaman kırmızı vermez, yani ölçümü etkilemez.
+    c = _kos(py, "-m", "pytest", "tests/", "-q", "--cov=app", "--cov-report=term",
+             "--cov-fail-under=0")
     gecen = re.search(r"(\d+) passed", c)
     atlanan = re.search(r"(\d+) skipped", c)
     kapsam = re.search(r"Total coverage: ([\d.]+)%", c) or re.search(r"TOTAL.*?(\d+)%", c)
@@ -162,9 +167,14 @@ def olc_kapilar() -> list[dict]:
     if taban.exists():
         d = json.loads(taban.read_text(encoding="utf-8"))
         aile = d.get("tavan") or {}
-        for ad, tavan in sorted(aile.items()):
-            if isinstance(tavan, int):
-                kapilar.append({"ad": f"ruff {ad}", "tavan": str(tavan)})
+        # ruff TEK bir kapıdır; E9/F/B/S onun AİLELERİdir. Dört satır olarak listelemek,
+        # okuyana dört ayrı kapı varmış izlenimi verirdi (PROJE.md "yedi kapı" diyor).
+        # Tavan yine aile bazında gösterilir — çünkü tek toplam takasa izin verirdi.
+        parcalar = [f"{ad} {tavan}" for ad, tavan in sorted(aile.items())
+                    if isinstance(tavan, int)]
+        if parcalar:
+            kapilar.append({"ad": "ruff (dar küme; tavan AİLE bazında)",
+                            "tavan": " · ".join(parcalar)})
     kapilar += [
         {"ad": "ölü kod", "tavan": "0"},
         {"ad": "belge denetimi (ölü yönlendirme)", "tavan": "0"},

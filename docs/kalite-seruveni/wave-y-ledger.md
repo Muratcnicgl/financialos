@@ -635,6 +635,65 @@ kuruldu, yani henüz tetiklenmiş sayılmaz — ama yön belli.)*
 almaya (alan adı), biri beş kişiye mesaj atmaya bağlı. Bunları "yapıldı" saymak, Wave-Y'nin
 teşhis ettiği hatanın kendisi olurdu — **kanıtsız ✅**.
 
+
+---
+
+## §8.1 BAŞLANGIÇ ↔ BİTİŞ KIYASI (Y8 şartı — 4 Eylül 2026 gece ölçümü)
+
+| Ölçüm | 13:37 (başlangıç) | 23:33 (şimdi) | |
+|---|---|---|---|
+| Yerel HEAD | `fce4753` | `6331640` | +14 commit |
+| **Canlı build damgası** | `aed4b5fad0e6` (var olmayan bir SHA) | **`6331640dcb70`** | **drift 0** |
+| Canlı sağlık | 200 / 200 | 200 / 200 | — |
+| Süit | 3.504 passed | **3.525 passed · 18 skipped · 0 failed** | +21 |
+| Coverage | %94,02 | %94 (CI'da ≥93 kilitli) | — |
+| Kalite kapısı | 296 | **296** | tavan korundu |
+| ADR | 56 belge sanılıyordu | **58 karar / 60 belge** (sayım düzeltildi) | +5 karar |
+| MCP defteri | **281 satır ve büyüyor** | **kapatıldı** | borç bitti |
+| Backlog | 164/251/81 | 165/250/81 | +1 (kanıtla) |
+| Dış izleme | **yok** | **ölü adam anahtarı, canlı kanıtlı** | Y2 |
+| BUG tavanı | #338 | **#344** | +6 |
+| Erişilebilirlik ölçümü | **hiç yoktu** | **%20,75** (ölçülüyor) | görünür oldu |
+
+**Wave-Y'de kapanan:** Y1 (drift) · Y2 (kesinti körlüğü) · Y0 (B0 kararı, 24 gün sonra) ·
+Y5 (defterler) · Y6 (ADR borcu) · Y7'nin kod tarafı.
+**Kapanmayan:** Y3 (yayın) · Y4 (kullanıcı sinyali) · Y7'nin yayın adımı · Y8.
+**Sebebi tek:** dördü de **alan adı satın alınmasına** ya da bir hesap açılmasına bağlı.
+
+### Gecenin ölçtüğü üç yayın-hatası (hepsi DIŞ İDDİA olacaktı)
+
+1. **e2e sayısı 7 yazıyordu, gerçek 8.** Metin sayımı döngüyle üretilen testi göremez;
+   sayım Playwright'ın kendi listesine bağlandı.
+2. **ADR sayısı 61 yazıyordu, gerçek 58 karar / 60 belge.** `adr-index.md` sayılıyordu ve
+   ekler (`013a`, `034 Revize`) ayrı karar sanılıyordu. Üç belgede düzeltildi.
+3. **`cloudflared` "kuruldu" diye raporlandı, kurulmamıştı.** `winget` çıkış 0 döndü ama
+   MSI `1602` (UAC gösterilemedi) ile düştü; `winget list` ile yakalandı.
+
+**Üçünün ortak dersi (L68'in üç ayrı biçimi):** bir aracın "başarılı" görünmesi, ölçmediğin
+sürece kanıt değildir — ve bu, en çok **dışarıya gidecek** sayılarda tehlikelidir.
+
+
+### 🟡 AÇIK BIRAKILAN, GEREKÇESİYLE: B-geçiş tetikleyicisini ÖLÇEN bir şey yok
+
+ADR-057 B'ye (7/24 VPS) geçiş için üç tetikleyici yazdı; ikincisi ölçülebilir:
+*"erişilebilirlik 7 günlük pencerede %90'ın altına inerse."*
+
+**Ama o cümleyi bugün hiçbir şey değerlendirmiyor.** `erisilebilirlik_raporu` oranı basıyor;
+eşikle karşılaştırıp "tetiklendi" diyen bir adım yok. Bu, bu defterin en sık yazdığı sınıf:
+**yazılmış ama zorlanmayan bir kural** (L61 — ölçen sistem, haber veren sistem değildir).
+
+**Bu gece YAPILMADI ve sebebi iki tane:**
+
+1. **Wave-Y §10 yeni özellik yasağı.** Bir CLI bayrağı eklemek küçük görünür ama hattın
+   kuralı açık: *"Wave-Y'de sadece kapatma işi var."* Kuralı, küçük olduğu için esnetmek,
+   kuralı esnetmenin en yaygın biçimidir.
+2. **Veri zaten yetmiyor.** Tetikleyici **7 günlük** pencere istiyor; izleme bugün kuruldu
+   ve elimizde bir günden az var. Bugün yazılsa bile ölçemezdi — ve ölçemeyen bir eşik,
+   "kuruldu" damgasıyla sessizce yanlış güven üretirdi.
+
+**Sıradaki turun işi olarak kaydedildi.** O zamana kadar oran elle okunur:
+`python -m scripts.erisilebilirlik_raporu --gun 7`
+
 ### BUGÜNÜN DERSLERİ (L68'den devam)
 
 * **L68 — Bir komutun çıktısı "başarılı" görünüyor diye iş yapılmış olmaz.** `git commit -F-`

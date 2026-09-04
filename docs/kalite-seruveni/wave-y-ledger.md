@@ -276,7 +276,21 @@ Bu, bu fazın **tek zorunlu masrafıdır**.
 ## Y3 — YAYIN + KAPI 9-12 ▸ BEKLİYOR
 ## Y4 — GERÇEK KULLANICI SİNYALİ ▸ BEKLİYOR
 ## Y5 — DEFTER SENKRONU ▸ BEKLİYOR
-## Y6 — ADR BORCU ▸ BEKLİYOR
+## ✅ Y6 — ADR BORCU KAPANDI (4 Eylül 2026)
+
+**ADR 56 → 61.** Masterprompt'un istediği beş kararın beşi de yazıldı:
+
+| ADR | Karar | Neden ADR'ye girmesi gerekiyordu |
+|---|---|---|
+| **057** | Barındırma: A (kendi makine + Cloudflare Tunnel + satın alınmış alan adı) | 24 gündür açık olan tek insan-kapısı |
+| **058** | Yedi kalite kapısı ve tavanların anlamı | *Tavan bir HEDEF değil, bir BORÇ DONDURUCUDUR.* Aile bazında tutulur (tek toplam takasa izin verirdi), araç sürümü sabittir, ve **reddedince doğru cevap tavanı yükseltmek değildir** — ölçülen sicil: sekiz reddediş, sekizinde de haklı |
+| **059** | SQLite'ta `alembic check` **kalıcı kırmızıdır** | Belgelenmiş bir sapma, o sapmayı ölçen tek aracı okunamaz kılmıştı; ölçüm `test_fk_sapmasi_kapisi.py`'ye taşındı. **İki yanlış teşhis de kayda geçti** — mutasyon yalnız testi değil TEŞHİSİ de sınar |
+| **060** | Depo private kalır + üretilmiş vitrin; kapı imajı değil **depoyu** tarar | Kapı yanlış yüzeyi koruyordu (862 dosyanın 186'sı). Vitrin **allowlist** ile üretilir: denylist yalnız düşünüleni yakalar, sızıntı düşünülmeyenden gelir |
+| **061** | Milestone/tag disiplini bırakıldı | Sistem **18 Temmuz'da fiilen ölmüştü** (103 commit tag'siz, bir numara iki işe verilmiş) ve karar yalnız `PROJE.md`'de yazılıydı. *Bir kararın nerede yazılı olduğu, ne kadar yaşayacağını belirler* |
+
+**Y6'nın ölçtüğü boşluk:** çıpadan bu yana 60 BUG kapandı, 7 kapı kuruldu, yeni bir hat
+açıldı, depo private yapıldı, geçmiş ikinci kez yeniden yazıldı — ve **sıfır yeni ADR**
+yazılmıştı. Kararlar commit mesajlarında kalıyordu.
 
 ## Y7 — DEPO GÖRÜNÜRLÜĞÜ ▸ KARAR ALINDI, UYGULAMA BEKLİYOR
 

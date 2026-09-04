@@ -51,4 +51,19 @@ elif command -v python3 >/dev/null 2>&1; then
   python3 -m scripts.ci_durum --sessiz 2>/dev/null || true
 fi
 
+# ── CANLI SERVİS (BUG #328) ───────────────────────────────────────────────────
+# Kapalı beta 3-4 Eylül 2026'da **24,5 saat kapalı kaldı ve kimse fark etmedi**: her
+# başarısız açılış `logs/servis.log`'a yazıldı (45 deneme) ve o dosyaya kimse bakmadı.
+# BUG #326 o ÖZEL arızayı (uygulanmamış göç) kendi kendine çözüyor; ama bir sonraki
+# açılış hatası yine sessizce sürerdi (L61: ölçen sistem, HABER VEREN sistem değildir).
+# Çare yeni bir kanal icat etmek değil, `ci_durum` deseninin aynısı: operatörün zaten
+# her gün yaptığı işe bir satır iliştir.
+# `--sessiz`: ayaktaysa hiç konuşmaz. Commit'i ASLA engellemez — servis kapalıyken commit
+# atamamak, tam da onu onaracak commit'i engellerdi.
+if [ -x ./venv/Scripts/python.exe ]; then
+  ./venv/Scripts/python.exe -m scripts.canli_durum --sessiz 2>/dev/null || true
+elif command -v python3 >/dev/null 2>&1; then
+  python3 -m scripts.canli_durum --sessiz 2>/dev/null || true
+fi
+
 exit 0

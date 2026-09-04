@@ -35,6 +35,18 @@ TEST_ENV_SABITLERI = {
     # `test_kisisel_eposta_sizmaz` geliştiriciye göre kırmızı/yeşil olur.
     "SUPPORT_EMAIL": "destek@ornek-urun.test",
     "AUTH_ENABLED": "false",             # ~900 test kimliksiz fallback yolunda koşar
+    # ── BUG #349 — SÜİT, CANLI UYGULAMANIN LOG DOSYASINI SUSTURUYORDU ──
+    # `app/main.py:73` `setup_logging()`'i **import anında** çağırır; yani `app.main`'i
+    # içe aktaran HER pytest süreci, canlı betanın `logs/financialos.log` dosyasına kendi
+    # `RotatingFileHandler`'ını bağlar. Dosya 10 MB'a ulaştığında rotasyon `os.rename` ile
+    # yapılır ve Windows'ta **başka bir süreç dosyayı açık tuttuğu sürece bu imkânsızdır**.
+    # 5 Eylül 2026 gecesi tam olarak bu oldu: dosya 10.485.727 bayta dayandı, rotasyon
+    # düştü ve uygulama-seviyesi log **01:08'de dondu** — canlı `/api/health` 200 dönerken
+    # tek satır bile yazılmıyordu (ölçüldü). Uygulama sağlamdı; körleşen şey gözlemiydi.
+    # Süit, ölçtüğü sistemi bozamaz: log dizini test için ayrılır ve küçük tutulur.
+    "LOG_DIR": "logs/test",
+    "LOG_ROTATION_MAX_MB": "1",
+    "LOG_ROTATION_BACKUP": "1",
 }
 for _anahtar, _deger in TEST_ENV_SABITLERI.items():
     os.environ[_anahtar] = _deger

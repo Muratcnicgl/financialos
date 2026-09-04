@@ -817,3 +817,12 @@ makinenin uyuması ve adın makineye bağlı olması.
   kendi metodoloji notu tam olarak bunu diyordu ve 48 gün tutmadı. Özet artık
   `scripts/backlog_ozeti.py` ile ÜRETİLİYOR ve güncelliği bir testle kilitli. Bir belgeyi
   bayatlamaktan koruyan şey disiplin değil, **türetilmiş olmasıdır.**
+* **L80 — Ölçen sistem, ölçtüğü sistemi bozabilir.** Süit `app.main`'i içe aktardığı için
+  canlı betanın log dosyasına tutundu ve o dosya 10 MB'a dayandığında **canlı uygulamanın
+  log rotasyonunu imkânsız kıldı**; uygulama sağlam kaldı, gözlemi kör oldu. En sinsi yanı
+  şu: arıza, sistemi **gözlemlemeye çalışan** araçtan geldi. Test ortamı üretimin
+  dosyalarına dokunmaz — `.env` için bu ders 286'da öğrenilmişti, log için öğrenilmemişti.
+* **L81 — "Bir kez bile olmamış" ile "hiç denenmemiş" farklı şeylerdir.** `financialos.log.1`
+  dosyasının hiç var olmaması, rotasyonun **bir kez bile tamamlanmadığını** söylüyordu;
+  yani arıza bu gece doğmadı, bu gece TETİKLENDİ. Bir mekanizmanın hiç çalışmamış olması,
+  çalıştığının kanıtı sanılabilir — çünkü hata da üretmez.

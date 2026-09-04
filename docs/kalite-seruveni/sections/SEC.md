@@ -112,7 +112,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-019] Ham SQL f-string kalıbı (`text(f"...")`) — latent injection deseni
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: rules_engine.py:940 db.execute(text(f"...")) f-string (sabit liste, latent)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: depoda **tek** örnek vardı (`rules_engine._calculate_category_patterns`) ve incelendiğinde **enjeksiyon YOKTU** — `f` öneki tamamen işlevsizdi, dizgede tek bir `{}` bile yok, her değer bağlı parametre (`:user_id`, `:prev_start`, `:curr_start`, `:today`, `:min_count`). Yani madde bir açık değil, bir **tuzak** bildiriyordu ve haklıydı: önek durduğu sürece sonraki bir düzenleme kullanıcı verisini SQL METNİNE gömebilirdi. Önek kaldırıldı (sorgu davranışı değişmedi — `test_category_patterns` 7/7 yeşil) ve desen `tests/security/test_ham_sql_kapisi.py` ile YASAKLANDI; dinamik SQL gerçekten gerekirse `# ham-sql-muaf: <gerekçe>` istenir. Mutasyon 2/2.
 - **Kanıt:** `rules_engine.py:575` + `:60` (`_EXCLUDED_SQL` sabit listeden — şu an güvenli)
 - **Aksiyon:** Parametreli expanding bindparam; "buraya kullanıcı girdisi koyma" yorumu.
 - **Etki:** Düşük · **Efor:** S
@@ -160,7 +160,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-027] Sağlık ucu/root sürüm/servis bilgisi ifşa
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: health version/service/auth_enabled ifşa (main.py:208)
+- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü (kapatılmadı, DARALTILDI): `/api/health` kimliksiz olarak `version`, `build` (commit SHA) ve `auth_enabled` yayınlıyor — ölçüldü. Bu bilgi bir saldırgana sürüm eşleştirme kolaylığı verir. AMA bilinçli bir kullanımı da var: dağıtım kapısı canlı damgayı okuyarak sürüm sürüklenmesini yakalıyor (`deploy/windows/guncelle.ps1`'in KULLANIM-GATE'i `/api/meta` üzerinden). Yani karar "ifşayı kaldır" değil, **hangi ucun ne yayınlayacağını ayırmak**: canlılık ucu (`/api/health`) yalnız `status` dönebilir, damga `/api/meta`'da kalabilir. Kök yol (`/`) SPA döndürüyor, sürüm sızdırmıyor (ölçüldü).
 - **Kanıt:** `app/main.py:200-206`
 - **Aksiyon:** Genel health minimal (`{"status":"ok"}`); detay auth arkasına.
 - **Etki:** Düşük · **Efor:** S
@@ -216,7 +216,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [SEC-035] Statik güvenlik testi/gizli tarama/güvenli-geliştirme kapısı yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: pre-commit pytest/vitest; bandit/gitleaks/pip-audit yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: maddenin Aksiyon'u üç araç istiyordu ve **üçünün de karşılığı CI'da koşuyor** — SAST yerine ruff'ın **S** ailesi (bandit kuralları, tavana bağlı: bugün 62) · gizli tarama yerine `scripts/sir_taramasi` (çalışma ağacı + **geçmiş**) · bağımlılık taraması olarak `pip-audit -r requirements.txt --strict` (`ci.yml:115-119`, her push + haftalık cron). Ayrıca bu turda dördüncüsü eklendi: `tests/security/test_ham_sql_kapisi.py` (SEC-019). `DEVOPS-012` ile aynı iş — iki boyutta iki kez kaydedilmiş.
 - **Kanıt:** pytest yok; CI yok
 - **Aksiyon:** `bandit`(SAST)+`gitleaks`(secret)+`pip-audit`(deps) pre-commit/CI; `test_isolation.py`.
 - **Etki:** Orta · **Efor:** M

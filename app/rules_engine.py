@@ -1013,7 +1013,12 @@ def _calculate_category_patterns(user_id: int, today: date, db: Session) -> List
     curr_start = today - timedelta(days=29)
     prev_start = today - timedelta(days=59)
 
-    rows = db.execute(text(f"""
+    # SEC-019 (5 Eyl 2026): `f` öneki İŞLEVSİZDİ — dizgede tek bir `{}` yok, her değer
+    # bağlı parametre (`:user_id` vb.). Yani enjeksiyon YOKTU; ama önek bir tuzaktı:
+    # biri yarın buraya `{degisken}` eklerse sessizce interpolasyon olur ve sorgu
+    # kullanıcı verisini SQL metnine gömer. Önek kaldırıldı; desen artık
+    # `tests/security/test_ham_sql_kapisi.py` ile yasak.
+    rows = db.execute(text("""
         SELECT
             category,
             SUM(CASE WHEN transaction_date >= :prev_start

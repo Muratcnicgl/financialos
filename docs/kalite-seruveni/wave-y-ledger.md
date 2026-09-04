@@ -867,3 +867,16 @@ söylüyordu (L81) — ve şimdi var olması, mekanizmanın ilk kez gerçekten �
   "1865 satır" → **3.501**; `OBS-014` üç tablo → **yalnız biri korunuyor**). Bir maddeyi
   "açık" bırakmakla "şu kısmı açık" demek aynı şey değildir: ikincisi bir sonraki kişiye
   nereden başlayacağını söyler, birincisi yalnız suçluluk üretir.
+* **L84 — Bir düzeltmeyi ikiye bölmek, hiç yapmamaktan daha yanıltıcıdır.** `guncelle.ps1`
+  backend'i güncelliyor ve damgayı doğruluyordu; `frontend/dist`'i **hiç derlemiyordu**.
+  Ölçüldü: `dist` üç gün eskiydi ve o aralıkta `frontend/src` **9 commit** almıştı — yani
+  #318/#319/#320/#330/#331/#332'nin **backend yarısı canlıda, arayüz yarısı değildi.**
+  Defterde "kapandı" yazıyordu; kullanıcı eski ekranı görüyordu. Bir kapının doğrulaması,
+  düzeltmenin **tamamını** kapsamalı — yarısını ölçen bir kapı, kalan yarısı için
+  **yanlış bir güven** üretir.
+* **L85 — Çıkış kodu bir iddiadır; işin ÜRÜNÜ ölçülebilir.** Bu gece iki kez, iki ters
+  yönden ısırdı. Sabah `python script.py | tail` çağrısında `$?` **tail'in** koduydu ve
+  çöken bir kapıyı "geçti" sandım. Gece yeni derleme adımında `Start-Process -PassThru`
+  nesnesinin `ExitCode`'u boş kaldı, `$null -ne 0` doğru döndü ve **başarılı** bir
+  derlemeyi "başarısız" ilan ettim. İkisinin cevabı aynı: kodun ne dediğine değil,
+  **diskte ne oluştuğuna** bak — `dist/index.html` var mı ve BU koşumda mı yazıldı.

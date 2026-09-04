@@ -10,7 +10,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [OBS-002] Request/trace korelasyon ID'si yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: request_id middleware yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `app/correlation.py` bir `istek_id` ContextVar'ı taşıyor ve her log satırı onu basıyor. Canlı örnek: `[WARNING] [dz782yg8] app.workspace_deps: ...` — yani korelasyon kimliği yalnız kodda değil, ÜRETİM ÇIKTISINDA doğrulandı.
 - **Sorun/Fırsat:** Bir chat çağrısının tüm log satırları/DB kayıtları/LLM çağrıları birbirine bağlanamıyor.
 - **Kanıt:** `app/main.py` middleware yok; `reasoning_trace` `trace_id` var ama log'a bağlı değil
 - **Aksiyon:** `asgi-correlation-id` veya custom middleware + `contextvars`; her log'a `request_id`/`trace_id`/`user_id`. reasoning_trace `trace_id`'siyle hizala.
@@ -52,7 +52,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [OBS-008] Health vs readiness ayrımı yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: healthz/readyz ayrimi yok
+- **Durum:** ✅ KAPANDI — `API-019` ile aynı iş, iki boyutta iki kez kaydedilmiş. **BUG #247 (D39)** ayırmış: `/api/health` CANLILIK ölçer (bağımlılık yok, her zaman 200), `/api/ready` HAZIR OLMA ölçer (DB/şema; **503 dönebilir** ve bu bir hata değil ölçümün kendisidir). 5 Eyl 2026'da canlıda doğrulandı: ikisi de 200.
 - **Kanıt:** `app/main.py:200-206` tek `/api/health`
 - **Aksiyon:** `/healthz` (liveness) + `/readyz` (DB ping + scheduler + provider config). (API-019)
 - **Etki:** Düşük · **Efor:** S
@@ -88,7 +88,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [OBS-014] `ApiCallLog`/`ReasoningTrace`/`CoachMemory` sınırsız büyür — retention/rotation yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ApiCallLog/CoachMemory retention yok
+- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü, **üç tablodan yalnız BİRİ** korunuyor: `scheduler.nightly_trace_cleanup_job` (04:00 İstanbul) `ReasoningTrace`'in 90 günden eski satırlarını siler ve **silinen satır sayısını çalışma kaydına düşer** (BUG #240 — KVKK'da verilen 90 gün sözü ancak SAYIYLA doğrulanır, log okumak kanıt değildir). AÇIK KALAN, ölçülerek daraltıldı: `ApiCallLog` ve `CoachMemory` için saklama işi YOK — ikisi de sınırsız büyümeye devam ediyor. Sıradaki iş bu iki tablodur, tamamı değil.
 - **Kanıt:** `app/models.py:450-489`; scheduler'da trace cleanup var ama ApiCallLog için yok
 - **Aksiyon:** N günden eski kayıt retention job (mevcut nightly cleanup'a ekle); aggregate tablo. (DATA-032)
 - **Etki:** Düşük · **Efor:** M
@@ -100,7 +100,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [OBS-016] LLM latency dağılımı (p50/p95/p99) izlenmiyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: LLM latency percentile yok
+- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü: **veri VAR, analiz YOK.** Her LLM çağrısının süresi ölçülüp kaydediliyor (`app/routers/coach.py:450` `duration_ms` hesaplanır, `llm_quota.tamamla(...)` ile satıra yazılır). Eksik olan toplama yüzeyi: p50/p95/p99 hesaplayan bir rapor ya da uç yok. Yani bu madde "ölçmüyoruz" değil, **"ölçtüğümüze bakmıyoruz"** (L61'in bir başka yüzü). `scripts/perf_smoke.py` HTTP katmanı için aynı işi yapıyor; LLM tarafı için karşılığı yazılmalı.
 - **Kanıt:** `ApiCallLog.duration_ms` var ama percentile analizi yok
 - **Aksiyon:** Prometheus histogram (OBS-004) veya periyodik agregasyon; provider+çağrı-tipi kırılımı.
 - **Etki:** Düşük · **Efor:** S
@@ -141,7 +141,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [OBS-023] Uptime/deployment izleme yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: uptime monitor yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: Wave-Y/Y2 hem uptime hem deployment izlemesini kurdu. **Uptime:** `deploy/windows/saglik.ps1` 10 dakikada bir koşar, ÖLÜ ADAM ANAHTARI ile dışarı ping atar (ping kesilirse alarm; sessizlik alarmın kendisidir), her koşumu `logs/erisilebilirlik.csv`'ye yazar ve `scripts/erisilebilirlik_raporu.py` kayıp slotları KESİNTİ sayarak oran üretir (bu gece: %29,85). **Deployment:** `deploy/windows/guncelle.ps1` dağıtımdan sonra canlı `/api/meta` damgasının hedefe EŞİT olduğunu doğrular (KULLANIM-GATE) — sağlık 200 yetmez, eski süreç de 200 verirdi. İkisi de bu gece gerçek bir olayda çalıştı (23:07-00:10 DNS kesintisi kaydedildi).
 - **Aksiyon:** Basit uptime monitor (UptimeRobot free) `/healthz`'e; deploy sürüm bilgisi (`app.version`) metrikte.
 - **Etki:** Düşük · **Efor:** S
 
@@ -152,7 +152,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [OBS-025] Maliyet/kullanım bütçe uyarısı yok (LLM harcama tavanı)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: aylik LLM maliyet butcesi yok
+- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü: **tavan var, UYARI yok.** `app/llm_quota.py` kullanıcı başına günlük çağrı tavanı (`kullanici_gunluk_tavan`), günlük sayım (`bugunku_cagri_sayisi`), sağlayıcı-paylaşımlı sayım (`paylasilan_cagri_sayisi`) ve çağrı başına `maliyet_usd` taşıyor; `tests/test_llm_maliyet_kapisi.py` bunu kilitliyor. Yani harcama ÖLÇÜLÜYOR ve kullanım BLOKLANIYOR. Eksik olan, bir eşiğe yaklaşıldığında HABER VEREN yol — ölü adam anahtarı kesintiyi haber veriyor, bütçeyi vermiyor.
 - **Kanıt:** Gemini günlük limit kontrolü var ama toplam maliyet tavanı yok
 - **Aksiyon:** Aylık LLM maliyet bütçesi + %80/%100 eşik uyarısı (OBS-005 verisiyle).
 - **Etki:** Düşük · **Efor:** S

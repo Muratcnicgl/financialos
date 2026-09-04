@@ -457,6 +457,66 @@ her şey **varsayılan olarak düşer**.
 temizse yayınlanır. Mutasyon: vitrine bilerek gerçek bir rakam enjekte edilir → kapı
 kırmızı vermeli.
 
+
+---
+
+## 🔴 CANLI BULGU — 4 Eylül 23:07: ADRES ÇÖZÜLMÜYOR, DAVETLİLER GİREMİYOR
+
+Makine ~16:45'ten 23:06'ya kadar uykudaydı. Uyanınca sağlık görevi koştu ve **kırmızı** verdi:
+
+    [HATA] DIS ADRES HIC COZULMUYOR (hicbir cozumleyici A kaydi vermedi)
+           - davetliler SITEYI ACAMAZ
+
+### Ölçüm — ve "bende çalışıyor" tuzağı canlı yakalandı
+
+| Ne soruldu | Cevap |
+|---|---|
+| `curl https://financialos.<tailnet>.ts.net/api/health` | **200** ✅ |
+| Sistem çözümleyicisi bu adı ne veriyor | **`100.81.23.113`** — bir **tailnet** adresi |
+| Cloudflare DoH (4 sorgu) | **0/4 çözdü** (`Status:3` NXDOMAIN) |
+| Google DoH (4 sorgu) | **0/4 çözdü** (`Status:3` NXDOMAIN) |
+| `tailscale funnel status` | **`Funnel on`**, proxy `→ 127.0.0.1:8000` doğru |
+| Uygulama | ayakta, `/api/health` 200 |
+
+**Yani tünel de uygulama da sağlam; çözülmeyen şey ADIN KENDİSİ.** Benim `curl`'üm 200
+döndü çünkü istek tailnet içinden gitti ve funnel'ı **atladı** — `saglik.ps1`'in docstring'inde
+yazılı olan tuzak, bugün canlı olarak yakalandı: *"bende çalışıyor" bu kurulumda kanıt değildir.*
+
+### Bunun karara etkisi — ve önceki cümlemin düzeltmesi
+
+Bugün öğlen *"DNS arızası bugün yok, sebep kanıtlı değil"* yazmıştım. O ölçüm **o an
+doğruydu** (13:00'te iki çözümleyici de 6/6 çözüyordu). Ama arıza **aralıklı** ve şu an
+yeniden yaşanıyor — üstelik bu kez **iki çözümleyicide birden** (Ağustos'ta yalnız
+Cloudflare'de idi). Bu, sınıfın **üçüncü ölçülen tekrarıdır** (11 Ağu · 12 Ağu · 4 Eyl).
+
+Hâlâ kanıtlanmayan: davetlilerin Ağustos'ta **bu yüzden** dönmediği.
+**Artık kanıtlanan:** adres **güvenilmez** ve düzeltmesi bizde değil — `ts.net` alanının
+DNS'i Tailscale'e ait. Kendi alan adı + Cloudflare Tunnel, kaydı Murat'ın kontrolüne alır.
+**ADR-057'nin (A seçeneği) gerekçesi bu ölçümle güçlendi.**
+
+### Y4'ün sıralaması DEĞİŞTİ (kendi önerimi geri alıyorum)
+
+Birkaç saat önce *"Y4 mesajı şimdi gönderilsin, Y3'ü beklemesin"* önerdim. **Bu ölçüm onu
+geçersiz kılıyor:** adres şu an dışarıdan açılmıyor. Şimdi mesaj göndermek, davetlileri
+ikinci kez kapalı bir kapıya yollamak olur — ve ilk seferinde neden dönmediklerini sorarken
+aynı hatayı tekrarlamak, sorunun kendisini kanıtlamış olmaz, **tekrarlamış** olur.
+**Karar: `y4-davetli-mesaji.md` SÜRÜM B (yeni adresle), Y3'ten sonra.**
+
+### Erişilebilirlik — kararın (a) faturası ilk kez göründü
+
+`python -m scripts.erisilebilirlik_raporu`:
+
+    kayit 14 (saglikli 11 · basarisiz 3) · beklenen 53 slot
+    ERISILEBILIRLIK: %20,75  (11/53 — kayip slot ve onarilan slot kesinti sayilir)
+    kayip slot: 39 (makine kapali)
+    KESINTILER: ~33 dk · ~65 dk · ~382 dk kayit yok (makine kapali) + 3 saglik BASARISIZ
+
+**382 dakikalık boşluk = makinenin uykusu.** Y2'nin (a) kararı tam olarak bunu görünür
+kılmak içindi: *makine kapalı = kesinti.* Rakam artık kâğıtta değil, ölçümde. Ve B'ye geçiş
+tetikleyicilerinden biri **"erişilebilirlik 7 günde %90'ın altına inerse"** idi — bugünkü
+pencere %20,75. *(Tetikleyici 7 GÜNLÜK pencere ister; bugün tek günlük ve izleme yeni
+kuruldu, yani henüz tetiklenmiş sayılmaz — ama yön belli.)*
+
 ## 🟡 Y8 — KAPANIŞ KAPISI: 10 maddenin 6'sı kapalı, 3'ü İNSAN-KAPISI
 
 **4 Eylül 2026, 15:36 ölçümü** (§0.1'in aynı komutları):

@@ -51,7 +51,7 @@ IZINLI_ALANLAR = {
     "backend_test":     "tam sayı (pytest sayımı)",
     "backend_skip":     "tam sayı",
     "frontend_test":    "tam sayı (vitest sayımı)",
-    "e2e_test":         "tam sayı (spec dosyalarındaki test sayımı)",
+    "e2e_test":         "tam sayı — Playwright `--list` sayımı (metin sayımı DEĞİL: döngüyle üretilen testleri kaçırıyordu, 7 vs 8)",
     "coverage_yuzde":   "ondalık sayı (coverage raporu)",
     "coverage_tavan":   "tam sayı (CI eşiği)",
     "kapilar":          "kapı ADI + TAVANI — ad teknik, tavan tam sayı",
@@ -95,9 +95,9 @@ YIGIN = ["Python 3.11", "FastAPI", "SQLAlchemy 2.x", "Alembic", "Pydantic V2",
 
 
 # ── ÖLÇÜMLER ─────────────────────────────────────────────────────────────────
-def _kos(*argv: str, timeout: int = 900) -> str:
+def _kos(*argv: str, timeout: int = 900, dizin: Path | None = None) -> str:
     p = subprocess.run(  # noqa: S603
-        list(argv), cwd=str(KOK), capture_output=True,
+        list(argv), cwd=str(dizin or KOK), capture_output=True,
         encoding="utf-8", errors="replace", timeout=timeout,
     )
     return (p.stdout or "") + (p.stderr or "")
@@ -131,11 +131,27 @@ def olc_frontend(hizli: bool) -> int:
 
 
 def olc_e2e() -> int:
-    """Spec dosyalarındaki `test(` sayımı — koşum gerektirmez (canlıya dokunmaz)."""
-    n = 0
-    for f in (KOK / "frontend" / "e2e").glob("*.spec.js"):
-        n += len(re.findall(r"\btest\(", f.read_text(encoding="utf-8", errors="replace")))
-    return n
+    """
+    E2E test sayısı — **Playwright'ın kendi listesinden**, metin sayımından değil.
+
+    İlk sürüm spec dosyalarındaki `test(` çağrılarını sayıyordu ve **7** veriyordu; gerçek
+    koşum **8** diyordu. Sebep yapısal: `tema-mobil.spec.js:165` bir DÖNGÜ içinde tanımlı
+    (dark + light tema) — metinde bir kez geçer, koşumda iki kez çalışır. Metin sayımı
+    parametrelenmiş testleri **yapısal olarak** göremez.
+
+    Yayınlanacak bir sayının yanlış olması kabul edilemez (vitrin dış bir iddiadır), bu
+    yüzden sayım araca sorulur. `--list` testleri KOŞTURMAZ, yalnız numaralandırır —
+    canlıya ve DB'ye dokunmaz.
+    """
+    npx = "npx.cmd" if sys.platform == "win32" else "npx"
+    c = _kos(npx, "playwright", "test", "--list", "--reporter=list",
+             timeout=180, dizin=KOK / "frontend")
+    m = re.search(r"Total:\s*(\d+)\s+tests?", c)
+    if m:
+        return int(m.group(1))
+    # Araç konuşmuyorsa SIFIR dönmek "e2e yok" demek olurdu (L45: bilinmeyen ≠ sıfır).
+    # -1, üretici tarafında görünür bir işaret; markdown'da "ölçülemedi" yazılır.
+    return -1
 
 
 def olc_kapilar() -> list[dict]:
@@ -243,7 +259,8 @@ def markdown_uret(v: dict) -> str:
           if v["olcum_modu"] == "tam"
           else f"| Backend testi | {v['backend_test']} toplandı (TASLAK — koşulmadı) |"),
          f"| Frontend testi | **{v['frontend_test']}** |",
-         f"| Uçtan uca (Playwright) | **{v['e2e_test']}** |",
+         (f"| Uçtan uca (Playwright) | **{v['e2e_test']}** |" if v["e2e_test"] >= 0
+          else "| Uçtan uca (Playwright) | ölçülemedi |"),
          (f"| Kapsam (coverage) | **%{v['coverage_yuzde']}** — CI'da ≥%{v['coverage_tavan']} kilitli |"
           if v["coverage_yuzde"] else f"| Kapsam | CI'da ≥%{v['coverage_tavan']} kilitli |"),
          f"| Mimari karar kaydı (ADR) | **{v['adr_sayisi']}** |",

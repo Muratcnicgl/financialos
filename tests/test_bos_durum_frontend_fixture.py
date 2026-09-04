@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
+from datetime import date as _date, timedelta as _timedelta
 from pathlib import Path
 
 import pytest
@@ -109,6 +111,66 @@ def _canli_dokum(client, headers) -> dict:
     return dokum
 
 
+#: Fixture'ın YENİDEN ÜRETİLDİĞİNDE değişmemesi gereken oynak değerler.
+#:
+#: ÖLÇÜLDÜ (4 Eylül 2026): dokunulmamış bir depoda fixture'ı yenilemek **172 satır**
+#: değiştiriyordu ve **172'si de oynaktı** (168 tarih/saat + 4 build damgası) — gerçek
+#: sözleşme farkı SIFIR. Böyle bir diff okunmaz: yeni bir alan eklense 172 satırın
+#: içinde kaybolurdu (L22 — gürültülü kapı okunmaz). Kapının KENDİSİ zaten yapıyı
+#: karşılaştırıyor ve tarihten etkilenmiyor; sorun **insanın gözden geçirdiği diff**'ti.
+#:
+#: Normalleştirme yalnız DEĞERİ sabitler, TİPİ ve BİÇİMİ korur (ISO tarih ISO kalır) —
+#: yoksa yapı imzası değişir ve frontend testi başka bir şeyi ölçmeye başlardı.
+_CIPA = _date(2026, 1, 1)
+# Saat dilimi EKİ ayrı yakalanır ve AYNEN korunur: frontend `Z` var mı diye bakıp
+# ayrıştırıyor (bkz. `frontend/PROJE.md`), eki düşürmek fixture'ı gerçek dışı yapardı.
+_TARIH_RE = _re.compile(
+    r"^(\d{4}-\d{2}-\d{2})([T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$")
+#: Tarih olmayan ama her koşumda değişen alanlar — ADIYLA ve gerekçesiyle.
+_OYNAK_ANAHTARLAR = {
+    "build": "0000000000000",   # sürüm damgası git HEAD'den türer (BUG #294)
+}
+
+
+def _oynagi_sabitle(dokum: dict) -> dict:
+    """Oynak değerleri deterministik hale getirir; yapı ve biçim korunur.
+
+    Tarihler İLK GÖRÜLDÜĞÜ sıraya göre değil, KRONOLOJİK sıraya göre çıpaya bağlanır:
+    böylece nakit akışı tahmini gibi ardışık seriler ardışık kalır ve farklı tarihler
+    farklı kalır (yalnız hepsini tek güne ezmek, bir seriyi tek noktaya çökertirdi).
+    """
+    bulunan: set[str] = set()
+
+    def _tara(d):
+        if isinstance(d, dict):
+            for v in d.values():
+                _tara(v)
+        elif isinstance(d, list):
+            for v in d:
+                _tara(v)
+        elif isinstance(d, str) and _TARIH_RE.match(d):
+            bulunan.add(_TARIH_RE.match(d).group(1))
+
+    _tara(dokum)
+    eslem = {g: (_CIPA + _timedelta(days=i)).isoformat()
+             for i, g in enumerate(sorted(bulunan))}
+
+    def _yaz(d, anahtar=None):
+        if isinstance(d, dict):
+            return {k: _yaz(v, k) for k, v in d.items()}
+        if isinstance(d, list):
+            return [_yaz(v) for v in d]
+        if anahtar in _OYNAK_ANAHTARLAR:
+            return _OYNAK_ANAHTARLAR[anahtar]
+        if isinstance(d, str):
+            m = _TARIH_RE.match(d)
+            if m:
+                return eslem[m.group(1)] + ("T00:00:00" if m.group(2) else "") + (m.group(3) or "")
+        return d
+
+    return _yaz(dokum)
+
+
 def _iskelet(deger):
     """Değerin YAPI imzası: dict→anahtar/iskelet, list→eleman iskeletlerinin birleşimi,
     skaler→tip adı. Oynak değerler (tarih, id, tutar) imzaya girmez."""
@@ -131,8 +193,9 @@ def test_bos_durum_fixture_guncel(client, bos_kullanici):
 
     if os.getenv("FOS_FIXTURE_UPDATE") == "1":
         FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-        FIXTURE.write_text(json.dumps(canli, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-                           encoding="utf-8")
+        FIXTURE.write_text(
+            json.dumps(_oynagi_sabitle(canli), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
         pytest.skip(f"Fixture güncellendi: {FIXTURE} ({len(canli)} uç)")
 
     assert FIXTURE.exists(), (
@@ -180,3 +243,48 @@ def test_fixture_kapsami_daralamaz(client, bos_kullanici):
         f"Fixture panellerin okuduğu şu uçları içermiyor: {eksik}\n"
         "Uç kalktıysa listeyi gerekçeyle güncelle; kalkmadıysa fixture'ı yenile."
     )
+
+
+def test_FIXTURE_DETERMINISTIK_yeniden_uretim_gurultu_uretmez():
+    """
+    ÖLÇÜLDÜ (4 Eyl 2026): normalleştirmeden önce fixture'ı yenilemek **172 satır**
+    değiştiriyordu ve 172'si de oynaktı — gerçek sözleşme farkı SIFIR. Böyle bir diff
+    okunmaz; yeni bir alan eklense içinde kaybolurdu (L22).
+
+    Bu test idempotensi ölçer: diskteki fixture zaten sabitlenmişse, sabitleyiciden
+    geçirmek onu DEĞİŞTİRMEZ. Biri normalleştirmeyi atlayıp yenilerse (gerçek tarihler
+    ve gerçek build damgasıyla) burada düşer.
+    """
+    diskteki = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    assert _oynagi_sabitle(diskteki) == diskteki, (
+        "Fixture oynak değer taşıyor (gerçek tarih / build damgası) — normalleştirilmeden "
+        "üretilmiş görünüyor.\nYenile: FOS_FIXTURE_UPDATE=1 python -m pytest "
+        "tests/test_bos_durum_frontend_fixture.py -q"
+    )
+
+
+def test_SABITLEME_YAPIYI_BOZMAZ(client, bos_kullanici):
+    """
+    Sabitleme yalnız DEĞERİ değiştirmeli. Yapı imzası kayarsa (ör. tarih `None`'a
+    çevrilse) frontend testi boş-durumu değil başka bir şeyi ölçmeye başlar ve sözleşme
+    kapısı sessizce anlamsızlaşır — düzeltmenin kendisi bir defekt üretirdi.
+    """
+    canli = _canli_dokum(client, bos_kullanici)
+    assert _iskelet(_oynagi_sabitle(canli)) == _iskelet(canli)
+
+
+def test_SABITLEME_SERIYI_COKERTMEZ():
+    """
+    Ardışık tarih serileri (nakit akışı tahmini) ardışık KALMALI. Hepsini tek güne ezmek
+    kolay olurdu ama grafiği tek noktaya çökertir ve boş-durum render'ı gerçek dışı olurdu.
+    Farklı tarihler farklı, sıra korunmuş kalır; saat dilimi eki AYNEN taşınır.
+    """
+    girdi = {"a": ["2026-03-05", "2026-03-06", "2026-03-07"],
+             "b": "2026-03-05T09:15:00.123456+00:00",
+             "c": "2026-03-05"}
+    cikti = _oynagi_sabitle(girdi)
+    assert len(set(cikti["a"])) == 3, cikti["a"]
+    assert cikti["a"] == sorted(cikti["a"]), "sıra bozuldu"
+    assert cikti["c"] == cikti["b"][:10], "aynı gün iki farklı değere düştü"
+    assert cikti["b"].endswith("+00:00"), cikti["b"]
+    assert "." not in cikti["b"], "mikrosaniye kaldı (her koşumda değişir)"

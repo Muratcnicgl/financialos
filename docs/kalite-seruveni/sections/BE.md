@@ -1,7 +1,7 @@
 # Backend mimari & kod kalitesi (kod: BE)
 
 ### [BE-001] `coach.py` 1865 satırlık tanrı-modülü domain paketine bölünmeli
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: coach.py 2640 satır tek modül
+- **Durum:** 🔲 AÇIK — **rakam bayattı, borç BÜYÜDÜ:** madde *"1865 satır"* diyor; 5 Eyl 2026 ölçümü **3.501 satır** (1,9 katı). `LLM-015` ile aynı iş, iki boyutta kayıtlı.
 - **Sorun:** Tek dosyada prompt, 6 provider, retry helper, confidence parser, history, post-processor, `CoachEngine`. Değişiklik yüzeyi kocaman, test edilemez, merge çatışması mıknatısı.
 - **Kanıt:** `app/coach.py:1-1865`
 - **Aksiyon:** `app/coach/` paketi: `providers/`, `prompts.py`, `context.py`, `parsing.py`, `history.py`, `engine.py`. Public API `__init__.py` ile korunur.
@@ -84,13 +84,13 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [BE-012] Config: `os.getenv` 14 çağrıda dağınık, tip/validasyon yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: os.getenv dağınık, BaseSettings yok
+- **Durum:** 🔲 AÇIK — **rakam bayattı, borç 4,6 KAT BÜYÜDÜ:** madde *"`os.getenv` 14 çağrıda dağınık"* diyor; 5 Eyl 2026 ölçümü **64 çağrı** (`app/` + `app/routers/`). Merkezî tipli config yokluğu, her yeni ayarla biraz daha pahalılaşıyor.
 - **Kanıt:** `app/database.py:16`, `app/coach.py:1184-1222`, `app/rules_engine.py:46`, `app/routers/actions.py:46,115`
 - **Aksiyon:** `app/config.py` `pydantic_settings.BaseSettings` + `@lru_cache get_settings()`, dependency olarak enjekte.
 - **Etki:** Yüksek · **Efor:** M
 
 ### [BE-013] `get_db` iki dosyada tanımlı — drift riski
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: get_db iki dosyada (database.py:63, dependencies.py:20)
+- **Durum:** 🔲 AÇIK — 5 Eyl 2026 ölçümü maddeyi **birebir doğruluyor**: `get_db` hâlâ iki dosyada tanımlı (`app/database.py` ve `app/dependencies.py`). Sürüklenme riski gerçek; sayı değişmemiş.
 - **Kanıt:** `app/database.py:38-47`, `app/dependencies.py:17-23`
 - **Aksiyon:** Tek tanım `dependencies.py`'de; database'deki silinsin/re-export.
 - **Etki:** Orta · **Efor:** S
@@ -122,7 +122,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [BE-018] Legacy `session.query()` yaygın (138 kullanım) — 2.0 `select()`
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: .query() 138+ kullanım, select() göçü yok
+- **Durum:** 🔲 AÇIK — **rakam bayattı, borç BÜYÜDÜ:** madde *"138 kullanım"* diyor; 5 Eyl 2026 ölçümü **254 kullanım**. SQLAlchemy 2.x `select()` geçişi yapılmadıkça eski kalıp yayılmaya devam ediyor.
 - **Kanıt:** 138 occurrence; `app/PROJE.md` "select() tercih" ama uygulanmamış.
 - **Aksiyon:** Yeni kod `select()` zorunlu; sık dokunulanları kademeli göç.
 - **Etki:** Orta · **Efor:** L
@@ -202,7 +202,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [BE-031] `datetime.utcnow()` deprecated + naive/aware karışıklığı
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: datetime.utcnow() deprecated ~40 kullanım
+- **Durum:** 🔲 AÇIK — 5 Eyl 2026 ölçümü: `datetime.utcnow()` **84 yerde** (madde rakam vermiyordu). Python 3.12+ bunu kullanımdan kaldırılmış sayıyor; ayrıca naive/aware karışıklığının kaynağı. `DATA-008` ile aynı iş.
 - **Kanıt:** `app/action_executor.py:319,354,368,402`, `scheduler.py:146,155` vs `main.py:205`
 - **Aksiyon:** Tek `now_utc()` helper; serialize helper'ı merkezîleştir.
 - **Etki:** Orta · **Efor:** M

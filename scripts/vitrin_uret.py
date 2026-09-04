@@ -55,7 +55,8 @@ IZINLI_ALANLAR = {
     "coverage_yuzde":   "ondalık sayı (coverage raporu)",
     "coverage_tavan":   "tam sayı (CI eşiği)",
     "kapilar":          "kapı ADI + TAVANI — ad teknik, tavan tam sayı",
-    "adr_sayisi":       "tam sayı",
+    "adr_sayisi":       "tam sayı — benzersiz ADR NUMARASI (indeks ve ekler elenmiş)",
+    "adr_belge_sayisi": "tam sayı — ADR BELGE sayısı (013a gibi ekler dahil)",
     "adr_basliklari":   "ADR BAŞLIK satırı — teknik karar adı; gövde ASLA alınmaz",
     "mutasyon":         "kapı adı + 'n/m' skoru — sayı ve dosya adı",
     "yigin":            "teknoloji adları — sabit liste, depodan okunmaz",
@@ -175,17 +176,34 @@ def olc_kapilar() -> list[dict]:
     return kapilar
 
 
-def olc_adr() -> tuple[int, list[str]]:
+def olc_adr() -> tuple[int, int, list[str]]:
     """
-    ADR **BAŞLIK** satırları. Gövde ASLA alınmaz — gövdelerde gerçek rakamlar geçiyor.
-    Başlık teknik bir karar adıdır; yine de her biri yasaklı desenlerden geçirilir.
+    ADR sayısı ve **BAŞLIK** satırları. Gövde ASLA alınmaz — gövdelerde gerçek rakamlar var.
+
+    SAYIM DÜZELTİLDİ (4 Eylül 2026): `glob("adr-*.md")` **61** veriyordu ve bu sayı
+    yayınlanmıştı. Ölçüldü:
+
+      * 61 dosyanın **1'i `adr-index.md`** — bir karar kaydı değil, indeks.
+      * Kalan 60 belgede **58 benzersiz numara** var: `013`/`013a` ve `034`/`034 Revize`
+        aynı kararın ekleridir.
+
+    Yani "61 ADR" iddiası iki ayrı hata taşıyordu. Vitrin dış bir iddia olduğu için
+    **ikisi de** düzeltildi ve iki sayı AYRI raporlanıyor: kaç KARAR (benzersiz numara)
+    ve kaç BELGE. Tek sayı vermek, hangisinin kastedildiğini okuyucuya bırakırdı.
     """
-    dosyalar = sorted((KOK / "docs" / "architecture").glob("adr-*.md"))
+    dosyalar = sorted(
+        f for f in (KOK / "docs" / "architecture").glob("adr-*.md")
+        if re.match(r"^adr-\d+[a-z]?-", f.name)   # indeks ve benzerleri elenir
+    )
     basliklar = []
+    numaralar = set()
     for f in dosyalar:
         ilk = f.read_text(encoding="utf-8", errors="replace").split("\n", 1)[0]
         basliklar.append(ilk.lstrip("# ").strip())
-    return len(dosyalar), basliklar
+        m = re.match(r"^adr-(\d+)", f.name)
+        if m:
+            numaralar.add(int(m.group(1)))
+    return len(numaralar), len(dosyalar), basliklar
 
 
 def olc_mutasyon() -> list[dict]:
@@ -213,7 +231,7 @@ def olc_kod_satiri() -> int:
 # ── ÜRETİM ───────────────────────────────────────────────────────────────────
 def veri_topla(hizli: bool) -> dict:
     gecen, atlanan, kapsam = olc_backend(hizli)
-    adr_n, adr_b = olc_adr()
+    adr_n, adr_belge, adr_b = olc_adr()
     veri = {
         "tarih": date.today().isoformat(),
         # HIZLI modda `backend_test` TOPLANAN test sayısıdır, GEÇEN değil. İkisini aynı
@@ -228,6 +246,7 @@ def veri_topla(hizli: bool) -> dict:
         "coverage_tavan": 93,
         "kapilar": olc_kapilar(),
         "adr_sayisi": adr_n,
+        "adr_belge_sayisi": adr_belge,
         "adr_basliklari": adr_b,
         "mutasyon": olc_mutasyon(),
         "yigin": YIGIN,
@@ -263,7 +282,9 @@ def markdown_uret(v: dict) -> str:
           else "| Uçtan uca (Playwright) | ölçülemedi |"),
          (f"| Kapsam (coverage) | **%{v['coverage_yuzde']}** — CI'da ≥%{v['coverage_tavan']} kilitli |"
           if v["coverage_yuzde"] else f"| Kapsam | CI'da ≥%{v['coverage_tavan']} kilitli |"),
-         f"| Mimari karar kaydı (ADR) | **{v['adr_sayisi']}** |",
+         (f"| Mimari karar kaydı (ADR) | **{v['adr_sayisi']}** karar"
+          + (f" · {v['adr_belge_sayisi']} belge (ekler dahil)"
+             if v['adr_belge_sayisi'] != v['adr_sayisi'] else "") + " |"),
          f"| Veritabanı göçü | **{v['goc_sayisi']}** |",
          f"| Python satırı (app+tests+scripts) | **{v['kod_satiri']:,}** |".replace(",", "."),
          "", "## Kalite kapıları", "",

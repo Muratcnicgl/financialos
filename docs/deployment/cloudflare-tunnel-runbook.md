@@ -104,6 +104,35 @@ uygulamayı ayağa kaldırmaz ve hatayı kendi katmanında gizler.
 
 ---
 
+
+### ⚠️ `cloudflared` KURULUMU YÖNETİCİ İZNİ İSTER — ölçüldü (4 Eylül 2026, 23:25)
+
+Gece boyunca hazırlık yapılırken `winget install --id Cloudflare.cloudflared --silent`
+denendi. **Kurulmadı:**
+
+    Downloading .../cloudflared-windows-amd64.msi
+    Successfully verified installer hash
+    Starting package install...
+    You cancelled the installation.
+    Installer failed with exit code: 1602
+
+`1602` = kullanıcı iptali; etkileşimsiz bir oturumda **UAC istemi gösterilemediği** için
+MSI böyle düşüyor. **Ve `winget`in kendisi ÇIKIŞ 0 döndü** — `winget list` ile
+doğrulanmasaydı "kuruldu" sanılacaktı. *(Bu, aynı gün üçüncü kez görülen sınıf: bir
+komutun çıkış kodu "başarılı" demesi işin yapıldığı anlamına gelmez — L68.)*
+
+**İki yol var, ikisi de yazılı:**
+
+1. **MSI (yönetici izniyle).** Murat'ın onaylaması gerekir:
+   `winget install --id Cloudflare.cloudflared` — UAC istemi çıkacak.
+2. **Taşınabilir exe (yönetici izni GEREKMEZ).** Runbook'un 1. bölümünde zaten yazılı:
+   GitHub releases → `cloudflared-windows-amd64.exe`, `PATH`'e eklenmeden tam yolla
+   çağrılabilir.
+
+**Gece boyunca ikisi de UYGULANMADI.** 1'i uygulamak Murat'ın onayını bekler; 2'yi
+uygulamak, kimsenin izlemediği bir saatte makineye çalıştırılabilir dosya indirmek olurdu
+ve **alan adı alınmadan zaten gerekmiyor**. Adım, alan adı geldiğinde atılır.
+
 ## 1. `cloudflared` kurulumu (Windows)
 
 ```powershell

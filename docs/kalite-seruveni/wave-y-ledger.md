@@ -368,7 +368,14 @@ yapan `canli-smoke-testleri.md` ve `PROJE.md` düzeltildi — yoksa belge deneti
 verirdi (ölü yönlendirme). Belge denetimi + ölü kod kapısı **geçiyor**.
 ## ✅ Y6 — ADR BORCU KAPANDI (4 Eylül 2026)
 
-**ADR 56 → 61.** Masterprompt'un istediği beş kararın beşi de yazıldı:
+**Beş yeni ADR yazıldı (057-061).** Masterprompt'un istediği beş kararın beşi de yazıldı:
+
+> **⚠️ SAYI DÜZELTMESİ (aynı gece):** bu satır önce *"ADR 56 → 61"* diyordu ve **yanlıştı**.
+> `glob("adr-*.md")` **`adr-index.md`'yi de sayıyor**, ayrıca `013a` ve `034 Revize`
+> aynı kararın ekleri. Ölçülen doğru değerler: **58 benzersiz karar · 60 belge**.
+> Vitrin üreticisi de bu yanlış sayıyı yayınlıyordu; sayım düzeltildi ve iki değer
+> **ayrı** raporlanıyor (tek sayı vermek, hangisinin kastedildiğini okuyucuya bırakırdı).
+
 
 | ADR | Karar | Neden ADR'ye girmesi gerekiyordu |
 |---|---|---|
@@ -559,6 +566,38 @@ uykusunu çözmez** — yalnız görünürlüğünü düzeltir. Uyku sürdükçe
 bir siteye gelir. **B'ye (7/24 VPS) geçiş tetikleyicilerinden biri bu gece fiilen
 oluştu** (erişilebilirlik %20,75); tetikleyici 7 günlük pencere istediği için henüz
 resmen tetiklenmedi, ama yön artık ölçülü.
+
+
+### Alan adı GEREKTİRMEYEN hafifletme seçenekleri — ölçüldü, karar Murat'ın
+
+Cloudflare kaydı ancak **makine uyuduğunda** çekiliyor. Uyku engellenirse arıza hiç
+oluşmaz. Bugünkü ayarlar ölçüldü:
+
+| Ayar | Değer |
+|---|---|
+| Uyku zaman aşımı — **prizde (AC)** | **0 = ASLA uyumaz** |
+| Uyku zaman aşımı — pilde (DC) | 60 dk |
+| `FinancialOS-Saglik` görevi `WakeToRun` | **False** |
+
+**Yani prizdeyken makine kendiliğinden uyumuyor.** Dün akşamki ~6,5 saatlik uyku (16:45 →
+23:06) bu ayarlardan gelmiyor; ya **pilde** kalmış ya **kapak kapatılmış** ya da elle
+uyutulmuş. Bu bir yapılandırma hatası değil, **kullanım deseni** — ve düzeltmesi kod değil
+karar.
+
+**Üç seçenek (hiçbiri asistan tarafından uygulanmadı; makinenin güç davranışı ve pil ömrü
+Murat'ın kararıdır):**
+
+1. **Kapak kapanınca prizdeyken uyuma.** Arızayı kökten keser, pil davranışını
+   değiştirmez (yalnız AC'de). En küçük müdahale.
+2. **Sağlık görevine `WakeToRun`.** Makine 10 dakikada bir uyanır; Tailscale kaydı hiç
+   çekilmez. Ama pilde ciddi tüketim ve "uyusun" niyetini bozar.
+3. **Hiçbiri — (a) kararında kal.** Makine uyur, alarm çalar, erişilebilirlik düşük görünür
+   ve bu **B'ye geçişin gerekçesini biriktirir.** Bugünkü ölçüm bunu zaten başlattı (%20,75).
+
+**Not:** 1 ve 2 arızayı hafifletir ama **çözmez** — makine kapandığında (yeniden başlatma,
+elektrik, seyahat) kayıt yine çekilir ve Chrome kullanıcısı yine "site yok" görür.
+**Kalıcı çözüm kendi alan adıdır** (kayıt Cloudflare'de, makineden bağımsız); **tam çözüm
+7/24 barındırmadır** (B).
 
 ### Erişilebilirlik — kararın (a) faturası ilk kez göründü
 

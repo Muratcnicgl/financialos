@@ -68,7 +68,7 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > olduğunun değil ALARMIN KENDİSİDİR*; iki halka da canlı kanıtlandı) · Y0 **B0 kararı
 > 24 gün sonra kapandı** (ADR-057: kendi makine + Cloudflare Tunnel + satın alınmış alan
 > adı; B'ye geçiş tetikleyicileri şimdiden yazılı) · Y5 defter senkronu (MCP defteri
-> **kapatıldı** — hiç koşulmayacak bir flush için yakalama yapıyordu) · Y6 **ADR 56 → 61** ·
+> **kapatıldı** — hiç koşulmayacak bir flush için yakalama yapıyordu) · Y6 **beş yeni ADR (057-061)** — *ölçülen toplam: 58 benzersiz karar / 60 belge; gün içinde yazılan "61" indeks dosyasını da sayıyordu* ·
 > Y7 vitrin üreticisi (allowlist) + kapısı.
 >
 > **BEKLEYEN (üçü de insan-kapısı):** alan adı satın alma (Y3'ün tamamı buna bağlı) ·

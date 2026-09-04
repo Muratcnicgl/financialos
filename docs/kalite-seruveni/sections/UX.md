@@ -88,7 +88,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-014] Coach "Yeni sohbet" `window.confirm` ile tüm geçmişi siliyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Yeni sohbet window.confirm, arşivle yok
+- **Durum:** 🔲 AÇIK — ama **asıl kusur daha ağır çıktı, BUG #354 ile kısmen kapandı.** 5 Eyl 2026 ölçümü: onay metni *"Tüm sohbet geçmişi silinecek"* diyordu; oysa `CoachEngine.reset_history` **üç tabloyu birden sert siliyor** — `CoachMemory` (sohbet) · `CoachInsight` (koçun kullanıcı hakkında çıkardığı davranışsal içgörüler) · `ReasoningTrace` (muhakeme izleri). Canlı DB'de **38 + 37 + 90 = 165 satır**. Yani "yeni sohbet" diyen kullanıcı koçun kendisi hakkında ÖĞRENDİKLERİNİ de siliyordu ve bunu onaydan anlaması imkânsızdı; geri alma yok, yumuşak silme yok. **NE SİLİNECEĞİ bir ürün kararıdır ve DEĞİŞTİRİLMEDİ** — değişen, onayın doğruyu söylemesi (artık üçünü de sayıyor ve "geri alınamaz" diyor). Metin ile davranışın bir daha ayrışmaması `tests/test_koc_sifirlama_onayi_kapisi.py` ile kilitli (mutasyon 2/2). **AÇIK KALAN:** `window.confirm` yerine erişilebilir bir modal, ve asıl ürün sorusu — "yeni sohbet" gerçekten içgörüleri de silmeli mi?
 - **Kanıt:** `Coach.jsx:261-262`
 - **Aksiyon:** Uygulama içi modal + "arşivle" (sil yerine gizle).
 - **Etki:** Orta · **Efor:** S

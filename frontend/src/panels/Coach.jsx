@@ -277,7 +277,23 @@ function CoachInner({ onActionResolved }) {
   // ============================================================
 
   const handleReset = async () => {
-    const ok = window.confirm('Tüm sohbet geçmişi silinecek. Devam edilsin mi?');
+    // BUG #354 (5 Eyl 2026): ONAY METNİ YAPILAN İŞİ EKSİK ANLATIYORDU.
+    // Eski metin yalnız "Tüm sohbet geçmişi silinecek" diyordu. Oysa
+    // `CoachEngine.reset_history` ÜÇ tabloyu birden kalıcı siliyor: sohbet (`CoachMemory`),
+    // koçun zamanla çıkardığı davranışsal İÇGÖRÜLER (`CoachInsight`) ve muhakeme izleri
+    // (`ReasoningTrace`). Ölçüldü (canlı DB, 5 Eyl): 38 + 37 + 90 = 165 satır.
+    // Yani "yeni bir sohbete başlayayım" diyen kullanıcı, koçun kendisi hakkında
+    // ÖĞRENDİKLERİNİ de siliyordu ve bunu onaydan anlaması imkânsızdı.
+    // NE SİLİNECEĞİ bir ürün kararıdır ve DEĞİŞTİRİLMEDİ; değişen, onayın doğruyu
+    // söylemesi. Metin ile davranışın ayrışması `tests/test_koc_sifirlama_onayi_kapisi.py`
+    // ile kilitli.
+    const ok = window.confirm(
+      'Bu işlem geri alınamaz. Silinecekler:\n' +
+      '  • tüm sohbet geçmişin\n' +
+      '  • koçun senin hakkında çıkardığı içgörüler (alışkanlıklar, tercihler)\n' +
+      '  • koçun muhakeme/gerekçe izleri\n\n' +
+      'Devam edilsin mi?'
+    );
     if (!ok) return;
     setResetting(true);
     try {

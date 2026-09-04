@@ -83,12 +83,42 @@ function useBackendHealth() {
       }
     };
 
+    // PERF-008 (5 Eyl 2026): yoklama SEKME GÖRÜNÜRKEN yapılır.
+    // Eskiden koşulsuz `setInterval(check, 5000)` vardı: arka plana atılmış bir sekme
+    // saatte 720 istek üretiyordu ve o isteklerin hiçbirinin bakan bir gözü yoktu.
+    // Mobil/PWA hedefi olan bir üründe bu doğrudan pil ve veri demek. Aralık DEĞİŞMEDİ
+    // (görünürken hâlâ 5 sn — tepkiselliği düşürmek ayrı bir karar); yalnız görünmezken
+    // duruyor ve sekme geri geldiğinde ANINDA bir ölçüm yapılıyor, böylece kullanıcı
+    // bayat bir "çevrimdışı" rozetiyle karşılaşmıyor.
+    const gorunur = () =>
+      typeof document === 'undefined' || document.visibilityState !== 'hidden';
+
+    const basla = () => {
+      if (interval) return;
+      interval = setInterval(check, 5000);
+    };
+    const dur = () => {
+      clearInterval(interval);
+      interval = null;
+    };
+
+    const gorunurlukDegisti = () => {
+      if (gorunur()) {
+        check();   // sekme geri geldi: bekletmeden ölç
+        basla();
+      } else {
+        dur();
+      }
+    };
+
     check();
-    interval = setInterval(check, 5000);
+    if (gorunur()) basla();
+    document.addEventListener('visibilitychange', gorunurlukDegisti);
 
     return () => {
       active = false;
-      clearInterval(interval);
+      document.removeEventListener('visibilitychange', gorunurlukDegisti);
+      dur();
     };
   }, []);
 

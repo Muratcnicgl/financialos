@@ -47,7 +47,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [PERF-008] `useBackendHealth` 5sn sonsuz polling — dakikada 12 istek
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: setInterval sabit 5sn
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026: ölçüldü ve DÜZELTİLDİ. `App.jsx`'in `useBackendHealth`'i koşulsuz `setInterval(check, 5000)` kuruyordu; arka plana atılmış bir sekme **saatte 720 istek** üretiyordu ve o isteklerin bakan bir gözü yoktu (mobil/PWA hedefi olan bir üründe doğrudan pil ve veri). Yoklama artık `visibilitychange` ile gizliyken duruyor, sekme geri geldiğinde **anında** bir ölçüm yapıyor (kullanıcı bayat bir "çevrimdışı" rozeti görmesin). **Aralık DEĞİŞTİRİLMEDİ** — görünürken hâlâ 5 sn; tepkiselliği düşürmek ayrı bir karardır. Kural genelleştirildi: `tests/test_frontend_yoklama_kapisi.py` her `setInterval` yoklamasından görünürlük koruması ister (mutasyon 2/2). vitest 214/214 yeşil.
 - **Kanıt:** `App.jsx:54-81`
 - **Aksiyon:** visibilitychange ile kıs veya 15-30sn. (FE-012)
 - **Etki:** Düşük · **Efor:** S
@@ -84,7 +84,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [PERF-014] Connection pool ayarı yok (default) — çok worker/istekte yetersiz
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: pool_pre_ping/size yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: havuz ayarı **M49 (Wave-7)** ile gelmiş ve kodda maddenin numarasıyla anılıyor. `app/database.py` dialect-aware: PostgreSQL için `pool_pre_ping` (kopan bağlantı ölü-havuzu önler) + `pool_size`/`max_overflow`, ve yorumda kapasite formülü yazılı (`WEB_CONCURRENCY × (pool_size + max_overflow) + scheduler`). SQLite davranışı bilinçli olarak değiştirilmemiş (mevcut testler korunsun diye). Yani "ayar yok" iddiası, ayarın GEREKTİĞİ dialect için yanlış.
 - **Kanıt:** `app/database.py` create_engine (pool param yok)
 - **Aksiyon:** `pool_pre_ping=True`, uygun `pool_size`/`max_overflow` (async'e geçerken BE-007 ile).
 - **Etki:** Düşük · **Efor:** S

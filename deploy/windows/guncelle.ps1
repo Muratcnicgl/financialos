@@ -107,8 +107,15 @@ $b = Start-Process -FilePath "powershell" -ArgumentList @(
         # dizi elemanlarını TIRNAKLAMAZ: tırnaksız verilince `-File` argümanı bölünüyor,
         # PowerShell etkileşimli açılıyor, banner basıyor ve -196608 ile düşüyor (ölçüldü).
         "-File", ('"' + (Join-Path $PSScriptRoot "baslat.ps1") + '"'), "-Zorla", "-Port", "$Port"
-    ) -Wait -PassThru -WindowStyle Hidden `
+    ) -PassThru -WindowStyle Hidden `
       -RedirectStandardOutput $bLog -RedirectStandardError $bHata
+
+# `-Wait` KULLANILMAZ (ölçüldü): `-Wait`, .NET tarafında yönlendirilmiş AKIŞLARIN
+# kapanmasını da bekler; uvicorn o dosya tanıtıcılarını miras aldığı için akışlar
+# uvicorn ölene kadar kapanmaz ve çağrı sonsuza dek asılır. `Wait-Process` ise
+# işletim sistemi SÜREÇ tanıtıcısını bekler — akışlardan etkilenmez.
+try { $b | Wait-Process -Timeout 180 -ErrorAction Stop }
+catch { Yaz "BASARISIZ: baslat.ps1 180 sn icinde bitmedi"; exit 1 }
 
 if (Test-Path $bLog) { Get-Content $bLog | ForEach-Object { if ($_) { Write-Output "  | $_" } } }
 if ($b.ExitCode -ne 0) {

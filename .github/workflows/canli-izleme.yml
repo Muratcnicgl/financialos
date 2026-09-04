@@ -1,0 +1,153 @@
+# WAVE-Y / Y2 — KESİNTİ KÖRLÜĞÜNÜ BİTİREN DIŞ İZLEME
+name: canli-izleme
+
+# NEDEN VAR — ÖLÇÜLEN OLAY (BUG #326/#328)
+# ----------------------------------------
+# Kapalı beta 3 Eylül 08:50 → 4 Eylül 09:21 arası KAPALIYDI: **24,5 saat**, 45 başarısız
+# deneme, ve kimse fark etmedi. Makinenin ÜZERİNDEKİ sağlık görevi arızayı görüyordu ama
+# yalnız `logs/servis.log`'a yazıyordu — ölçen sistem, HABER VEREN sistem değildir (L61).
+#
+# Makine üzerindeki bir izleyici zaten yapısal olarak yetersizdir: makine kapanırsa
+# izleyici de kapanır ve sessizlik "her şey yolunda" gibi görünür. Bu iş bu yüzden
+# GitHub'ın koşucusunda, yani **makinenin dışında** koşar.
+#
+# NEDEN SAATLİK (eşik gerekçesi — Wave-Y §0.6: seç, uygula, gerekçesini yaz)
+# --------------------------------------------------------------------------
+# Ücretsiz plandaki özel depo ayda 2000 Actions dakikası verir ve her koşum en az 1
+# dakika olarak faturalanır. Seçenekler ölçüldü:
+#   5 dk  -> ~8.640 koşum/ay  (bütçenin 4 katı, imkânsız)
+#   30 dk -> ~1.440 koşum/ay  (bütçenin %72'si; CI'ya yer kalmaz)
+#   60 dk ->   ~720 koşum/ay  (bütçenin %36'sı; CI'ya ~1.280 dk kalır)  <= SEÇİLEN
+# Korunduğumuz arıza 24,5 saat sürmüştü; saatlik ölçüm onu 24,5 saatten ≤1 saate indirir.
+# **Y7'de vitrin deposu public olduğunda Actions dakikası SINIRSIZ olur; bu iş oraya
+# taşınıp 5 dakikaya çekilecek.** (Karar geri dönülebilir, bedeli tek satır.)
+#
+# NEDEN İKİ SONDA (yanlış alarm eşiği)
+# -------------------------------------
+# Deploy sırasında servis bilerek yeniden başlar. Ölçüldü: kesinti **6 sn** (13:48:06→12)
+# ve **10 sn** (14:02:31→41). Bunları alarma çevirmek, alarmı okunmaz hâle getirirdi (L22)
+# ve o zaman 24,5 saatlik gerçek sessizlik de kaçardı — Y2'nin varlık sebebi ölürdü.
+# Bu yüzden tek koşum İKİ sonda yapar, arada 90 saniye bekler; **ikisi de düşerse** kesinti
+# sayılır. 90 sn, ölçülen en uzun deploy kesintisinin 9 katıdır.
+#
+# NEDEN "ISSUE AÇ" (bildirim, log değil)
+# ---------------------------------------
+# Bir işin kırmızıya düşmesi e-posta gönderir AMA bu, hesabın bildirim ayarına bağlıdır —
+# yani ölçemediğimiz bir varsayım. Issue açmak DETERMİNİSTİKTİR: depo sahibine bildirim
+# gider ve kesinti **kalıcı bir kayıt** bırakır (masterprompt Y2: "kesinti ve toparlanma
+# bir yere yazılıyor"). Açık issue varken ikincisi açılmaz — alarm spam'e dönüşmez.
+
+on:
+  schedule:
+    - cron: '7 * * * *'        # saat başı (7. dakika: GitHub'ın yoğun :00 kuyruğundan kaçınır)
+  workflow_dispatch:            # elle tetikleme (mutasyon kanıtı için)
+  push:
+    paths:
+      - '.github/workflows/canli-izleme.yml'   # izleyici değişince KENDİSİ doğrulanır
+
+permissions:
+  contents: read
+  issues: write                 # kesinti kaydı + bildirim
+
+concurrency:
+  group: canli-izleme
+  cancel-in-progress: false
+
+jobs:
+  erisilebilirlik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      # Adres gizli değil (davetliler zaten biliyor) ama tek yerde dursun diye değişken.
+      HEDEF: https://financialos.tail378d7a.ts.net
+    steps:
+      - name: 1. sonda
+        id: sonda1
+        run: |
+          kod=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$HEDEF/api/health" || echo 000)
+          echo "kod=$kod" >> "$GITHUB_OUTPUT"
+          echo "1. sonda: $kod"
+
+      - name: 2. sonda (yalnız 1. düştüyse, 90 sn sonra)
+        id: sonda2
+        if: steps.sonda1.outputs.kod != '200'
+        run: |
+          echo "1. sonda düştü (${{ steps.sonda1.outputs.kod }}) — 90 sn bekleniyor"
+          echo "Kısa kesinti (deploy) burada elenir; ölçülen deploy kesintisi 6-10 sn."
+          sleep 90
+          kod=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$HEDEF/api/health" || echo 000)
+          echo "kod=$kod" >> "$GITHUB_OUTPUT"
+          echo "2. sonda: $kod"
+
+      - name: Özet
+        if: always()
+        run: |
+          {
+            echo "### Canlı erişilebilirlik"
+            echo ""
+            echo "| Sonda | Kod |"
+            echo "|---|---|"
+            echo "| 1 | ${{ steps.sonda1.outputs.kod }} |"
+            echo "| 2 | ${{ steps.sonda2.outputs.kod || 'koşulmadı (1. sonda geçti)' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: KESİNTİ — kayıt aç ve haber ver
+        if: steps.sonda1.outputs.kod != '200' && steps.sonda2.outputs.kod != '200'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const etiket = 'canli-kesinti';
+            const acik = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: etiket,
+            });
+            const govde = [
+              '**Canlı servis iki sondada da cevap vermedi.**',
+              '',
+              `- 1. sonda: \`${{ steps.sonda1.outputs.kod }}\``,
+              `- 2. sonda (90 sn sonra): \`${{ steps.sonda2.outputs.kod }}\``,
+              `- Zaman (UTC): ${new Date().toISOString()}`,
+              `- Koşum: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Kısa kesintiler (deploy, ölçülen 6-10 sn) ikinci sonda ile elenir;',
+              'bu kayıt **90 saniyeden uzun** bir kesinti anlamına gelir.',
+              '',
+              'Toparlanınca bu issue elle kapatılır — kapanış zamanı kesinti süresinin kaydıdır.',
+            ].join('\n');
+            if (acik.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: acik.data[0].number, body: govde,
+              });
+              core.setFailed(`Kesinti sürüyor — mevcut kayda eklendi: #${acik.data[0].number}`);
+            } else {
+              const yeni = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: `CANLI KESİNTİ — ${new Date().toISOString().slice(0, 16)}Z`,
+                body: govde, labels: [etiket],
+              });
+              core.setFailed(`Kesinti — kayıt açıldı: #${yeni.data.number}`);
+            }
+
+      - name: TOPARLANDI — açık kesinti kaydını kapat
+        if: steps.sonda1.outputs.kod == '200'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const etiket = 'canli-kesinti';
+            const acik = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: etiket,
+            });
+            for (const issue of acik.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Servis yeniden cevap veriyor (200). Kapanış: ${new Date().toISOString()}`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number, state: 'closed',
+              });
+              core.notice(`Kesinti kaydı kapatıldı: #${issue.number}`);
+            }

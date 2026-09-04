@@ -1,5 +1,39 @@
 # Backlog Durum İndeksi (M76, Wave-5 — 18 Tem 2026)
 
+> ## ⚠️ BU İNDEKS 48 GÜN BAYATLADI — 5 Eylül 2026'da DENETLENDİ
+>
+> **Bulgu: indeks, kendi AYRINTI dosyasından geride.** `sections/RULE.md` içinde **13 yerde
+> `M83` notu** var; bu indekste `M83` kelimesi **hiç geçmiyor**. Sonuç: aşağıdaki
+> *"RULE'da HÂLÂ AÇIK (12)"* listesi bugün **yanlıştır** ve ona güvenen biri **zaten
+> kapanmış maddeler üzerinde çalışırdı**.
+>
+> **Bugün ölçülen (kaynak: `sections/RULE.md`'nin `- **Durum:**` satırları):**
+>
+> | | M76'da (bu belge) | 5 Eyl 2026 |
+> |---|---|---|
+> | RULE ✅ kapandı | 24 | **30** |
+> | RULE 🟡 kısmen | 3 | 4 |
+> | RULE ⚪ defekt-değil | — | 6 |
+> | **RULE 🔲 açık** | **12** | **0** |
+>
+> **M83 (Wave-6) beşini kapattı ve TEST'le kilitledi** — `tests/test_rule_acik_maddeler_m83.py`,
+> 12 test, bugün koşuldu ve **12/12 geçiyor**: RULE-022 (`detect_alerts` kapsaması) ·
+> RULE-025 (deterministik tie-break) · RULE-031 (para-korunum invariantı) · RULE-038
+> (adlandırılmış eşik) · RULE-033 (`ROUND_HALF_UP`). Bunların **dördü** bu belgenin
+> "HÂLÂ AÇIK" listesinde duruyor.
+>
+> **Kalan 🟡 (4):** RULE-007 · RULE-012 · RULE-029 · RULE-030.
+>
+> **İRONİ KAYDA GEÇSİN:** bu belgenin son bölümü *"bir madde düzeltildiğinde Durum satırını
+> güncelle, böylece backlog bir daha sessizce bayatlamaz"* diye bitiyor. Önlem **tuttu** —
+> ama yalnız ayrıntı dosyasında. **Kimse indeksi güncellemedi.** Bir özet, özetlediği şeyden
+> bağımsız bayatlayabilir; ve özet daha çok okunduğu için zararı daha büyüktür.
+> **Ders: türetilmiş bir belge elle güncelleniyorsa, türetildiği şeyden bağımsız bir yalan
+> kaynağıdır.** Doğru çözüm bu sayıları elle yazmak değil, `sections/*.md`'den ÜRETMEK
+> (`scripts/vitrin_uret.py`'nin ölçümden üretme ilkesi — henüz uygulanmadı, açık iş).
+>
+> Aşağıdaki gövde **18 Temmuz 2026'nın tarihsel kaydıdır**; sayıları o günü anlatır.
+
 Rapor §B (tam-proje-durum-raporu) tespiti: `sections/` 521 maddenin **DURUM alanı yoktu** →
 neyin açık neyin sessizce kapandığı bilinmiyordu ("gerçek stale oranı KANIT YOK"). M76 bunu kapattı.
 
@@ -27,6 +61,8 @@ RULE-003/004 (BUG #147/#148/#150 kart tarih mantığı), RULE-005 (R3 doğru dav
 (ADR-030 Decimal), RULE-021/024 (test eklendi), RULE-026 (belgelenmiş MC ayrımı), RULE-034 (BUG #132).
 
 ### RULE'da HÂLÂ AÇIK (12) — Wave-6 adayları
+*(⚠️ 5 Eyl 2026: bu başlık ARTIK DOĞRU DEĞİL — dördü M83'te kapandı, bkz. yukarıdaki denetim notu.
+Liste 18 Tem 2026 kaydı olarak duruyor; bugünkü doğru kaynak `sections/RULE.md`.)*
 RULE-007 (FIFO lot yok), RULE-012 (korunum eşiği), RULE-013 (yeni-borç maskeleme), RULE-022 (detect_alerts
 testsiz), RULE-025 (tie-break yok), RULE-027 (shadow guard yok), RULE-028 (negatif limit guard yok),
 RULE-031 (invariant testi yok), RULE-032 (extra_monthly=0 kötümser), RULE-036 (gün-numarası karşılaştırma),

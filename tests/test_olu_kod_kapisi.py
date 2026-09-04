@@ -8,6 +8,8 @@ kapının ÜÇ tasarım kararını da bozup sonucu ölçer; hepsi `scripts/olu_k
 from __future__ import annotations
 
 import sys
+import os
+import subprocess
 import types
 from pathlib import Path
 
@@ -24,12 +26,22 @@ def _kaynak() -> str:
     return KAPI_YOLU.read_text(encoding="utf-8")
 
 
+def _modul(kod: str, ad: str = "olu_kod_kapisi_deney"):
+    """Verilen kaynağı ayrı bir modül olarak yükler ve modülü döner.
+
+    Tek `exec` çağrısı bilinçli olarak BURADADIR: mutasyon testleri kapının kaynağını
+    değiştirip koşar, ama her test kendi `exec`ini yazarsa S102 sayısı testlerle
+    birlikte büyür. İhtiyaç tek yere toplandı (tavanı yükseltmek yerine — ratchet dersi).
+    """
+    modul = types.ModuleType(ad)
+    modul.__file__ = str(KAPI_YOLU)
+    exec(compile(kod, str(KAPI_YOLU), "exec"), modul.__dict__)  # noqa: S102
+    return modul
+
+
 def _kosur(kod: str):
     """Verilen kaynağı ayrı bir modül olarak koşup `olu_fonksiyonlar()` sonucunu döner."""
-    modul = types.ModuleType("olu_kod_kapisi_deney")
-    modul.__file__ = str(KAPI_YOLU)
-    exec(compile(kod, str(KAPI_YOLU), "exec"), modul.__dict__)
-    return modul.olu_fonksiyonlar()
+    return _modul(kod).olu_fonksiyonlar()
 
 
 def test_bugun_olu_public_fonksiyon_yok():
@@ -116,3 +128,61 @@ def test_silinen_olu_fonksiyonlar_geri_gelmedi(ad):
     for yol in (REPO_KOK / "app").rglob("*.py"):
         kaynak = yol.read_text(encoding="utf-8")
         assert f"def {ad}(" not in kaynak, f"{yol.relative_to(REPO_KOK)} içinde `{ad}` yeniden tanımlanmış"
+
+
+# ---------------------------------------------------------------------------
+# GİRİŞ NOKTASI TESTLERİ (BUG #345 — 5 Eyl 2026)
+#
+# Yukarıdaki testlerin hepsi `olu_fonksiyonlar()`'ı çağırıyordu; `main()` HİÇ
+# koşulmuyordu. CI ise `python scripts/olu_kod_kapisi.py` diye tam olarak `main()`'i
+# koşar. Bu boşluk bir NameError'ı 16 testten ve mutasyondan kaçırdı: kapsam tabanı
+# eklenirken değişken `tarandi` yerine `taranan` yazılmıştı, yani kapı her koşumda
+# çöküyordu — ve "ölü kod 0, kapı geçiyor" diye rapor edilmişti.
+#
+# DERS (L72): bir kapının testi, kapının GİRİŞ NOKTASINI çağırmıyorsa kapıyı değil
+# kütüphanesini test eder. Aşağıdaki ikisi CI'ın koştuğu şeyi koşar.
+# ---------------------------------------------------------------------------
+
+
+def test_kapi_girisi_gercekten_kosuyor():
+    """CI'ın koştuğu komutun ta kendisi. Çöküyorsa burada çöker.
+
+    ÇOCUĞUN ÇIKTI KODLAMASI AÇIKÇA SABİTLENİR — bu test bir kez tam da bu yüzden
+    düştü: Windows'ta boruya yazan bir Python süreci `PYTHONIOENCODING` yoksa yerel
+    kod sayfasını (cp1254) kullanır; kapının Türkçe çıktısı UTF-8 diye çözülünce
+    "kapı geçildi" → "kap� ge�ildi" olur ve iddia YANLIŞ YERE düşer.
+    Test tek başına yeşildi çünkü çağıran kabuk o değişkeni set etmişti; kanca
+    etmiyordu. **Çağıranın ortamına bağlı bir test kapı değildir** — depoda üçüncü
+    kez aynı sınıf (`.ps1` BOM'u, CSV BOM'u, şimdi boru kodlaması).
+    """
+    ortam = dict(os.environ, PYTHONIOENCODING="utf-8")
+    sonuc = subprocess.run(  # noqa: S603
+        [sys.executable, str(KAPI_YOLU)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(REPO_KOK), timeout=180, env=ortam,
+    )
+    assert "Traceback" not in (sonuc.stderr or ""), (
+        f"kapı çöktü — CI da böyle çöker:\n{sonuc.stderr}"
+    )
+    assert sonuc.returncode == 0, (
+        f"kapı 0 dönmedi (kod {sonuc.returncode}).\n{sonuc.stdout}\n{sonuc.stderr}"
+    )
+    assert "kapı geçildi" in sonuc.stdout
+
+
+def test_kapsam_tabani_dusuk_taramada_ates_ediyor():
+    """MUTASYON: tarayıcı bir avuç fonksiyon bulursa kapı 'ölü kod yok' DEMEMELİ.
+
+    Taban gerçekten ateş ediyor mu diye `olu_fonksiyonlar()` düşük bir sayı dönecek
+    şekilde değiştirilir ve `main()` çağrılır. Beklenen: çıkış 2 + "KAPI BOZUK".
+    Bu test aynı zamanda `main()`'in adlarını da doğrular — taban satırında yanlış
+    değişken adı varsa NameError verir ve test düşer.
+    """
+    kod = _kaynak().replace(
+        "    olu, tarandi, elenen = olu_fonksiyonlar()",
+        "    olu, tarandi, elenen = ([], 3, 0)",
+    )
+    assert "([], 3, 0)" in kod, "mutasyon uygulanamadı — main() gövdesi değişmiş olabilir"
+
+    kod_donus = _modul(kod, "olu_kod_kapisi_taban_deneyi").main([])
+    assert kod_donus == 2, f"3 fonksiyon tarandığında kapı 2 dönmeliydi, {kod_donus} döndü"

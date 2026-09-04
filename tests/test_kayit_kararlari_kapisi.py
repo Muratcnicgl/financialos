@@ -20,7 +20,6 @@ tabanin altina duserse kapi kendini KIRMIZI yapar (kapsamsiz kapi = olu kapi).
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 import pytest

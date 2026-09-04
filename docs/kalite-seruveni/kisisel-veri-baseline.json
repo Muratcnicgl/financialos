@@ -1,5 +1,5 @@
 {
-  "eposta": 15,
+  "eposta": 14,
   "banka_adi": 96,
   "eposta_dosyalar": [
     "PROJE.md",
@@ -15,7 +15,6 @@
     "docs/kalite-seruveni/masterprompt-koc.md",
     "docs/kalite-seruveni/milestone-log.md",
     "docs/kalite-seruveni/tam-proje-durum-raporu.md",
-    "docs/user-guide/gunluk-dongu.md",
     "tests/test_meta_destek.py"
   ],
   "banka_adi_dosyalar": [

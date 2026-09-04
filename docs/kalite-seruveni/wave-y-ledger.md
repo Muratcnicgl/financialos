@@ -726,3 +726,28 @@ eşikle karşılaştırıp "tetiklendi" diyen bir adım yok. Bu, bu defterin en 
 * **L71 — Bir kapının deseni ikinci bir kapıya KOPYALANMAZ.** Vitrin kapısına kopyalanan
   desenler, depo kapısında "yeni sızıntı" olarak sayıldı. Muafiyet yazmak kapıyı
   körleştirirdi; doğru cevap tek kaynaktı — `git ls-files`'ın beş kopyasıyla aynı ders.
+* **L72 — Bir kapının testi, kapının GİRİŞ NOKTASINI çağırmıyorsa kapıyı değil
+  kütüphanesini test eder.** `tests/test_olu_kod_kapisi.py`'nin 8 testi de
+  `olu_fonksiyonlar()`'ı çağırıyordu; CI ise `python scripts/olu_kod_kapisi.py`, yani
+  `main()`'i koşar. O aralıkta duran bir `NameError` (`tarandi` yerine `taranan`) 8
+  testten, mutasyondan ve benim "kapı geçiyor" raporumdan kaçtı — kapı **her koşumda
+  çöküyordu**. Üstelik hatayı taşıyan satır, "kapı hiçbir şey ölçmeden geçmesin" diye
+  eklenen **kapsam tabanının kendisiydi**: koruma, korumaya çalıştığı arızayı üretti.
+  Bulan şey bir test değil, **ruff'ın F821'i** oldu — ve o da yalnız CI'da görüldü,
+  çünkü yerelde "kapılar yeşil" ölçümüm bayattı (L68'in aynısı, bu kez bende).
+* **L73 — Çağıranın ortamına bağlı bir test, kapı değildir.** Yeni yazılan giriş-noktası
+  testi tek başına yeşil, pre-commit kancasında kırmızıydı. Tek fark: ben komuta
+  `PYTHONIOENCODING=utf-8` yazmıştım, kanca yazmıyordu. Windows'ta boruya yazan çocuk
+  süreç, o değişken yoksa yerel kod sayfasını (cp1254) kullanır; `"kapı geçildi"`
+  UTF-8 diye çözülünce `"kap\ufffd ge\ufffdildi"` olur ve **kapı sağlam olduğu hâlde test
+  düşer**. Çocuğun kodlaması artık testte AÇIKÇA sabitleniyor. Depoda bunun üçüncü
+  tekrarı: `.ps1` BOM'u (yokluğu kırıyordu) · `erisilebilirlik.csv` BOM'u (varlığı
+  kırıyordu) · şimdi boru kodlaması. **Kodlama bu projede tekrar eden bir arıza sınıfıdır;
+  varsayılmaz, yazılır.**
+* **L74 — Türetilmiş bir belge, türetildiği şeyden bağımsız bayatlar — ve daha çok okunduğu
+  için zararı daha büyüktür.** `sections/DURUM-INDEX.md` *"RULE'da hâlâ açık: 12"* diyor;
+  ayrıntı dosyası `sections/RULE.md` bugün **0 açık** gösteriyor ve içinde 13 yerde `M83`
+  notu var — indekste `M83` kelimesi **hiç geçmiyor**. İndeksin kendi son bölümü
+  *"bir madde düzeltildiğinde Durum satırını güncelle, böylece backlog bir daha sessizce
+  bayatlamaz"* diye bitiyor: önlem tuttu, ama **yalnız ayrıntıda**. Özeti kimse güncellemedi.
+  Doğru çözüm sayıları elle yazmak değil, `sections/*.md`'den ÜRETMEK.

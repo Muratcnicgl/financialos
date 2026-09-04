@@ -195,8 +195,8 @@ def main(argv: list[str] | None = None) -> int:
     # ya da yanlış dizinden çağrılırsa boş döner; o an kapı kapı olmaktan çıkar.
     # Taban bugünkü değerin (292) çok altında ama sıfırdan çok uzak seçildi.
     TABAN = 100
-    if taranan < TABAN:
-        print(f"KAPI BOZUK: yalnız {taranan} fonksiyon tarandı (taban {TABAN}). "
+    if tarandi < TABAN:
+        print(f"KAPI BOZUK: yalnız {tarandi} fonksiyon tarandı (taban {TABAN}). "
               "Bu 'ölü kod yok' DEMEK DEĞİLDİR — tarayıcı çalışmıyor.")
         return 2
     print(f"  ÇAĞRILMAYAN            : {len(olu)}   (tavan 0)")

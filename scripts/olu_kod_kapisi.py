@@ -190,6 +190,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  taranan (dekoratörsüz) : {tarandi}")
     print(f"  elenen (dekoratörlü)   : {elenen}   çerçeve adıyla değil dekoratörle çağırır")
     print(f"  muaf (gerekçeli)       : {len(MUAF)}")
+    # KAPSAM TABANI (Wave-Y/Y7): tarayıcı hiç dosya bulamazsa "0 ölü kod" der ve kapı
+    # SESSİZCE geçer — hiçbir şey ölçmediği hâlde güven üretir. `git ls-files` git yoksa
+    # ya da yanlış dizinden çağrılırsa boş döner; o an kapı kapı olmaktan çıkar.
+    # Taban bugünkü değerin (292) çok altında ama sıfırdan çok uzak seçildi.
+    TABAN = 100
+    if taranan < TABAN:
+        print(f"KAPI BOZUK: yalnız {taranan} fonksiyon tarandı (taban {TABAN}). "
+              "Bu 'ölü kod yok' DEMEK DEĞİLDİR — tarayıcı çalışmıyor.")
+        return 2
     print(f"  ÇAĞRILMAYAN            : {len(olu)}   (tavan 0)")
 
     if secenek.liste:

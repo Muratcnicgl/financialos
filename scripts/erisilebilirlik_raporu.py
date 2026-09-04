@@ -47,11 +47,11 @@ KAYIT = KOK / "logs" / "erisilebilirlik.csv"
 PERIYOT_DK = 10
 
 
-def _oku(gun: int) -> list[tuple[datetime, bool]]:
+def _oku(gun: int) -> list[tuple[datetime, bool, bool]]:
     if not KAYIT.exists():
         return []
     sinir = datetime.now(timezone.utc) - timedelta(days=gun)
-    satirlar: list[tuple[datetime, bool]] = []
+    satirlar: list[tuple[datetime, bool, bool]] = []
     # `utf-8-sig`: PowerShell'in `Add-Content -Encoding UTF8`u dosya başına BOM koyar.
     # Düz `utf-8` ile okunduğunda ilk başlık `﻿zaman_utc` oluyor, `zaman_utc` anahtarı
     # bulunamıyor ve rapor GERÇEK ÖLÇÜMÜ "ölçüm yok" diye raporluyordu — sessizce (ölçüldü).
@@ -63,21 +63,30 @@ def _oku(gun: int) -> list[tuple[datetime, bool]]:
             except (KeyError, ValueError, TypeError):
                 continue
             if t >= sinir:
-                satirlar.append((t, str(r.get("saglikli", "")).strip() == "1"))
+                # BUG #344: `onarim` sonradan eklendi. Eski satırlarda sütun YOK ve bu
+                # "onarım gerekmedi" DEMEK DEĞİLDİR — ölçülmemiştir. Yine de False
+                # sayılıyor, çünkü tersi (hepsini bozuk saymak) geçmişi karalar; sınır
+                # raporda AÇIKÇA yazılır.
+                satirlar.append((t, str(r.get("saglikli", "")).strip() == "1",
+                                 str(r.get("onarim", "")).strip() == "1"))
     return satirlar
 
 
-def _kesintiler(satirlar: list[tuple[datetime, bool]], bosluk_dk: int) -> list[tuple]:
-    """Ardışık kayıtlar arasındaki `bosluk_dk`'dan uzun boşluklar + sağlıksız aralıklar."""
+def _kesintiler(satirlar: list[tuple[datetime, bool, bool]], bosluk_dk: int) -> list[tuple]:
+    """Kayıt boşlukları + sağlıksız aralıklar + ONARIM GEREKTİREN anlar."""
     olaylar: list[tuple] = []
     onceki: datetime | None = None
-    for t, ok in satirlar:
+    for t, ok, onarim in satirlar:
         if onceki is not None:
             fark = (t - onceki).total_seconds() / 60
             if fark > bosluk_dk:
                 olaylar.append((onceki, t, fark, "kayit yok (makine kapali / gorev olu)"))
         if not ok:
             olaylar.append((t, t, PERIYOT_DK, "saglik BASARISIZ"))
+        elif onarim:
+            # BUG #344: onarilmis kesinti de KESINTIDIR. Bekci duzeltti diye olmamis
+            # sayilamaz — kullanici o anda hata goruyordu.
+            olaylar.append((t, t, PERIYOT_DK, "uygulama DUSMUSTU, bekci onardi"))
         onceki = t
     return olaylar
 
@@ -108,17 +117,29 @@ def main(argv: list[str] | None = None) -> int:
         print("  olabilir. Gorev durumu: .\\deploy\\windows\\gorevleri_kur.ps1 -Durum")
         return 2
 
-    saglikli = sum(1 for _, ok in satirlar if ok)
+    saglikli = sum(1 for _, ok, _o in satirlar if ok)
+    onarilan = sum(1 for _, _ok, o in satirlar if o)
+    # TEMIZ = saglikli VE onarim gerekmemis. Onarilmis bir slot "calisti" degil
+    # "duzeltildi"dir; ikisini ayni saymak, kendi kendini iyilestiren sistemin kendi
+    # arizalarini silmesi olurdu (BUG #344).
+    temiz = sum(1 for _, ok, o in satirlar if ok and not o)
     # İlk kayıttan bu yana geçen süre, istenen pencereden kısa olabilir (kayıt yeni açıldı).
-    ilk = min(t for t, _ in satirlar)
+    ilk = min(t for t, _ok, _o in satirlar)
     gecen_dk = (datetime.now(timezone.utc) - ilk).total_seconds() / 60
-    kapsanan = max(1, int(min(gecen_dk, a.gun * 24 * 60) / PERIYOT_DK))
+    # Payda: beklenen slot. AMA gözlem sayısı beklenenden fazla olabilir (görev elle de
+    # koşulabiliyor) — o durumda payda gözlem sayısına yükselir. Aksi hâlde metrik %100'ü
+    # aşardı ve **%100'ü aşan bir erişilebilirlik oranı bozuktur** (ölçüldü: %120 basıldı).
+    # Eksik gözlem hâlâ kesinti sayılır; fazlası orantıyı şişirmez.
+    kapsanan = max(1, int(min(gecen_dk, a.gun * 24 * 60) / PERIYOT_DK), len(satirlar))
 
     print(f"  kayit      : {len(satirlar)}  (saglikli {saglikli} · basarisiz "
-          f"{len(satirlar) - saglikli})")
+          f"{len(satirlar) - saglikli} · ONARIM GEREKTI {onarilan})")
     print(f"  beklenen   : {kapsanan} slot ({PERIYOT_DK} dk'da bir; kayit basi {ilk:%Y-%m-%d %H:%M}Z)")
-    print(f"  ERISILEBILIRLIK: %{100.0 * saglikli / kapsanan:.2f}"
-          f"   ({saglikli}/{kapsanan} — KAYIP SLOT KESINTI SAYILIR)")
+    print(f"  ERISILEBILIRLIK: %{100.0 * temiz / kapsanan:.2f}"
+          f"   ({temiz}/{kapsanan} — KAYIP SLOT ve ONARILAN SLOT kesinti sayilir)")
+    if onarilan:
+        print(f"  BOZULMA    : {onarilan} slotta uygulama DUSMUSTU ve bekci onardi —"
+              " kullanici o anda hata gordu (BUG #344)")
 
     if len(satirlar) < kapsanan:
         print(f"  kayip slot : {kapsanan - len(satirlar)} "

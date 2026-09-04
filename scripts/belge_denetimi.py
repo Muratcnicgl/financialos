@@ -190,6 +190,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # 1) KAPI
     olu = olu_yonlendirmeler(belgeler, izlenen)
+    # KAPSAM TABANI (Wave-Y/Y7): belge listesi boş dönerse "0 ölü yönlendirme" basılır ve
+    # kapı sessizce geçer. Ölçmediğini temiz sanmak, bu deponun en sık avladığı hatadır.
+    TABAN = 100
+    if len(belgeler) < TABAN:
+        print(f"KAPI BOZUK: yalnız {len(belgeler)} belge tarandı (taban {TABAN}). "
+              "Bu 'ölü yönlendirme yok' DEMEK DEĞİLDİR — tarayıcı çalışmıyor.")
+        return 2
     print(f"[KAPI] Ölü yönlendirme: {len(olu)}")
     for belge, no, jeton, satir in olu:
         # ASCII ok BİLEREK: `→` (U+2192) Windows Türkçe konsolunun cp1254 kod sayfasında

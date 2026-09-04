@@ -106,3 +106,43 @@ def test_SAGLIKSIZ_kayit_yuzdeyi_DUSURUR(kayit, capsys):
 def test_MODUL_ADI_deftere_yazildigi_gibi():
     """Belge komutu ile modül adı ayrışmasın (BUG #310 sınıfı)."""
     assert importlib.import_module("scripts.erisilebilirlik_raporu") is rapor
+
+
+def test_ONARILAN_SLOT_TEMIZ_SAYILMAZ(kayit, capsys):
+    """
+    BUG #344 — ONARIM ÖLÇÜMÜ YİYORDU. `saglik.ps1` uygulamayı düşmüş bulup onarıyor ve
+    sonuç sağlıklı olduğu için kayda "sağlıklı" yazılıyordu. Somut sonuç: uygulama her
+    10 dakikada bir çökse ve bekçi her seferinde onarsa, kullanıcı sürekli hata görürken
+    rapor **%100** derdi — kendi kendini iyileştiren sistem, kendi arıza kaydını siliyordu.
+
+    ("Kayıp satır da veridir"in TERS YÜZÜ: orada yokluk gizleniyordu, burada VARLIK —
+    bakılan anda uygulamanın ayakta olmadığı gerçeği.)
+    """
+    simdi = datetime.now(timezone.utc)
+    yol = kayit
+    yol.write_bytes(("\ufeffzaman_utc,saglikli,onarim\n"
+                     f"{(simdi - timedelta(minutes=10)).strftime('%Y-%m-%dT%H:%M:%SZ')},1,0\n"
+                     f"{simdi.strftime('%Y-%m-%dT%H:%M:%SZ')},1,1\n").encode("utf-8"))
+    rapor.main(["--gun", "7"])
+    cikti = capsys.readouterr().out
+    assert "ONARIM GEREKTI 1" in cikti, cikti
+    assert "%100.00" not in cikti, "onarılan slot TEMİZ sayılmış — onarım ölçümü yiyor"
+    assert "DUSMUSTU" in cikti, cikti
+
+
+def test_ERISILEBILIRLIK_YUZDE_100_ASAMAZ(kayit, capsys):
+    """
+    Görev elle de koşulabildiği için gözlem sayısı beklenen slottan fazla olabilir.
+    **%100'ü aşan bir erişilebilirlik oranı bozuktur** — ölçüldü: %120 basılmıştı.
+    """
+    simdi = datetime.now(timezone.utc)
+    # 5 dakikalık pencerede 6 kayıt: beklenen slot 0-1, gözlem 6.
+    satirlar = [(simdi - timedelta(seconds=60 * i), 1) for i in range(6)]
+    kayit.write_bytes(("\ufeffzaman_utc,saglikli,onarim\n" + "".join(
+        f"{t.strftime('%Y-%m-%dT%H:%M:%SZ')},{ok},0\n" for t, ok in satirlar)).encode("utf-8"))
+    kod = rapor.main(["--gun", "7"])
+    cikti = capsys.readouterr().out
+    satirlar_ = [s for s in cikti.splitlines() if "ERISILEBILIRLIK:" in s]
+    assert satirlar_, f"oran hic basilmadi (kod={kod}):" + cikti
+    yuzde = float(satirlar_[0].split("%")[1].split()[0])
+    assert yuzde <= 100.0, f"oran %100'u asti: {satirlar_[0]}"

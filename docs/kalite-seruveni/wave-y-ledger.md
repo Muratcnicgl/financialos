@@ -141,7 +141,48 @@ koşumda "asıldı" diye yanlış teşhis konmasın.
 
 ---
 
-## 🟡 Y2 — KESİNTİ KÖRLÜĞÜ ▸ MEKANİZMA HAZIR, TEK İNSAN ADIMI BEKLİYOR
+## ✅ Y2 — KESİNTİ KÖRLÜĞÜ BİTTİ (4 Eylül 2026, canlı kanıtla)
+
+### KANIT — zincirin İKİ halkası da ayrı ayrı ölçüldü
+
+> **Neden iki ayrı kanıt gerekti:** "tek arıza sinyali var, bir kez kanıtlamak hepsini
+> kanıtlar" diye yazmıştım — **yanlıştı.** Sinyal aynı (ping'in yokluğu) ama onu üreten
+> **kod yolları farklı**: bekçi ölünce betik hiç koşmaz; servis bozulunca betik koşar ve
+> `if ($sorun.Count -eq 0)` **karar dalını** atlar. İkincisi bir daldır ve ayrıca ölçülmelidir —
+> o koşul ters yazılsa, site çökmüşken betik "sağlamım" pingi atmaya devam eder ve
+> **alarm hiç çalmaz.** Y2'nin var olma sebebi tam olarak bu körlük.
+
+**HALKA 1 — ping kesilirse alarm çalar (bekçi öldü senaryosu).**
+Bekçi 14:50:46'da devre dışı bırakıldı; servis **ayakta bırakıldı** (kullanıcıya sıfır
+kesinti). Son ping 14:50:04. Period 10 dk + grace 20 dk. **Alarm ~15:20'de telefona ulaştı**
+— ve bu, daha önceki `/fail` testinden **farklı bir mekanizmadır**: orada sisteme "bozuldum"
+denmişti, burada **hiçbir şey söylenmedi** ve Healthchecks kararı sessizliğin kendisinden
+verdi.
+
+**HALKA 2 — sağlıksızken ping ATILMAZ (servis bozuk, bekçi onaramıyor).**
+`saglik.ps1` uygulamayı kendisi onardığı için "servisi durdur, betiği koş" dizisi bu dalı
+ölçmez (betik onarır ve sağlıklı ping atar). Bu yüzden **gerçek bir onarılamaz arıza**
+kuruldu — 24,5 saatlik olayın (BUG #326) tam sınıfı: uvicorn durduruldu ve port, **503
+dönen sahte bir dinleyiciyle** tutuldu, böylece `baslat.ps1` yeni süreci başlatamadı.
+
+Ölçüm tahminle değil **yakalayarak** yapıldı: ping adresi geçici olarak yerel bir
+yakalayıcıya yönlendirildi (Healthchecks'in "Last Ping" damgasını okumak API anahtarı
+ister ve dışarıdan gözlemdir; bu ölçüm yerel ve deterministiktir).
+
+| Faz | Durum | `saglik.ps1` | Yakalanan ping | Kayıt |
+|---|---|---|---|---|
+| **A** | sağlıklı | çıkış 0 | **1** ✅ | — |
+| **B** | 503 + onarım başarısız | çıkış 1, `HATA: uygulama baslatilamadi` | **1** (artmadı) ✅ | `12:24:25Z,0,1` |
+
+B fazında ping **hiç atılmadı** ve kayıt hem sağlıksızlığı hem onarım denemesini taşıdı.
+
+**GERİ AÇMA DOĞRULANDI** (bir testin izlemeyi kapalı bırakması, hiç kurmamaktan kötü olurdu):
+görev `State = Ready` · kayda yeni satır (`12:22:57Z,1,0`, sonra `12:25:06Z,1,0`) ·
+telefona **UP** bildirimi. Servis: yerel `health=200`, funnel `health=200`.
+
+---
+
+### (Tasarımın gerekçesi)
 
 ### Tasarım İKİ KEZ değişti — ikisi de ölçümle
 
@@ -341,7 +382,58 @@ verirdi (ölü yönlendirme). Belge denetimi + ölü kod kapısı **geçiyor**.
 açıldı, depo private yapıldı, geçmiş ikinci kez yeniden yazıldı — ve **sıfır yeni ADR**
 yazılmıştı. Kararlar commit mesajlarında kalıyordu.
 
-## Y7 — DEPO GÖRÜNÜRLÜĞÜ ▸ KARAR ALINDI, UYGULAMA BEKLİYOR
+## 🟡 Y7 — ÜRETİCİ + KAPI HAZIR, tek insan adımı bekliyor
+
+> **Karar ADR-060'ta yazılı.** Aşağıdaki bölüm kararın gerekçesi; uygulama bu bloğun sonunda.
+
+### Üretici: `scripts/vitrin_uret.py` (4 Eylül)
+
+* **Elle yazılmaz, ÜRETİLİR.** Elle yazılmış vitrin BUG #310'a yakalanır: *"3.486 test"*
+  cümlesi, testler 2.000'e düşse de orada durur. Üretici gerçek depoyu **ölçer**.
+* **ALLOWLIST, denylist değil.** Üretici **hiçbir dosyanın metnini kopyalamaz**; her alan
+  kendi ölçüm fonksiyonundan gelir ve `IZINLI_ALANLAR`da **gerekçesiyle** listelidir.
+  Çıktıya giden tek yol o sözlüktür — izinsiz bir anahtar üretilirse **üretim durur**.
+  ADR **gövdeleri hiç okunmaz**, yalnız başlık satırları alınır.
+* Gerekçe: denylist yalnız *düşünülen* sızıntıyı yakalar. Sızıntı düşünülmeyenden gelir —
+  commit mesajları, mutlak yollar, ADR gövdelerindeki rakamlar, fixture izleri, şahsi
+  destek adresi (`live_gate` bunu zaten yakalamıştı).
+
+### Kapı: `tests/test_vitrin_kapisi.py` — **ikinci** savunma
+
+Üretilen **baytları** ölçer, üreticinin niyetini değil. **Mutasyon 4/4:** gerçek tutar ·
+**mutlak yol** (kullanıcı adını taşır — "düşünülmeyen sızıntı"nın somut örneği) · ADR
+gövdesi sızıntısı · e-posta. Bulgunun kendisi hata mesajına **basılmaz** (o da sızıntı
+olurdu) — yalnız sınıfı ve satırı.
+
+### Üretirken KENDİ kuralımı çiğnedim — ve kapıya bağlandı
+
+Hızlı modda **toplanan** test sayısı ölçülüp vitrine *"geçti"* diye yazılıyordu.
+Toplanan ≠ geçen: **ölçülmemiş bir iddiayı ölçüm gibi sunmak** (R3 ihlali), üstelik
+**dışarıya** gidecek bir belgede. Düzeltme üç parçalı: veriye `olcum_modu` yazılır,
+taslak README'nin başına görünür uyarı düşer, `test_TASLAK_YAYINLANAMAZ` taslağı
+**yayınlatmaz**.
+
+### Kapı kapsamı CI'da zorunlu mu — ÖLÇÜLDÜ
+
+| Kapı | CI'da | Kanıt |
+|---|---|---|
+| `sir_taramasi` (çalışma ağacı **+ git geçmişi**) | ✅ | `ci.yml:152-155`, adı verilmiş adım |
+| Kişisel veri kapısı | ✅ | `pytest tests/` içinde (`ci.yml:97`) |
+
+**Ve "vakumsal yeşil" riski ÖLÇÜLDÜ, varsayılmadı.** Tarayıcı hiç dosya bulamazsa sert
+kapı sessizce geçer miydi? Mutasyonla sınandı (tarayıcı boş döndürüldü): **iki test
+kırmızı verdi** — `test_TAVAN_kazanimi_kilitler` ve `test_KAPSAM_imajdan_GENIS`.
+Koruma **var**; gereksiz kod eklenmedi.
+
+### ⛔ Kalan tek insan adımı
+
+GitHub'da **boş bir public depo** aç (adını sen seç). Gerisi asistanda: vitrin üretilir,
+kapıdan geçirilir, push edilir. Çıktı asıl depoda **izlenmez** (`vitrin/` gitignore'da) —
+üretilmiş bir dosyayı commit etmek, elle yazılmış vitrin hastalığının arka kapısıdır.
+
+---
+
+### (Kararın gerekçesi — 4 Eylül)
 
 **Karar (Murat, 4 Eylül):** asıl depo **private kalır**; yanına **üretilmiş bir vitrin
 deposu** açılır. Gerekçe: CV'de GitHub ve bu proje anılıyor, projenin görünmemesi amaca

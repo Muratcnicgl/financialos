@@ -44,6 +44,7 @@ if ((Test-Path $LOG) -and ((Get-Item $LOG).Length -gt 2MB)) {
 }
 
 $sorun = @()
+$onarimGerekti = $false   # BUG #344: onarim gerekti mi (kayda AYRI sutun olarak girer)
 
 # ── 1. UYGULAMA ────────────────────────────────────────────────────────────
 $uygulamaOk = $false
@@ -53,6 +54,21 @@ try {
 } catch { }
 
 if (-not $uygulamaOk) {
+    # BUG #344 — ONARIM, ÖLÇÜMÜ YİYORDU.
+    #
+    # Bu blok uygulamayı onarır ve başarılı olursa `$uygulamaOk = $true` yapar; `$sorun`
+    # boş kaldığı için kayda **"sağlıklı"** yazılırdı. Somut sonuç: uygulama her 10
+    # dakikada bir çökse ve bekçi her seferinde onarsa, kullanıcı sürekli hata görürken
+    # `erisilebilirlik.csv` **%100** yazardı. Kendi kendini iyileştiren bir sistem, kendi
+    # arıza kaydını da siliyordu.
+    #
+    # ("Kayıp satır da veridir" fikrinin ters yüzü, aynı sınıf: orada yokluk gizleniyordu,
+    # burada VARLIK — bakılan anda uygulamanın AYAKTA OLMADIĞI gerçeği.)
+    #
+    # Çözüm: ping/alarm "ŞU AN ayakta mı" sorusuna cevap vermeye devam eder (onarılmış bir
+    # kesinti için alarm çalmaz — yoksa 6 saniyelik blip'ler alarmı okunmaz kılardı, L22),
+    # ama KAYIT "bakıldığında düşmüştü" gerçeğini ayrı bir sütunda taşır.
+    $onarimGerekti = $true
     Yaz "UYARI" "uygulama cevap vermiyor — yeniden baslatiliyor"
     & (Join-Path $PSScriptRoot "baslat.ps1") -Port $Port | Out-Null
     Start-Sleep -Seconds 3
@@ -204,24 +220,25 @@ function PingAt($durum) {
 # dayanır — ve KAYIP SATIRLAR da veridir: görev 10 dakikada bir koştuğu için, olması
 # gereken slot sayısıyla gerçekleşen satır sayısı arasındaki fark **kesintinin kendisidir**
 # (makine kapalıyken satır yazılmaz). Böylece "veri yok" sessizce %100'e dönüşemez (L45).
-function KayitYaz($ok) {
+function KayitYaz($ok, $onarim) {
     $csv = Join-Path $LOGDIZIN "erisilebilirlik.csv"
     if (-not (Test-Path $csv)) {
-        Add-Content -Path $csv -Value "zaman_utc,saglikli" -Encoding UTF8
+        Add-Content -Path $csv -Value "zaman_utc,saglikli,onarim" -Encoding UTF8
     }
-    $satir = "{0},{1}" -f (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"), $ok
+    $satir = "{0},{1},{2}" -f (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"),
+             $ok, $(if ($onarim) { 1 } else { 0 })
     Add-Content -Path $csv -Value $satir -Encoding UTF8
 }
 
 # ── Sonuç ──────────────────────────────────────────────────────────────────
 if ($sorun.Count -eq 0) {
-    KayitYaz 1
+    KayitYaz 1 $onarimGerekti
     PingAt "saglam"
     # Sessiz başarı: her 10 dakikada bir satır, log'u boğmasın diye YALNIZ saat başı yaz.
     if ((Get-Date).Minute -lt 10) { Yaz "OK" "uygulama + tunel + dis yol saglam" }
     exit 0
 }
 # Sorun varken ping ATILMAZ — susmak, alarmın kendisidir.
-KayitYaz 0
+KayitYaz 0 $onarimGerekti
 Yaz "HATA" ($sorun -join " | ")
 exit 1

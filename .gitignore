@@ -77,3 +77,8 @@ PROJE.md
 
 # Wave-Y/Y2: olu adam anahtari ping adresi KIMLIK tasir — depoya girmez
 deploy/windows/izleme-url.txt
+
+# Wave-Y/Y7: vitrin URETILIR (scripts/vitrin_uret.py) ve AYRI bir public depoya gider.
+# Uretici + kapisi izlenir; CIKTISI izlenmez — uretilmis dosyayi commit etmek, elle
+# yazilmis vitrin hastaliginin (BUG #310) arka kapisidir.
+vitrin/

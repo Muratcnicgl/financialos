@@ -101,31 +101,32 @@ def test_devir_belgesi_diskte_ve_dolu() -> None:
     assert "MASTER DURUM RAPORU" in ilk, "devir belgesinin basligi degismis"
 
 
-def test_mcp_ledger_esigi_gercekten_olculuyor() -> None:
+def test_mcp_defteri_KAPALI_kalir() -> None:
     """
-    BUG #255: `scripts/mcp_sync_report.py` HER durumda 0 donuyordu — birikme sessizdi.
-    Bu test davranisi olcer: esigin altinda 0, ustunde 2.
+    MCP SYNC DEFTERI 4 EYLUL 2026'DA KAPATILDI (Wave-Y / Y5) — bu test o karari korur.
+
+    ONCEKI HALI (tarihsel): burada `scripts/mcp_sync_report.py`'nin esik davranisi
+    olculuyordu (BUG #255: her durumda 0 donuyordu, birikme sessizdi). O kapinin KONUSU
+    artik yok:
+
+      * 7 Agu 2026 — flush 19 gundur hic kosulmamis, defterde 186 satir birikmisti;
+        ayni gun MCP resmen TARIHSEL ARSIV ilan edildi.
+      * 4 Eyl 2026 — defter 300 satira cikmisti, flush hala hic kosulmamisti.
+
+    Yani `post-commit` yakalamasi **hic kosulmayacak bir flush icin** calisiyordu. Boyle
+    bir defter zararsiz degildir: her bakan "300 satir bekleyen is var" sanir.
+    **SAHTE YUKUMLULUK, BORCTAN DAHA KOTUDUR — cunku odenmez ve unutulmaz.**
+
+    Bir kapiyi konusu bittigi icin silmek dogru; ama karari korumasiz birakmak degil.
+    Bu test o yuzden yerine gecti: yakalama sessizce geri acilirsa burada dusar. Bilincli
+    olarak geri acilacaksa bu testin GEREKCESIYLE guncellenmesi gerekir.
     """
-    sys.path.insert(0, str(KOK))
-    from scripts import mcp_sync_report as msr
-
-    import tempfile
-    with tempfile.TemporaryDirectory() as td:
-        sahte = Path(td) / "ledger.log"
-        eski = msr.LEDGER
-        try:
-            msr.LEDGER = sahte
-
-            sahte.write_text("", encoding="utf-8")
-            assert msr.main([]) == 0, "bos ledger yesil olmali"
-
-            az = "\n".join(f"abc{i:04d}|2026-08-07T00:00:00+03:00|deneme" for i in range(3))
-            sahte.write_text(az + "\n", encoding="utf-8")
-            assert msr.main([]) == 0, "esigin altindaki birikme yesil olmali"
-
-            cok = "\n".join(f"abc{i:04d}|2026-08-07T00:00:00+03:00|deneme"
-                            for i in range(msr.ESIK + 5))
-            sahte.write_text(cok + "\n", encoding="utf-8")
-            assert msr.main([]) == 2, "esik asildiginda cikis kodu 2 olmali (sessiz buyume yasak)"
-        finally:
-            msr.LEDGER = eski
+    assert not (KOK / "scripts" / "mcp_sync_report.py").exists(), (
+        "scripts/mcp_sync_report.py geri gelmis — MCP defteri kapatilmisti (Wave-Y/Y5). "
+        "Bilincli bir karar ise bu testi gerekcesiyle guncelle."
+    )
+    hook = (KOK / ".githooks" / "post-commit").read_text(encoding="utf-8")
+    assert ".mcp-sync-pending.log" not in hook or "printf" not in hook, (
+        ".githooks/post-commit yeniden defter YAKALIYOR — kapatilmis bir defteri doldurmak, "
+        "kimsenin okumayacagi bir borc uretir (Wave-Y/Y5 karari)."
+    )

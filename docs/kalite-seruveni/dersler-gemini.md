@@ -1,5 +1,27 @@
 # Gemini Kök Sohbetlerinden Dersler (tüm hatalar → ders)
 
+> ## ⚠️ 49 GÜN DOKUNULMADI — 5 Eylül 2026'da DENETLENDİ: "Bugünkü durum" SÜTUNU BAYAT
+>
+> Bu belgenin değeri "Bugünkü durum" sütunu; bayatlayınca da zararı oradan geliyor.
+> **Üç satırda aynı iddia var** (A2 · B3 ve devamı): *"LLM çıktı grounding kontrolü hâlâ
+> yok (LLM-003 — kritik boşluk)"*. **Bugün ölçüldü — yanlış:**
+>
+> - `app/grounding.py:169` `check_grounding()` var ve **canlı sohbet yolunda çağrılıyor**
+>   (`app/coach.py:3397`), yani rafta duran bir yardımcı değil.
+> - Depoda **7 grounding test dosyası** var.
+> - Backlog'un kendisi de bunu kapatmış: `sections/LLM.md` → **LLM-003 ✅ KAPANDI (M85)**.
+>   Yani bu belge, aynı deponun kendi kaydından geride.
+>
+> **AMA "çözüldü" demek de fazla iddia olurdu — dürüst hâli şu:** grounding VAR, ölçülüyor
+> ve dört kez düzeltildi (BUG #316 boşluklu binlik ayıraç · #321 etiketsiz ≠ izlenemez ·
+> #322 izin listesi dardı · #324 beraatin gerekçesi görünür oldu). Kalan bilinen kusur
+> **yanlış BERAAT**: 200.000 örneklemle ölçülen tesadüf yüzeyi **%10,7** — dayanaksız bir
+> tutar da "izlenebilir" sayılabiliyor. Ayrıntı: `masterprompt-koc.md` §9.4.
+> Yani doğru cümle *"grounding yok"* değil, *"grounding var, mahkûmiyeti iyi, beraatı zayıf"*.
+>
+> Diğer sütunlar (tarihsel hata / ders) aynen geçerli — asıl değer orada. Gövde 18 Temmuz
+> 2026 kaydı olarak korunuyor.
+
 **Kaynak:** İki Gemini kök sohbeti tam metin (get_page_text ile satır satır okundu). Amaç: kurucu vizyonun özü olan "tüm hatalardan ders çıkar" — her AI hatasını bugünkü mimariyle eşleştir, çözüldü mü / boşluk mu belirle.
 
 ## Sohbet A — "Finansal Koç" (yerel LLM denemeleri)

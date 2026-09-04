@@ -1,5 +1,13 @@
 # Wave-4 İskelet (Wave-3 M15'te hazırlandı — KARAR YOK)
 
+> ## ℹ️ 52 GÜN DOKUNULMADI — 5 Eylül 2026'da DENETLENDİ
+>
+> Wave-4 koşuldu ve kapandı; bu belge bir yol haritası değil, onun girdi kaydıdır.
+> Listelediği devir maddelerinden **mobil platform (ADR-032) bugün hâlâ açıktır** ve
+> depodaki tek açık STUB odur (ölçüldü) — `goal-charter-wave8-iskelet.md`'nin mobil
+> maddesiyle aynı konu. Diğer maddeler ya karara bağlandı ya da kapsam dışına alındı.
+> Planlama için aktif hatlar okunur: `masterprompt-koc.md` · `wave-y-ledger.md`.
+
 **Tarih:** 13 Tem 2026 · **Durum:** İskelet (kararlar Wave-4 başında D1+K10 ile) · **Kaynak:** Wave-3 ertelenenler + charter.
 
 > **İLKE (M7/M15):** Bu belge Wave-4'ü materyalize eder, KARAR VERMEZ.

@@ -1,5 +1,30 @@
 # Mobil & PWA & offline (kod: MOB)
 
+> ## ⚠️ 48 GÜN DOKUNULMADI — 5 Eylül 2026'da DENETLENDİ: **7 MADDE ÖLÇÜMLE DEĞİŞTİ**
+>
+> Bu dosyanın her maddesi `M85 R3 doğrulama:` notu taşıyor. O doğrulama 18 Temmuz'da
+> doğruydu; **arada Wave-8'in MC1 turu PWA'yı gerçekten kurmuş** ve backlog güncellenmemiş.
+> Bugün tek tek ölçüldü:
+>
+> | Madde | M85 notu | 5 Eyl 2026 ölçümü |
+> |---|---|---|
+> | MOB-001 | "vite-plugin-pwa yok" | ✅ kurulu ve bağlı (`^1.3.0`, `vite.config.js:3,14`) |
+> | MOB-002 | "PNG ikon/manifest yok" | ✅ 4 PNG + maskable, manifest üretiliyor |
+> | MOB-003 | "workbox/precache yok" | ✅ `globPatterns` + `navigateFallback` tanımlı |
+> | MOB-008 | "SW güncelleme akışı yok" | ✅ `registerType: 'autoUpdate'` |
+> | MOB-010 | "apple meta yok" | ✅ üç apple metası da var |
+> | **MOB-004/005** | "offline cache yok" | ⛔ **YAPILMAYACAK — BUG #288'de denendi ve canlıda çöktü** |
+>
+> **En önemlisi MOB-004/005.** "Açık madde" olarak durmaları, bir gün birinin gelip
+> `/api/*` için NetworkFirst önbellek eklemesini davet ediyordu — o tam olarak BUG #288'dir:
+> Cockpit hiç yüklenemedi (`no-response`) ve kullanıcı finansal veride bayat rakam görme
+> riskine girdi. **Bir backlog maddesi yalnız "yapılmadı" demez; bazen "denendi, ölçüldü,
+> geri alındı" demelidir.** İkisi de o gerekçeyle yeniden çerçevelendi.
+>
+> **Hâlâ gerçekten açık (ölçüldü):** MOB-009 (`theme-color` sabit `#0f172a`) ·
+> MOB-011/012 (safe-area yalnız Coach'un alt kenarında var, üst ve yanlarda yok) ·
+> MOB-022 (`beforeinstallprompt` hiç yakalanmıyor). Ölçülmeyen maddelere dokunulmadı.
+
 Kapsam: FinancialOS'i telefondan "uygulama gibi" kullanılabilir hale getiren teknik altyapı — PWA kurulumu, service worker/offline cache, safe-area, dokunma ergonomisi, backend senkronizasyon hazırlığı, push altyapısı ve React Native geçiş köprüsü.
 
 `docs/architecture/mobile-roadmap.md` stratejik yol haritasını (PWA -> RN aşamaları, framework kıyası, UX pattern kataloğu) zaten içeriyor; burada o vizyonu **tekrarlamadan** uygulanabilir maddelere çeviriyorum. UX tarafında olan sekme/gesture/pull-to-refresh maddeleri (UX-011, UX-018, UX-024, UX-029) ile FE tarafındaki dokunma hedefi maddeleri (FE-019) burada mobil-teknik derinlikle **tamamlanır**, birebir kopyalanmaz.
@@ -9,7 +34,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 ---
 
 ### [MOB-001] vite-plugin-pwa yok — hiç manifest, hiç service worker
-- **Durum:** ⏸️ KAPSAM DIŞI — M85 R3 doğrulama: vite-plugin-pwa yok (PWA-deferred)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `vite-plugin-pwa@^1.3.0` `frontend/package.json`'da, `vite.config.js:3,14` `VitePWA({...})` bağlı (kod yorumu: "MC1 (Wave-8): PWA — installable + offline shell"), `frontend/dist/manifest.webmanifest` üretiliyor. M85 notu ("vite-plugin-pwa yok") ARTIK YANLIŞ.
 
 - **Sorun:** Uygulama PWA değil. "Ana ekrana ekle" yapılsa bile tam ekran açılmaz, offline çalışmaz, splash/icon yoktur. Mobil-first hedefin (mobile-roadmap Aşama 1) tek somut ön koşulu eksik.
 - **Kanıt:** `frontend/package.json:12-27` — bağımlılıklarda `vite-plugin-pwa` yok. `frontend/vite.config.js:10` — `plugins: [react()]`, PWA plugin'i yok. `frontend/index.html:1-32` — `<link rel="manifest">` yok, service worker register eden kod yok.
@@ -18,7 +43,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Kaynak:** [vite-pwa generateSW](https://vite-pwa-org.netlify.app/workbox/generate-sw)
 
 ### [MOB-002] manifest.json ikon seti eksik — favicon tek bir inline SVG
-- **Durum:** ⏸️ KAPSAM DIŞI — M85 R3 doğrulama: PNG ikon/manifest yok (PWA-deferred)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `frontend/public/icons/` içinde dört PNG (`icon-192` · `icon-512` · `maskable-192` · `maskable-512`) ve manifest'te `purpose: 'maskable'` dahil ilan edilmiş.
 
 - **Sorun:** Manifest için gereken 192/512 px PNG ikonları, `maskable` ikon ve iOS için `apple-touch-icon` yok. Bunlar olmadan ana ekran ikonu bozuk/boş çıkar, Android maskeleme kenarları keser.
 - **Kanıt:** `frontend/index.html:5` — tek `rel="icon"` bir data-URI SVG (32x32). PNG asset yok; `frontend/public/` altında ikon dosyası bulunmuyor.
@@ -26,7 +51,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Orta (kurulan uygulamanın ilk izlenimi) · **Efor:** S
 
 ### [MOB-003] App shell precache stratejisi tanımsız — offline'da beyaz ekran
-- **Durum:** ⏸️ KAPSAM DIŞI — M85 R3 doğrulama: workbox/precache yok (offline-deferred)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `vite.config.js` workbox `globPatterns: ['**/*.{js,css,html,svg,png,woff2}']` + `navigateFallback: '/index.html'`. App shell precache TANIMLI.
 
 - **Sorun:** SW olmadan bağlantı koptuğunda uygulama hiç açılmaz (JS/CSS bundle yüklenemez). Metro/asansör/uçak modu senaryosu = kullanılamaz uygulama.
 - **Kanıt:** `frontend/src/api.js:59-64` — network hatası `ApiError(0)` fırlatır; ama asıl sorun, HTML/JS/CSS'in kendisinin cache'lenmemesi. `vite.config.js`'te `workbox` bloğu yok.
@@ -34,7 +59,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Yüksek (offline açılış) · **Efor:** M
 
 ### [MOB-004] Cockpit için NetworkFirst offline fallback yok
-- **Durum:** ⏸️ KAPSAM DIŞI — M85 R3 doğrulama: cockpit runtimeCaching yok (offline-deferred)
+- **Durum:** ⛔ BİLİNÇLİ OLARAK YAPILMAYACAK (yeniden çerçevelendi, 5 Eyl 2026) — bu madde **BUG #288'de denendi ve GERİ ALINDI**. `/api/*` için NetworkFirst + `networkTimeoutSeconds: 5` canlıda ilk gerçek kullanımda çöktü: kullanıcı giriş yaptı, Cockpit yüklenemedi, konsolda `FetchEvent.respondWith received an error: no-response`. Mekanizma `vite.config.js`'te yazılı: 5 sn'de yanıt gelmezse NetworkFirst önbelleğe düşer, önbellekte o istek YOKSA Workbox isteği tamamen öldürür. **Bu maddeyi "açık" bırakmak, ölçülmüş bir üretim defektini geri davet etmektir.** Finansal veride bayat önbellek ayrıca kendi başına yanlış bilgidir.
 
 - **Sorun:** Cockpit ana ekran; bağlantı koptuğunda son bilinen finansal görüntü bile gösterilemiyor. Kullanıcı en sık bakacağı ekranda "bağlantı hatası" görür.
 - **Kanıt:** `frontend/src/api.js:105-107` `cockpitApi.get() -> /api/cockpit`. Cache katmanı yok; `App.jsx:196` main içerik doğrudan canlı fetch'e bağlı.
@@ -43,7 +68,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Kaynak:** [Workbox NetworkFirst / vite-pwa caching strategies](https://vite-pwa-org.netlify.app/workbox/generate-sw) — NetworkFirst ağı önce dener, timeout/başarısızlıkta cache'e düşer; sık güncellenen API cevapları için önerilen strateji.
 
 ### [MOB-005] Salt-okunur listeler için ayrı cache stratejisi yok
-- **Durum:** ⏸️ KAPSAM DIŞI — M85 R3 doğrulama: SWR cache yok (offline-deferred)
+- **Durum:** ⛔ BİLİNÇLİ OLARAK YAPILMAYACAK — MOB-004 ile aynı gerekçe (BUG #288: `runtimeCaching` KASTEN BOŞ). Salt-okunur listeler de finansal veridir; bayat gösterimi kullanıcıya yanlış rakam göstermektir.
 
 - **Sorun:** Cockpit dışındaki GET ekranları (raporlar, hesaplar, işlemler, cashflow, hedefler) offline'da tümden boş. Bunların çoğu "son görüneni göster, arkada tazele" mantığına uygun ama tek tip strateji uygulanamıyor.
 - **Kanıt:** `frontend/src/api.js` — `reportsApi` (`:235`), `accountsApi.list` (`:114`), `transactionsApi.list` (`:126`), `cashflowApi` (`:269`), `goalsApi.list` (`:293`) hepsi cache'siz GET.
@@ -68,7 +93,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Orta · **Efor:** S
 
 ### [MOB-008] Service worker güncelleme akışı planlanmamış — deploy sonrası bayat bundle riski
-- **Durum:** ⏸️ KAPSAM DIŞI — M85 R3 doğrulama: service worker yok (PWA-deferred)
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `vite.config.js:15` `registerType: 'autoUpdate'`. Güncelleme akışı tanımlı (otomatik). Kullanıcıya "yeni sürüm var" bildirimi göstermek AYRI bir UX kararıdır, bu madde değil.
 
 - **Sorun:** PWA'da klasik tuzak: SW eski asset'leri precache'te tutar, kullanıcı deploy sonrası günlerce eski sürümü görür. `autoUpdate` sessizce günceller ama açık sekmede yarım güncelleme/kırık state üretebilir.
 - **Kanıt:** Henüz SW yok (MOB-001); ama mobile-roadmap örneği `registerType: 'autoUpdate'` öneriyor — finansal uygulamada sessiz güncelleme riskli.
@@ -85,7 +110,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Düşük (kozmetik ama standalone'da göze batar) · **Efor:** XS
 
 ### [MOB-010] iOS standalone meta etiketleri eksik — Safari çubuğu tam ekranı yer
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: apple-mobile-web-app meta yok
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026 ölçümü: `frontend/index.html` üç meta taşıyor: `apple-mobile-web-app-capable` · `apple-mobile-web-app-status-bar-style` · `apple-mobile-web-app-title`.
 
 - **Sorun:** iOS'ta ana ekrandan açılan PWA'nın tam ekran davranışı ve status bar stili `apple-mobile-web-app-*` meta'larına bağlı. Yoksa iOS eski/kısıtlı davranış uygular, status bar rengi/şeffaflığı kontrol edilemez.
 - **Kanıt:** `frontend/index.html:3-27` head — `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-mobile-web-app-title` yok.

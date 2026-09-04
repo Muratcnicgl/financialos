@@ -1,5 +1,21 @@
 # Wave-3 Master Plan (M7 — hazırlık, KARAR YOK)
 
+> ## ℹ️ 53 GÜN DOKUNULMADI — 5 Eylül 2026'da DENETLENDİ
+>
+> Belge *"buradaki ADR'ler (031-034) **STUB** — karar bölümü boş"* diyor. **Bugün ölçüldü,
+> dördünün ÜÇÜ karara bağlanmış:**
+>
+> | ADR | Bugünkü durum |
+> |---|---|
+> | 031 multi-asset | ✅ karar verildi (Wave-3 M12) — kapsam stock+gold+fx, kripto ertelendi |
+> | **032 mobil platform** | 🟡 **HÂLÂ TASLAK — gerçekten açık tek karar** |
+> | 033 auth/multiuser | ✅ karar verildi (Wave-3 M11) |
+> | 034 koç sağlayıcı | ✅ karara bağlandı → `adr-034-revize.md` |
+>
+> Baseline satırı da bayat: *"807 test"* → bugün **3.527**. Depoda **61 ADR** var.
+> Wave-3 ve Wave-4 koşuldu ve kapandı; aktif hatlar `docs/kalite-seruveni/masterprompt-koc.md`
+> ve `docs/kalite-seruveni/wave-y-ledger.md`. Gövde 13 Temmuz 2026 kaydı olarak korunuyor.
+
 **Tarih:** 13 Temmuz 2026 · **Durum:** Hazırlık (kararlar Wave-3 başında verilir) · **Kaynak:** `wave3-vision.md`, `mobile-roadmap.md`, Wave-2 ertelenen backlog (faz-3-durum.md), ADR-019 (multi-asset).
 
 > **İLKE (charter M7):** Bu belge Wave-3'ü **materyalize eder, KARAR VERMEZ.** Mimari kararlar (mobil platform, auth stratejisi, sağlayıcı) Murat + planner tarafından Wave-3 başında, D1 araştırması sonrası verilir. Buradaki ADR'ler (031-034) **STUB** — karar bölümü boş, sorular listeli. Bu, "Rules Engine karar verir / planner mimari karar verir" ayrımına saygıdır.

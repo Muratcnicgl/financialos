@@ -24,6 +24,8 @@ KİLİTLENEN İKİNCİ SÖZLEŞME: KAYIP SLOT KESİNTİDİR
 Sağlık görevi 10 dakikada bir koşar. Makine kapalıyken satır YAZILMAZ. Yalnız yazılmış
 satırlara bakan bir rapor, makinenin kapalı olduğu geceyi **%100 sağlıklı** gösterirdi —
 ölçmediğini mükemmel sanmak (L45). Payda bu yüzden **beklenen slot**tur.
+
+MUTASYON 3/3 — BOM yok sayildi (utf-8-sig -> utf-8) · payda kayit sayisina cevrildi (kayip slot gorunmez olsun) · kayit yokken %100 basildi
 """
 from __future__ import annotations
 

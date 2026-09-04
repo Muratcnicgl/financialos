@@ -30,6 +30,8 @@ SÖZLEŞME
 Bu, Murat'ın kendi koyduğu kuralın veri tarafındaki karşılığıdır:
 *"varsayımla karta ya da nakite yazılmamalı, bana sormalı"* (BUG #332) — orada ürün
 harcamanın hesabını varsayıyordu, burada asgarinin tabanını.
+
+MUTASYON 8/8 — bayrak hep False · ekstre kontrolu dusuruldu · uyari kosulsuz yapildi · bayrak sayiyi degistirdi · gecersiz oran varsayim sayilmadi · bayrak tuzak dict'inden cikarildi · koc metnine eklenmedi · uyari karti adlandirmadi
 """
 from __future__ import annotations
 

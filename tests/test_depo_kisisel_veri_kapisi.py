@@ -25,6 +25,8 @@ olduğu anlamına gelmez.)
     Yeni bir sızıntı kapıyı kırar; temizlik yapılırsa tavan düşürülür (kazanım kilidi).
     Bu, `kalite_kapisi`nin ruff tavanıyla aynı desendir: mevcut borcu dondur, büyümesini
     engelle.
+
+MUTASYON 3/3 — tarayici bos donduruldu (vakumsal yesil) -> kazanim kilidi + kapsam testi kirmizi · kart deseninin daraltilmasi gercek karti kacirmiyor (mesruluk sinamasi)
 """
 from __future__ import annotations
 

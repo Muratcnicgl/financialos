@@ -24,6 +24,8 @@ ayrışmayan bir betik, zamanlanmış görevde çıkış kodu 1 verir ve kimse b
 24,5 saatlik sessiz kesintisi tam bu sınıftı — L61).
 
 Bir sonraki `.ps1` BOM'suz eklenirse burada düşer; hata mesajı sebebi de söyler.
+
+MUTASYON 2/2 — BOM kaldirildi -> ikisi de kirmizi (nedensellik) · BOM dururken ayrisma hatasi sokuldu -> yalniz ayrisma testi kirmizi (kapsam)
 """
 from __future__ import annotations
 

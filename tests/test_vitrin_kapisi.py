@@ -25,6 +25,8 @@ ARANAN ŞEYLER (ve neden her biri)
   ADR gövdeleri bunlarla dolu
 * **mutlak yollar** (`C:\\Users\\<ad soyad>\\…`) — kullanıcı adını taşır; kimse denylist
   yazarken bunu akla getirmez, allowlist'in korumasının somut örneği budur
+
+MUTASYON 4/4 — gercek tutar enjekte edildi · mutlak yol enjekte edildi · ADR govdesi sizdirildi · e-posta enjekte edildi
 """
 from __future__ import annotations
 

@@ -28,6 +28,8 @@ KİLİTLENEN SÖZLEŞME (ve neden her maddesi gerekli)
 
 Ölçüm PowerShell'in KENDİ ayrıştırıcısıyla yapılır (metin arama değil): çağrının hangi
 `if` bloğunun içinde olduğu ancak sözdizimi ağacından bilinir.
+
+MUTASYON 4/4 — ping kosulsuz yapildi · try/catch kaldirildi · PingAt cagrisi silindi · ping URL'si depoya sokuldu
 """
 from __future__ import annotations
 

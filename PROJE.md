@@ -56,6 +56,34 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > **Metodoloji dersi:** aynı kodla %88 → %84 → %80 ölçüldü; örneklem büyüklüğü
 > belirtilmeyen bir oran bir iddiadır, ölçüm değil.
 >
+> **GÜNCEL BASELINE — 4 EYLÜL 2026. Süit 3468 passed · 18 skipped · 0 failed.**
+> Kalite kapısı 296 (63/63) · ölü kod 0 · belge denetimi ve temiz-DB göç kilidi geçiyor.
+> **Kapalı beta AYAKTA.** Tek doğruluk kaynağı: `masterprompt-koc.md` §10 başındaki
+> ⏸️ KALDIĞIMIZ YER (4 Eylül).
+>
+> **BU TUR GERÇEK KULLANIMDAN DOĞDU (11 defekt).** Kullanıcı bankalardan güncel verisini
+> çekmek istedi; o iş sırasında ürünün üç yerde yalan söylediği ölçüldü ve canlı sistem
+> bir kez kurtarıldı:
+> **#326** göç adımı betanın KOŞTUĞU yolda yoktu → beta **24,5 saat kapalıydı** (45
+> başarısız deneme; adım `systemd` ve `Docker` yollarında vardı, ikisi de kullanılmıyor) ·
+> **#327** `balance`ın tanımı yanlış yazılmıştı → taksit-toplamı yorumu 34.500 TL'lik
+> krediyi **102.266 TL borç** gösteriyordu · **#330** kart asgari oranı koda gömülüydü
+> (%25; bankanın gerçeği %20 → kullanıcıya **411 TL fazla** söylendi) · **#331** karta
+> yazılan gider nakit çıkışı sayılıyordu → sıkışık kullanıcıya **olmayan bir açık**
+> gösteriliyordu · **#332** "hesabı o an belli olur" seçeneği yoktu, ürün varsayıyordu ·
+> **#333** koçtan aritmetik bekleniyordu · **#328** kesinti sessiz kalıyordu ·
+> **#329** CI kırmızıydı ama açık yoktu (npm registry 503, 7 dk deneyip düştü).
+>
+> **KOÇ ÖLÇÜMÜ (canlı, öncesi/sonrası, aynı soru ve sağlayıcı):** *"Bu ay param yeter mi?"*
+> ÖNCE 8.800 TL'lik belirsiz harcamadan hiç bahsetmedi ve "yeter" dedi; SONRA tehditlere
+> yazdı ve **sordu**. Grounding **13/13**, sapmaların hepsi ≤%0,02. Hiçbiri prompt'a satır
+> eklenerek yapılmadı (K-KURAL 5).
+>
+> **METODOLOJİ:** bir ratchet kapısı bu turda ÜÇ kez değişikliği reddetti ve üçünde de
+> haklı çıktı — tavan değil TASARIM düzeldi. Mutasyon BEŞ kez kapının kendi kör noktasını
+> buldurdu. Asistan iki kez bir KOD VARSAYIMINI ölçüm sandı ve kullanıcı düzeltti
+> (asgari oran, maaş günü) — *bir sayının nereden geldiğini sormadan onu ölçüm sayma.*
+>
 > **BUG #323 — ÜRÜN, SÖYLEDİĞİ ŞEYİ YAPMAYI REDDEDİYORDU (3 Eyl 2026).** Kullanıcı
 > *"Bugün 500 TL yemek harcadım nakitten"* diyor; harcama **kaydedilmiyor** ve koç
 > *"Tarih bilgisi tutarsız… tarih yoksa bugün olarak kaydederim"* cevabını veriyor.

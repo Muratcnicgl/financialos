@@ -542,7 +542,68 @@ yerine (mimarinin kendi ilkesi: *rules engine karar verir, LLM açıklar*).
 
 ## §10. DEĞİŞİKLİK GÜNLÜĞÜ (yalnız ileri yönlü)
 
-### ⏸️ KALDIĞIMIZ YER — 3 Eylül 2026 (SIRADAKİ OTURUM BURADAN BAŞLAR)
+### ⏸️ KALDIĞIMIZ YER — 4 Eylül 2026 (SIRADAKİ OTURUM BURADAN BAŞLAR)
+
+**DURUM:** her şey commit'li ve push'lu (`main` = `origin/main`). Süit **3468 passed ·
+18 skipped · 0 failed**. Kalite kapısı 296 (63/63), ölü kod 0, belge denetimi geçiyor,
+temiz-DB göç kilidi geçiyor. **Kapalı beta AYAKTA** (health/ready 200).
+
+**BU TUR GERÇEK KULLANIMDAN DOĞDU.** Murat bankalardan güncel verisini çekmek istedi;
+o iş sırasında ürün üç yerde yalan söylediği ölçüldü ve canlı sistem bir kez kurtarıldı.
+
+**KAPANAN (11 defekt):**
+`#322` grounding izin listesi modelin gördüğü veriden dardı · `#323` "bugün" diyen
+kullanıcının harcaması kaydedilmiyordu · `#324` beraatin gerekçesi yoktu ·
+`#325` zayıf beraat işaretlenir (eşik ölçüldü, seçilmedi) · `#326` göç adımı
+başlatma yolunda yoktu (**beta 24,5 saat kapalıydı**) · `#327` `balance`ın tanımı
+yanlış yazılmıştı · `#328` kesinti sessiz kalıyordu · `#329` CI kırmızıydı ama açık
+yoktu (npm 503) · `#330` kart asgari oranı koda gömülüydü (%25 → gerçek %20) ·
+`#331` karta yazılan gider nakit çıkışı sayılıyordu · `#332` "hesabı o an belli olur"
+seçeneği yoktu · `#333` koçtan aritmetik bekleniyordu.
+
+**CANLI OLAY:** beta 03/09 08:50 → 04/09 09:21 arası KAPALIYDI (45 başarısız deneme).
+`schema_guard` doğru davrandı; eksik olan göçü UYGULAYAN adımdı ve o adım kullanılmayan
+iki dağıtım yolundaydı. Ayrıca ayın gelir kayıtları hiç oluşmamıştı.
+
+**KOÇ ÖLÇÜMÜ (canlı, gerçek kullanıcı sorusu, öncesi/sonrası):**
+"Bu ay param yeter mi? Karta ne kadar ödemeliyim?"
+- ÖNCE: 8.800 TL'lik belirsiz harcamadan hiç bahsetmedi, "yeter" dedi.
+- SONRA: tehditlere yazdı ve **sordu** ("nakitten mi karttan mı gidiyor?").
+- Grounding: **13/13 doğrulandı**, sapmaların hepsi ≤%0,02.
+Hiçbiri prompt'a satır eklenerek yapılmadı (K-KURAL 5); üçü de ÜRÜN düzeltmesi.
+
+**SIRADAKİ İŞLER — ÖNCELİK SIRASIYLA:**
+1. **Koç kötü hali KARARINA yansıtmıyor.** Sayıyı (−6.906,65) görüyor, tehdit diye
+   yazıyor, soruyor — ama yine "ay sonu 1.893 kalır" deyip kartın tamamını öneriyor.
+   Model tarafı; bilgi mimarisi denenebilir (kötü hal ÖZET satırına girsin mi?).
+2. **`IC_JARGON` / "reel bütçe" — ⛔ İNSAN-KAPISI, Murat'ın kararı.** Üslup
+   düşüşlerinin %71'i. Ürün terimi koça veriyor (`coach.py:966`), aynı prompt
+   yasaklıyor (`:327`), arayüz kullanıcıya öğretiyor (`Cockpit.jsx:312`). Bugün koç
+   ayrıca terimi YANLIŞ etiketle kullandı (1.893 dedi, gerçek −7.700).
+3. **Yanlış beraat — sapma dağılımı ölçüldü** (%87,5 tam · %4,7 yuvarlama · %7,8 zayıf,
+   ortası BOŞ). İşaretleme var (#325); eşiği kapıya çevirmek daha geniş canlı dağılım ister.
+4. **`PAYLOAD_GECERSIZ` dalı** — log yalnız `red.kod`u basıyor; `red.gorunur_neden`
+   kesin teşhisi taşıyor ve para içermiyor (ADR-052). Önce logla, ÖLÇ, sonra düzelt.
+5. **Asgari, EKSTRE borcu üzerinden hesaplanmalı** — motor güncel borcu kullanıyor
+   (1.667,63 vs bankanın 1.644,23). Ekstre borcu ürüne sayısal alan olarak girmeli.
+6. **Prompt kırpma — taban temiz** (OpenRouter sabit, medyan %88,6).
+7. Boş-durum fixture'ı tarihe bağlı (diff'in 190/238 satırı gürültü).
+8. **u1 profilinde "asla bitmeyen kredi" hâlâ canlı** (kullanıcı yalnız u5 dedi).
+
+**BU TURUN DERSLERİ:**
+- **Bir kod varsayımını ölçüm sanmak.** Asgariyi sabitten okuyup kullanıcıya söyledim
+  (411 TL fazla); maaş gününü kaydın oluşturulma tarihinden çıkardım. İkisini de
+  kullanıcı düzeltti. **Bir sayının NEREDEN geldiğini sormadan onu ölçüm sayma.**
+- **Bir ratchet kapısı değişikliğini reddettiğinde çoğu zaman haklıdır** — bugün ÜÇ kez
+  (S310 urlopen, S603 subprocess, boş-durum fixture); üçünde de tavan değil tasarım düzeldi.
+- **Mutasyon beş kez kapının kendi kör noktasını buldurdu.**
+- **Bir adımın belgede ya da başka bir yolda olması, KULLANILAN yolda olduğu anlamına gelmez.**
+- **Ölçen sistem, haber veren sistem değildir** (24,5 saat sessiz kesinti).
+- **Kaçış dizisi içeren kod heredoc ile yazılmaz** — bu turda ikinci kez ısırdı.
+
+---
+
+### ⏸️ (ÖNCEKİ) KALDIĞIMIZ YER — 3 Eylül 2026
 
 **DURUM:** her şey commit'li ve push'lu. **Backend süiti 3400 passed · 18 skipped ·
 0 failed** (9:38; önceki taban 3380 → +20 yeni test). Kalite kapısı (ruff aile tavanları

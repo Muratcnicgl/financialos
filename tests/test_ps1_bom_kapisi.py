@@ -29,8 +29,11 @@ MUTASYON 2/2 — BOM kaldirildi -> ikisi de kirmizi (nedensellik) · BOM dururke
 """
 from __future__ import annotations
 
+import platform
 import sys
 from pathlib import Path
+
+import pytest
 
 KOK = Path(__file__).resolve().parent.parent
 if str(KOK) not in sys.path:
@@ -38,7 +41,7 @@ if str(KOK) not in sys.path:
 
 # `git ls-files` BEŞİNCİ kez yeniden yazılmaz — tek kaynak (BUG #338'in dersi).
 from scripts.sir_taramasi import izlenen_dosyalar as _izlenen  # noqa: E402
-from scripts.kabuk import powershell as _ps  # noqa: E402  (S607 tek kaynakta)
+from scripts.kabuk import powershell as _ps, powershell_var as _ps_var  # noqa: E402
 
 BOM = b"\xef\xbb\xbf"
 
@@ -85,11 +88,25 @@ def test_HER_ps1_AYRISTIRILABILIR():
         "Write-Output ($f + ' :: satir ' + $e[0].Extent.StartLineNumber + ' :: ' "
         "+ $e[0].Message) } }; exit $h"
     )
+    if not _ps_var():
+        pytest.skip("powershell yok (Windows dışı ortam) — BOM testi yine de koştu")
     sonuc = _ps(kod)
-    if sonuc.returncode == 127 or "not recognized" in (sonuc.stderr or ""):
-        import pytest
-        pytest.skip("powershell yok (Windows dışı ortam)")
     assert sonuc.returncode == 0, (
         "PowerShell betiği AYRIŞMIYOR — zamanlanmış görevde sessizce çıkış 1 verir:\n"
         + (sonuc.stdout or sonuc.stderr)[:1500]
+    )
+
+
+def test_WINDOWSTA_ayristirma_kapisi_ATLANAMAZ():
+    """BUG #346 — atlama, kapının SESSİZCE yok olma yolu olmamalı.
+
+    Ayrıştırma testi PowerShell yoksa atlanır; bu Linux CI için doğru (orada `.ps1`
+    koşmaz). Ama `.ps1` dosyalarının GERÇEKTEN koştuğu makine Windows'tur — orada
+    atlama olursa kapı vardır ama korumaz. Bu test tam olarak onu yasaklar.
+    """
+    if platform.system() != "Windows":
+        pytest.skip("bu iddia yalnız Windows için anlamlı")
+    assert _ps_var(), (
+        "Windows'ta powershell bulunamadı — ayrıştırma kapısı atlanıyor demektir. "
+        "Kapının atlanması yalnız .ps1'in hiç koşmadığı ortamlarda meşrudur."
     )

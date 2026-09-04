@@ -42,7 +42,9 @@ import pytest
 KOK_ = Path(__file__).resolve().parent.parent
 if str(KOK_) not in sys.path:
     sys.path.insert(0, str(KOK_))
-from scripts.kabuk import git as _git, powershell as _ps, ps_dizge as _psd  # noqa: E402
+from scripts.kabuk import (  # noqa: E402
+    git as _git, powershell as _ps, powershell_var as _ps_var, ps_dizge as _psd,
+)
 
 KOK = Path(__file__).resolve().parent.parent
 SAGLIK = KOK / "deploy" / "windows" / "saglik.ps1"
@@ -99,10 +101,13 @@ Write-Output ($sonuc | ConvertTo-Json -Compress)
 
 
 def _ast() -> dict:
+    # BUG #346: yokluk ÇAĞIRMADAN ÖNCE sorulur. Eskiden `returncode == 127` deneniyordu
+    # ama komut yoksa subprocess sonuç DÖNMEZ, FileNotFoundError FIRLATIR — yani o dal
+    # hiç çalışamıyordu ve bu kapı Linux CI'da çöküp CI'ı kırmızı bırakıyordu.
+    if not _ps_var():
+        pytest.skip("powershell yok (Windows dışı ortam) — .ps1 orada zaten koşmaz")
     p = _ps(_AST_SORGU.replace("__YOL__", _psd(SAGLIK)))
     if p.returncode != 0 or not p.stdout.strip():
-        if "not recognized" in (p.stderr or "") or p.returncode == 127:
-            pytest.skip("powershell yok (Windows disi ortam)")
         pytest.fail(f"AST sorgusu basarisiz: {(p.stderr or p.stdout)[:600]}")
     return json.loads(p.stdout.strip().splitlines()[-1])
 

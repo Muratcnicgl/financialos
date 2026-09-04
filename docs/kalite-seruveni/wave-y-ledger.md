@@ -757,3 +757,12 @@ eşikle karşılaştırıp "tetiklendi" diyen bir adım yok. Bu, bu defterin en 
   (`_daily_constrained_provider`). Kararların kendisi ölçülünce sağlam çıktı: biri taşınmış
   (`app/llm_quota.py`), ikisi yerinde. **Kalıcı kanıt sembol adı ve onu kilitleyen testtir**;
   satır numarası altı hafta ömürlüdür ve okuyanı "düzeltme geri alınmış" sanmaya iter.
+* **L76 — Bir kırmızı, kendinden sonrakini gizler.** CI'ın ruff adımı düşünce pytest adımı
+  hiç koşmadı; bu gece yazılan iki kapının Linux'ta çöktüğü ancak ruff düzeltilip sıra
+  pytest'e gelince görüldü. **Bir kapıyı düzeltmek, arkasındaki kapıların yeşil olduğunu
+  kanıtlamaz** — düzelttikten sonra boru hattının TAMAMI yeniden okunur.
+* **L77 — Yazılmış bir hata yolu, ancak GERÇEKTEN koşulabiliyorsa yoldur.** İki kapı da
+  "powershell yoksa atla" diye korunmuştu; koruma `returncode == 127`e bakıyordu, oysa
+  komut yoksa `subprocess.run` sonuç dönmez, **fırlatır**. Yani koruma kodu vardı, yolu
+  yoktu. Hata yolları da en az başarı yolu kadar KOŞULARAK sınanır (bu turda deney:
+  yokluk taklit edildi, atlama ölçüldü).

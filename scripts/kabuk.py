@@ -24,6 +24,7 @@ sınırlıdır — ki o noktada test koşucusunun kendisi zaten ele geçirilmiş
 """
 from __future__ import annotations
 
+import shutil
 import subprocess  # noqa: S404 — sabit argümanlı geliştirme araçları; gerekçe yukarıda
 from pathlib import Path
 
@@ -37,6 +38,18 @@ def git(*argv: str, kok: Path | None = None, timeout: int = 60) -> subprocess.Co
         cwd=str(kok or KOK),
         capture_output=True, text=True, timeout=timeout,
     )
+
+
+def powershell_var() -> bool:
+    """PowerShell bu makinede VAR MI — çağırmadan önce sorulur.
+
+    BUG #346: iki kapı `powershell` yokluğunu `returncode == 127` ile yakalamaya
+    çalışıyordu. O dal **hiç çalışamaz**: `subprocess.run` komutu bulamazsa geriye bir
+    sonuç DÖNMEZ, `FileNotFoundError` FIRLATIR. Sonuç: Windows'ta yeşil olan iki kapı
+    Linux CI'da çöktü ve CI kırmızı kaldı. Hata yolu, başarı yolu kadar sağlam
+    olmalıdır (L66) — ve bir hata yolu ancak GERÇEKTEN koşulabiliyorsa yoldur.
+    """
+    return shutil.which("powershell") is not None
 
 
 def powershell(kod: str, timeout: int = 120) -> subprocess.CompletedProcess:

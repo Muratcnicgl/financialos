@@ -240,6 +240,15 @@ class Account(Base):
 
     # === Kredi alanları ===
     interest_rate = Column(Float, nullable=True)         # Aylık faiz oranı (%)
+    # BUG #330: KART ASGARİ ÖDEME ORANI KODA GÖMÜLÜYDÜ VE YANLIŞTI.
+    # Ölçülen defekt (4 Eyl 2026, gerçek para kararı): koç asgariyi
+    # `debt_strategy.MIN_CARD_PAYMENT_RATIO = 0.25` sabitinden hesapladı ve kullanıcıya
+    # 8.221,13 × %25 = 2.055,28 dedi; bankanın ekranında yazan 8.221,13 × %20 = 1.644,23.
+    # **411,06 TL fazla.** Kullanıcı bankadan bakıp düzeltti. Asgari oran tek bir sabit
+    # olamaz: bankaya, kartın limitine ve yaşına göre değişir (BDDK). `interest_rate` gibi
+    # HESABIN özelliğidir; sabit yalnızca BİLİNMİYORSA kullanılan yedektir.
+    # NULL = bilinmiyor → yedek orana düşülür (davranış değişmez, L45).
+    min_payment_ratio = Column(Float, nullable=True)    # Kart asgari ödeme oranı (0-1)
     monthly_payment = Column(Numeric(19, 4), nullable=True)       # Aylık taksit
     remaining_installments = Column(Integer, nullable=True)
     next_payment_date = Column(Date, nullable=True)

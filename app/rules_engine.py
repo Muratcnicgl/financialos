@@ -1831,12 +1831,38 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
         _ekle(date(bugun.year, bugun.month, min(inc.day_of_month, son_gun)),
               inc.name, inc.amount, "duzenli_gelir", True)
 
+    # BUG #331 — KARTA YAZILAN GİDER, BU AYIN NAKDİNİ AZALTMAZ.
+    #
+    # Ölçülen defekt (4 Eyl 2026, gerçek kullanıcı verisi): yaşam giderleri (sigara 3.600 +
+    # dışarıda yemek 4.000 + kahve 1.200 = 8.800/ay, hepsi KREDİ KARTIYLA) girilince takvim
+    # "açık var: −6.906,65" dedi. Aynı takvimde İKİ kalem birden nakit çıkışı sayılıyordu:
+    #   12/09  −8.338,13  kart ödemesi          <- GEÇEN ayın harcaması
+    #   15/09  −8.800,00  sigara+yemek+kahve    <- BU ayın harcaması, yine KARTA
+    # Karta yazılan gider bu ay nakdi azaltmaz; kart borcunu artırır ve GELECEK ay ödenir.
+    # Kullanıcıya olmayan bir açık gösterildi — parası sıkışık birine "yetmeyecek" demek.
+    #
+    # BİLGİ SAKLANMAZ: kalem `karta_yazilacak`ta ayrı durur (BUG #320'nin `yatirimda_bekleyen`
+    # ile aynı ilkesi — nakde eklenmez ama görünmez de kalmaz; görünmeyen bir kalem,
+    # olmayan bir kalemden tehlikelidir).
+    _kart_hesap_idleri = {
+        a.id for a in db.query(Account).filter(
+            _scope(Account, user_id),
+            Account.account_type == AccountType.credit_card).all()
+    }
+    karta_yazilacak: List[Dict] = []
     for exp in db.query(RecurringExpense).filter(
             _scope(RecurringExpense, user_id), RecurringExpense.is_active == True).all():
         if exp.last_triggered_year_month == yil_ay:
             continue
-        _ekle(date(bugun.year, bugun.month, min(exp.day_of_month, son_gun)),
-              exp.name, exp.amount, "duzenli_gider", False)
+        _tarih = date(bugun.year, bugun.month, min(exp.day_of_month, son_gun))
+        if exp.account_id in _kart_hesap_idleri:
+            karta_yazilacak.append({
+                "tarih": _tarih.isoformat(),
+                "ad": exp.name,
+                "tutar": round(D(exp.amount or 0), 2),
+            })
+            continue
+        _ekle(_tarih, exp.name, exp.amount, "duzenli_gider", False)
 
     for d in db.query(PersonalDebt).filter(
             _scope(PersonalDebt, user_id), PersonalDebt.is_paid == False).all():
@@ -1884,6 +1910,11 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
         "yatirimda_bekleyen": bekleyen,
         "yatirimda_bekleyen_kalemler": bekleyen_kalemler,
         "erisilebilir_toplam": round(baslangic + bekleyen, 2),
+        # BUG #331: bu ay KARTA yazılacak düzenli giderler. Nakit takvimini etkilemez
+        # (bu ay nakit çıkmaz), ama GELECEK ayın kart borcunu bu kadar büyütür.
+        "karta_yazilacak": karta_yazilacak,
+        "karta_yazilacak_toplam": round(
+            sum((D(k["tutar"]) for k in karta_yazilacak), ZERO), 2),
         "kalemler": kalemler,
         "toplam_giris": round(giris, 2),
         "toplam_cikis": round(cikis, 2),

@@ -43,7 +43,25 @@ DEFAULT_CARD_INTEREST_MONTHLY = 4.25  # TCMB tavan TR (%/ay)
 # RULE-038 (M83): iki stratejinin "neredeyse aynı" sayıldığı faiz-tasarrufu eşiği (TL).
 # Magic number yerine adlandırıldı; altında davranışsal tercih matematik farktan önemli.
 STRATEGY_EQUIVALENCE_THRESHOLD_TL = 50
-MIN_CARD_PAYMENT_RATIO = 0.25         # Kart asgari odeme orani (TR)
+#: BUG #330: bu YEDEK bir degerdir, sozlesme DEGIL. Gercek oran hesabin ozelligidir
+#: (`Account.min_payment_ratio`) — bankaya/limite/kartin yasina gore degisir. Bu sabit
+#: yalniz oran BILINMIYORSA kullanilir. Olculen zarar: sabit %25 ile hesaplanan asgari
+#: kullaniciya 2.055,28 diye soylendi, bankanin gercegi 1.644,23'tu (411,06 TL fazla).
+MIN_CARD_PAYMENT_RATIO = 0.25         # YEDEK kart asgari odeme orani (TR)
+
+
+def gecerli_asgari_oran(oran) -> float:
+    """
+    Hesabin asgari oranini dogrular; gecersizse YEDEGE duser.
+
+    Sifir/negatif/1'den buyuk bir oran sessizce kabul edilirse plan bozulur: %0 kart hic
+    odenmemis gibi sonsuza kadar surer, %150 bir ayda kapanir. Bilinmeyen, yedektir (L45).
+    """
+    try:
+        o = float(oran)
+    except (TypeError, ValueError):
+        return MIN_CARD_PAYMENT_RATIO
+    return o if 0 < o <= 1 else MIN_CARD_PAYMENT_RATIO
 MAX_MONTHS = 600                      # Sonsuz dongu koruma
 
 
@@ -60,6 +78,9 @@ class DebtItem:
     balance: float
     interest_rate_monthly: float   # %/ay (0.0 - 100.0 araliginda)
     min_payment: float             # Aylik minimum odeme
+    # BUG #330: kart asgari orani HESABIN ozelligi. None = bilinmiyor -> yedek kullanilir.
+    # Simulasyonun HER AYINDA gecerlidir (BUG #079: asgari her ay guncel bakiyeden).
+    min_payment_ratio: float = MIN_CARD_PAYMENT_RATIO
 
 
 @dataclass
@@ -106,8 +127,9 @@ def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
         if rate is None or rate <= 0:
             rate = DEFAULT_CARD_INTEREST_MONTHLY if is_card else 0.0
 
+        asgari_oran = gecerli_asgari_oran(getattr(a, "min_payment_ratio", None))
         if is_card:
-            min_pay = max(float(a.balance) * MIN_CARD_PAYMENT_RATIO, 50.0)
+            min_pay = max(float(a.balance) * asgari_oran, 50.0)
         else:
             min_pay = float(a.monthly_payment or 0.0)
             if min_pay <= 0:
@@ -122,6 +144,7 @@ def collect_debts(db: Session, user_id: int) -> List[DebtItem]:
             account_type=a.account_type.value,
             balance=float(a.balance),
             interest_rate_monthly=float(rate),
+            min_payment_ratio=asgari_oran,
             min_payment=float(min_pay),
         ))
 
@@ -195,7 +218,9 @@ def _simulate(
             # min_payment kullanılıyordu → kart gerçekte olduğundan hızlı kapanıyor,
             # snowball/avalanche payoff ay sayısı sistemli iyimser çıkıyordu.
             if d.account_type == 'credit_card':
-                base_min = max(state[aid] * MIN_CARD_PAYMENT_RATIO, 50.0)
+                # BUG #330: oran HESAPTAN gelir. Burada sabite dusmek, ilk ayi dogru
+                # sonraki aylari yanlis yapar ve tum odeme planini sessizce kaydirir.
+                base_min = max(state[aid] * d.min_payment_ratio, 50.0)
             else:
                 base_min = d.min_payment  # kredi: sabit taksit
             # BUG #089 fix: bir borç bittiğinde rollover'a EKLENECEK tutar, o borca fiilen

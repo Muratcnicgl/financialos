@@ -1344,6 +1344,17 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             f"{_para(nt['toplam_cikis'])} · ay sonu {_para(nt['ay_sonu_bakiye'])}\n"
             f"  - EN DÜŞÜK nokta: {_para(nt['en_dusuk_bakiye'])} ({nt['en_dusuk_tarih']})"
         )
+        # BUG #331: karta yazılacak giderler NAKİT takvimini etkilemez ama görünmez de
+        # kalmaz — koç "bu ay kart borcun şu kadar daha büyüyecek" diyebilmeli. Motorun
+        # bildiğini koçun bilmemesi, tam olarak G3'te ölçülen boşluğun sınıfıdır.
+        _karta = float(nt.get("karta_yazilacak_toplam") or 0)
+        if _karta > 0:
+            _adlar = ", ".join(_guvenli(k["ad"]) for k in nt.get("karta_yazilacak") or [])
+            context += (
+                f"\n  - BU AY KARTA YAZILACAK (nakitten ÇIKMAZ; kart borcunu büyütür ve "
+                f"GELECEK ay ödenir): {_para(_karta)} ({_adlar})"
+            )
+            cockpit.setdefault("_coach_extra_numbers", []).append(_karta)
         if nt.get("acik_var"):
             context += ("\n  - UYARI: AY İÇİNDE AÇIK VAR — ay sonu artıda kapansa bile bu "
                         "tarihte ödeme kaçar. Kullanıcıya bu tarihi söyle.")

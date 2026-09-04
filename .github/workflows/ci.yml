@@ -124,9 +124,18 @@ jobs:
       # sürüm gerektiren açığı BÜTÜN CI'ı kırmızıya çeviriyor ve o kırmızı normalleşince
       # gerçek bir üretim açığı da fark edilmiyordu (son 30 koşum kırmızıydı).
       # Ayrım: üretim tarafı KIRMIZI yapar, geliştirme tarafı RAPORLANIR ama durdurmaz.
+      # BUG #329: ciplak `npm audit` cikis kodu 1'i IKI ayri durum icin kullaniyor —
+      # (a) yuksek/kritik acik bulundu, (b) denetim ucu cevap vermedi. 4 Eyl 2026'da
+      # registry 503 verdi, adim 7 dakika deneyip dustu ve CI iki kosum kirmizi kaldi;
+      # oysa acik YOKTU. Ucuncu tarafin kesintisi kirmiziyi normallestirir ve GERCEK bir
+      # acigi gorunmez kilar (bu proje bir kez 30 kosum kirmizi kaldi). Arac ucunu ayirir:
+      # acik -> kirmizi · olculemedi -> GURULTULU uyari ama durdurmaz.
       - name: npm audit — ÜRETİM bağımlılıkları (yüksek/kritik → kırmızı)
-        working-directory: frontend
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          # npm'i KABUK calistirir, karari Python verir. `|| true`: npm'in cikis kodu
+          # "acik var" ile "uc cevap vermedi"yi ayirmiyor — ayrimi asagidaki betik yapar.
+          (cd frontend && npm audit --omit=dev --json > audit.json) || true
+          python -m scripts.npm_denetim --dosya frontend/audit.json
       - name: npm audit — geliştirme bağımlılıkları (bilgi; kırmızı yapmaz)
         working-directory: frontend
         continue-on-error: true

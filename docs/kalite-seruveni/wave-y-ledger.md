@@ -24,7 +24,10 @@
 
 ---
 
-## ✅ Y1 — CANLI SÜRÜM DRİFT'İ SIFIRLANDI (4 Eylül 2026, 13:48)
+## ✅ Y1 — CANLI SÜRÜM DRİFT'İ SIFIRLANDI (4 Eylül 2026, 13:48 · doğrulama 13:59)
+
+> **Bir alt madde Murat'ta:** kimlikli duman testi (giriş + işlem okuma). Aşağıda
+> KANIT YOK olarak işaretli; tek komutla kapanır. Y1 bu madde olmadan **tam** sayılmaz.
 
 ### Kök neden — ÖLÇÜLDÜ, ve iki tane
 
@@ -86,7 +89,7 @@ sonra "deploy.sh koştu mu?" sorusu yine cevapsız kalırdı.)*
 | **Kesinti** | 13:48:06 → 13:48:12 ≈ **6 saniye** |
 | Duman (dışarıdan) | funnel `health=200` · `ready=200` · `/api/meta` build `97bc72094af2` · sürüm `0.2.0` |
 | `scripts/live_gate.py` | **TÜM ZORUNLU KAPILAR GEÇTİ (23 kontrol)**, çıkış 0 |
-| Canlı göç sürümü | `c3d4e5f8a1b2` (kodun head'i ile aynı) |
+| **Canlı göç sürümü** | `c3d4e5f8a1b2` — kodun head'i ile AYNI (masterprompt Y1 şartı) |
 | `alembic check` | **FAILED** — ve bu BEKLENEN: SQLite'ta belgelenmiş ADR-036 sapması (bkz. `tests/test_fk_sapmasi_kapisi.py`, 5 test geçiyor). Bu satır bir arıza değil, kayda geçmiş bir lehçe farkıdır. |
 
 **KANIT YOK kalan tek alt madde:** kimlikli duman testi (giriş yapıp bir işlem okuma).
@@ -108,11 +111,33 @@ kırmızı — nedensellik; BOM dururken hata sokulunca yalnız ayrıştırma te
 KURDUĞU yolu sessizce kırabilecek bir tuzak olduğu için içeride tutuldu; benzer bir tuzak
 çıkarsa backlog'a yazılacak.*
 
-### Operasyonel not (bir sonraki koşum için)
+### BUG #341 — ÇIKIŞ KODU OKUNAMAYAN DEPLOY BETİĞİ YARIM ARAÇTIR
 
-`powershell -File guncelle.ps1 | tail` **borusu kapanmıyor**: `Start-Process` ile açılan
-uvicorn stdout tanıtıcısını miras alıyor, çağıran bekliyor. Betik 9 saniyede bitmişti,
-bekleyen boruydu. Çıktıyı dosyaya yönlendir: `> logs/guncelle.out 2>&1`.
+Bu, Y1'in **kendi teslimatının defektiydi** (kapsam kayması değil): Y2/Y3'te tekrar deploy
+edilecek ve çıkış kodu okunamayan bir betik her seferinde aynı belirsizliği üretirdi.
+Üç turda kapandı ve **üçü de aynı sınıf**: bir çocuk süreç, ebeveynin tanıtıcısını miras
+alıyor ve o tanıtıcı üzerinde bekleyen herkesi asıyor.
+
+| Tur | Belirti | Ölçüm | Kök neden | Düzeltme |
+|---|---|---|---|---|
+| 1 | `guncelle.ps1 \| tail` 2 dk döndü, betik 9 sn'de bitmişti | `-KuruKosum` (Start-Process çalışmayan yol) boruyu **0,3 sn**'de kapatıyor → sızıntı kesinlikle torun süreçte | uvicorn çağıranın **stdout borusunu** miras alıyor, günlerce yaşadığı için boru hiç kapanmıyor | `baslat.ps1` ayrı PowerShell'de, std tanıtıcıları **dosyaya** bağlı koşar |
+| 2 | `baslat.ps1 cikis -196608`, log'da PowerShell banner'ı | canlı **dokunulmadan kaldı** (health 200, damga değişmedi) — betik önce ölçüp sonra uyguladığı için yarım iş bırakmadı | `Start-Process -ArgumentList` dizi elemanlarını **tırnaklamaz**; kullanıcı dizini boşluk içerdiği için `-File` yolu bölündü ve PowerShell etkileşimli açıldı | argüman açıkça tırnaklandı |
+| 3 | deploy 13:56:13'te **başarıyla** bitti ama çağrı yine asıldı ve **doğrulama satırı hiç yazılmadı** | servis log'unda `AYAKTA` var, `TAMAM` yok | `Start-Process -Wait`, .NET tarafında yönlendirilmiş **akışların** kapanmasını da bekler; uvicorn o dosya tanıtıcılarını miras aldığı için akışlar uvicorn ölene kadar kapanmaz | `-Wait` yerine `Wait-Process` — işletim sistemi **süreç** tanıtıcısını bekler, akışlardan etkilenmez (180 sn tavan) |
+
+**Sonuç (13:59:17):** betik artık sonuna kadar akıyor ve doğrulama satırını yazıyor:
+`[guncelle] TAMAM: canli damga 681a2eabef13 = hedef 681a2eabef13`.
+
+**Kalan ve BİLİNÇLİ olarak kabul edilen sınır:** çağıran taraf çıktıyı **boruya** verirse
+(`| tail`) boru yine açık kalır — uvicorn'un miras aldığı tanıtıcıyı betik içinden
+koparmanın Windows'ta temiz bir yolu yok. **Doğru çağrı biçimi dosyaya yönlendirmedir:**
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File deploy\windows\guncelle.ps1 > logs\guncelle.out 2>&1
+echo $?      # cikis kodu OKUNABILIR
+```
+
+Bu, betiğin kusuru değil Windows süreç tanıtıcısı semantiğidir; kayda geçti ki bir sonraki
+koşumda "asıldı" diye yanlış teşhis konmasın.
 
 ---
 

@@ -591,6 +591,26 @@ vurdu, (b) sınıflandırma bağımsız olarak doğrulandı. Deterministik kanı
 5/5'tedir; **8 senaryoluk 3 koşum bu büyüklükte bir kazancı manşette çözemez** (örneklem
 dersi, yine).
 
+**GÜN SONU TABANI (3 koşum, OpenRouter sabit, #322+#323 kapalı — 4 Eyl sabahı tamamlandı;
+makine gece uyuduğu için koşum sarktı):**
+
+| | kriter (min/medyan/maks) | `grounded` | `action` | `uslup` |
+|---|---|---|---|---|
+| #322/#323 öncesi | %88,6 / %88,6 / %91,4 | 2/6 | 5/6 | 18/24 |
+| **gün sonu** | %82,9 / **%85,7** / %88,6 | 0/6 | **6/6** | 15/24 |
+
+**`action` 6/6 oldu** — BUG #323'ün hedefi. **`grounded` düşüşü bir gerileme DEĞİL:**
+düşüren tutarlar arasında **`3.776` var, yani koçun DOĞRU hesabı.** Bir gün önce
+"3.536 (yanlış) geçti, 3.776 (doğru) düşerdi" diye yazılmıştı; koç bu kez doğru hesapladı
+ve tam öngörüldüğü gibi düşürüldü. **Dedektörün kusuru artık canlı kanıtlı.**
+
+**`500`'ün hâlâ düşmesi ÖLÇÜLDÜ ve bir kusur ÇIKMADI.** İlk tahmin (`_trim_history_to_size`
+kırpıyor) **yanlıştı** — 6.000 karakterlik tavana hiç değilmiyor. Gerçek sebep:
+`_load_history` **tur değil SATIR** sınırlıyor (6 satır); aksiyon öneren tur ek satır
+yazınca pencere daha az turu kapsıyor (kullanıcı mesajı 3 → 2) ve koç o noktada sayıyı
+KENDİ önceki cevabından tekrarlıyor — o kaynak bilinçli olarak izinli değil (döngüsellik
+yasağı). Sözleşme birebir tutuyor.
+
 **SIRADAKİ İŞLER — ÖNCELİK SIRASIYLA:**
 1. **YANLIŞ BERAAT (K3'ün yeni yarısı).** Eşleşmeyi **izlenebilir** kıl: bir tutar geçtiğinde
    HANGİ kokpit yaprağına denk geldiği raporlansın. Beraatı gerekçesiz bir dedektör,

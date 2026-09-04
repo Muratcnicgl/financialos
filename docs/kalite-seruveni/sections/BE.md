@@ -90,7 +90,7 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [BE-013] `get_db` iki dosyada tanımlı — drift riski
-- **Durum:** 🔲 AÇIK — 5 Eyl 2026 ölçümü maddeyi **birebir doğruluyor**: `get_db` hâlâ iki dosyada tanımlı (`app/database.py` ve `app/dependencies.py`). Sürüklenme riski gerçek; sayı değişmemiş.
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026: yalnız ölçülmedi, **SİLİNDİ**. `app/database.py`'deki `get_db` ölü kopyaydı — depoda hiçbir modül ve 94 test dosyasının hiçbiri oradan almıyordu (tam depo taraması: 0 sonuç); gövde de birebir aynıydı. **Zararsız değildi:** FastAPI'de `dependency_overrides` anahtarı FONKSİYON NESNESİDİR; bir router yanlışlıkla ikinci kopyayı kullansaydı testlerin yalıtımı o router için geçersiz olur ve test sessizce GERÇEK veritabanına giderdi — kırmızı test olarak değil, **"yeşil ama yanlış"** olarak. Silindi, öksüz kalan `Session` import'u da (kalite kapısı yakaladı: F 201 → 202 → 201). Ve kök neden kapatıldı: `tests/test_ad_cakismasi_kapisi.py` artık aynı public adı paylaşan fonksiyonları gerekçeli bir listede tutuyor.
 - **Kanıt:** `app/database.py:38-47`, `app/dependencies.py:17-23`
 - **Aksiyon:** Tek tanım `dependencies.py`'de; database'deki silinsin/re-export.
 - **Etki:** Orta · **Efor:** S

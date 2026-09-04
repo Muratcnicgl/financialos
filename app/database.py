@@ -16,7 +16,7 @@ GUNCELLEMELER:
 import os
 from pathlib import Path
 from sqlalchemy import create_engine, event, make_url
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 
 # .env dosyasını yükle
@@ -110,16 +110,23 @@ if IS_POSTGRES:
 Base = declarative_base()
 
 
-def get_db() -> Session:
-    """
-    FastAPI dependency injection için DB oturumu sağlayıcı.
-    Kullanım: def endpoint(db: Session = Depends(get_db)):
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# BE-013 (5 Eyl 2026): `get_db()` BURADAN SİLİNDİ — ikinci ve ÖLÜ kopyaydı.
+#
+# Ölçüldü: depodaki hiçbir modül ve hiçbir test onu `app.database`'ten almıyordu;
+# uygulamanın tamamı ve 94 test dosyası `app.dependencies.get_db`'yi kullanıyor.
+# Gövdesi de birebir aynıydı (SessionLocal → yield → close).
+#
+# NEDEN SADECE "kopya" DEĞİL, TEHLİKELİYDİ: FastAPI'de `app.dependency_overrides`
+# anahtarı FONKSİYON NESNESİDİR. İki ayrı `get_db` nesnesi varken bir router yanlışlıkla
+# buradakini kullansaydı, testlerin `dependency_overrides[dependencies.get_db]` ile
+# yaptığı yalıtım O ROUTER İÇİN GEÇERSİZ olurdu — test sessizce GERÇEK veritabanına
+# giderdi. Sızıntı, kırmızı test olarak değil, "yeşil ama yanlış" olarak görünürdü.
+#
+# ÖLÜ KOD KAPISI BUNU NEDEN GÖRMEDİ: `scripts/olu_kod_kapisi.py` bir adın kaç yerde
+# GEÇTİĞİNİ sayar. `get_db` adı depoda yüzlerce kez geçiyordu (hepsi diğer kopya için),
+# bu yüzden bu tanım "kullanılıyor" sayıldı. Aynı adı paylaşan iki fonksiyondan biri
+# ölüyse, ada dayalı bir tarayıcı bunu ayırt EDEMEZ (L45: bilinmeyen ≠ sıfır).
+# `tests/test_ad_cakismasi_kapisi.py` artık bu kör bölgeyi görünür tutuyor.
 
 
 # BUG #311 fix (KAP-06): `init_db()` SİLİNDİ. İki ayrı gerekçe, ikisi de ölçüldü:

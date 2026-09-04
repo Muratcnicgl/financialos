@@ -849,3 +849,21 @@ söylüyordu (L81) — ve şimdi var olması, mekanizmanın ilk kez gerçekten �
   ihlal **haklıydı** — ama gerekçesi hiçbir yerde yazılı değildi. İki ders bir arada:
   kural zorlanmalı, ve haklı istisna **yazılmalı** (yoksa bir sonraki okuyan onu ya
   yanlışlıkla siler ya da emsal sayıp gerekçesiz tekrarlar).
+* **L83 — Backlog, en çok ÇALIŞILAN yerde bayatlar.** Bu gece beş boyut kodla denetlendi ve
+  desen tesadüfi çıkmadı:
+
+  | Boyut | Sonuç |
+  |---|---|
+  | RULE · MOB · FEAT · TEST · RESIL · DEVOPS · SEC · OBS · LLM | **21 madde yanlış "açık"tı** |
+  | DATA (örnekleme: `utcnow` 75 yer · CHECK constraint 0 · soft-delete 0 · `updated_at` 2) | **hepsi gerçekten açık** |
+
+  Yani harita, **dokunulmayan yerlerde doğru; çalışılan yerlerde yanlış.** Sebebi basit:
+  bir defekti düzelten kişi kodu, testi ve fix defterini günceller — backlog'a dönmez.
+  Sonuç sezgiye ters ve tam da can yakan şey: **bitirilen iş görünmez olur, bitmemiş iş
+  ise listede kalır.** "Neden bir türlü tamamlanamıyor?" sorusunun bir kısmı burada:
+  proje ilerledikçe kendi haritası ilerlemeyi gizliyordu.
+
+  Bu yüzden bu turlarda **açık kalan maddelerin de rakamı düzeltildi** (ör. `LLM-015`
+  "1865 satır" → **3.501**; `OBS-014` üç tablo → **yalnız biri korunuyor**). Bir maddeyi
+  "açık" bırakmakla "şu kısmı açık" demek aynı şey değildir: ikincisi bir sonraki kişiye
+  nereden başlayacağını söyler, birincisi yalnız suçluluk üretir.

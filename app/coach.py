@@ -1368,7 +1368,9 @@ Statü: {cockpit['statu']}{ilk_adim_block}
             context += (
                 f"\n  - HESABI BELİRSİZ HARCAMA (yukarıdaki bakiyeye DAHİL DEĞİL): "
                 f"{_para(_belirsiz)} ({_b_adlar}). Nakitten çıkarsa bakiye o kadar azalır, "
-                f"karttan çıkarsa kart borcu o kadar büyür. HANGİSİ OLDUĞUNU VARSAYMA — sor."
+                f"karttan çıkarsa kart borcu o kadar büyür. HANGİSİ OLDUĞUNU VARSAYMA — sor.\n"
+                f"  - AY SONU, BU HARCAMA NAKİTTEN ÇIKARSA: "
+                f"{_para(nt.get('ay_sonu_belirsiz_nakitse'))}  <- HESAPLANMIŞTIR, sen çıkarma"
             )
             cockpit.setdefault("_coach_extra_numbers", []).append(_belirsiz)
         if nt.get("acik_var"):

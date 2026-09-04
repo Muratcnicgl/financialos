@@ -1929,6 +1929,14 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
         "hesabi_belirsiz": hesabi_belirsiz,
         "hesabi_belirsiz_toplam": round(
             sum((D(k["tutar"]) for k in hesabi_belirsiz), ZERO), 2),
+        # BUG #333 — KOÇTAN ARİTMETİK BEKLEME, SAYIYI VER.
+        # Ölçüldü (4 Eyl 2026, canlı koşum): `hesabi_belirsiz_toplam` bağlamda BİREBİR
+        # yazılıydı ("8.800,00 TL ... bakiyeye DAHİL DEĞİL") ve koç onu GÖRMEZDEN GELDİ;
+        # sıkışık bir kullanıcıya "bu ay yeter" dedi. Modelden "8.800'ü çıkarırsam ne
+        # kalır" diye akıl yürütmesini beklemek, mimarinin kendi ilkesini ihlal ediyor
+        # (rules engine karar verir, LLM açıklar). Kötü hal artık HESAPLANMIŞ bir sayıdır.
+        "ay_sonu_belirsiz_nakitse": round(
+            bakiye - sum((D(k["tutar"]) for k in hesabi_belirsiz), ZERO), 2),
         "kalemler": kalemler,
         "toplam_giris": round(giris, 2),
         "toplam_cikis": round(cikis, 2),

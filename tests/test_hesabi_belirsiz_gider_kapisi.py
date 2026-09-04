@@ -121,3 +121,52 @@ def test_KOC_BAGLAMINDA_belirsizlik_YAZILI(db):
     CoachEngine(provider=_P()).chat(db, 1, "durumu göster", include_cockpit=True)
     assert "HESABI BELİRSİZ" in _P.gorulen.upper(), \
         "koç, hesabı belirsiz gideri hiç görmüyor — varsayım yapmaya devam eder"
+
+
+# ---- BUG #333: KOÇTAN ARİTMETİK BEKLEME, SAYIYI VER -----------------------
+#
+# Ölçüldü (canlı koşum, 4 Eyl 2026): `hesabi_belirsiz_toplam` bağlamda BİREBİR yazılıydı
+# ("8.800,00 TL ... bakiyeye DAHİL DEĞİL ... VARSAYMA — sor") ve koç onu GÖRMEZDEN GELDİ:
+# sıkışık bir kullanıcıya "bu ay sonuna kadar yeter" dedi ve kartın TAMAMINI ödemesini
+# önerdi. Modelden "8.800'ü çıkarırsam ne kalır" diye akıl yürütmesini beklemek,
+# mimarinin kendi ilkesini ihlal ediyor: RULES ENGINE KARAR VERİR, LLM AÇIKLAR.
+# Çözüm prompt'a yasak eklemek DEĞİL (K-KURAL 5) — kötü hal artık hesaplanmış bir sayı.
+
+def test_KOTU_HAL_hesaplanir(db):
+    _gider(db, "Sigara", 3600, hesap_id=None)
+    t = calculate_nakit_takvimi(1, db, date(2026, 9, 4))
+    assert t["ay_sonu_belirsiz_nakitse"] == D("6400")     # 10.000 − 3.600
+
+
+def test_KOTU_HAL_belirsiz_yokken_ay_sonuyla_AYNI(db):
+    _gider(db, "Kira", 5000, hesap_id=1)
+    t = calculate_nakit_takvimi(1, db, date(2026, 9, 4))
+    assert t["ay_sonu_belirsiz_nakitse"] == t["ay_sonu_bakiye"]
+
+
+def test_KOTU_HAL_EKSIYE_dusebilir_gizlenmez(db):
+    """Ölçülen gerçek durum: 1.893,35 ay sonu ama kötü halde −6.906,65."""
+    _gider(db, "Sigara", 3600, hesap_id=None)
+    _gider(db, "Yemek", 4000, hesap_id=None)
+    _gider(db, "Kahve", 1200, hesap_id=None)
+    t = calculate_nakit_takvimi(1, db, date(2026, 9, 4))
+    assert t["ay_sonu_bakiye"] == D("10000")
+    assert t["ay_sonu_belirsiz_nakitse"] == D("1200")
+
+
+def test_KOC_KOTU_HALI_SAYIYLA_gorur(db):
+    """Koç çıkarma yapmamalı; sayı hazır gelmeli."""
+    from app.coach import CoachEngine, LLMResponse
+
+    class _P:
+        NAME = "S"; model = "s"; last_used_provider = "s"
+
+        def chat(self, system_prompt, messages, tools):
+            _P.gorulen = system_prompt
+            return LLMResponse(text="ok", tool_calls=[], usage={"input_tokens": 1,
+                               "output_tokens": 1}, provider_used="s", model_name="s")
+
+    _gider(db, "Sigara", 3600, hesap_id=None)
+    CoachEngine(provider=_P()).chat(db, 1, "durumu göster", include_cockpit=True)
+    assert "NAKİTTEN ÇIKARSA" in _P.gorulen.upper(), "kötü hal sayısı koça verilmiyor"
+    assert "6.400,00" in _P.gorulen, "hesaplanmış kötü hal rakamı bağlamda yok"

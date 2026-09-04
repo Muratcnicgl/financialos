@@ -1319,7 +1319,11 @@ Statü: {cockpit['statu']}{ilk_adim_block}
     # ayrıca 8.221,13 TL kart ödemesini hiç saymadı. Takvim artık hazır geliyor ve her
     # kalemin yönü KELİMEYLE yazılı. Koç toplamıyor, okuyor.
     nt = cockpit.get("nakit_takvimi") or {}
-    if nt.get("kalemler"):
+    # BUG #332: koşul eskiden yalnız `kalemler` idi — yani NAKİT kalemi yoksa blok HİÇ
+    # basılmıyordu. Kullanıcının bütün giderleri kartla ya da "hesabı belirsiz" ise koç
+    # takvimi tamamen görmüyordu; bilgi tam da tek başına olduğu durumda kayboluyordu.
+    # (Kendi kapım yakaladı: `hesabi_belirsiz` testi bu yüzden kırmızı verdi.)
+    if nt.get("kalemler") or nt.get("karta_yazilacak") or nt.get("hesabi_belirsiz"):
         _bekleyen = float(nt.get("yatirimda_bekleyen") or 0)
         _bekleyen_adlar = ", ".join(
             _guvenli(k["ad"]) for k in nt.get("yatirimda_bekleyen_kalemler") or [])
@@ -1355,6 +1359,18 @@ Statü: {cockpit['statu']}{ilk_adim_block}
                 f"GELECEK ay ödenir): {_para(_karta)} ({_adlar})"
             )
             cockpit.setdefault("_coach_extra_numbers", []).append(_karta)
+        # BUG #332: hesabı belirsiz giderler. Bakiyeye GİRMEDİ (varsayım yapılmadı) —
+        # ama koç bunu SORMALI. Kullanıcının kendi ifadesi: "kart mı nakit mi o anlık
+        # karar verilen bir şey; varsayımla karta ya da nakite yazılmamalı."
+        _belirsiz = float(nt.get("hesabi_belirsiz_toplam") or 0)
+        if _belirsiz > 0:
+            _b_adlar = ", ".join(_guvenli(k["ad"]) for k in nt.get("hesabi_belirsiz") or [])
+            context += (
+                f"\n  - HESABI BELİRSİZ HARCAMA (yukarıdaki bakiyeye DAHİL DEĞİL): "
+                f"{_para(_belirsiz)} ({_b_adlar}). Nakitten çıkarsa bakiye o kadar azalır, "
+                f"karttan çıkarsa kart borcu o kadar büyür. HANGİSİ OLDUĞUNU VARSAYMA — sor."
+            )
+            cockpit.setdefault("_coach_extra_numbers", []).append(_belirsiz)
         if nt.get("acik_var"):
             context += ("\n  - UYARI: AY İÇİNDE AÇIK VAR — ay sonu artıda kapansa bile bu "
                         "tarihte ödeme kaçar. Kullanıcıya bu tarihi söyle.")

@@ -1850,17 +1850,26 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
             Account.account_type == AccountType.credit_card).all()
     }
     karta_yazilacak: List[Dict] = []
+    # BUG #332: hesabı BOŞ bırakılmış gider ("kart mı nakit mi o an belli olur") ne nakit
+    # çıkışına ne karta sayılır — ikisi de bir VARSAYIM olurdu ve ikisi de zarar verir:
+    # nakit saymak olmayan bir açık üretir (BUG #331'de ölçüldü), kart saymak nakdi bol
+    # gösterir. Doğrusu: sayma, GÖSTER, kullanıcıya sordur.
+    hesabi_belirsiz: List[Dict] = []
     for exp in db.query(RecurringExpense).filter(
             _scope(RecurringExpense, user_id), RecurringExpense.is_active == True).all():
         if exp.last_triggered_year_month == yil_ay:
             continue
         _tarih = date(bugun.year, bugun.month, min(exp.day_of_month, son_gun))
+        _kalem = {
+            "tarih": _tarih.isoformat(),
+            "ad": exp.name,
+            "tutar": round(D(exp.amount or 0), 2),
+        }
+        if exp.account_id is None:
+            hesabi_belirsiz.append(_kalem)
+            continue
         if exp.account_id in _kart_hesap_idleri:
-            karta_yazilacak.append({
-                "tarih": _tarih.isoformat(),
-                "ad": exp.name,
-                "tutar": round(D(exp.amount or 0), 2),
-            })
+            karta_yazilacak.append(_kalem)
             continue
         _ekle(_tarih, exp.name, exp.amount, "duzenli_gider", False)
 
@@ -1915,6 +1924,11 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
         "karta_yazilacak": karta_yazilacak,
         "karta_yazilacak_toplam": round(
             sum((D(k["tutar"]) for k in karta_yazilacak), ZERO), 2),
+        # BUG #332: hesabı belirsiz giderler. Bakiyeye GİRMEZ (varsayım yapılmaz) ama
+        # görünmez de kalmaz — koç bunu sorar.
+        "hesabi_belirsiz": hesabi_belirsiz,
+        "hesabi_belirsiz_toplam": round(
+            sum((D(k["tutar"]) for k in hesabi_belirsiz), ZERO), 2),
         "kalemler": kalemler,
         "toplam_giris": round(giris, 2),
         "toplam_cikis": round(cikis, 2),

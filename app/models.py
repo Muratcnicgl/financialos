@@ -327,7 +327,14 @@ class RecurringExpense(Base):
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)  # zorunlu: kart mı nakit mi
+    # BUG #332: ARTIK ZORUNLU DEĞİL. Kullanıcının isteği (4 Eyl 2026, birebir):
+    # *"harcamalar kart mı nakit mi o anlık karar verilen bir şey; seçenek olarak
+    # önerirse eğer bana sormalı, varsayımla karta ya da nakite yazılmamalı."*
+    # Zorunlu olduğu sürece "sigara" gibi bazen kartla bazen nakitle yapılan bir harcamayı
+    # girmek için bir hesap SEÇMEK gerekiyordu ve bu seçim bir VARSAYIMDI.
+    # NULL = "hesabı o an belli olur" → nakit takviminde ne çıkışa ne karta sayılır;
+    # `hesabi_belirsiz` kovasında AYRI gösterilir ve koç sorar (BUG #042'nin karşılığı).
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     category = Column(String(50), nullable=True)        # "abonelik", "fatura", "kira" vb.
     day_of_month = Column(Integer, nullable=False)       # Ayın kaçında ödenir (1-31)
     is_active = Column(Boolean, default=True, nullable=False)

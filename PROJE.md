@@ -4,6 +4,25 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 
 ## Güncel Durum (baseline)
 
+> ## ⚡ ÖNCE BUNU KOŞ — sayıları BURADAN OKUMA
+>
+> ```
+> python scripts/durum_ozeti.py --hizli
+> ```
+>
+> Yerel HEAD · canlı damga · **sürükleme** · çalışma ağacı · backlog dağılımı · bayat belge
+> sayısı · erişilebilirlik — hepsi O AN ölçülür. `--hizli` olmadan kalite kapısı ve test
+> sayısı da eklenir.
+>
+> **Neden:** aşağıdaki blok ELLE yazıldı ve bayatladı — *"GÜNCEL BASELINE — 2 Eylül"*
+> diyor, 3349 test yazıyor; 5 Eylül'de **3.583**. Aynı hastalık 5 Eylül gecesi ölçüldü:
+> `sections/DURUM-INDEX.md` 48 gün boyunca *"RULE'da 12 açık"* dedi (gerçek **0**),
+> dokuz backlog boyutunda **21 madde** bitmiş olduğu hâlde "açık" göründü.
+> **Bir belgeyi bayatlamaktan koruyan şey disiplin değil, TÜRETİLMİŞ olmasıdır (L79).**
+>
+> Aşağısı **tarihsel kayıttır** — kararların GEREKÇESİ için değerli, GÜNCEL SAYI için değil.
+
+
 > **GÜNCEL BASELINE — 2 Eylül 2026 (Wave-K, K0-K3).** Aşağıdaki tarihsel sayılar BAYAT.
 > Koşum (`pytest tests/ -q`, kaynak dosyalara eşzamanlı dokunulmadan, 5:41):
 > **3304 passed, 18 skipped, 1 failed.** Tek kırmızı KOD DEĞİL, ORTAM:

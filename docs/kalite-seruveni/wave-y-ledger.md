@@ -887,3 +887,33 @@ söylüyordu (L81) — ve şimdi var olması, mekanizmanın ilk kez gerçekten �
   pencereleri farklı anlara ait olabiliyordu — rapor tek bir ana ait olduğunu iddia
   ederken. Zaman enjekte edilebilir hâle gelince hem test deterministik oldu hem rapor
   tutarlı. **Bir testi kararsız yapan şey, çoğu zaman ürünü de kararsız yapıyordur.**
+
+### GECENİN KAPANIŞ DOĞRULAMASI (5 Eylül 2026, 03:40)
+
+Hepsi ölçüldü, hiçbiri varsayılmadı:
+
+| Ne | Sonuç |
+|---|---|
+| Canlı sürüm | `640f88639877` = HEAD · **sürükleme 0** |
+| Çalışma ağacı | temiz |
+| Tam süit | **3.567 passed · 18 skipped · 0 failed** (3.588 toplanıyor) |
+| vitest | 214/214 |
+| Kalite kapısı | geçti — B31 · E9 0 · F201 · S62 · **TOPLAM 294** (gece iki kez DÜŞTÜ) |
+| Bayat belge | **0** (gece başında 12) |
+| Backlog | 521 madde · ✅193 · 🔲222 · 🟡86 (gece başında ✅171 · 🔲249) |
+| CI | **YEŞİL** |
+| Canlı kapı | **23/23 zorunlu kapı geçti** · 1 uyarı (destek adresi, alan adına bağlı) |
+| Erişilebilirlik | %40,00 ve yükseliyor |
+| Gizlilik + sır taraması | temiz |
+
+**Emniyet ağı uçtan uca doğrulandı:** zamanlanmış yedek **03:15:01'de tam zamanında koştu**;
+dosya `PRAGMA integrity_check = ok` ve içeriği canlıyla **birebir aynı** (6 kullanıcı ·
+17 hesap · 15 işlem · 38 koç kaydı). Bu, "yedek alıyoruz" cümlesinin bu gece ölçülmüş hâli —
+depo bir kez 4 gün sessizce yedeksiz kalmıştı ve o sessizlik ancak ölçülünce görülür.
+
+**Zamanlanmış işler:** beşi de koşuyor ve hepsi başarılı (`nightly_batch` 25/25 ·
+`fetch_investment_prices` 22/22 · `k2_batch` 24/24 · `nightly_trace_cleanup` 24/24 ·
+`weekly_smoke_test` 7/7). `fetch_investment_prices`'ın *"0/0 hesap güncellendi"* çıktısı
+incelendi ve **dürüst** çıktı: canlı veritabanında hiç yatırım hesabı yok (7 nakit ·
+6 kart · 4 kredi), yani yapacak iş yoktu. Kod bu ayrımı zaten yazmış: *"Hesap YOKSA (0/0)
+başarı meşrudur"* (BUG #248). **Değiştirilmedi — uydurma bulgu üretmemek de bir disiplindir.**

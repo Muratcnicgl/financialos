@@ -16,7 +16,7 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [UX-002] Geri-al (undo) hiçbir yerde yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: undo yok, Toast action prop yok
+- **Durum:** 🔲 AÇIK — ama **veri modeli HAZIR, eksik olan yalnız arayüz.** 5 Eyl 2026 ölçümü: `ActionHistory.reverted_by_action_id` alanı `app/models.py`'de VAR (geri alma zinciri modellenmiş), frontend'de ise hiçbir "geri al" yüzeyi yok — `undo` araması yalnız *"bu işlem geri alınamaz"* uyarılarına düşüyor. Yani bu bir sıfırdan-tasarım işi değil, **var olan modeli yüzeye çıkarma** işi; öncelik sırası buna göre kurulmalı.
 - **Kanıt:** `Transactions.jsx:668`, `Accounts.jsx:585`, `IncomeDebt.jsx:979`, `Toast.jsx`
 - **Aksiyon:** Toast'a `action:{label,onClick}`; düşük-riskli silmelerde modal yerine optimistic remove + "Geri Al" toast'ı.
 - **Etki:** Yüksek · **Efor:** M · **Not:** Backend soft-delete veya gecikmeli commit gerekebilir.
@@ -100,7 +100,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [UX-016] Tutar inputları numeric klavye ipucu vermiyor (`type="text"`)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: tutar inputları inputMode yok
+- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü maddeyi kısmen çürütüyor: iddia *"tutar inputları `type=\"text\"`"* diyor, oysa **7 dosya `type="number"` kullanıyor** (mobilde sayısal klavye AÇILIR) ve iki yerde açık `inputMode` var (`Cashflow.jsx` `numeric`, `RedLines.jsx` `text`+`decimal`). Kalan gerçek iş: `type="number"` Türkçe binlik/ondalık yazımıyla kötü çalışır (tekerlek değeri değiştirir, `1.234,56` kabul etmez); doğru hedef `type="text" inputMode="decimal"`e geçmektir — yani mesele "klavye ipucu yok" değil, **yanlış ipucu**.
 - **Kanıt:** `Transactions.jsx:576`, `IncomeDebt.jsx:681`, `Accounts.jsx:443`
 - **Aksiyon:** Para→`inputMode="decimal"`, gün→`inputMode="numeric"`; ₺ prefix. Virgül parse korunur.
 - **Etki:** Orta · **Efor:** S

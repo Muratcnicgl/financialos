@@ -63,6 +63,30 @@ def _kirli() -> str:
     return "temiz" if not cikti else f"{len(cikti.splitlines())} dosya DEĞİŞMİŞ"
 
 
+def _arayuz() -> str:
+    """Servis edilen arayüz, bugünkü kaynaktan mı derlenmiş?
+
+    BUG #353 (5 Eyl 2026): dağıtım betiği backend'i güncelliyor ama `frontend/dist`'i
+    HİÇ derlemiyordu; `dist` üç gün eskiydi ve altı düzeltmenin arayüz yarısı
+    kullanıcıya HİÇ ULAŞMAMIŞTI. Betiğe derleme adımı eklendi — ama kimse dağıtmazsa
+    yine sessiz kalır. Bu satır o sessizliği bitirir: durum sorulduğunda arayüzün
+    bayat olup olmadığı da SÖYLENİR.
+    """
+    kaynak = git("log", "-1", "--format=%H", "--",
+                 "frontend/src", "frontend/package.json",
+                 "frontend/vite.config.js", "frontend/index.html").stdout.strip()
+    damga_dosyasi = KOK / "frontend" / "dist" / ".kaynak-damgasi"
+    index = KOK / "frontend" / "dist" / "index.html"
+    if not index.exists():
+        return "DERLENMEMİŞ — `npm run build` gerekli"
+    if not damga_dosyasi.exists():
+        return "damga YOK — bir kez `guncelle.ps1` koşulmalı"
+    damga = damga_dosyasi.read_text(encoding="utf-8-sig").strip()
+    if damga != kaynak:
+        return f"BAYAT — dist {damga[:12]} != kaynak {kaynak[:12]} (`guncelle.ps1`)"
+    return f"güncel ({kaynak[:12]})"
+
+
 def _canli_damga(port: int = 8000) -> str:
     with urllib.request.urlopen(f"http://localhost:{port}/api/meta", timeout=6) as r:
         return json.loads(r.read()).get("build") or "?"
@@ -145,6 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     if head != "ÖLÇÜLEMEDİ" and canli != "ÖLÇÜLEMEDİ":
         _yaz("sürükleme", "0 (canlı = HEAD)" if canli.startswith(head[:12]) else
                           "VAR — `deploy/windows/guncelle.ps1` koşulmalı")
+    _yaz("arayüz derlemesi", _guvenli(_arayuz))
     _yaz("çalışma ağacı", _guvenli(_kirli))
     print()
     _yaz("backlog", _guvenli(_backlog))

@@ -29,7 +29,7 @@ BETIK = KOK / "scripts" / "durum_ozeti.py"
 
 #: Çıktıda bulunması ZORUNLU bölümler. Yeni bölüm eklenirse buraya da yazılır —
 #: yoksa "eklendi ama basılmıyor" hâli sessiz kalır.
-BOLUMLER = ("yerel HEAD", "canlı damga", "çalışma ağacı",
+BOLUMLER = ("yerel HEAD", "canlı damga", "arayüz derlemesi", "çalışma ağacı",
             "backlog", "bayat belge", "erişilebilirlik")
 
 

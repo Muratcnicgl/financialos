@@ -1561,7 +1561,7 @@ class LLMProvider(ABC):
 # ============================================================
 
 class AnthropicProvider(LLMProvider):
-    # LLM-001: güncel Claude (opus-4-7 eskiydi; en yeni/yetkin varsayılan). LLM_MODEL ile ezilir.
+    # LLM-001: güncel asistan (opus-4-7 eskiydi; en yeni/yetkin varsayılan). LLM_MODEL ile ezilir.
     DEFAULT_MODEL = "claude-opus-4-8"
     NAME = "Anthropic"
 

@@ -5,7 +5,7 @@ Ders 11 (dersler-gemini.md): "pytest yeşil ≠ canlı çalışıyor". M19 EVDS 
 mock test yeşilken endpoint ölüydü (EVDS v2→v3 taşınmış, kod fark etmedi). Bu modül her
 dış API için GERÇEK (mock-suz) bir smoke kontrolü yapar; haftalık scheduler job (pazartesi
 05:00) çalıştırır ve başarısızlıkları `.mcp-sync-pending.log` ledger'ına `SMOKE_FAIL:<api>`
-satırı olarak YAKALAR (M24 capture→flush deseni — scheduler MCP'ye doğrudan yazamaz, Claude
+satırı olarak YAKALAR (M24 capture→flush deseni — scheduler MCP'ye doğrudan yazamaz, asistan
 Code oturum başında flush eder).
 
 Her smoke fonksiyonu {"api","ok","detail"} döner. Ağ/yapılandırma hatası ok=False + detail;

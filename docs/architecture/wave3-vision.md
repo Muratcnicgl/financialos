@@ -10,7 +10,7 @@
 
 FinancialOS şu an **Wave-2 mimari üçgenini** tamamlamış durumda: deterministik snapshot (Rules Engine), schema-garantili eylem (action_executor), arka plan reflection (CoachInsight), rolling pattern detection. Bu temel sağlam.
 
-Bu rapor, sistemi DeepSeek/Claude/GPT seviyesindeki ürünlerle aynı mimari olgunluğa taşımak için **6 eksende** somut yönelimler sunuyor:
+Bu rapor, sistemi DeepSeek/asistan/GPT seviyesindeki ürünlerle aynı mimari olgunluğa taşımak için **6 eksende** somut yönelimler sunuyor:
 
 1. **AI orchestration** — LangGraph state machine ile sub-agent routing
 2. **Prompt mühendisliği** — DSPy ile programatik optimizasyon
@@ -36,7 +36,7 @@ Bu çalışıyor ama bir tavanı var. "Kahve aldım" ile "TLY satayım mı" ayn�
 
 ### Hedef Mimari — LangGraph State Machine ile Sub-Agent Routing
 
-DeepSeek, Claude, GPT'nin yaptığı şey: **tek bir uzman değil, takım**. Bir intent classifier önce mesajı sınıflandırıyor, sonra ilgili uzman ajan çağrılıyor.
+DeepSeek, asistan, GPT'nin yaptığı şey: **tek bir uzman değil, takım**. Bir intent classifier önce mesajı sınıflandırıyor, sonra ilgili uzman ajan çağrılıyor.
 
 ```
 [Kullanıcı mesajı]
@@ -83,7 +83,7 @@ LangGraph yerine Anthropic'in kendi Claude Agent SDK'sını kullanmak da bir se�
 - Sub-agent handoffs yerleşik
 - Tool-use chain default
 
-**Trade-off:** Sadece Claude modellerine kilitlenirsin (free tier provider çeşitliliğin gider). Senin için **LangGraph daha esnek** — Groq + Cerebras + Gemini'yi hâlâ kullanırsın.
+**Trade-off:** Sadece asistan modellerine kilitlenirsin (free tier provider çeşitliliğin gider). Senin için **LangGraph daha esnek** — Groq + Cerebras + Gemini'yi hâlâ kullanırsın.
 
 ---
 
@@ -484,9 +484,9 @@ Tüm bu önerilerin filtresi: **ADR-001 mimarisi** ve **Murat'ın vizyonu** (160
 
 Hiçbiri ADR-001'i bozmuyor — hepsi **mevcut mimarinin daha iyi enstrümante edilmiş, daha modüler hali**. Yıkıcı değil evrimsel.
 
-### Vizyon Uyumu — "DeepSeek/Claude/GPT seviyesindeki tek farkın sub-agent routing"
+### Vizyon Uyumu — "DeepSeek/asistan/GPT seviyesindeki tek farkın sub-agent routing"
 
-Memory'de 6 May 17:00'de yazılı: *"Bu mimarinin DeepSeek/Claude/GPT seviyesindeki tek farki sub-agent routing eksikligi - Wave-3 isi"*. Bu rapor o vizyona somut bir yol haritası sunuyor:
+Memory'de 6 May 17:00'de yazılı: *"Bu mimarinin DeepSeek/asistan/GPT seviyesindeki tek farki sub-agent routing eksikligi - Wave-3 isi"*. Bu rapor o vizyona somut bir yol haritası sunuyor:
 
 1. **Sub-agent routing** = Bölüm 1 (LangGraph)
 2. **Structured output garanisi** = Bölüm 2 (DSPy)

@@ -1,6 +1,6 @@
 # Wave-3 Backlog v1 — Kusursuzlaştırma Öncelik Haritası (M8)
 
-**Tarih:** 13 Tem 2026 · **Milestone:** M8 · **Kaynak:** charter `goal-charter-wave3.md` M8 (7 kaynak a-g) · **Baseline:** HEAD 6abc6d2, 807 test yeşil, TOTAL coverage %86.
+**Tarih:** 13 Tem 2026 · **Milestone:** M8 · **Kaynak:** Wave-3 charter'i M8 (7 kaynak a-g; charter belgesi depoda tutulmuyor) · **Baseline:** HEAD 6abc6d2, 807 test yeşil, TOTAL coverage %86.
 
 ## Yöntem
 

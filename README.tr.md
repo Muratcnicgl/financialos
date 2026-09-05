@@ -106,7 +106,7 @@ financialos/
 │       └── components/        # 8 component
 ├── docs/                      # Mimari, geliştirme komutları, yol haritası
 ├── scripts/                   # Kurulum, demo veri
-└── PROJE.md                  # AI destekli geliştirme notları
+└── PROJE.md                   # Proje durumu ve karar notları
 ```
 
 ---

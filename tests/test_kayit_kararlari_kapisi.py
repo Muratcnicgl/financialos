@@ -34,8 +34,6 @@ BEKLENEN: list[tuple[str, str, str]] = [
      "YANILGI-7: metodoloji degisimi yazili olmali"),
     ("PROJE.md", "MCP MEMORY STATÜSÜ",
      "YANILGI-1: MCP tek gercek kaynak degil, tarihsel arsiv"),
-    ("PROJE.md", "master-durum-raporu-2026-08-06.md",
-     "devir belgesine isaretci"),
     ("docs/kalite-seruveni/masterprompt-publish.md", "MİLESTONE/TAG DİSİPLİNİ BIRAKILDI",
      "YANILGI-7 masterprompt tarafi"),
     ("docs/kalite-seruveni/masterprompt-publish.md", "MCP MEMORY = TARİHSEL ARŞİV",
@@ -50,7 +48,9 @@ BEKLENEN: list[tuple[str, str, str]] = [
 
 TARANAN_DOSYALAR = sorted({d for d, _, _ in BEKLENEN})
 TABAN_DOSYA = 4      # bu kapinin dokunmasi gereken en az dosya sayisi
-TABAN_ISARET = 9     # en az bu kadar karar-isareti denetlenmeli
+TABAN_ISARET = 8     # en az bu kadar karar-isareti denetlenmeli
+#                      (9 -> 8: devir belgesi isaretcisi dustu; belge 5 Eyl 2026'da
+#                       depodan cikarildi, yerelde duruyor. Kapsam kasten daraltildi.)
 
 
 def _oku(rel: str) -> str:
@@ -80,24 +80,15 @@ def test_kapinin_kendi_kapsami_olculur() -> None:
 
 def test_eski_bayat_iddialar_geri_gelmedi() -> None:
     """Duzeltilen bayat sayilar/ifadeler geri sizarsa kirmizi."""
-    claude = _oku("PROJE.md")
-    assert "TOTAL coverage %92" not in claude, "coverage iddiasi %92'ye geri dondu (olculen: %93)"
-    assert not re.search(r"\*\*Aktif goal:\*\*\s*🟡\s*\*\*WAVE-8[^\n]*DEVAM", claude), \
+    proje = _oku("PROJE.md")
+    assert "TOTAL coverage %92" not in proje, "coverage iddiasi %92'ye geri dondu (olculen: %93)"
+    assert not re.search(r"\*\*Aktif goal:\*\*\s*🟡\s*\*\*WAVE-8[^\n]*DEVAM", proje), \
         "PROJE.md yeniden 'aktif goal WAVE-8 DEVAM' diyor (publish hatti aktif)"
 
     backlog = _oku("docs/kalite-seruveni/backlog.md")
     assert "| **TOPLAM** | **18 kategori** | **520** |" not in backlog, \
         "backlog toplami yeniden 520 (gercek: 521)"
 
-
-def test_devir_belgesi_diskte_ve_dolu() -> None:
-    """Master durum raporu var, bos degil ve isaretcisi dogru dosyayi gosteriyor."""
-    rapor = KOK / "docs" / "kalite-seruveni" / "master-durum-raporu-2026-08-06.md"
-    assert rapor.exists(), "devir belgesi (master durum raporu) diskte yok"
-    bayt = rapor.stat().st_size
-    assert bayt > 1_000_000, f"devir belgesi beklenenden kucuk ({bayt} bayt) — icerik kaybolmus olabilir"
-    ilk = rapor.read_text(encoding="utf-8", errors="replace")[:400]
-    assert "MASTER DURUM RAPORU" in ilk, "devir belgesinin basligi degismis"
 
 
 def test_mcp_defteri_KAPALI_kalir() -> None:

@@ -128,7 +128,7 @@ Y8'de aynı komutlar tekrar koşulup kıyaslanacak.
 
 **Tanım (done):**
 - Y3 bittikten sonra 5 davetliye **yeni adresle** tek ve kısa bir mesaj gider
-  (metni asistan araci yazar, gönderme Murat'ta).
+  (metni asistan aracı yazar, gönderme Murat'ta).
 - En az **3 davetliden** cevap alınır: girdiler mi, neyi denediler, nerede takıldılar.
 - Cevaplar `docs/kalite-seruveni/beta-geri-bildirim-<tarih>.md`'ye ham hâliyle yazılır.
 - Çıkan her defekt BUG numarası alır. **Cevaplar tahminle doldurulmaz.**

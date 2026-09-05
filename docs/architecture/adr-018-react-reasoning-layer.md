@@ -5,7 +5,7 @@
 > Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
 
 ## Bağlam
-Koçun muhakeme adımlarını (ReAct trace) kullanıcıya göstermek için UX + veri retention kararları gerekti. Sektör 8+ kaynak tarandı (LangSmith, assistant-ui, Claude Extended Thinking, ChatGPT Thinking, Perplexity, Langfuse, LandingAI ADE, OWASP).
+Koçun muhakeme adımlarını (ReAct trace) kullanıcıya göstermek için UX + veri retention kararları gerekti. Sektör 8+ kaynak tarandı (LangSmith, assistant-ui, asistan Extended Thinking, ChatGPT Thinking, Perplexity, Langfuse, LandingAI ADE, OWASP).
 
 ## Karar (8 alt karar)
 1. **Operation type renk:** 5 ayrı renk yerine tek muted ton + Lucide ikon + Türkçe etiket. Vurgu yalnız final_answer (indigo) ve step.error (kırmızı).

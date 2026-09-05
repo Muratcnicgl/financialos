@@ -73,8 +73,14 @@ if ($gocDurumu -eq 10) {
 }
 
 Yaz "baslatiliyor (port $Port)"
+# SEC-027 yan ayagi (5 Eyl 2026): `--no-server-header`.
+# Olculdu: canli yanit disariya `Server: uvicorn` yayinliyordu ve `scripts/live_gate.py`
+# bunu zaten UYARI olarak basiyordu ("sunucu surumu gizli" kontrolu) — yani kapi soyluyordu,
+# kimse okumamisti. Sunucu yiginini ilan etmek saldirgana eslesme kolayligi verir,
+# kullaniciya hicbir sey. Bu bayrak uvicorn'un protokol katmaninda basligi HIC eklememesini
+# saglar; ASGI ara katmani bunu YAPAMAZ (baslik uvicorn tarafindan sonradan eklenir).
 $p = Start-Process -FilePath $PY `
-    -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$Port" `
+    -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$Port", "--no-server-header" `
     -WorkingDirectory $KOK -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput $LOG -RedirectStandardError $HATA
 

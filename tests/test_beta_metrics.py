@@ -37,6 +37,11 @@ from app.models import (
     User,
 )
 
+# BUG #356: fixture verisi bu ANDA kurulur; ölçüm de AYNI ana göre yapılmalı.
+# Eskiden `bm.topla(db)` koşum anındaki `utcnow()`'a bakıyordu ve süit UTC gece
+# yarısını geçtiğinde "bugün" değişip test kırmızı veriyordu (5 Eyl'de gerçekten
+# oldu: fixture 23:58'de kuruldu, ölçüm 00:00'da koştu). Zamanı ENJEKTE ederek
+# test duvar saatinden bağımsızlaştı — deponun `today` enjeksiyon deseni.
 SIMDI = datetime.utcnow()
 DUN = SIMDI - timedelta(days=1)
 
@@ -94,7 +99,7 @@ def db(monkeypatch):
 # ── Doğruluk ────────────────────────────────────────────────────────────────
 
 def test_huni_takilan_kullaniciyi_gosterir(db):
-    h = bm.topla(db)["huni"]
+    h = bm.topla(db, simdi=SIMDI)["huni"]
     assert h["kayitli"] == 3
     assert h["hesap_ekleyen"] == 2, "Hesap açan kullanıcı sayısı yanlış"
     assert h["koc_kullanan"] == 1, "Koçu kullanan yalnız 1 kişi olmalı"
@@ -103,31 +108,31 @@ def test_huni_takilan_kullaniciyi_gosterir(db):
 
 def test_sessiz_terk_gorunur(db):
     """Asıl kör nokta: hiç iz bırakmadan giden kullanıcı sayılabilmeli."""
-    m = bm.topla(db)
+    m = bm.topla(db, simdi=SIMDI)
     assert m["hic_iz_birakmayan"] == 1, "Sessizce terk eden kullanıcı görünmüyor"
 
 
 def test_ayni_gun_coklu_sinyal_tek_sayilir(db):
     """Bir kişinin yoğun günü 'çok kullanıcı' gibi görünmemeli."""
-    m = bm.topla(db)
+    m = bm.topla(db, simdi=SIMDI)
     assert m["aktif"]["bugun"] == 1, f"Aynı gün iki sinyal şişirdi: {m['aktif']}"
 
 
 def test_tutunma_tek_gun_ile_donen_ayrilir(db):
-    t = bm.topla(db)["tutunma"]
+    t = bm.topla(db, simdi=SIMDI)["tutunma"]
     assert t["geri_donen"] == 1, "Başka bir gün dönen kullanıcı sayılmadı"
     assert t["tek_gun_kalan"] == 1, "İlk gün bırakan kullanıcı ayrılmadı"
 
 
 def test_koc_hata_orani(db):
-    k = bm.topla(db)["koc"]
+    k = bm.topla(db, simdi=SIMDI)["koc"]
     assert k["cagri"] == 2 and k["basarisiz"] == 1
     assert k["hata_orani_yuzde"] == 50.0
     assert k["ortalama_sure_ms"] == 900, "Başarısız çağrı süre ortalamasını kirletiyor"
 
 
 def test_saglik_ozeti(db):
-    s = bm.topla(db)["saglik"]
+    s = bm.topla(db, simdi=SIMDI)["saglik"]
     assert s["acik_geri_bildirim"] == 1
     assert s["hata_grubu"] == 1 and s["hata_tekrari"] == 4
 
@@ -159,7 +164,7 @@ def test_cikti_kimlik_sizdirmaz(db, capsys, argv):
 
 def test_json_ciktisi_yalniz_sayi_icerir(db):
     """Makine okunur çıktı da aynı sözü vermeli (cron/izleme buradan besleniyor)."""
-    m = bm.topla(db)
+    m = bm.topla(db, simdi=SIMDI)
 
     def _gez(dugum):
         if isinstance(dugum, dict):
@@ -174,3 +179,25 @@ def test_json_ciktisi_yalniz_sayi_icerir(db):
                 f"Metrik ağacında sayı olmayan değer var: {dugum!r}"
 
     _gez(m)
+
+
+def test_OLCUM_DUVAR_SAATINDEN_bagimsiz(db):
+    """BUG #356 regresyon kilidi — `simdi` gerçekten KULLANILIYOR mu?
+
+    Süit UTC gece yarısını geçtiğinde `test_ayni_gun_coklu_sinyal_tek_sayilir` kırmızı
+    veriyordu: fixture verisi 23:58'de kuruluyor, ölçüm 00:00'da koşuyor ve "bugün" başka
+    bir güne kayıyordu. Sebep `topla()`'nın duvar saatini okumasıydı — üstelik ÜÇ AYRI
+    KEZ, yani eşik/bugün/hafta pencereleri farklı anlara ait olabiliyordu.
+
+    Bu test parametrenin bir SÜS olmadığını kanıtlar: aynı veriye bir gün sonrasından
+    bakıldığında "bugün" 0 olmalıdır. Parametre yok sayılsaydı (duvar saati okunsaydı)
+    sonuç 1 kalır ve bu test düşerdi.
+    """
+    yarin = SIMDI + timedelta(days=1)
+    m = bm.topla(db, simdi=yarin)
+    assert m["aktif"]["bugun"] == 0, (
+        "`simdi` yok sayılıyor: bir gün ileriden bakıldığında dünün sinyalleri hâlâ "
+        f"'bugün' sayılıyor — {m['aktif']}"
+    )
+    # Aynı veri, aynı an → aynı sonuç (deterministiklik).
+    assert bm.topla(db, simdi=SIMDI) == bm.topla(db, simdi=SIMDI)

@@ -178,13 +178,29 @@ def _maliyet(db, esik: datetime) -> Dict[str, object]:
     }
 
 
-def topla(db, gun: int = 30) -> dict:
-    """Tüm metrikleri tek sözlükte döndürür (yalnız sayı/oran — PII yok)."""
-    esik = datetime.utcnow() - timedelta(days=gun)
+def topla(db, gun: int = 30, simdi: datetime | None = None) -> dict:
+    """Tüm metrikleri tek sözlükte döndürür (yalnız sayı/oran — PII yok).
+
+    BUG #356 (5 Eyl 2026): `simdi` TEK KEZ hesaplanır ve her pencere ondan türer.
+    Eskiden `datetime.utcnow()` bu fonksiyonun içinde ÜÇ AYRI KEZ çağrılıyordu — eşik,
+    "bugün" ve "hafta" farklı anlara göre hesaplanabiliyordu. Rapor tek bir ana ait
+    olduğunu iddia ederken üç ana karışıyordu.
+
+    Belirti önce TESTTE görüldü: `test_ayni_gun_coklu_sinyal_tek_sayilir`, süit UTC gece
+    yarısını geçtiği için kırmızı verdi (fixture verisi 23:58'de kuruldu, ölçüm 00:00'da
+    koştu → "bugün" artık başka bir gün). Yani ortada 3,5 dakikalık bir çatlak vardı ve
+    CI'ın 00:00 UTC'ye denk gelen her koşumunda açılacaktı. Depo bu sınıfı daha önce de
+    gördü (bir test ayın 1'inde kırılıyordu, `attribution_available`).
+
+    `simdi` enjekte edilebilir olduğu için ölçüm artık DETERMİNİSTİK (`payoff_date`'te
+    kullanılan `today` enjeksiyonuyla aynı desen — RULE-020).
+    """
+    simdi = simdi or datetime.utcnow()
+    esik = simdi - timedelta(days=gun)
     gunler = _gun_kumeleri(db, esik)
 
-    bugun = datetime.utcnow().strftime("%Y-%m-%d")
-    hafta = {(datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)}
+    bugun = simdi.strftime("%Y-%m-%d")
+    hafta = {(simdi - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)}
 
     huni = _huni(db)
     aktif_hic = sum(1 for g in gunler.values() if g)

@@ -3,7 +3,7 @@ import {
   Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
   Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut, Users, UserCog,
 } from 'lucide-react';
-import { healthApi, authApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl,
+import { healthApi, authApi, coachApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl,
   workspaceApi, getActiveWorkspaceId, setActiveWorkspaceId } from './api.js';
 import Login from './panels/Login.jsx';
 import Workspace, { WorkspaceJoin } from './panels/Workspace.jsx';
@@ -68,11 +68,18 @@ function useTheme() {
 
 function useBackendHealth() {
   const [status, setStatus] = useState('checking');
-  const [usagePct, setUsagePct] = useState(0);
+  // FE-012 (5 Eyl 2026): BAŞLANGIÇ DEĞERİ ARTIK `null`, 0 DEĞİL.
+  // `setUsagePct` hiçbir yerde çağrılmıyordu: state 0'da doğuyor ve orada kalıyordu.
+  // Sonuç, başlıkta HER KULLANICIYA kalıcı olarak "0%" gösteren bir rozet — canlı bir
+  // ölçüm gibi duran, aslında sabit bir sayı. Renk mantığı (>%80 kırmızı, >%50 sarı)
+  // hiçbir zaman tetiklenemiyordu. `null` bilinçli: ölçüm YOKSA rozet HİÇ çizilmez,
+  // çünkü bilinmeyen sıfır değildir (L45) ve sıfır göstermek uydurmaktır.
+  const [usagePct, setUsagePct] = useState(null);
 
   useEffect(() => {
     let active = true;
     let interval;
+    let kullanimAralik;
 
     const check = async () => {
       try {
@@ -80,6 +87,24 @@ function useBackendHealth() {
         if (active) setStatus('online');
       } catch {
         if (active) setStatus('offline');
+      }
+    };
+
+    // FE-012: rozetin verisi ZATEN VARDI ve bağlanmamıştı. `/api/coach/usage` ucu
+    // `today_count` / `daily_limit` / `percentage` döner ve kendi docstring'i
+    // "Cockpit panelinin üst köşesindeki 'API kullanım: %42' rozetini bundan çekecek"
+    // diyor — yani sözleşme yazılıydı, çağıran yoktu.
+    // Kota YAVAŞ değişir: sağlık 5 sn'de bir yoklanır, bu 60 sn'de bir. Hata olursa
+    // SESSİZ kalınır ve son bilinen değer korunur; rozeti "0%"a düşürmek, kesintiyi
+    // "kullanım yok" diye göstermek olurdu.
+    const kullanimOku = async () => {
+      try {
+        const u = await coachApi.usage();
+        if (active && typeof u?.percentage === 'number') {
+          setUsagePct(Math.round(u.percentage));
+        }
+      } catch {
+        /* sessiz: rozet son bilinen değeri korur, uydurmaz */
       }
     };
 
@@ -96,15 +121,19 @@ function useBackendHealth() {
     const basla = () => {
       if (interval) return;
       interval = setInterval(check, 5000);
+      kullanimAralik = setInterval(kullanimOku, 60000);
     };
     const dur = () => {
       clearInterval(interval);
+      clearInterval(kullanimAralik);
       interval = null;
+      kullanimAralik = null;
     };
 
     const gorunurlukDegisti = () => {
       if (gorunur()) {
-        check();   // sekme geri geldi: bekletmeden ölç
+        check();          // sekme geri geldi: bekletmeden ölç
+        kullanimOku();
         basla();
       } else {
         dur();
@@ -112,6 +141,7 @@ function useBackendHealth() {
     };
 
     check();
+    kullanimOku();
     if (gorunur()) basla();
     document.addEventListener('visibilitychange', gorunurlukDegisti);
 
@@ -309,13 +339,19 @@ function AppContent({ onLogout }) {
               )}
             </div>
 
-            <span className={`chip font-numeric ${
-              usagePct > 80 ? 'chip-negative' :
-              usagePct > 50 ? 'chip-warn' :
-              ''
-            }`}>
-              {usagePct}%
-            </span>
+            {/* FE-012: olcum YOKSA rozet HIC cizilmez — "0%" gostermek uydurmaktir (L45). */}
+            {usagePct !== null && (
+              <span
+                className={`chip font-numeric ${
+                  usagePct > 80 ? 'chip-negative' :
+                  usagePct > 50 ? 'chip-warn' :
+                  ''
+                }`}
+                title="Bugunku LLM cagri kullanimi (gunluk limitin yuzdesi)"
+              >
+                {usagePct}%
+              </span>
+            )}
 
             <button
               onClick={toggleTheme}

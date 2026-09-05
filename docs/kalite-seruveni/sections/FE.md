@@ -33,7 +33,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [FE-006] Coach `onActionResolved` App'te bağlanmamış — dead prop
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: App.jsx:318 Coach propsuz, onActionResolved bağlı değil
+- **Durum:** 🔲 AÇIK — 5 Eyl 2026 ölçümü maddeyi **birebir doğruluyor**: `App.jsx:386` bileşeni `{activeTab === 'coach' && <Coach />}` diye **prop'suz** render ediyor; `Coach` ise `onActionResolved`'ı bekliyor ve içeride `onActionResolved?.(actionId, status)` diye çağırıyor (`Coach.jsx:385`). Yani callback hiçbir zaman ateşlemiyor — koçtan onaylanan bir aksiyon, diğer panellere haber vermiyor. **Bağlanmadı, çünkü ne yapması gerektiği bir ÜRÜN kararıdır** (hangi paneller tazelensin?); uydurmak yerine ölçüm kaydedildi.
 - **Kanıt:** `App.jsx:201` (`<Coach />` propsuz); `Coach.jsx:499-505,349-355`
 - **Aksiyon:** Panel-arası tazeleme sinyali kur, `onActionResolved={triggerCockpitRefresh}` bağla; veya query invalidation.
 - **Etki:** Orta · **Efor:** S
@@ -72,7 +72,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [FE-012] `useBackendHealth` sonsuz 5sn polling + `usagePct` ölü state (hep %0)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: usagePct hep 0 ölü chip, polling sabit 5sn
+- **Durum:** ✅ KAPANDI — 5 Eyl 2026: iki ayağı da. **(a) Sonsuz yoklama** `visibilitychange` ile görünürlüğe bağlandı (PERF-008; arka plandaki sekme saatte 720 istek üretiyordu). **(b) `usagePct` ÖLÜ STATE'ti ve bu kullanıcıya görünüyordu:** `setUsagePct` depoda hiçbir yerde çağrılmıyordu, yani başlıktaki rozet HER kullanıcıya kalıcı **"0%"** gösteriyordu ve renk mantığı (>%80 kırmızı) hiç tetiklenemiyordu. Verisi zaten vardı — `/api/coach/usage` + `coachApi.usage()` yazılıydı, ucun docstring'i bile *"bu rozeti bundan çekecek"* diyordu; **çağıran eklenmemişti**. Bağlandı (60 sn'de bir, görünürlüğe duyarlı, hata sessiz), ve başlangıç değeri `0` yerine **`null`**: ölçüm yoksa rozet HİÇ çizilmez — bilinmeyen sıfır değildir (L45). Sınıf `tests/test_olu_state_kapisi.py` ile kapatıldı: 300 `useState` çiftinde ölü setter **0**.
 - **Kanıt:** `App.jsx:54-81,145-151`
 - **Aksiyon:** Ölü chip'i kaldır veya `coachApi.usage()`'a bağla; polling'i visibilitychange ile kıs/15-30sn.
 - **Etki:** Düşük · **Efor:** S

@@ -880,3 +880,10 @@ söylüyordu (L81) — ve şimdi var olması, mekanizmanın ilk kez gerçekten �
   nesnesinin `ExitCode`'u boş kaldı, `$null -ne 0` doğru döndü ve **başarılı** bir
   derlemeyi "başarısız" ilan ettim. İkisinin cevabı aynı: kodun ne dediğine değil,
   **diskte ne oluştuğuna** bak — `dist/index.html` var mı ve BU koşumda mı yazıldı.
+* **L86 — Zamana bağlı bir kırmızı, çoğu zaman zamanın değil ÖLÇÜMÜN kusurudur.**
+  `test_ayni_gun_coklu_sinyal_tek_sayilir` yalnız süit UTC gece yarısını geçtiğinde düştü.
+  Kolay cevap "flaky, tekrar koş" olurdu. Ölçülünce altından ürün kusuru çıktı:
+  `beta_metrics.topla()` `utcnow()`'u **üç ayrı kez** okuyordu, yani eşik/bugün/hafta
+  pencereleri farklı anlara ait olabiliyordu — rapor tek bir ana ait olduğunu iddia
+  ederken. Zaman enjekte edilebilir hâle gelince hem test deterministik oldu hem rapor
+  tutarlı. **Bir testi kararsız yapan şey, çoğu zaman ürünü de kararsız yapıyordur.**

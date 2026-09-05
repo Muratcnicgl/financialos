@@ -38,11 +38,36 @@ def main():
     import os as _os
     import sys as _sys
     _db_url = _os.getenv("DATABASE_URL", "sqlite:///./data/financialos.db")
+
+    # BUG #358 (5 Eyl 2026): `--help` ARTIK ÇALIŞIYOR ve HİÇBİR ŞEY YAPMIYOR.
+    # Ölçüldü: `python -m scripts.setup_data --help` argparse olmadığı için doğrudan
+    # onay istemine düşüyor, etkileşimsiz ortamda `EOFError` ile ÇÖKÜYORDU. Yani
+    # "bu betik ne yapar?" diye soran biri, cevap yerine VERİ SİLEN bir betiğin
+    # istemiyle karşılaşıyordu. Yıkıcı bir aracın ilk görevi kendini anlatmaktır.
+    if "--help" in _sys.argv or "-h" in _sys.argv:
+        print(__doc__ or "")
+        print("KULLANIM:  python -m scripts.setup_data [--force]\n")
+        print("  Hedef veritabanındaki TÜM veriyi siler (drop_all + create_all) ve")
+        print("  kanonik test verisini yükler. Onay ister; --force ya da")
+        print("  SETUP_DATA_FORCE=1 ile onaysız koşar.")
+        print(f"  Şu anki hedef: {_db_url}")
+        print("\n  (Bu çağrı hiçbir şey DEĞİŞTİRMEDİ.)")
+        return
+
     _force = ("--force" in _sys.argv) or (_os.getenv("SETUP_DATA_FORCE") == "1")
     print(f"UYARI: Bu script hedef veritabanındaki TÜM veriyi siler (drop_all).")
     print(f"       Hedef: {_db_url}")
     if not _force:
-        _resp = input("Devam edilsin mi? Tüm mevcut veri KALICI SİLİNECEK (evet/hayir): ").strip().lower()
+        try:
+            _resp = input("Devam edilsin mi? Tüm mevcut veri KALICI SİLİNECEK (evet/hayir): ").strip().lower()
+        except EOFError:
+            # BUG #358: etkileşimsiz ortamda (CI, betik, otomasyon) `input()` EOFError
+            # fırlatıyordu ve betik TRACEBACK ile ölüyordu. Davranış GÜVENLİYDİ (silmiyordu)
+            # ama okunmuyordu: operatör "çöktü mü, sildi mi?" diye bakmak zorunda kalırdı.
+            # Bir güvenlik kilidi, kilitlediğini SÖYLEMELİ.
+            print("\nİptal edildi: onay alınamadı (etkileşimsiz ortam, stdin yok).")
+            print("Bilinçli olarak silmek istiyorsan: --force ya da SETUP_DATA_FORCE=1")
+            return
         if _resp not in ("evet", "e", "yes", "y"):
             print("İptal edildi. (Onaysız çalıştırmak için: --force veya SETUP_DATA_FORCE=1)")
             return

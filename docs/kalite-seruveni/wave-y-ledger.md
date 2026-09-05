@@ -917,3 +917,16 @@ depo bir kez 4 gün sessizce yedeksiz kalmıştı ve o sessizlik ancak ölçül�
 incelendi ve **dürüst** çıktı: canlı veritabanında hiç yatırım hesabı yok (7 nakit ·
 6 kart · 4 kredi), yani yapacak iş yoktu. Kod bu ayrımı zaten yazmış: *"Hesap YOKSA (0/0)
 başarı meşrudur"* (BUG #248). **Değiştirilmedi — uydurma bulgu üretmemek de bir disiplindir.**
+
+**ARAYÜZ ZİNCİRİ UÇTAN UCA ÖLÇÜLDÜ (BUG #353'ün kapanış kanıtı).** Bir düzeltmenin
+"canlıda" olduğunu söylemek için backend damgası yetmez — kullanıcı ARAYÜZÜ indirir.
+Zincirin üç halkası da ayrı ayrı ölçüldü:
+
+1. Diskteki derleme: `frontend/dist/assets/index-M7qp4_co.js`
+2. Canlının servis ettiği `index.html` **aynı hash'i** işaret ediyor
+3. O dosya **dışarıdan** indirilebiliyor (HTTP 200 · 1.033.097 bayt) ve içinde bu gecenin
+   iki değişikliği de var: `coach/usage` (rozetin bağlanması) ve `geri alınamaz`
+   (düzeltilmiş sıfırlama onayı)
+
+Yani gerçek bir kullanıcı, bu gece yazılan kodu indiriyor. 5 Eylül öncesinde bu zincir
+**üç gün boyunca kopuktu** ve hiçbir kapı bunu ölçmüyordu.

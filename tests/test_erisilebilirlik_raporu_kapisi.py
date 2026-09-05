@@ -148,3 +148,35 @@ def test_ERISILEBILIRLIK_YUZDE_100_ASAMAZ(kayit, capsys):
     assert satirlar_, f"oran hic basilmadi (kod={kod}):" + cikti
     yuzde = float(satirlar_[0].split("%")[1].split()[0])
     assert yuzde <= 100.0, f"oran %100'u asti: {satirlar_[0]}"
+
+
+def test_BAYAT_BASLIKLI_dosyada_da_onarim_OKUNUR(tmp_path, monkeypatch):
+    """BUG #359 — kapı MEKANİZMAYI sınamıştı, KULLANILAN VERİYİ sınamamıştı.
+
+    Bu dosyadaki diğer mutasyon testleri kendi CSV'lerini DOĞRU başlıkla yazıyordu
+    (`zaman_utc,saglikli,onarim`) ve o yüzden hepsi yeşildi. Gerçek `logs/erisilebilirlik.csv`
+    ise BUG #344'ten ÖNCE **iki sütunla** oluşmuştu; `saglik.ps1` başlığı yalnız dosya
+    yokken yazdığı için başlık hiç yükselmedi, satırlar ise üçüncü değeri almaya başladı.
+
+    Sonuç ölçüldü (5 Eyl 2026): `csv.DictReader` üçüncü değeri `None` anahtarına koyuyor,
+    `r.get("onarim")` daima boş dönüyor ve **onarım bayrağı hiç okunmuyordu.** Ham veride
+    `onarim=1` olan bir satır vardı, raporun gördüğü 0'dı — yani sürekli çöküp onarılan bir
+    uygulama %100 görünebilirdi. #344'ün düzeltmesi ÜRETİMDE ÖLÜYDÜ.
+
+    Bu test o vakayı birebir kurar: BAYAT başlık + üç değerli satır.
+    """
+    csv_yolu = tmp_path / "erisilebilirlik.csv"
+    csv_yolu.write_text(
+        "zaman_utc,saglikli\n"                 # BAYAT başlık — üçüncü sütun YOK
+        "2026-09-04T12:10:00Z,1,0\n"
+        "2026-09-04T12:20:00Z,0,1\n"           # düşmüş VE onarılmış
+        "2026-09-04T12:30:00Z,1,0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(rapor, "KAYIT", csv_yolu)
+    satirlar = rapor._oku(gun=7)
+    onarimli = [s for s in satirlar if s[2]]
+    assert len(onarimli) == 1, (
+        "Bayat başlıklı dosyada onarım bayrağı OKUNAMADI — BUG #344'ün düzeltmesi ölü "
+        f"demektir. Okunan satırlar: {satirlar}"
+    )

@@ -222,8 +222,24 @@ function PingAt($durum) {
 # (makine kapalıyken satır yazılmaz). Böylece "veri yok" sessizce %100'e dönüşemez (L45).
 function KayitYaz($ok, $onarim) {
     $csv = Join-Path $LOGDIZIN "erisilebilirlik.csv"
+    $BASLIK = "zaman_utc,saglikli,onarim"
     if (-not (Test-Path $csv)) {
-        Add-Content -Path $csv -Value "zaman_utc,saglikli,onarim" -Encoding UTF8
+        Add-Content -Path $csv -Value $BASLIK -Encoding UTF8
+    }
+    else {
+        # BUG #359: BASLIK BIR KEZ YAZILIP UNUTULUYORDU.
+        # Eski hali "dosya yoksa yaz" idi. Dosya BUG #344'ten ONCE iki sutunla
+        # olusmustu; satirlar ucuncu degeri almaya basladi ama BASLIK HIC YUKSELMEDI.
+        # Sonuc: csv.DictReader ucuncu degeri restkey'e koydu ve rapor onarim bayragini
+        # HIC OKUMADI — yani #344'un duzeltmesi uretimde OLUYDU. Sema degisikligi bir
+        # KEREYE MAHSUS degildir; var olan dosyanin da tasinmasi gerekir.
+        $ilk = (Get-Content -Path $csv -TotalCount 1 -Encoding UTF8)
+        if ($ilk -and ($ilk.Trim().TrimStart([char]0xFEFF) -ne $BASLIK)) {
+            $kalan = Get-Content -Path $csv -Encoding UTF8 | Select-Object -Skip 1
+            Set-Content -Path $csv -Value $BASLIK -Encoding UTF8
+            if ($kalan) { Add-Content -Path $csv -Value $kalan -Encoding UTF8 }
+            Yaz "UYARI" "erisilebilirlik.csv basligi guncellendi: '$ilk' -> '$BASLIK'"
+        }
     }
     $satir = "{0},{1},{2}" -f (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"),
              $ok, $(if ($onarim) { 1 } else { 0 })

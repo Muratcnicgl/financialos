@@ -68,8 +68,33 @@ def _oku(gun: int) -> list[tuple[datetime, bool, bool]]:
                 # sayılıyor, çünkü tersi (hepsini bozuk saymak) geçmişi karalar; sınır
                 # raporda AÇIKÇA yazılır.
                 satirlar.append((t, str(r.get("saglikli", "")).strip() == "1",
-                                 str(r.get("onarim", "")).strip() == "1"))
+                                 _onarim_oku(r)))
     return satirlar
+
+
+def _onarim_oku(r: dict) -> bool:
+    """Onarım bayrağını BAŞLIK BAYAT OLSA DA okur (BUG #359).
+
+    ÖLÇÜLEN OLAY (5 Eyl 2026): `saglik.ps1`'in `KayitYaz`'ı üç sütunlu başlığı YALNIZ
+    DOSYA YOKKEN yazıyor. Dosya BUG #344'ten ÖNCE iki sütunla (`zaman_utc,saglikli`)
+    oluşmuştu; satırlar üçüncü değeri almaya başladı ama BAŞLIK HİÇ YÜKSELMEDİ.
+    Sonuç: `csv.DictReader` üçüncü değeri `None` anahtarına (restkey) koyuyor,
+    `r.get("onarim")` daima boş dönüyor ve **onarım bayrağı hiç okunmuyordu**.
+
+    Yani BUG #344'ün düzeltmesi ÜRETİMDE ÖLÜYDÜ: sütun yazılıyor, sayılmıyordu.
+    Ham veride `onarim=1` olan bir satır VARDI (`2026-09-04T12:24:25Z,0,1`), raporun
+    gördüğü 0'dı. Sürekli çöküp onarılan bir uygulama gerçekten %100 görünebilirdi —
+    tam da #344'ün önlemek için yazıldığı senaryo.
+
+    Kapı bunu neden yakalamadı: mutasyon testi kendi CSV'sini DOĞRU başlıkla yazıyordu.
+    Mekanizma sınandı, KULLANILAN VERİ sınanmadı (L63/L64'ün veri karşılığı).
+    """
+    ad = str(r.get("onarim", "")).strip()
+    if ad:
+        return ad == "1"
+    # Başlık bayat: DictReader fazlalıkları `None` anahtarında liste olarak tutar.
+    fazla = r.get(None) or []
+    return bool(fazla) and str(fazla[0]).strip() == "1"
 
 
 def _kesintiler(satirlar: list[tuple[datetime, bool, bool]], bosluk_dk: int) -> list[tuple]:

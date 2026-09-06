@@ -64,8 +64,10 @@ scratchpad_uvicorn.log
 openapi.json
 .mcp-sync-pending.log
 
-# Wave-Y/Y2: olu adam anahtari ping adresi KIMLIK tasir — depoya girmez
-deploy/windows/izleme-url.txt
+# Wave-Y/Y2: olu adam anahtari ping adresi KIMLIK tasir — depoya girmez.
+# Yildiz SART: 6 Eyl 2026'da `izleme-url.txt.yedek` diye bir yedek olustu ve dar kural
+# onu yakalamiyordu; depo o gun public yapildigi icin bir `git add -A` sizdirabilirdi.
+deploy/windows/izleme-url.txt*
 
 # Wave-Y/Y7: vitrin URETILIR (scripts/vitrin_uret.py) ve AYRI bir public depoya gider.
 # Uretici + kapisi izlenir; CIKTISI izlenmez — uretilmis dosyayi commit etmek, elle

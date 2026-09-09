@@ -5,7 +5,7 @@ import {
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
   Eye, Telescope, Bell, Waves, ArrowRight, Target, ChevronDown, ChevronRight,
 } from 'lucide-react';
-import { cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi, cashflowApi, formatPercent, formatDate, signClass, parseTRNumber } from '../api.js';
+import { cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi, cashflowApi, reportsApi, formatPercent, formatDate, signClass, parseTRNumber } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
 import MonthlySummary from '../components/MonthlySummary.jsx';
 import AccountCard from '../components/AccountCard.jsx';
@@ -16,6 +16,7 @@ import Onboarding from '../components/Onboarding.jsx';  // H20: ilk kullanım re
 // Sadeleştirme: ikincil bölümler katlanır — özet başlıkta kalır, bilgi eksilmez.
 import KatlanirBolum from '../components/KatlanirBolum.jsx';
 import AkisSparkline from '../components/AkisSparkline.jsx';
+import ButceSeridi from '../components/ButceSeridi.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 // Sade / detaylı görünüm: bu panel ikisinin de yükünü taşır (bkz. lib/gorunumModu.js).
 import { useGorunumModu } from '../hooks/useGorunumModu.js';
@@ -107,6 +108,10 @@ export default function Cockpit({ setActiveTab }) {
   // yerine şekli göstermek için tamamı tutuluyor (ek istek YOK).
   const [flow, setFlow] = useState(null);
   const flowSummary = flow?.summary || null;
+  // Net değer geçmişi. ÖLÇÜLDÜ (10 Eyl 2026): yeni kullanıcıda `items` BOŞ döner —
+  // seriyi gece işi (NetWorthSnapshot) biriktirir. Bu yüzden kart "veri yoksa hiç
+  // çizilmez": tek noktadan eğilim çizmek uydurmadır, iki nokta gerekir.
+  const [netTrend, setNetTrend] = useState(null);
   // BUG #273: vadesi gelip de ÖNERİYE DÖNÜŞEMEYEN düzenli gelir/gider. Eskiden bu durum
   // yalnız sunucu log'una düşüyordu; kullanıcı kirasının önerilmediğini ay sonunda,
   // bakiyesi tutmayınca fark ederdi.
@@ -138,10 +143,18 @@ export default function Cockpit({ setActiveTab }) {
       setLoading(false);
       setRefreshing(false);
     }
-    // Akış özeti — sessiz fail, cockpit yüklemesini engellemesin
-    cashflowApi.getForecast({ days: 30 })
-      .then(r => setFlow(r))
-      .catch(() => {});
+    // YAN ÇAĞRILAR — cockpit yüklemesini asla devirmemeli.
+    // `Promise.resolve().then(...)` sarmalı bilerek: `.catch()` yalnız DÖNEN sözü
+    // yakalar, çağrının KENDİSİ senkron patlarsa (ör. uç tanımsız) hata sarmalanmadan
+    // yükselir ve `load()`'un sözünü reddeder — panel sessizce yarım kalır. Ölçüldü
+    // (10 Eyl 2026): testte sahte `reportsApi`de `netWorthTrend` yoktu ve 243 testin
+    // hepsi geçtiği hâlde vitest 12 yakalanmamış hatayla kırmızı çıktı. Bir yan
+    // çağrının hata yolu, ana akışın hata yolundan daha dayanıklı olmalı.
+    const yanCagri = (fn, uygula) =>
+      Promise.resolve().then(fn).then(uygula).catch(() => {});
+
+    yanCagri(() => cashflowApi.getForecast({ days: 30 }), (r) => setFlow(r));
+    yanCagri(() => reportsApi.netWorthTrend(30), (r) => setNetTrend(r?.items || []));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -320,7 +333,7 @@ export default function Cockpit({ setActiveTab }) {
                       bg-gradient-to-br from-brand-50 via-white to-white
                       dark:from-brand-950/40 dark:via-zinc-900 dark:to-zinc-900">
         <h3 className="bolum-etiket">Bugün harcayabileceğin</h3>
-        <p className="font-numeric text-4xl sm:text-5xl font-bold leading-none mt-1.5
+        <p className="para text-4xl sm:text-5xl font-bold leading-none mt-1.5
                       text-brand-700 dark:text-brand-300">
           {formatPara(data.today_target)}
         </p>
@@ -332,6 +345,10 @@ export default function Cockpit({ setActiveTab }) {
             </span>
           )}
         </p>
+
+        {/* Dökümün GÖRSEL hâli: hangi kalem baskın, tek bakışta. Sayı listesi altta
+            katlı duruyor — şerit oranı, liste gerçeği verir. */}
+        <ButceSeridi dokum={data.butce_dokum} />
 
         {/* FEAT-030: günlük limitin açık dökümü. Sade görünümde de KALIR — "bu sayı
             nereden geliyor?" sorusu, finansa yeni olan kullanıcının ilk sorusudur. */}
@@ -484,13 +501,32 @@ export default function Cockpit({ setActiveTab }) {
             <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
               <div className={`h-full rounded-full ${barCls}`} style={{ width: `${sk.skor}%` }} />
             </div>
-            {/* Beş bileşenin puan dökümü uzman bilgisidir; sade görünümde skorun
-                kendisi ve rengi kalır. */}
+            {/* Bileşenler: gri rozet yığını yerine KATKI ÇUBUĞU.
+                Rozetler ("Ödeme gücü 100 · Nakit tamponu 48 · Kart sağlığı 20") hangi
+                bileşenin skoru aşağı çektiğini söylemiyordu — üç eşit gri kutu, üç
+                farklı gerçek. Çubukta her bileşen kendi puanı kadar dolar; boş kalan
+                kısım kaybedilen puandır ve göz doğrudan oraya gider.
+                Sade görünümde yine yalnız skor kalır (bileşen dökümü uzman bilgisi). */}
             {!basit && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {sk.bilesenler.map((b) => (
-                  <span key={b.ad} className="chip chip-neutral text-[10px]">{b.ad} {b.puan}</span>
-                ))}
+              <div className="mt-3 space-y-1.5">
+                {sk.bilesenler.map((b) => {
+                  const p = Math.max(0, Math.min(100, Number(b.puan) || 0));
+                  const renk = p >= 70 ? 'bg-positive-500'
+                    : p >= 40 ? 'bg-warn-500' : 'bg-negative-500';
+                  return (
+                    <div key={b.ad} className="flex items-center gap-2">
+                      <span className="text-[11px] text-zinc-600 dark:text-zinc-400
+                                       w-28 shrink-0 truncate" title={b.ad}>{b.ad}</span>
+                      <span className="flex-1 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700
+                                       overflow-hidden">
+                        <span className={`block h-full rounded-full ${renk}`}
+                              style={{ width: `${p}%` }} />
+                      </span>
+                      <span className="font-numeric text-[11px] w-7 text-right
+                                       text-zinc-600 dark:text-zinc-400">{b.puan}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -724,6 +760,32 @@ export default function Cockpit({ setActiveTab }) {
           </div>
         </KatlanirBolum>
       )}
+
+      {/* NET DEĞER SEYRİ — geçmişin şekli.
+          Veri `reports/net-worth-trend`'ten gelir ve gece işinin biriktirdiği
+          NetWorthSnapshot kayıtlarına dayanır. İKİ noktadan azsa kart HİÇ çizilmez:
+          tek ölçümden "eğilim" üretmek, olmayan bir bilgiyi varmış gibi göstermektir.
+          Sade görünümde de durur — net değerin yönü analiz değil, temel sinyaldir. */}
+      {netTrend && netTrend.length >= 2 && (() => {
+        const ilk = Number(netTrend[0].net_worth_seen) || 0;
+        const son = Number(netTrend[netTrend.length - 1].net_worth_seen) || 0;
+        const fark = son - ilk;
+        return (
+          <div className="card p-4">
+            <div className="flex items-baseline justify-between gap-3 mb-1">
+              <h3 className="bolum-etiket">Net değer · son {netTrend.length} ölçüm</h3>
+              <span className={`para text-sm font-semibold ${signClass(fark)}`}>
+                {fark >= 0 ? '+' : ''}{formatPara(fark)}
+              </span>
+            </div>
+            <AkisSparkline gunler={netTrend} degerAlani="net_worth_seen"
+                           renk={fark >= 0 ? 'brand' : 'negative'} yukseklik={52} />
+            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+              {formatDate(netTrend[0].date)} → {formatDate(netTrend[netTrend.length - 1].date)}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* AKIŞ — 30 günlük bakiye SEYRİ (üç sayı değil, şekil).
           Veri zaten çekiliyordu; günlük seri atılıyordu (bkz. `flow` state). Üç sayı

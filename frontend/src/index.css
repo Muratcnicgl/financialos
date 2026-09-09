@@ -24,10 +24,26 @@
     @apply bg-zinc-950 text-zinc-100;
   }
 
-  /* Sayilar mono font ile — finansal aplikasyon hizalama hassas */
+  /* Sayilar mono font ile — finansal aplikasyon hizalama hassas.
+     KULLANIM SINIRI (Eyl 2026): `.font-numeric` SUTUNLARDA hizalanması gereken sayılar
+     içindir (tablo satırları, listeler, kod). Manşet rakamlar için DEĞİL: JetBrains Mono
+     her rakamı eşit genişlikte çizdiği için büyük puntoda "terminal çıktısı" gibi duruyor
+     ve satırı gereksiz genişletiyor — ölçüldü, hero'daki tutar tek başına ekranın üçte
+     birini kaplıyordu. Manşetler için `.para` var. */
   .font-numeric {
     font-family: 'JetBrains Mono', Menlo, Monaco, monospace;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* PARA MANŞETİ — arayüz fontu (Inter) + tablo rakamları.
+     `tabular-nums` sayesinde rakamlar yine hizalanır (yenilenince zıplamaz), ama
+     harf genişlikleri metnin geri kalanıyla aynı ailedendir: para, terminal çıktısı
+     gibi değil para gibi okunur. Hafif negatif harf aralığı büyük puntoda dağılmayı
+     toplar. */
+  .para {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.015em;
+    font-feature-settings: 'ss01';
   }
 
   /* Scrollbar — koyu tema icin disiplinli */

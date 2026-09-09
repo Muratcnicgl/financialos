@@ -26,7 +26,19 @@ export default function MonthlySummary() {
   // Gider artışı KÖTÜ (kırmızı ok yukarı), gelir artışı İYİ.
   const expTrend = trend.expense_delta_pct;
   const incTrend = trend.income_delta_pct;
-  const topCat = current.expense_categories?.[0];
+  // İlk dört kalem + kalanların toplamı. Uzun kuyruk ("%1 · %1 · %0,4") listeyi
+  // şişirir ve hiçbir karar değiştirmez; tek satırda toplanır.
+  const tumKategoriler = current.expense_categories || [];
+  const kategoriler = (() => {
+    const ilk = tumKategoriler.slice(0, 4);
+    const kalan = tumKategoriler.slice(4);
+    if (!kalan.length) return ilk;
+    return [...ilk, {
+      category: `diğer (${kalan.length})`,
+      total: kalan.reduce((t, k) => t + Number(k.total || 0), 0),
+      percentage: kalan.reduce((t, k) => t + Number(k.percentage || 0), 0),
+    }];
+  })();
 
   return (
     <div className="card p-4">
@@ -77,14 +89,37 @@ export default function MonthlySummary() {
             </div>
           </div>
 
-          {topCat && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-              En çok: <span className="font-medium text-zinc-700 dark:text-zinc-300">{topCat.category}</span>{' '}
-              {formatPara(topCat.total)} (%{topCat.percentage.toFixed(0)})
+          {/* HARCAMA NEREYE GİTTİ — tek satır "en çok" yerine oranlı liste.
+              Veri zaten elde (`current.expense_categories`, her kalemde `percentage`);
+              ek istek YOK. Tek satır yalnız birinci kalemi söylüyordu ve ikinci kalemin
+              birinciye yakın mı yoksa önemsiz mi olduğu görünmüyordu — oran çubuğu bunu
+              tek bakışta verir. En çok DÖRT kalem çizilir; kalanlar "diğer" olarak tek
+              satırda toplanır (uzun kuyruk listeyi şişirip hiçbir şey anlatmıyor). */}
+          {kategoriler.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 space-y-1.5">
+              {kategoriler.map((k) => (
+                <div key={k.category} className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-600 dark:text-zinc-300 w-32 shrink-0 truncate"
+                        title={k.category}>{k.category}</span>
+                  <span className="flex-1 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                    <span className="block h-full rounded-full bg-negative-400 dark:bg-negative-500"
+                          style={{ width: `${Math.min(100, k.percentage)}%` }} />
+                  </span>
+                  <span className="font-numeric text-[11px] text-zinc-600 dark:text-zinc-400
+                                   w-24 text-right shrink-0">
+                    {formatPara(k.total)}
+                  </span>
+                  <span className="font-numeric text-[11px] text-zinc-500 w-9 text-right shrink-0">
+                    %{k.percentage.toFixed(0)}
+                  </span>
+                </div>
+              ))}
               {trend.prev_net_change !== undefined && (
-                <span className="ml-1">· geçen ay net {trend.prev_net_change >= 0 ? '+' : ''}{formatPara(trend.prev_net_change)}</span>
+                <p className="text-[11px] text-zinc-500 pt-1">
+                  Geçen ay net {trend.prev_net_change >= 0 ? '+' : ''}{formatPara(trend.prev_net_change)}
+                </p>
               )}
-            </p>
+            </div>
           )}
         </>
       )}

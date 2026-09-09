@@ -84,7 +84,7 @@ export default function MetricCard({
           <>
             {/* MC2 (Wave-8): mobilde text-lg (2-kolon grid ~150px'e sığar) + truncate YOK →
                 kritik net-değer kesilmesin; realistik TL değeri tek satır sığar. */}
-            <p className={`font-numeric text-lg sm:text-2xl font-bold ${v.valueText} leading-tight`}>
+            <p className={`para text-lg sm:text-2xl font-bold ${v.valueText} leading-tight`}>
               {prefix}{formatSayi(value)}{suffix}
             </p>
             {trend === 'up' && (

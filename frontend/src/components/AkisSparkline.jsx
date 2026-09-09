@@ -20,7 +20,8 @@
  *  - Nokta sayısı 2'nin altındaysa çizgi çizilmez: iki noktası olmayan bir "eğilim"
  *    iddiası uydurmadır.
  */
-export default function AkisSparkline({ gunler, yukseklik = 56, className = '' }) {
+export default function AkisSparkline({ gunler, yukseklik = 56, className = '',
+                                       degerAlani = 'closing_balance', renk = null }) {
   // Erken dönüş: iki noktası olmayan bir "eğilim" iddiası uydurmadır.
   if (!Array.isArray(gunler) || gunler.length < 2) return null;
 
@@ -28,7 +29,7 @@ export default function AkisSparkline({ gunler, yukseklik = 56, className = '' }
   const Y = yukseklik;
   const PAY = 6;                       // üst/alt pay: işaretçiler kırpılmasın
 
-  const degerler = gunler.map((g) => Number(g.closing_balance) || 0);
+  const degerler = gunler.map((g) => Number(g[degerAlani]) || 0);
   const enAz = Math.min(...degerler);
   const enCok = Math.max(...degerler);
   const aralik = enCok - enAz || 1;
@@ -48,7 +49,7 @@ export default function AkisSparkline({ gunler, yukseklik = 56, className = '' }
   const sifirY = negatifVar ? y(0) : null;
 
   // Renk: sıkışma varsa uyarı, bakiye negatife düşüyorsa olumsuz, yoksa marka rengi.
-  const ton = negatifVar ? 'negative' : sikismalar.length ? 'warn' : 'brand';
+  const ton = renk || (negatifVar ? 'negative' : sikismalar.length ? 'warn' : 'brand');
   const cizgiSinif = {
     negative: 'stroke-negative-500',
     warn: 'stroke-warn-500',

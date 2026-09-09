@@ -71,7 +71,14 @@ vi.mock('./api.js', async () => {
     expensesApi: { triggerDue: vi.fn() },
     cashflowApi: { getForecast: vi.fn() },
     fundPriceApi: { update: vi.fn() },
-    reportsApi: { monthlySummary: vi.fn().mockRejectedValue(new Error('kapalı')) },
+    // Sahte uç kümesi GERÇEK kullanımla aynı olmalı: `netWorthTrend` eksikti ve
+    // Cockpit onu çağırınca 243 test geçtiği hâlde vitest yakalanmamış hatayla
+    // kırmızı çıkıyordu. Eksik bir sahte uç, "test yeşil" ile "ürün sağlam" arasına
+    // sessiz bir fark koyar.
+    reportsApi: {
+      monthlySummary: vi.fn().mockRejectedValue(new Error('kapalı')),
+      netWorthTrend: vi.fn().mockResolvedValue({ items: [] }),
+    },
     onboardingApi: {
       rehber: vi.fn().mockResolvedValue({ adimlar: [], tamamlanan: 4, toplam: 4,
                                           tamamlandi: true, gizli: false, gorunur: false }),

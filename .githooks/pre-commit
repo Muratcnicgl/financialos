@@ -22,6 +22,23 @@ if echo "$staged" | grep -qE '^(app/|tests/|scripts/|alembic/).*\.py$'; then
     exit 1
   fi
   echo "[pre-commit] ✅ pytest yeşil."
+
+  # BUG #364: KALİTE KAPISI (ruff gerileme sayacı) BURADA DA KOŞAR.
+  # Ölçülen boşluk (9 Eyl 2026): bu hook yalnız pytest koşuyordu. Yeni bir test dosyası
+  # tek bir S603 getirdi (`subprocess.run` — deponun konvansiyonu `# noqa: S603`), süit
+  # yeşil kaldı, commit geçti, push edildi ve gerileme ancak **CI'da** görüldü. Yani
+  # bir ratchet vardı ama commit anında kimse ona sormuyordu; sayaç yalnız kırıldıktan
+  # SONRA konuşuyordu. Koşum süresi ölçüldü: **<1 sn** — bu kapıyı burada koşmamanın
+  # hiçbir bedeli yoktu, koşmamanın bedeli bir kırmızı CI oldu.
+  # Not: `ci_durum` gibi UYARI değil, gerçek bir KAPI — çünkü ölçtüğü şey yerelde
+  # deterministik (aynı ruff sürümü, aynı dosyalar) ve tavanı aşan her artış bilinçli
+  # bir karar gerektirir (baseline dosyası gerekçesiyle güncellenir).
+  if ! "$py" scripts/kalite_kapisi.py; then
+    echo "[pre-commit] ❌ KALİTE KAPISI KIRMIZI — commit engellendi."
+    echo "[pre-commit]    Ya bulguyu düzelt ya da bilinçli bir kararsa"
+    echo "[pre-commit]    docs/kalite-seruveni/kalite-baseline.json dosyasını gerekçesiyle güncelle."
+    exit 1
+  fi
 fi
 
 # Frontend değişti mi?

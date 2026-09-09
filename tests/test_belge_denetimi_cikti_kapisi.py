@@ -32,7 +32,7 @@ KOK = Path(__file__).resolve().parent.parent
 
 def _kos(betik: str) -> subprocess.CompletedProcess:
     """Kısıtlı kod sayfasıyla ayrı süreçte koşar (stdout boru → PYTHONIOENCODING geçerli)."""
-    return subprocess.run(
+    return subprocess.run(  # noqa: S603 - sabit argüman, kullanıcı girdisi yok
         [sys.executable, "-c", betik],
         cwd=str(KOK),
         env=dict(os.environ, PYTHONIOENCODING="cp1254"),

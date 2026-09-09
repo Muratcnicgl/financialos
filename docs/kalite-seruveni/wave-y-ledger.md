@@ -930,3 +930,55 @@ Zincirin üç halkası da ayrı ayrı ölçüldü:
 
 Yani gerçek bir kullanıcı, bu gece yazılan kodu indiriyor. 5 Eylül öncesinde bu zincir
 **üç gün boyunca kopuktu** ve hiçbir kapı bunu ölçmüyordu.
+
+---
+
+## 9 EYLÜL 2026 — ARAYÜZ YOĞUNLUĞU TURU (sade / detaylı)
+
+**Tetik bir ölçüm değil, bir cümleydi:** dönen bir kullanıcı *"anlaması çok zor, çok detay var"*
+dedi. Cümle ölçülünce doğrulandı — tek başlıkta **13 sekme**, Cockpit'te tek ekranda **yirmiye
+yakın kart**. Hiçbiri yanlış değildi; hepsi doğruydu. Sorun bilginin kendisi değil, **herkese aynı
+anda** gösterilmesiydi: finansa hâkim biri için bu yoğunluk değerli, ilk kez bakan için duvar.
+
+**Karar: yoğunluğu silmek yerine SEÇİLİR yapmak.** Kolay yol "az göster, gerisini yut" olurdu ve
+daha kötüsünü üretirdi — kullanıcı neyi kaçırdığını bilmez, çünkü kayıp görünmez. Bu yüzden sade
+görünümün sözleşmesi yazıya döküldü ve teste bağlandı:
+
+* **Gizlenmeyenler (risk taşıyanlar):** kritik uyarılar · onay bekleyen aksiyonlar · vadesi gelip
+  öneriye dönüşemeyen düzenli kayıtlar (#273 sınıfı sessizlik) · ilk adım · bugünkü hedef ·
+  hesaplar · **bayat fiyat** — yanlış bir sayı analiz değil **veri kalitesi riskidir**.
+* **Gizlenenler (analiz katmanı):** faiz sızıntısı · kart kullanım oranı · alacak yaşlandırma ·
+  asgari ödeme tuzağı · akış özeti · stratejik göstergeler · takvimler.
+* **Gizleme sessiz değil:** ekranda **kaç** ve **hangi** bölümün gizlendiği yazar; o sayı elle
+  değil, veriye bakılıp *gerçekten çizilecek* bölümler sayılarak üretilir. ("8 bölüm gizli" deyip
+  açınca 3 gösteren bir arayüz, dürüst olmayan bir sadeleştirmedir.)
+* **Tercih sorulur, dayatılmaz:** hiç seçim yapılmamışsa `okuModu()` **null** döner — "varsayılan"
+  ile "kullanıcı seçti" ayrı şeylerdir; ikisini karıştırmak soruyu ya her açılışta sordurur ya hiç
+  sordurmaz.
+
+**Yol üstünde üç kusur ölçüldü** (ayrıntı: `uygulanan-fixler.md` #360/#361/#362): komut paleti iki
+paneli hiç bilmiyordu ve o madde (FE-007) defterde **✅ kapalı** görünüyordu · yardım ekranı üç ayrı
+yerde üç farklı kısayol aralığı söylüyordu · `shadow-glow-brand` yazılmış ama tanımsız olduğu için
+**hiç çizilmemişti**.
+
+**A11Y-002'nin uyarısı bu turda ölçüldü.** Madde *"role eklemek erişilebilir rolü DEĞİŞTİRİR ve
+`getByRole('button')` ile sorgulayan mevcut testleri kırabilir"* diyordu. `role="tab"` eklendi →
+**üç e2e kapısı anında kırmızıya döndü.** Rol geri alındı, madde açık bırakıldı ve aksiyonuna
+*"aynı turda e2e sorguları da taşınmalı"* şartı eklendi. Bir backlog notunun kendini doğrulaması
+nadirdir; kaydedilmezse bir daha aynı bedel ödenir.
+
+* **L87 — Bir kontrolü "temiz görünsün" diye kaldırmak, o kontrolün taşıdığı YETENEĞİ de kaldırır.**
+  Sekme şeridi hap tasarımına geçerken kaydırma çubuğu `scrollbar-width: none` ile gizlendi. Görsel
+  olarak daha temizdi ve testlerin hepsi yeşil kaldı. Kullanıcı bildirdi: *"kaydırma kısmı gitmiş,
+  sadece klavyeyle yön tuşuna basınca kayıyor."* Ölçülünce zincir göründü: sürüklenecek çubuk yok +
+  dikey tekerlek yatay konteyneri kaydırmaz (tarayıcı davranışı) + dokunmatik yok → **fare kullanan
+  biri 13 sekmenin son 4'üne hiç ulaşamıyordu.** Çubuk bir süs değil, oradaki tek erişim yoluydu.
+  Düzeltme üç yolu da açtı (ince ama görünür çubuk · tekerlek→yatay · aktif sekmeyi görünüre alma)
+  ve `e2e/sekme-seridi.spec.js` dördünü de ölçüyor. **İkinci yarısı daha sinsi:** kapı ilk yazımda
+  "çubuk kaç piksel yer kaplıyor" diye sordu ve kırmızı döndü — headless Chromium `--hide-scrollbars`
+  ile koşar, orada değer **her zaman 0**'dır (gerçek tarayıcıda 6). Harness'in kendi ayarını ürün
+  kusuru diye raporlayan bir kapı, yeşile dönsün diye kapatılır; ölçüm "çubuk gizlenmedi" **kararına**
+  çevrildi ve gerçek çubuk tarayıcıda gözle doğrulandı.
+
+**Bu turun kanıtı:** vitest **243/243** (28 yeni test) · e2e **12/12** izole DB'de (4 yeni) ·
+prod build yeşil · iki temada ve iki modda tarayıcıda görsel doğrulama · commit `cdbe315`.

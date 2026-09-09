@@ -41,6 +41,18 @@ import sys
 import time
 from pathlib import Path
 
+# BUG #363 fix: kapinin CIKTI YOLU dayanikli hale getirildi.
+# Asagida (bkz. "ASCII ok BILEREK" notu) ayni sinif bir kez yakalanmisti: `->` isareti
+# Windows Turkce konsolunun cp1254 kod sayfasinda yok ve `print` UnicodeEncodeError ile
+# coküyordu. Ama duzeltme yalnizca BIZIM yazdigimiz bicim dizesine uygulandi; bir satir
+# sonra basilan sey TARANAN BELGENIN KENDI ICERIGI ve onun karakter kumesini biz
+# secmiyoruz. Olculdu (9 Eyl 2026): fix defterine icinde "✅" gecen bir satir eklenince
+# kapi bulguyu yazarken traceback ile oldu ve GERI KALAN BULGULARI HIC SOYLEMEDI.
+# L84'un bu dosyadaki hali: bir duzeltmeyi ikiye bolmek, hic yapmamaktan yaniltiCidir.
+# Depo konvansiyonu (canli_durum.py, ci_durum.py) burada da uygulaniyor.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+
 REPO_KOK = Path(__file__).resolve().parent.parent
 
 # ── ÖLÜ YÖNLENDİRME ───────────────────────────────────────────────────────────

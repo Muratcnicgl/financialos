@@ -69,9 +69,9 @@
 - **Aksiyon:** Local state hemen güncelle, arka planda revalidate; hata'da geri al.
 - **Etki:** Orta · **Efor:** M
 
-### [UX-011] Mobilde 10 sekme yatay scroll'a sıkışıyor — alt nav yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: md altı bottom-nav yok
-- **Kanıt:** `App.jsx:22-33,163-181`
+### [UX-011] Mobilde 13 sekme yatay scroll'a sıkışıyor — alt nav yok
+- **Durum:** 🔲 AÇIK (alt nav hâlâ yok) — **ama sıkışmanın büyüklüğü değişti (9 Eyl 2026):** sekme sayısı madde yazıldığında 10'du, bugün **13**; sade görünümde ise **5**. Yani yeni kullanıcı artık yatay kaydırmaya hiç ihtiyaç duymuyor, detaylı görünümü seçen kullanıcı duyuyor. Aynı turda şeridin kaydırılabilirliği ölçüldü ve **üç yolu da açık** hâle getirildi (ince ama görünür çubuk + fare tekerleği + klavye); kapı: `e2e/sekme-seridi.spec.js`.
+- **Kanıt:** `frontend/src/lib/sekmeler.js` (13 sekme, 5'i `temel`) · `App.jsx` (şerit) · `e2e/sekme-seridi.spec.js`
 - **Aksiyon:** `md:` altında bottom nav (5 sekme + "Daha"); `pb-[env(safe-area-inset-bottom)]`.
 - **Etki:** Yüksek · **Efor:** M
 
@@ -136,7 +136,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-021] "Görülen" vs "Tam Net Değer" ayrımı açıklamasız
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: subtitle statik ama ? popover yok
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: subtitle statik ama ? popover yok. **9 Eyl 2026:** sade görünümde bu ayrım kullanıcıya **hiç gösterilmiyor** (tek bir "Net Değer" kartı, alt yazısı "Varlıklar eksi borçlar") — yani finansa yeni olan kişi açıklanmamış bir jargonla karşılaşmıyor. Detaylı görünümde ayrım **duruyor ve hâlâ popover'sız**; madde o yüzden kapanmadı.
 - **Kanıt:** `Cockpit.jsx:186-203`
 - **Aksiyon:** Tıklanınca "?" popover: "Görülen = cüzdanında olan. Tam = sözleşmeli alacaklar dahil." (mobilde tap-to-open)
 - **Etki:** Orta · **Efor:** S
@@ -184,9 +184,9 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-029] Cockpit çok uzun tek kolon — mobilde yorucu
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: tek uzun kolon, önemli-3 + katlanır yok
-- **Kanıt:** `Cockpit.jsx:111-527` (9+ bölüm)
-- **Aksiyon:** Üstte "bugün önemli 3 şey", gerisi katlanabilir (localStorage tercih).
+- **Durum:** 🟡 KISMEN (9 Eyl 2026) — maddenin iki şartından **ikisi de** karşılandı ama farklı bir biçimde: (1) en üstte artık "bugün ne kadar harcayabilirsin" kartı duruyor (eskiden **altıncı** bloktu), (2) analiz katmanı **sade görünümde** gizleniyor ve tercih `localStorage`'da saklanıyor. Literal "önemli 3 şey" bloğu YOK — sade görünümde ekranda kalanlar: ilk adım · bugünkü hedef · onay bekleyenler · kritik uyarılar · hesaplar. **Açık kalan:** madde "katlanabilir" diyor; sade görünüm katlamıyor, **gizliyor** — ama kaç ve hangi bölümün gizlendiği ekranda yazılı ve tek tıkla geri geliyor.
+- **Kanıt:** `Cockpit.jsx` — `gizlenenBolumler` (13 analiz bölümü, verisi olanlar sayılır) · `lib/gorunumModu.js` · kapı: `cockpit-sade-gorunum.test.jsx` (11 test; biri gizli sayısının veriden üretildiğini kilitler)
+- **Aksiyon:** ~~Üstte "bugün önemli 3 şey", gerisi katlanabilir (localStorage tercih).~~ → Kalan: detaylı görünümde de bölüm sırası önem sırasına göre gözden geçirilmeli (şu an tarihsel sıra).
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-030] Hesap silme uyarısı sayı vermiyor

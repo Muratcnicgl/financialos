@@ -38,10 +38,10 @@
 - **Aksiyon:** Panel-arası tazeleme sinyali kur, `onActionResolved={triggerCockpitRefresh}` bağla; veya query invalidation.
 - **Etki:** Orta · **Efor:** S
 
-### [FE-007] Komut paleti + kısayollar 10 sekmenin yalnız 7'sini biliyor ✅ UYGULANDI (12 Tem 2026)
-- **Durum:** ✅ KAPANDI (inline işaret)
-- **Kanıt:** `useKeyboardShortcuts.js:3,32`; `CommandPalette.jsx:4-12`; `App.jsx:22-33` (10 tab); `e.key <= '7'`
-- **Aksiyon:** `TABS`'ı `shared/config/tabs.js`'e; TabBar+CommandPalette+shortcut aynı diziden.
+### [FE-007] Komut paleti + kısayollar 10 sekmenin yalnız 7'sini biliyor ✅ UYGULANDI (12 Tem 2026 — yarım; 9 Eyl 2026'da GERÇEKTEN kapandı)
+- **Durum:** ✅ KAPANDI (9 Eyl 2026, BUG #360) — **ama 12 Tem'deki kapanış iddiası çürümüştü.** O tur kopyaları senkronladı, listeyi TEK KAYNAĞA taşımadı (maddenin kendi aksiyonu buydu). Sekme sayısı 10→13 olunca `workspace` ve `hesap` palete hiç eklenmedi: **iki panele Cmd+K ile ulaşılamıyordu** (9 Eyl ölçümü). Ders: kopyalar durduğu sürece kapalı bir maddenin iddiası zamanla çürür.
+- **Kanıt (9 Eyl 2026, düzeltme sonrası):** `frontend/src/lib/sekmeler.js` tek kaynak; `App.jsx`, `CommandPalette.jsx`, `useKeyboardShortcuts.js` ve `ogretici.test.jsx` kapsam kapısı aynı diziyi okur. Regresyon kilidi: `gorunum-modu.test.jsx` (13 panelin tamamı palette).
+- **Aksiyon:** ~~`TABS` ortak bir yapılandırma dosyasına; TabBar+CommandPalette+shortcut aynı diziden.~~ → `frontend/src/lib/sekmeler.js` olarak uygulandı.
 - **Etki:** Orta · **Efor:** S
 
 ### [FE-008] Goals paneli tema-duyarlı değil — açık temada okunmaz

@@ -51,7 +51,7 @@ async function ac(page) {
     localStorage.setItem('sihirbaz_otomatik_acildi', '1');
   }, token);
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Cockpit/ }).first()).toBeVisible();
   return page.locator('nav[aria-label="Paneller"] > div > div').first();
 }
 
@@ -96,7 +96,7 @@ test('sona kaydirinca son sekme tiklanabilir olur', async ({ page }) => {
   const serit = await ac(page);
   await serit.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
 
-  const sonSekme = page.getByRole('button', { name: 'Hesap', exact: true });
+  const sonSekme = page.getByRole('tab', { name: 'Hesap', exact: true });
   await expect(sonSekme).toBeVisible();
   await sonSekme.click();
   await expect(page.getByRole('heading', { name: 'Hesap', exact: true })).toBeVisible();

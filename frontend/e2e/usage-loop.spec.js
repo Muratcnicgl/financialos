@@ -42,19 +42,26 @@ async function login(page) {
     localStorage.setItem('fos_gorunum_modu', 'detayli');
   }, token);
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Cockpit/ }).first()).toBeVisible();
 }
 
 test('kullanım döngüsü: harcama gir → cockpit güncellenir (UI→DB→rules_engine)', async ({ page, request }) => {
   await login(page);
 
   // İşlemler → hızlı giriş harcama
-  await page.getByRole('button', { name: /İşlemler/ }).first().click();
+  await page.getByRole('tab', { name: /İşlemler/ }).first().click();
   const quick = page.getByPlaceholder(/Hızlı giriş/);
   await expect(quick).toBeVisible();
   await quick.fill('300 fatura');
   await quick.press('Enter');
-  await expect(page.getByText(/Toplam 1 işlem/)).toBeVisible();
+  // Zaman aşımı BİLEREK varsayılanın (5 sn) üstünde. Bu iddia bir AĞ TURUNU bekliyor:
+  // hızlı giriş POST eder, liste yeniden çeker. Ölçüldü (9 Eyl 2026): spec TEK BAŞINA
+  // koşunca 2/2 temiz, TAM SÜİT içinde ilk deneme düşüp retry'de geçiyor — süit 6
+  // Playwright işçisini tek bir uvicorn + SQLite üzerine bindiriyor ve ilk tur 5 sn'yi
+  // aşabiliyor. Ürün kusuru değil, iddianın gecikme varsayımı eksikti; "flaky, tekrar
+  // koş" demek o varsayımı görünmez kılardı (L86: kararsız test, çoğu zaman ölçtüğü
+  // şeyin kararsızlığını anlatır — burada anlattığı şey sunucu gecikmesi).
+  await expect(page.getByText(/Toplam 1 işlem/)).toBeVisible({ timeout: 15000 });
 
   // Sonuç rules_engine'de: nakit 5000 → 4700 (cockpit API, döngünün hesap ayağı)
   const ck = await request.get(`${API}/api/cockpit`, { headers: { Authorization: `Bearer ${token}` } });
@@ -71,7 +78,7 @@ test('panel smoke: 13 panel konsol hatası ÜRETMEZ (B18-5)', async ({ page }) =
   const panels = ['Koç', 'Hesaplar', 'İşlemler', 'Gelir', 'Kırmızı', 'Raporlar',
                   'Akış', 'Borç Stratejisi', 'Hedefler', 'Bütçe', 'Aile', 'Cockpit'];
   for (const name of panels) {
-    await page.getByRole('button', { name: new RegExp(name) }).first().click();
+    await page.getByRole('tab', { name: new RegExp(name) }).first().click();
     await page.waitForTimeout(500);  // mount + API; smoke için kısa (D1 hard-wait minimal)
   }
   // Recharts width(-1) warning'i (BUG #059) 'error' değil 'warning' → errors'a düşmez.

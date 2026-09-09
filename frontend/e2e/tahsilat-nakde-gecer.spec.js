@@ -64,15 +64,15 @@ async function girisYap(page) {
     localStorage.setItem('fos_gorunum_modu', 'detayli');
   }, token);
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Cockpit/ }).first()).toBeVisible();
 }
 
 test('panelden "Ödendi" işaretlemek nakde geçer ve kullanıcıya söylenir', async ({ page, request }) => {
   await girisYap(page);
 
   // Borç/Alacak sekmesi → bekleyen kayıtlar
-  await page.getByRole('button', { name: /Gelir|Borç/ }).first().waitFor();
-  await page.getByRole('button', { name: /Gelir\/Gider\/Borç|Gelir/ }).first().click();
+  await page.getByRole('tab', { name: /Gelir|Borç/ }).first().waitFor();
+  await page.getByRole('tab', { name: /Gelir\/Gider\/Borç|Gelir/ }).first().click();
   await page.getByRole('button', { name: /Borç\/Alacak/ }).click();
 
   const satir = page.locator('.card', { hasText: 'E2E Tahsilat' }).first();
@@ -90,7 +90,7 @@ test('panelden "Ödendi" işaretlemek nakde geçer ve kullanıcıya söylenir', 
 
 test('kapanmış kayıt hangi hesaba işlendiğini satırında taşır ve geri alınabilir', async ({ page, request }) => {
   await girisYap(page);
-  await page.getByRole('button', { name: /Gelir\/Gider\/Borç|Gelir/ }).first().click();
+  await page.getByRole('tab', { name: /Gelir\/Gider\/Borç|Gelir/ }).first().click();
   await page.getByRole('button', { name: /Borç\/Alacak/ }).click();
 
   // "Ödenmiş" filtresine geç (varsayılan: Bekleyen)

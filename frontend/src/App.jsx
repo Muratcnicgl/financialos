@@ -313,6 +313,25 @@ function AppContent({ onLogout }) {
     else if (sagTasma > 0) serit.scrollLeft += sagTasma + 8;
   }, [activeTab, basit]);
 
+  // ARIA sekme örüntüsünün klavye yarısı (APG "tabs, manual activation").
+  // Ok tuşları ODAĞI taşır, seçimi DEĞİŞTİRMEZ; seçim Enter/Space ile yapılır.
+  // Otomatik etkinleştirme (ok tuşu = panel değişimi) bilerek seçilmedi: her panel
+  // kendi ağ isteklerini yapıyor, ok tuşuyla şeritte gezinmek 13 paneli sırayla
+  // yükletirdi. APG de pahalı panellerde manuel etkinleştirmeyi önerir.
+  const sekmeKlavye = useCallback((e) => {
+    const dugmeler = [...(seritRef.current?.querySelectorAll('[role="tab"]') || [])];
+    const simdi = dugmeler.indexOf(document.activeElement);
+    if (simdi < 0 || dugmeler.length === 0) return;
+    const yon = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    let hedef = null;
+    if (yon !== undefined) hedef = (simdi + yon + dugmeler.length) % dugmeler.length;
+    else if (e.key === 'Home') hedef = 0;
+    else if (e.key === 'End') hedef = dugmeler.length - 1;
+    else return;
+    e.preventDefault();
+    dugmeler[hedef].focus();
+  }, []);
+
   useKeyboardShortcuts({
     setActiveTab,
     sekmeIdleri,
@@ -426,21 +445,29 @@ function AppContent({ onLogout }) {
         <nav className="border-t border-zinc-200/60 dark:border-zinc-800/60" aria-label="Paneller">
           <div className="max-w-6xl mx-auto relative">
             <div ref={seritRef} className="px-2 pt-1.5 pb-1 overflow-x-auto kaydirma-ince">
-              {/* Bilerek `role="tab"` DEĞİL, sade <button>.
-                  ARIA sekme örüntüsü yalnız rol atamakla tamamlanmaz: ok tuşlarıyla
-                  gezinme, roving tabindex ve aria-controls ister. Yarım uygulanmış bir
-                  örüntü, ekran okuyucuya çalışmayan bir sözleşme vaat eder — düğme
-                  listesi burada hem dürüst hem çalışıyor. Aktif olan `aria-current`
-                  ile işaretlenir. */}
-              <div className="flex gap-1">
+              {/* A11Y-002: TAM ARIA sekme örüntüsü (APG Tabs).
+                  Önce bilerek sade <button> bırakılmıştı, çünkü rolü tek başına eklemek
+                  ekran okuyucuya çalışmayan bir sözleşme vaat eder. Bu turda örüntünün
+                  TAMAMI kuruldu: role="tablist"/"tab", aria-selected, aria-controls,
+                  roving tabindex (yalnız seçili sekme Tab sırasında), ok tuşlarıyla
+                  gezinme ve Home/End, karşılığında da bir role="tabpanel".
+                  `aria-controls` YALNIZ seçili sekmede: paneller tembel çiziliyor,
+                  seçili olmayan sekmenin işaret edeceği bir öge DOM'da yok — olmayan
+                  bir id'ye işaret etmek, örüntüyü yine yarım bırakırdı. */}
+              <div className="flex gap-1" role="tablist" aria-orientation="horizontal"
+                   aria-label="Paneller" onKeyDown={sekmeKlavye}>
                 {sekmeler.map((sekme) => {
                   const Icon = sekme.icon;
                   const aktif = activeTab === sekme.id;
                   return (
                     <button
                       key={sekme.id}
+                      id={`sekme-${sekme.id}`}
+                      role="tab"
+                      aria-selected={aktif}
+                      aria-controls={aktif ? 'panel-icerik' : undefined}
+                      tabIndex={aktif ? 0 : -1}
                       onClick={() => setActiveTab(sekme.id)}
-                      aria-current={aktif ? 'page' : undefined}
                       data-aktif={aktif ? '1' : undefined}
                       className={`sekme ${aktif ? 'sekme-aktif' : 'sekme-pasif'}`}
                     >
@@ -473,7 +500,13 @@ function AppContent({ onLogout }) {
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+      {/* Sekmenin karşılığı olan panel. `aria-labelledby` seçili sekmeyi gösterir,
+          böylece ekran okuyucu "Cockpit sekmesi, panel" diye okur. `tabIndex={0}`:
+          panelin kendisi klavyeyle odaklanabilir olmalı (APG) — içinde odaklanacak
+          öge olmayan panellerde içerik başka türlü kaydırılamaz. */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden"
+            id="panel-icerik" role="tabpanel" tabIndex={0}
+            aria-labelledby={`sekme-${activeTab}`}>
         <div className={`max-w-6xl mx-auto px-4 ${
           activeTab === 'coach' ? 'h-full flex flex-col pt-4' : 'py-6'
         }`}>

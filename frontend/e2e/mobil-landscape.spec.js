@@ -143,7 +143,7 @@ test('landscape: yuzey kapisi (yuzer butce + ulasilabilirlik + tasma + konsol)',
     localStorage.setItem('fos_gorunum_modu', 'detayli');
   }, token);
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Cockpit/ }).first()).toBeVisible();
 
   const butce = await page.evaluate(OLC_BUTCE);
   console.log('[landscape] butce:', JSON.stringify(butce));
@@ -163,7 +163,7 @@ test('landscape: yuzey kapisi (yuzer butce + ulasilabilirlik + tasma + konsol)',
   }
 
   for (const ad of PANELLER) {
-    const btn = page.getByRole('button', { name: new RegExp(ad) }).first();
+    const btn = page.getByRole('tab', { name: new RegExp(ad) }).first();
     await expect(btn, `"${ad}" sekmesi landscape'te bulunamadi`).toBeVisible();
     await btn.click();
     await page.waitForTimeout(700);   // mount + API (portrait kapisiyla ayni bekleme)

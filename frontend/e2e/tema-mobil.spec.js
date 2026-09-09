@@ -179,11 +179,11 @@ for (const tema of ['dark', 'light']) {
       localStorage.setItem('fos_gorunum_modu', 'detayli');
     }, [token, tema]);
     await page.goto('/');
-    await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Cockpit/ }).first()).toBeVisible();
 
     const ihlaller = [];
     for (const ad of PANELLER) {
-      const btn = page.getByRole('button', { name: new RegExp(ad) }).first();
+      const btn = page.getByRole('tab', { name: new RegExp(ad) }).first();
       await expect(btn, `"${ad}" sekmesi 390px'te bulunamadi`).toBeVisible();
       await btn.click();
       await page.waitForTimeout(700);   // mount + API; smoke seviyesinde kisa bekleme

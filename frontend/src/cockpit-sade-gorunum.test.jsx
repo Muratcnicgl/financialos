@@ -147,7 +147,7 @@ describe('sade görünüm — ANALİZ gizlenir ama gizlendiği YAZILIR', () => {
     expect(screen.queryByText(/Faize giden:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Kart kullanımı/)).not.toBeInTheDocument();
     expect(screen.queryByText(/gecikmiş alacak/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Akış Özeti (30 gün)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Önümüzdeki 30 gün')).not.toBeInTheDocument();
     expect(screen.queryByText('Stratejik manzara')).not.toBeInTheDocument();
     expect(screen.queryByText('Yatırım Kâr/Zarar')).not.toBeInTheDocument();
   });
@@ -185,6 +185,9 @@ describe('detaylı görünüm — hiçbir bölüm eksilmez', () => {
     expect(screen.getByText('Stratejik manzara')).toBeInTheDocument();
     expect(screen.getByText('Operasyonel manzara')).toBeInTheDocument();
     expect(screen.getByText('Yatırım Kâr/Zarar')).toBeInTheDocument();
+    // 30 günlük akış: artık üç sayı değil bir eğri. Bölümün VARLIĞI burada kilitlenir;
+    // sade taraftaki "çizilmez" iddiası ancak burada "çizilir" denirse bir şey ölçer.
+    expect(screen.getByText('Önümüzdeki 30 gün')).toBeInTheDocument();
     expect(screen.queryByText(/Sade görünümdesin/)).not.toBeInTheDocument();
   });
 

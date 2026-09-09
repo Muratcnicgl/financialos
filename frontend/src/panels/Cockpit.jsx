@@ -15,6 +15,7 @@ import EmptyState from '../components/EmptyState.jsx';
 import Onboarding from '../components/Onboarding.jsx';  // H20: ilk kullanım rehberi + demo veri
 // Sadeleştirme: ikincil bölümler katlanır — özet başlıkta kalır, bilgi eksilmez.
 import KatlanirBolum from '../components/KatlanirBolum.jsx';
+import AkisSparkline from '../components/AkisSparkline.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 // Sade / detaylı görünüm: bu panel ikisinin de yükünü taşır (bkz. lib/gorunumModu.js).
 import { useGorunumModu } from '../hooks/useGorunumModu.js';
@@ -101,7 +102,11 @@ export default function Cockpit({ setActiveTab }) {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [priceUpdateAccount, setPriceUpdateAccount] = useState(null);
-  const [flowSummary, setFlowSummary] = useState(null);
+  // Akış tahmini: eskiden yalnız `summary` saklanıyordu ve günlük seri ATILIYORDU.
+  // Aynı yanıtın içinde 30 günün `closing_balance` + `crunch` verisi var; üç sayı
+  // yerine şekli göstermek için tamamı tutuluyor (ek istek YOK).
+  const [flow, setFlow] = useState(null);
+  const flowSummary = flow?.summary || null;
   // BUG #273: vadesi gelip de ÖNERİYE DÖNÜŞEMEYEN düzenli gelir/gider. Eskiden bu durum
   // yalnız sunucu log'una düşüyordu; kullanıcı kirasının önerilmediğini ay sonunda,
   // bakiyesi tutmayınca fark ederdi.
@@ -135,7 +140,7 @@ export default function Cockpit({ setActiveTab }) {
     }
     // Akış özeti — sessiz fail, cockpit yüklemesini engellemesin
     cashflowApi.getForecast({ days: 30 })
-      .then(r => setFlowSummary(r.summary))
+      .then(r => setFlow(r))
       .catch(() => {});
   }, []);
 
@@ -176,6 +181,87 @@ export default function Cockpit({ setActiveTab }) {
 
   const investmentPnl = data.investment_pnl?.[0];
 
+  // BUG #006 fix: Yeni alanlar (eski cockpit response'i ile geriye uyumlu olsun diye fallback)
+  const netDegerTam = data.net_deger_tam ?? data.net_deger;
+  const alacaklarToplami = data.alacaklar_toplami ?? 0;
+  const borclarToplami = data.borclar_toplami ?? 0;   // BUG #116: kişisel borç (net_deger_tam'dan −)
+  // Tam Net Değer alt-yazısı: hem +alacak hem −kişisel-borç şeffaf gösterilir (#116)
+  const netTamDetay = [
+    alacaklarToplami > 0 ? `+${formatPara(alacaklarToplami)} alacak` : null,
+    borclarToplami > 0 ? `−${formatPara(borclarToplami)} kişisel borç` : null,
+  ].filter(Boolean).join(', ');
+
+  // BOŞ VE TEKRAR EDEN GÖSTERGE BASTIRILIR.
+  // Ölçülen sorun (9 Eyl 2026, gerçek veriyle): detaylı görünümde beş stratejik
+  // kartın İKİSİ sıfır (Emanet, Beklenen Gelir), ÜÇÜ aynı sayıyı gösteriyordu
+  // (Reel Bütçe / Görülen Net Değer / Tam Net Değer — hepsi 5.630,00). Bilgi
+  // taşımayan bir kart, bilgi taşıyan kartla AYNI görsel ağırlığı kaplayınca ekran
+  // "çok şey var ama hiçbiri öne çıkmıyor" hissi veriyor. Ekranı yoran şey bilginin
+  // çokluğu değil, boşluğun bilgi gibi durmasıydı.
+  //
+  // Kural: bir gösterge ancak BİR ŞEY SÖYLÜYORSA çizilir.
+  //  - Sıfır bazen anlamlıdır ("kart borcun yok"), bazen gürültü ("hiç kartın yok").
+  //    Ayrım hesabın VARLIĞINA bakılarak yapılır, sayıya değil.
+  //  - İki net değer eşitse tek kart çizilir; ayrım ancak FARK varken bir şey anlatır.
+  // Izgara sütun sayısı KART SAYISINA uyar. Sabit 4 sütun, iki kart kaldığında
+  // sağ yarıyı boş bırakıyor ve ekran "bitmemiş" duruyordu (ölçüldü: boş/tekrar eden
+  // kartlar bastırılınca 9 kart 4'e indi). Tailwind dinamik sınıf üretmez, bu yüzden
+  // eşleme literal dizelerle yapılır.
+  const gridSinif = (n) => ({
+    1: 'grid-cols-1',
+    2: 'grid-cols-2',
+    3: 'grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-2 lg:grid-cols-4',
+    5: 'grid-cols-2 lg:grid-cols-5',
+  }[Math.min(n, 5)] || 'grid-cols-2 lg:grid-cols-4');
+
+  const hesapTuru = (t) => (data.accounts || []).some((a) => a.account_type === t);
+  const netAyrimVar = netDegerTam !== data.net_deger;
+
+  const operasyonel = [
+    { anahtar: 'nakit', goster: true,
+      alan: { title: 'Nakit', value: data.nakit_kasa, variant: 'positive', icon: Wallet } },
+    { anahtar: 'kart', goster: data.kart_borcu !== 0 || hesapTuru('credit_card'),
+      alan: { title: 'Kart Borcu', value: data.kart_borcu, variant: 'negative', icon: CreditCard } },
+    { anahtar: 'kredi', goster: data.kredi_borcu !== 0 || hesapTuru('loan'),
+      alan: { title: 'Kredi Borcu', value: data.kredi_borcu, variant: 'negative', icon: Building2 } },
+    { anahtar: 'yatirim', goster: data.yatirim_deger !== 0 || hesapTuru('investment'),
+      alan: { title: 'Yatırım', value: data.yatirim_deger, variant: 'brand', icon: TrendingUp } },
+  ].filter((x) => x.goster);
+
+  const stratejik = [
+    { anahtar: 'emanet', goster: data.emanet_kasa > 0,
+      alan: { title: 'Emanet', value: data.emanet_kasa, variant: 'warn', icon: Lock,
+              isEmanet: true, subtitle: 'Net değere dahil değil' } },
+    { anahtar: 'gelir', goster: data.beklenen_gelir > 0,
+      alan: { title: 'Beklenen Gelir', value: data.beklenen_gelir, variant: 'positive',
+              icon: Banknote, subtitle: 'Bu ay sonuna kadar' } },
+    { anahtar: 'butce', goster: true,
+      alan: { title: 'Reel Bütçe', value: data.reel_butce, icon: Calculator,
+              variant: data.reel_butce >= 0 ? 'positive' : 'negative',
+              subtitle: 'Gölge muhasebe sonrası' } },
+    { anahtar: 'net', goster: true,
+      alan: { title: netAyrimVar ? 'Görülen Net Değer' : 'Net Değer', value: data.net_deger,
+              icon: Scale, variant: data.net_deger >= 0 ? 'positive' : 'negative',
+              subtitle: netAyrimVar ? 'Alacaksız (operasyonel)' : 'Varlıklar eksi borçlar' } },
+    { anahtar: 'nettam', goster: netAyrimVar,
+      alan: { title: 'Tam Net Değer', value: netDegerTam, icon: Telescope,
+              variant: netDegerTam >= 0 ? 'positive' : 'negative',
+              subtitle: `${netTamDetay} dahil` } },
+  ].filter((x) => x.goster);
+
+  const tumKartlar = [...operasyonel, ...stratejik];
+
+  // Sade görünümün dört sayısı: param var mı · ne kadar borcum var · neredeyim.
+  // Yatırım ve "Görülen/Tam" ayrımı burada yok — ikisi de kavram bilgisi ister.
+  const sadeKartlar = [
+    ...operasyonel.filter((x) => x.anahtar !== 'yatirim'),
+    { anahtar: 'net',
+      alan: { title: 'Net Değer', value: data.net_deger, icon: Scale,
+              variant: data.net_deger >= 0 ? 'positive' : 'negative',
+              subtitle: 'Varlıklar eksi borçlar' } },
+  ];
+
   // Sade görünümde GİZLENEN analiz bölümlerinin adları. Sayı ELLE yazılmıyor: yalnız
   // verisi olduğu için detaylı görünümde GERÇEKTEN çizilecek bölümler sayılır — yoksa
   // "8 bölüm gizli" yazan ama açınca 3 bölüm gösteren bir arayüz olurdu.
@@ -198,15 +284,6 @@ export default function Cockpit({ setActiveTab }) {
                        && !(data.price_freshness?.stale_count > 0)],
   ].filter(([, cizilir]) => cizilir).map(([ad]) => ad);
 
-  // BUG #006 fix: Yeni alanlar (eski cockpit response'i ile geriye uyumlu olsun diye fallback)
-  const netDegerTam = data.net_deger_tam ?? data.net_deger;
-  const alacaklarToplami = data.alacaklar_toplami ?? 0;
-  const borclarToplami = data.borclar_toplami ?? 0;   // BUG #116: kişisel borç (net_deger_tam'dan −)
-  // Tam Net Değer alt-yazısı: hem +alacak hem −kişisel-borç şeffaf gösterilir (#116)
-  const netTamDetay = [
-    alacaklarToplami > 0 ? `+${formatPara(alacaklarToplami)} alacak` : null,
-    borclarToplami > 0 ? `−${formatPara(borclarToplami)} kişisel borç` : null,
-  ].filter(Boolean).join(', ');
 
   // H20 (BUG #194): yeni kullanıcı yönlendirilir; verisi olanı rahatsız etmez.
   // BUG #262: "boş mu" ölçütü ARTIK burada değil — rehber 4 adımı backend'de sayar
@@ -351,91 +428,43 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
-      {/* GÖSTERGELER.
-          Sade görünümde DÖRT sayı: param var mı (Nakit), ne kadar borcum var (Kart,
-          Kredi), toplamda neredeyim (Net Değer). Dördü de backend'in döndürdüğü HAM
-          alan — burada hiçbir toplama yapılmıyor (ADR-001: motor hesaplar, arayüz
-          gösterir). Detaylı görünümde dokuz gösterge ve iki grup başlığı gelir;
-          "Görülen / Tam Net Değer" ayrımı ancak alacak-borç kavramını bilene bir şey
-          anlatır, o yüzden sade tarafta yok. */}
+      {/* GÖSTERGELER — listeden çizilir; boş/tekrar eden kart hiç doğmaz.
+          Grup başlığı da bedava değil: toplam dört karta kadar TEK satır çizilir ve
+          "Operasyonel / Stratejik" etiketleri hiç görünmez. İki kartın üstüne başlık
+          koymak, sınıflandırdığından daha çok yer kaplar. */}
       {basit ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <MetricCard title="Nakit" value={data.nakit_kasa} variant="positive" icon={Wallet} />
-          <MetricCard title="Kart Borcu" value={data.kart_borcu} variant="negative" icon={CreditCard} />
-          <MetricCard title="Kredi Borcu" value={data.kredi_borcu} variant="negative" icon={Building2} />
-          <MetricCard
-            title="Net Değer"
-            value={data.net_deger}
-            variant={data.net_deger >= 0 ? 'positive' : 'negative'}
-            icon={Scale}
-            subtitle="Varlıklar eksi borçlar"
-          />
+        <div className={`grid gap-3 sm:gap-4 ${gridSinif(sadeKartlar.length)}`}>
+          {sadeKartlar.map((x) => <MetricCard key={x.anahtar} {...x.alan} />)}
+        </div>
+      ) : tumKartlar.length <= 4 ? (
+        <div className={`grid gap-3 sm:gap-4 ${gridSinif(tumKartlar.length)}`}>
+          {tumKartlar.map((x) => <MetricCard key={x.anahtar} {...x.alan} />)}
         </div>
       ) : (
         <>
-          {/* ===== USTGRUP: OPERASYONEL ===== */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Eye className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-              <h3 className="bolum-etiket">Operasyonel manzara</h3>
+          {operasyonel.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                <h3 className="bolum-etiket">Operasyonel manzara</h3>
+              </div>
+              <div className={`grid gap-3 sm:gap-4 ${gridSinif(operasyonel.length)}`}>
+                {operasyonel.map((x) => <MetricCard key={x.anahtar} {...x.alan} />)}
+              </div>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <MetricCard title="Nakit" value={data.nakit_kasa} variant="positive" icon={Wallet} />
-              <MetricCard title="Kart Borcu" value={data.kart_borcu} variant="negative" icon={CreditCard} />
-              <MetricCard title="Kredi Borcu" value={data.kredi_borcu} variant="negative" icon={Building2} />
-              <MetricCard title="Yatırım" value={data.yatirim_deger} variant="brand" icon={TrendingUp} />
-            </div>
-          </div>
+          )}
 
-          {/* ===== ALT GRUP: STRATEJIK ===== */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Telescope className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-              <h3 className="bolum-etiket">Stratejik manzara</h3>
+          {stratejik.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Telescope className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                <h3 className="bolum-etiket">Stratejik manzara</h3>
+              </div>
+              <div className={`grid gap-3 sm:gap-4 ${gridSinif(stratejik.length)}`}>
+                {stratejik.map((x) => <MetricCard key={x.anahtar} {...x.alan} />)}
+              </div>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-              <MetricCard
-                title="Emanet"
-                value={data.emanet_kasa}
-                variant="warn"
-                icon={Lock}
-                isEmanet
-                subtitle="Net değere dahil değil"
-              />
-              <MetricCard
-                title="Beklenen Gelir"
-                value={data.beklenen_gelir}
-                variant="positive"
-                icon={Banknote}
-                subtitle="Bu ay sonuna kadar"
-              />
-              <MetricCard
-                title="Reel Bütçe"
-                value={data.reel_butce}
-                variant={data.reel_butce >= 0 ? 'positive' : 'negative'}
-                icon={Calculator}
-                subtitle="Gölge muhasebe sonrası"
-              />
-              {/* Gorulen Net Deger - operasyonel rakam, cuzdan acildiginda gorunen */}
-              <MetricCard
-                title="Görülen Net Değer"
-                value={data.net_deger}
-                variant={data.net_deger >= 0 ? 'positive' : 'negative'}
-                icon={Scale}
-                subtitle="Alacaksız (operasyonel)"
-              />
-              {/* Tam Net Deger - stratejik rakam, sozlesmeli alacaklar dahil */}
-              <MetricCard
-                title="Tam Net Değer"
-                value={netDegerTam}
-                variant={netDegerTam >= 0 ? 'positive' : 'negative'}
-                icon={Telescope}
-                subtitle={netTamDetay
-                  ? `${netTamDetay} dahil`
-                  : 'Alacak/borç yok, görülen ile aynı'}
-              />
-            </div>
-          </div>
+          )}
         </>
       )}
 
@@ -471,41 +500,50 @@ export default function Cockpit({ setActiveTab }) {
       {/* A3: Aylık özet — kurucu "durum raporu" */}
       {!basit && <MonthlySummary />}
 
-      {/* FEAT-006: toplam abonelik yükü — glanceable (Rocket Money headline) */}
-      {!basit && data.abonelik_yuku?.adet > 0 && (
-        <div className="card p-3 flex items-center gap-2 text-sm">
-          <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
-          <span className="text-zinc-600 dark:text-zinc-300">
-            {data.abonelik_yuku.adet} abonelik ·{' '}
-            <span className="font-numeric font-semibold">{formatPara(data.abonelik_yuku.aylik)}</span>/ay
-            <span className="text-zinc-500"> ({formatPara(data.abonelik_yuku.yillik)}/yıl)</span>
-          </span>
-        </div>
-      )}
+      {/* SİNYALLER — üç tek-satırlık bilgi, ÜÇ AYRI KUTU değil.
+          Ölçülen sorun: abonelik yükü, borçsuzluk tarihi ve faiz sızıntısı; her biri
+          tek cümlelik bilgi olduğu hâlde tam genişlikte ayrı birer kart kaplıyordu.
+          Kutu, içindekinden çok yer tutunca ekran "çok şey var" der ama söylediği şey
+          artmaz. Üçü tek kartta satır oldu; içerik ve renkleri aynı kaldı, yalnız
+          kutu sayısı 3'ten 1'e indi. Kart kullanım oranı ve asgari tuzağı BU KARTA
+          ALINMADI: ikisi de çubuk/liste taşıyor, tek satır değil. */}
+      {!basit && (data.abonelik_yuku?.adet > 0 || data.borc_ozgurluk
+                  || data.faiz_sizintisi?.aylik_toplam > 0) && (
+        <div className="card divide-y divide-zinc-100 dark:divide-zinc-800">
+          {data.abonelik_yuku?.adet > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2.5 text-sm">
+              <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+              <span className="text-zinc-600 dark:text-zinc-300">
+                {data.abonelik_yuku.adet} abonelik ·{' '}
+                <span className="font-numeric font-semibold">{formatPara(data.abonelik_yuku.aylik)}</span>/ay
+                <span className="text-zinc-500"> ({formatPara(data.abonelik_yuku.yillik)}/yıl)</span>
+              </span>
+            </div>
+          )}
 
-      {/* FEAT-012: borçsuz olma tarihi — borçtan çıkış tarihinin motive edici hedefi */}
-      {!basit && data.borc_ozgurluk && (
-        <div className="card p-3 flex items-center gap-2 text-sm">
-          <Target className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
-          <span className="text-zinc-600 dark:text-zinc-300">
-            {data.borc_ozgurluk.asla_bitmez
-              ? 'Minimum ödemelerle borç makul sürede kapanmıyor — ek ödeme şart.'
-              : <>Borçsuzluk: <span className="font-semibold">{data.borc_ozgurluk.kalan_ay} ay</span>
-                  {data.borc_ozgurluk.borcsuz_tarih && <span className="text-zinc-500"> (≈{formatDate(data.borc_ozgurluk.borcsuz_tarih)})</span>}
-                  <span className="text-zinc-500"> · kalan faiz {formatPara(data.borc_ozgurluk.toplam_faiz)}</span></>}
-          </span>
-        </div>
-      )}
+          {data.borc_ozgurluk && (
+            <div className="flex items-center gap-2 px-4 py-2.5 text-sm">
+              <Target className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
+              <span className="text-zinc-600 dark:text-zinc-300">
+                {data.borc_ozgurluk.asla_bitmez
+                  ? 'Minimum ödemelerle borç makul sürede kapanmıyor — ek ödeme şart.'
+                  : <>Borçsuzluk: <span className="font-semibold">{data.borc_ozgurluk.kalan_ay} ay</span>
+                      {data.borc_ozgurluk.borcsuz_tarih && <span className="text-zinc-500"> (≈{formatDate(data.borc_ozgurluk.borcsuz_tarih)})</span>}
+                      <span className="text-zinc-500"> · kalan faiz {formatPara(data.borc_ozgurluk.toplam_faiz)}</span></>}
+              </span>
+            </div>
+          )}
 
-      {/* FEAT-013: faiz sızıntısı — borç faiz maliyeti (sarsıcı realist sinyal) */}
-      {!basit && data.faiz_sizintisi?.aylik_toplam > 0 && (
-        <div className="card p-3 flex items-center gap-2 text-sm border-negative-200 dark:border-negative-800/50">
-          <AlertTriangle className="w-4 h-4 text-negative-500 shrink-0" />
-          <span className="text-zinc-600 dark:text-zinc-300">
-            Faize giden:{' '}
-            <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatPara(data.faiz_sizintisi.aylik_toplam)}</span>/ay
-            <span className="text-zinc-500"> ({formatPara(data.faiz_sizintisi.yillik_toplam)}/yıl · günde {formatPara(data.faiz_sizintisi.gunluk)})</span>
-          </span>
+          {data.faiz_sizintisi?.aylik_toplam > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2.5 text-sm">
+              <AlertTriangle className="w-4 h-4 text-negative-500 shrink-0" />
+              <span className="text-zinc-600 dark:text-zinc-300">
+                Faize giden:{' '}
+                <span className="font-numeric font-semibold text-negative-600 dark:text-negative-400">{formatPara(data.faiz_sizintisi.aylik_toplam)}</span>/ay
+                <span className="text-zinc-500"> ({formatPara(data.faiz_sizintisi.yillik_toplam)}/yıl · günde {formatPara(data.faiz_sizintisi.gunluk)})</span>
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -687,13 +725,17 @@ export default function Cockpit({ setActiveTab }) {
         </KatlanirBolum>
       )}
 
-      {/* Akış Özeti — cashflow forecast özeti (30 gün) */}
+      {/* AKIŞ — 30 günlük bakiye SEYRİ (üç sayı değil, şekil).
+          Veri zaten çekiliyordu; günlük seri atılıyordu (bkz. `flow` state). Üç sayı
+          "önümüzdeki ay nasıl geçecek" sorusunu cevaplamıyordu: para ne zaman dibe
+          vuruyor, ne zaman toparlıyor — bunu ancak eğri söyler. Sayılar kalktı DEĞİL,
+          çizginin altına tek satıra indi. */}
       {!basit && flowSummary && (
-        <div className="card p-4 border-brand-200/60 dark:border-brand-800/40 bg-brand-50/30 dark:bg-brand-950/10">
-          <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="card p-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-2">
               <Waves className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-              <h3 className="font-semibold text-sm">Akış Özeti (30 gün)</h3>
+              <h3 className="font-semibold text-sm">Önümüzdeki 30 gün</h3>
             </div>
             {setActiveTab && (
               <button
@@ -704,26 +746,30 @@ export default function Cockpit({ setActiveTab }) {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">En Düşük Bakiye</p>
-              <p className={`font-numeric font-semibold text-sm ${flowSummary.lowest_balance >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
+
+          <AkisSparkline gunler={flow?.days} yukseklik={64} />
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-2 text-xs
+                          text-zinc-600 dark:text-zinc-300">
+            <span>
+              En düşük{' '}
+              <span className={`font-numeric font-semibold ${flowSummary.lowest_balance >= 0
+                ? 'text-zinc-800 dark:text-zinc-100' : 'text-negative-600 dark:text-negative-400'}`}>
                 {formatPara(flowSummary.lowest_balance)}
-              </p>
-              <p className="text-[10px] text-zinc-500">{formatDate(flowSummary.lowest_date)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Net Akış</p>
-              <p className={`font-numeric font-semibold text-sm ${flowSummary.net_flow >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
+              </span>
+              <span className="text-zinc-500"> · {formatDate(flowSummary.lowest_date)}</span>
+            </span>
+            <span>
+              Net akış{' '}
+              <span className={`font-numeric font-semibold ${signClass(flowSummary.net_flow)}`}>
                 {flowSummary.net_flow > 0 ? '+' : ''}{formatPara(flowSummary.net_flow)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Sıkışma Günü</p>
-              <p className={`font-numeric font-semibold text-sm ${flowSummary.crunch_count > 0 ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-500'}`}>
-                {flowSummary.crunch_count}
-              </p>
-            </div>
+              </span>
+            </span>
+            {flowSummary.crunch_count > 0 && (
+              <span className="text-negative-600 dark:text-negative-400">
+                <span className="font-numeric font-semibold">{flowSummary.crunch_count}</span> sıkışma günü
+              </span>
+            )}
           </div>
         </div>
       )}

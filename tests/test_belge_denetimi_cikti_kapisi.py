@@ -31,13 +31,21 @@ KOK = Path(__file__).resolve().parent.parent
 
 
 def _kos(betik: str) -> subprocess.CompletedProcess:
-    """Kısıtlı kod sayfasıyla ayrı süreçte koşar (stdout boru → PYTHONIOENCODING geçerli)."""
+    """Kısıtlı kod sayfasıyla ayrı süreçte koşar (stdout boru → PYTHONIOENCODING geçerli).
+
+    ÇÖZME KODLAMASI AÇIKÇA VERİLİR (`encoding="cp1254"`), `text=True` YETMEZ. İlk yazımda
+    `text=True` vardı ve test Windows'ta geçip **CI'da (Linux) düştü**: `text=True` çıktıyı
+    ANA SÜRECIN yerel kodlamasıyla çözer. Windows Türkçe'de o da cp1254 olduğu için ikisi
+    tesadüfen uyuşuyordu; Linux'ta ana süreç UTF-8 çözmeye çalışıp cp1254 baytlarında
+    patlıyordu. Yani test, ölçmek istediği şeyi değil ÇALIŞTIĞI MAKİNEYİ ölçüyordu.
+    """
     return subprocess.run(  # noqa: S603 - sabit argüman, kullanıcı girdisi yok
         [sys.executable, "-c", betik],
         cwd=str(KOK),
         env=dict(os.environ, PYTHONIOENCODING="cp1254"),
         capture_output=True,
-        text=True,
+        encoding="cp1254",
+        errors="replace",
         timeout=60,
     )
 
@@ -64,12 +72,13 @@ def test_kapinin_kendi_kosumu_kisitli_konsolda_da_tamamlanir():
     Sözleşme: 0 (temiz) ya da 1 (ölü yönlendirme var) — ikisi de KARARDIR. Traceback ise
     karar değildir ve `| tail` gibi bir boruya girdiğinde 0 gibi okunur (L68/L85).
     """
-    sonuc = subprocess.run(
+    sonuc = subprocess.run(  # noqa: S603 - sabit argüman, kullanıcı girdisi yok
         [sys.executable, "scripts/belge_denetimi.py"],
         cwd=str(KOK),
         env=dict(os.environ, PYTHONIOENCODING="cp1254"),
         capture_output=True,
-        text=True,
+        encoding="cp1254",   # bkz. `_kos`: text=True platforma bağlıdır
+        errors="replace",
         timeout=180,
     )
     assert "Traceback" not in sonuc.stderr, sonuc.stderr[-800:]

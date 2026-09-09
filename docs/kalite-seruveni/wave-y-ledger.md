@@ -982,3 +982,14 @@ nadirdir; kaydedilmezse bir daha aynı bedel ödenir.
 
 **Bu turun kanıtı:** vitest **243/243** (28 yeni test) · e2e **12/12** izole DB'de (4 yeni) ·
 prod build yeşil · iki temada ve iki modda tarayıcıda görsel doğrulama · commit `cdbe315`.
+
+* **L88 — Bir testi platforma bağlayan şey, çoğu zaman yazdığın satır değil YAZMADIĞIN
+  satırdır.** `subprocess.run(..., text=True)` masum görünür; oysa "çıktıyı çöz" derken
+  **hangi kodlamayla** sorusunu sessizce ana sürecin yerel ayarına devreder. Windows
+  Türkçe makinede o ayar cp1254 olduğu için testim, çocuğa dayattığı kodlamayla tesadüfen
+  uyuştu ve yeşil verdi; Linux'ta aynı test `UnicodeDecodeError` ile çöktü. Kapı,
+  **ölçmek istediği şeyi değil çalıştığı makineyi** ölçüyordu. Görünmez varsayılanlar
+  yerel yeşil ile CI kırmızı arasındaki farkın en sık sebebi: bir davranışı test ediyorsan
+  o davranışın bağlı olduğu her parametreyi **açıkça yaz**, ortamdan miras alma.
+  (Aynı turda #364 ile birlikte üçüncü kez ısıran tema: kapılar ancak commit anında
+  konuşursa ucuz, CI'da konuşursa pahalıdır.)

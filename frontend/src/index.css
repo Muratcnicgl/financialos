@@ -53,20 +53,128 @@
 }
 
 @layer components {
-  /* Kart — uygulama boyunca tekrar eden konteyner */
+  /* Kart — uygulama boyunca tekrar eden konteyner.
+     Yüzey dili (Eyl 2026 sadeleştirme turu): köşe yarıçapı xl→2xl, gölge tek
+     katmandan iki katmana çıktı (1px kenar + geniş/yumuşak yayılma). Amaç kartı
+     "kutu" olmaktan çıkarıp zeminden AYIRMAK: yoğun bir panelde göz kart sınırını
+     arıyor ve bunu kenarlık kalınlığıyla değil derinlikle vermek gerekir.
+     Yüzeyler BİLEREK saydam değil: yarı-saydam kart, üstündeki metnin kontrastını
+     zemine bağımlı kılar ve iki temada ölçülen 3:1 eşiğini (e2e/tema-mobil.spec.js)
+     kırılgan hâle getirir. */
   .card {
-    @apply bg-white border border-zinc-200 rounded-xl shadow-sm;
+    @apply bg-white border border-zinc-200/80 rounded-2xl;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 28px -20px rgb(24 24 27 / 0.18);
   }
   html.dark .card {
-    @apply bg-zinc-900 border-zinc-800 shadow-none;
+    @apply bg-zinc-900 border-zinc-800;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
   }
 
-  /* Buton temel */
+  /* Tıklanabilir kart — hafif kalkış. Yalnız gerçekten bir eyleme götüren kartlara. */
+  .card-interaktif {
+    @apply transition-all duration-150 hover:-translate-y-0.5;
+  }
+  .card-interaktif:hover {
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.05), 0 18px 36px -22px rgb(24 24 27 / 0.28);
+  }
+
+  /* Bölüm etiketi — "Operasyonel manzara" gibi grup başlıkları. Tek sınıf, çünkü
+     aynı üç utility panellerde elle tekrarlanıyordu. */
+  .bolum-etiket {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500;
+  }
+  html.dark .bolum-etiket {
+    @apply text-zinc-400;
+  }
+
+  /* Sekme çubuğu — alt-çizgi yerine hap (pill). Alt çizgi 13 sekmede bir "cetvel"
+     görüntüsü veriyordu; hap, aktif sekmeyi yatay kaydırmada da tek bakışta bulur. */
+  .sekme {
+    @apply inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-xl
+           text-sm font-medium whitespace-nowrap transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-brand-500;
+  }
+  .sekme-aktif {
+    @apply bg-brand-600 text-white;
+  }
+  html.dark .sekme-aktif {
+    @apply bg-brand-500 text-white;
+  }
+  .sekme-pasif {
+    @apply text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900;
+  }
+  html.dark .sekme-pasif {
+    @apply text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100;
+  }
+
+  /* İki durumlu seçici (Sade / Detaylı). Radyo düğmesi yerine görünür bir anahtar:
+     hangi tarafta olduğun ve öteki tarafın var olduğu aynı anda görünür. */
+  .segment {
+    @apply inline-flex p-1 rounded-xl bg-zinc-100 gap-1;
+  }
+  html.dark .segment {
+    @apply bg-zinc-800;
+  }
+  .segment-secenek {
+    @apply flex-1 inline-flex items-center justify-center gap-1.5 px-3 min-h-[44px]
+           rounded-lg text-sm font-medium transition-colors duration-150 text-zinc-600
+           focus:outline-none focus:ring-2 focus:ring-brand-500;
+  }
+  html.dark .segment-secenek {
+    @apply text-zinc-300;
+  }
+  .segment-secenek[aria-pressed='true'] {
+    @apply bg-white text-zinc-900 shadow-sm;
+  }
+  html.dark .segment-secenek[aria-pressed='true'] {
+    @apply bg-zinc-950 text-zinc-50;
+  }
+
+  /* İNCE ama GÖRÜNÜR yatay kaydırma çubuğu — sekme şeridi için.
+     İlk denemede çubuk tamamen gizlenmişti (`scrollbar-width: none`). Ölçülen sonuç:
+     detaylı görünümde 13 sekme dar ekrana sığmıyor ve şeridi kaydırmanın tek yolu
+     KLAVYE ok tuşları kalıyordu — fareyle sürüklenecek bir çubuk yok, dikey tekerlek
+     de yatay konteyneri kaydırmıyor. Yani sekmeler oradaydı ama ulaşılamıyordu.
+     Ders: "temiz görünsün" diye kaldırılan bir kontrol, o kontrolün taşıdığı yeteneği
+     de kaldırır. Çubuk artık ince (6px) ve sessiz, ama VAR; yanına tekerlek->yatay
+     çevirisi ve aktif sekmeyi görünüre alma da eklendi (App.jsx).
+
+     `scrollbar-width: thin` BİLEREK YOK: ölçüldü — o özellik yazıldığında Chromium
+     `::-webkit-scrollbar` kurallarını yok sayıp işletim sisteminin oklu, 10px'lik
+     klasik çubuğunu çiziyor (uygulamanın geri kalanındaki yuvarlak çubuklara hiç
+     benzemiyor). Kural yazılmayınca webkit stili geçerli oluyor: 6px, yuvarlak,
+     oksuz. Firefox bu sınıfta kendi varsayılan çubuğunu çizer — daha kalın ama
+     GÖRÜNÜR; korunan değişmez "ince" değil, "gizli değil". */
+  .kaydirma-ince::-webkit-scrollbar {
+    height: 6px;
+  }
+  .kaydirma-ince::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .kaydirma-ince::-webkit-scrollbar-thumb {
+    @apply bg-zinc-300 rounded-full;
+  }
+  html.dark .kaydirma-ince::-webkit-scrollbar-thumb {
+    @apply bg-zinc-700;
+  }
+  .kaydirma-ince::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-400;
+  }
+  html.dark .kaydirma-ince::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-600;
+  }
+
+  /* Buton temel.
+     `active:translate-y-px`: dokunmanın kaydedildiğini yavaş bağlantıda da gösteren en
+     ucuz geri bildirim — mobilde hover yok, basılma hissi olmazsa kullanıcı ikinci kez
+     dokunuyor. Yarıçap kart diliyle hizalandı (lg→xl). 44px dokunma hedefi (ADR-010)
+     ve odak halkası DEĞİŞMEDİ. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl
            font-medium text-sm transition-colors duration-150
            focus:outline-none focus:ring-2 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed
+           active:translate-y-px
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0
            min-h-[44px];
   }
   /* Icon-only butonlar icin minimum genislik (44x44 touch target) */
@@ -104,7 +212,7 @@
   /* BUG #265: `.input` 35px cikiyordu — ADR-010 dokunma hedefi girdi/secim icin de gecerli.
      Olcen kapi: e2e/tema-mobil.spec.js (390px, iki tema). */
   .input {
-    @apply w-full px-3 py-2 rounded-lg border bg-white text-zinc-900
+    @apply w-full px-3 py-2 rounded-xl border bg-white text-zinc-900
            border-zinc-300 placeholder-zinc-400
            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
            transition-colors duration-150
@@ -114,9 +222,10 @@
     @apply bg-zinc-800 text-zinc-100 border-zinc-700 placeholder-zinc-500;
   }
 
-  /* Etiket / chip */
+  /* Etiket / chip — yarıçap tam yuvarlak: rozet ile buton görsel olarak karışmaz,
+     kullanıcı tıklanabilir olanı biçimden ayırt eder. */
   .chip {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full
            text-xs font-medium;
   }
   .chip-positive {

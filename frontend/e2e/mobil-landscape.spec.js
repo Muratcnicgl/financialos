@@ -135,7 +135,13 @@ test('landscape: yuzey kapisi (yuzer butce + ulasilabilirlik + tasma + konsol)',
   page.on('console', (m) => { if (m.type() === 'error') konsol.push(m.text().slice(0, 200)); });
   page.on('pageerror', (e) => konsol.push(String(e).slice(0, 200)));
 
-  await page.addInitScript((t) => { localStorage.setItem('fos_access_token', t); }, token);
+  // Görünüm modu DETAYLI sabitlenir: bu kapı 13 panelin TAMAMINI gezer ve sade
+  // görünümde sekme çubuğunda yalnız 5'i olur. Ayrıca tercih hiç yapılmamışsa
+  // uygulama açılışta arayüz sorusunu sorar; o modal tıklamaları engellerdi.
+  await page.addInitScript((t) => {
+    localStorage.setItem('fos_access_token', t);
+    localStorage.setItem('fos_gorunum_modu', 'detayli');
+  }, token);
   await page.goto('/');
   await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();
 

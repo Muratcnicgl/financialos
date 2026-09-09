@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  Activity, MessageSquare, Wallet, Receipt, TrendingUp, ShieldAlert,
-  Sun, Moon, Wifi, WifiOff, AlertTriangle, BarChart3, Waves, CreditCard, Target, PiggyBank, LogOut, Users, UserCog,
+  Sun, Moon, WifiOff, AlertTriangle, LogOut,
 } from 'lucide-react';
 import { healthApi, authApi, coachApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl,
   workspaceApi, getActiveWorkspaceId, setActiveWorkspaceId } from './api.js';
@@ -30,22 +29,10 @@ import Ipucu from './components/Ipucu.jsx';
 import OgreticiSihirbaz from './components/OgreticiSihirbaz.jsx';
 import YardimKosesi from './components/YardimKosesi.jsx';
 import { onboardingApi } from './api.js';
-
-const TABS = [
-  { id: 'cockpit',     label: 'Cockpit',         icon: Activity      },
-  { id: 'coach',       label: 'Koç',             icon: MessageSquare },
-  { id: 'accounts',    label: 'Hesaplar',        icon: Wallet        },
-  { id: 'transactions',label: 'İşlemler',        icon: Receipt       },
-  { id: 'incomedebt',  label: 'Gelir & Borç',    icon: TrendingUp    },
-  { id: 'redlines',    label: 'Kırmızı Çizgiler', icon: ShieldAlert  },
-  { id: 'reports',     label: 'Raporlar',         icon: BarChart3    },
-  { id: 'cashflow',    label: 'Akış',             icon: Waves        },
-  { id: 'debtstrategy', label: 'Borç Stratejisi', icon: CreditCard  },
-  { id: 'goals',        label: 'Hedefler',        icon: Target      },
-  { id: 'budget',       label: 'Bütçe',           icon: PiggyBank   },
-  { id: 'workspace',    label: 'Aile',            icon: Users       },
-  { id: 'hesap',        label: 'Hesap',           icon: UserCog     },
-];
+// Sekme listesi burada DEĞİL: üç yerde ayrı yazılıydı ve ayrışmıştı (lib/sekmeler.js).
+import { gorunurSekmeler, sekmeEtiketi, kisayolSirasi } from './lib/sekmeler.js';
+import { useGorunumModu } from './hooks/useGorunumModu.js';
+import GorunumSecici from './components/GorunumSecici.jsx';
 
 function useTheme() {
   const [theme, setTheme] = useState(() => {
@@ -277,8 +264,58 @@ function AppContent({ onLogout }) {
   // Geri bildirim kutusunu dışarıdan açmak için: key değişimi widget'ı `acik` başlatır.
   const [gbAcSayaci, setGbAcSayaci] = useState(0);
 
+  // Sade / detaylı görünüm. `secildi` false ise tercih HİÇ sorulmadı — bir kez sorulur.
+  const { basit, secildi, degistir, BASIT, DETAYLI } = useGorunumModu();
+  const sekmeler = useMemo(() => gorunurSekmeler(basit), [basit]);
+  // Kısayol sırası memolanır: her render'da yeni bir dizi üretmek, klavye dinleyicisini
+  // her render'da söküp yeniden takardı.
+  const sekmeIdleri = useMemo(() => kisayolSirasi(basit), [basit]);
+
+  // Detaylıdan sadeye geçen kullanıcı, çubukta artık olmayan bir panelde kalabilir
+  // (ör. Raporlar). O hâlde aktif sekme HİÇBİR hapla eşleşmez: içerik görünür ama
+  // kullanıcı nerede olduğunu göremez ve geri dönemez. Görünmeyen sekme → Cockpit.
+  useEffect(() => {
+    if (!sekmeler.some((s) => s.id === activeTab)) setActiveTab('cockpit');
+  }, [sekmeler, activeTab]);
+
+  // Sekme şeridi: detaylı görünümde 13 sekme dar ekrana sığmaz ve yatay kayar.
+  // Kaydırmanın ÜÇ yolu da açık olmalı — çubuk (ince ama görünür, index.css),
+  // fare tekerleği ve klavye. İlk sürümde yalnız klavye çalışıyordu: çubuk gizliydi,
+  // dikey tekerlek de yatay konteyneri kaydırmaz. Ulaşılamayan sekme, olmayan sekmedir.
+  const seritRef = useRef(null);
+
+  useEffect(() => {
+    const serit = seritRef.current;
+    if (!serit) return undefined;
+    const tekerlek = (e) => {
+      // Dokunmatik yüzeylerin YATAY jestini tarayıcı zaten çeviriyor; yalnız dikey
+      // tekerleği devralıyoruz ve ancak kayacak yer VARSA — yoksa sayfanın dikey
+      // kaydırmasını çalmış oluruz.
+      if (e.deltaY === 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      if (serit.scrollWidth <= serit.clientWidth) return;
+      e.preventDefault();
+      serit.scrollLeft += e.deltaY;
+    };
+    serit.addEventListener('wheel', tekerlek, { passive: false });
+    return () => serit.removeEventListener('wheel', tekerlek);
+  }, [basit]);
+
+  // Aktif sekme şeridin dışında kalmasın (klavye kısayolu ya da mod değişimi sonrası
+  // kullanıcı "hangi sekmedeyim" sorusunu kaydırarak aramamalı). `scrollIntoView`
+  // yerine elle hesap: o çağrı sayfanın DİKEY konumunu da oynatabiliyor.
+  useEffect(() => {
+    const serit = seritRef.current;
+    const dugme = serit?.querySelector('[data-aktif="1"]');
+    if (!serit || !dugme) return;
+    const solTasma = dugme.offsetLeft - serit.scrollLeft;
+    const sagTasma = solTasma + dugme.offsetWidth - serit.clientWidth;
+    if (solTasma < 0) serit.scrollLeft += solTasma - 8;
+    else if (sagTasma > 0) serit.scrollLeft += sagTasma + 8;
+  }, [activeTab, basit]);
+
   useKeyboardShortcuts({
     setActiveTab,
+    sekmeIdleri,
     onHelp: () => setShowHelp(h => !h),
     onPalette: () => setShowPalette(p => !p),
   });
@@ -322,22 +359,30 @@ function AppContent({ onLogout }) {
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <WorkspaceSwitcher />
-            <div className="flex items-center gap-1.5">
-              {status === 'online' ? (
-                <span className="chip chip-positive">
-                  <Wifi className="w-3 h-3" /> <span className="hidden sm:inline">Bağlı</span>
-                </span>
-              ) : status === 'offline' ? (
-                <span className="chip chip-negative">
-                  <WifiOff className="w-3 h-3" /> <span className="hidden sm:inline">Backend kapalı</span>
-                </span>
-              ) : (
-                <span className="chip">
-                  <span className="w-2 h-2 rounded-full bg-zinc-400 animate-pulse" />
-                  <span className="hidden sm:inline">Kontrol...</span>
-                </span>
-              )}
-            </div>
+            {/* Bağlantı durumu: HER ŞEY YOLUNDAYKEN yalnız bir nokta.
+                Eskiden başlıkta kalıcı yeşil bir "Bağlı" rozeti duruyordu — hiçbir gün
+                değişmeyen bir bilgi, her gün yer kaplıyordu. Sorun VARSA rozet konuşur
+                (ve altta ayrıca tam genişlikte şerit çıkar). Bilgi eksilmiyor: normal
+                hâlin karşılığı `title`/`aria-label`'da yazılı. */}
+            {status === 'online' ? (
+              <span
+                className="w-2.5 h-2.5 rounded-full bg-positive-500 flex-shrink-0"
+                title="Backend bağlantısı var"
+                aria-label="Backend bağlantısı var"
+                role="status"
+              />
+            ) : status === 'offline' ? (
+              <span className="chip chip-negative" role="status">
+                <WifiOff className="w-3 h-3" /> <span className="hidden sm:inline">Backend kapalı</span>
+              </span>
+            ) : (
+              <span
+                className="w-2.5 h-2.5 rounded-full bg-zinc-400 animate-pulse flex-shrink-0"
+                title="Bağlantı kontrol ediliyor"
+                aria-label="Bağlantı kontrol ediliyor"
+                role="status"
+              />
+            )}
 
             {/* FE-012: olcum YOKSA rozet HIC cizilmez — "0%" gostermek uydurmaktir (L45). */}
             {usagePct !== null && (
@@ -373,25 +418,46 @@ function AppContent({ onLogout }) {
           </div>
         </div>
 
-        <nav className="border-t border-zinc-200/60 dark:border-zinc-800/60">
-          <div className="max-w-6xl mx-auto px-2 overflow-x-auto">
-            {/* BUG #265: sekme yuksekligi py-2.5 ile 42px cikiyordu — ADR-010 dokunma hedefi 44px. */}
-            <div className="flex gap-1">
-              {TABS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === id
-                      ? 'text-brand-600 dark:text-brand-400 border-brand-500'
-                      : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              ))}
+        {/* Sekme çubuğu — hap tasarımı. Sade görünümde 5, detaylıda 13 sekme.
+            Şerit yatay kayar: ince ama GÖRÜNÜR çubuk + fare tekerleği + klavye.
+            Sağ kenardaki solma maskesi "devamı var" der; maske tıklamayı yemesin diye
+            `pointer-events-none` ve çubuğun üstüne binmemesi için alttan pay bırakılır.
+            BUG #265: yükseklik ≥44px — `.sekme` sınıfı bunu taşıyor (ADR-010). */}
+        <nav className="border-t border-zinc-200/60 dark:border-zinc-800/60" aria-label="Paneller">
+          <div className="max-w-6xl mx-auto relative">
+            <div ref={seritRef} className="px-2 pt-1.5 pb-1 overflow-x-auto kaydirma-ince">
+              {/* Bilerek `role="tab"` DEĞİL, sade <button>.
+                  ARIA sekme örüntüsü yalnız rol atamakla tamamlanmaz: ok tuşlarıyla
+                  gezinme, roving tabindex ve aria-controls ister. Yarım uygulanmış bir
+                  örüntü, ekran okuyucuya çalışmayan bir sözleşme vaat eder — düğme
+                  listesi burada hem dürüst hem çalışıyor. Aktif olan `aria-current`
+                  ile işaretlenir. */}
+              <div className="flex gap-1">
+                {sekmeler.map((sekme) => {
+                  const Icon = sekme.icon;
+                  const aktif = activeTab === sekme.id;
+                  return (
+                    <button
+                      key={sekme.id}
+                      onClick={() => setActiveTab(sekme.id)}
+                      aria-current={aktif ? 'page' : undefined}
+                      data-aktif={aktif ? '1' : undefined}
+                      className={`sekme ${aktif ? 'sekme-aktif' : 'sekme-pasif'}`}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      {sekmeEtiketi(sekme, basit)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+            {!basit && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute right-0 top-0 bottom-2 w-8
+                           bg-gradient-to-l from-zinc-50 dark:from-zinc-950 to-transparent"
+              />
+            )}
           </div>
         </nav>
       </header>
@@ -436,19 +502,32 @@ function AppContent({ onLogout }) {
       </main>
 
       <footer className="flex-shrink-0 max-w-6xl mx-auto px-4 py-3 text-center text-xs text-zinc-500">
-        FinancialOS · 160 IQ stratejist finansal koç · v0.1.0
+        FinancialOS · v0.1.0
+        {' · '}
+        {/* Görünüm modunun ikinci kapısı. Asıl anahtar Hesap panelinde; buradaki satır
+            onun VAR OLDUĞUNU söyler — kimsenin bilmediği bir ayar, olmayan ayardır. */}
+        <span>Görünüm: {basit ? 'Sade' : 'Detaylı'}</span>
         {' · '}
         {/* BUG #216: duz <a href> Authorization basligi TASIMAZ -> giris acikken 401
             indiriyordu. Indirme artik yetkili istekle Hesap panelinde yapiliyor. */}
         <button type="button" onClick={() => setActiveTab('hesap')}
            className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
-          Hesap & verilerim
+          Hesap, görünüm & verilerim
         </button>
       </footer>
 
       {showPalette && (
-        <CommandPalette onClose={() => setShowPalette(false)} setActiveTab={setActiveTab} />
+        <CommandPalette
+          onClose={() => setShowPalette(false)}
+          setActiveTab={setActiveTab}
+          basit={basit}
+          onModDegistir={() => degistir(basit ? DETAYLI : BASIT)}
+        />
       )}
+
+      {/* Tercih HİÇ sorulmamışsa bir kez sorulur. Kapatan kişi sade ile devam eder ve
+          soru bir daha çıkmaz (Hesap panelinden her an değiştirilebilir). */}
+      {!secildi && <GorunumSecici onSec={(m) => degistir(m)} />}
       {showHelp && (
         <HelpModal onClose={() => setShowHelp(false)} />
       )}

@@ -57,7 +57,12 @@ test.afterAll(async ({ request }) => {
 
 /** Sayfayi test kullanicisinin oturumuyla acar (usage-loop ile ayni yontem). */
 async function girisYap(page) {
-  await page.addInitScript((t) => localStorage.setItem('fos_access_token', t), token);
+  // Tercih hiç yapılmamışsa açılışta arayüz sorusu sorulur; o modal tıklamaları
+  // engeller. Akış detaylı görünümde ölçülür (paneller tam kümede).
+  await page.addInitScript((t) => {
+    localStorage.setItem('fos_access_token', t);
+    localStorage.setItem('fos_gorunum_modu', 'detayli');
+  }, token);
   await page.goto('/');
   await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();
 }

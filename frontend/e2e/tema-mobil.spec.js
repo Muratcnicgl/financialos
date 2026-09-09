@@ -147,17 +147,20 @@ const OLC = () => {
   };
 };
 
-// KAPSAM TABANI (L11/H25): panel listesi App.jsx'in TABS'inden TURETILEN gercek sekme
-// kumesiyle ayni buyuklukte olmali. Yeni bir sekme eklenip bu listeye yazilmazsa kapi
-// onu hic ziyaret etmez ve "temiz" der — kapsamsiz kapi olu kapidir.
-test('kapsam tabani: panel listesi App.jsx TABS ile ayni buyuklukte', () => {
+// KAPSAM TABANI (L11/H25): panel listesi, sekmelerin TEK KAYNAGI olan
+// `src/lib/sekmeler.js` ile ayni buyuklukte olmali. Yeni bir sekme eklenip bu listeye
+// yazilmazsa kapi onu hic ziyaret etmez ve "temiz" der - kapsamsiz kapi olu kapidir.
+// (Liste App.jsx'ten lib/sekmeler.js'e tasindi: App, komut paleti ve klavye
+// kisayollari artik ayni kaynagi okuyor.)
+test('kapsam tabani: panel listesi sekme kaynagi ile ayni buyuklukte', () => {
   const kok = dirname(fileURLToPath(import.meta.url));
-  const kaynak = readFileSync(join(kok, '..', 'src', 'App.jsx'), 'utf8');
-  const blok = kaynak.slice(kaynak.indexOf('const TABS = ['), kaynak.indexOf('];', kaynak.indexOf('const TABS = [')));
+  const kaynak = readFileSync(join(kok, '..', 'src', 'lib', 'sekmeler.js'), 'utf8');
+  const bas = kaynak.indexOf('export const SEKMELER = [');
+  const blok = kaynak.slice(bas, kaynak.indexOf('];', bas));
   const idler = [...blok.matchAll(/\bid:\s*'([a-z]+)'/g)].map((m) => m[1]);
-  expect(idler.length, 'App.jsx TABS okunamadi').toBeGreaterThan(0);
+  expect(idler.length, 'sekmeler.js listesi okunamadi').toBeGreaterThan(0);
   expect(PANELLER.length,
-    `App.jsx'te ${idler.length} sekme var, kapi ${PANELLER.length} panel geziyor: ${idler.join(', ')}`,
+    `sekmeler.js'te ${idler.length} sekme var, kapi ${PANELLER.length} panel geziyor: ${idler.join(', ')}`,
   ).toBe(idler.length);
 });
 
@@ -167,9 +170,13 @@ for (const tema of ['dark', 'light']) {
     page.on('console', (m) => { if (m.type() === 'error') konsol.push(m.text().slice(0, 200)); });
     page.on('pageerror', (e) => konsol.push(String(e).slice(0, 200)));
 
+    // Görünüm modu DETAYLI sabitlenir: bu kapı 13 panelin TAMAMINI gezer ve sade
+    // görünümde sekme çubuğunda yalnız 5'i olur. Ayrıca tercih hiç yapılmamışsa
+    // uygulama açılışta arayüz sorusunu sorar; o modal tıklamaları engellerdi.
     await page.addInitScript(([t, th]) => {
       localStorage.setItem('fos_access_token', t);
       localStorage.setItem('theme', th);
+      localStorage.setItem('fos_gorunum_modu', 'detayli');
     }, [token, tema]);
     await page.goto('/');
     await expect(page.getByRole('button', { name: /Cockpit/ }).first()).toBeVisible();

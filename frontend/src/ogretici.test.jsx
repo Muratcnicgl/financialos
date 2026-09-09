@@ -22,6 +22,7 @@ import Ipucu from './components/Ipucu.jsx';
 import OgreticiSihirbaz from './components/OgreticiSihirbaz.jsx';
 import YardimKosesi from './components/YardimKosesi.jsx';
 import { PANEL_REHBERI, SIHIRBAZ_ADIMLARI, panelRehberi } from './lib/ogretici.js';
+import { SEKMELER } from './lib/sekmeler.js';
 
 const BURASI = dirname(fileURLToPath(import.meta.url));
 
@@ -53,12 +54,12 @@ const REHBER = {
 // ══════════════════════════════════════════════════════════════════════
 
 describe('kapsam', () => {
-  it('App.jsx TABS listesindeki her sekmenin rehberi var', () => {
-    const app = readFileSync(resolve(BURASI, 'App.jsx'), 'utf-8');
-    const tabsBlogu = app.match(/const TABS = \[([\s\S]*?)\n\];/);
-    expect(tabsBlogu, 'App.jsx içinde TABS listesi bulunamadı').toBeTruthy();
-
-    const idler = [...tabsBlogu[1].matchAll(/id:\s*'([^']+)'/g)].map((m) => m[1]);
+  // Sekme listesi App.jsx'ten `lib/sekmeler.js`'e taşındı (tek kaynak: App, komut
+  // paleti ve klavye kısayolları aynı listeyi okur). Kapı artık kaynağı METİN OLARAK
+  // taramıyor, doğrudan içe aktarıyor — regex'in bulamadığı bir liste "kapsam yok"
+  // değil, "kapı kör" demekti.
+  it('sekme listesindeki her sekmenin rehberi var', () => {
+    const idler = SEKMELER.map((s) => s.id);
     expect(idler.length).toBeGreaterThan(5);   // liste gerçekten okundu mu
 
     const eksik = idler.filter((id) => !PANEL_REHBERI[id]);

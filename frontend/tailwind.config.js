@@ -100,6 +100,12 @@ export default {
           '50%': { opacity: '0.6' },
         },
       },
+      // `shadow-glow-brand` App.jsx'te logo kutusunda ZATEN kullanılıyordu ama burada
+      // tanımlı değildi: Tailwind bilinmeyen sınıfı sessizce üretmez, yani o gölge
+      // hiçbir zaman çizilmedi. Tanımı eklemek, yazılanı gerçek yapar.
+      boxShadow: {
+        'glow-brand': '0 6px 18px -6px rgb(79 70 229 / 0.55)',
+      },
     },
   },
   plugins: [],

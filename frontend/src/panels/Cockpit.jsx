@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
-  Banknote, Calculator, Scale, ScaleIcon, AlertTriangle,
+  Banknote, Calculator, Scale, AlertTriangle,
   Calendar, Users, RefreshCw, Loader2, Clock, ExternalLink,
   Eye, Telescope, Bell, Waves, ArrowRight, Target, ChevronDown, ChevronRight,
 } from 'lucide-react';
@@ -16,6 +16,8 @@ import Onboarding from '../components/Onboarding.jsx';  // H20: ilk kullanım re
 // Sadeleştirme: ikincil bölümler katlanır — özet başlıkta kalır, bilgi eksilmez.
 import KatlanirBolum from '../components/KatlanirBolum.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+// Sade / detaylı görünüm: bu panel ikisinin de yükünü taşır (bkz. lib/gorunumModu.js).
+import { useGorunumModu } from '../hooks/useGorunumModu.js';
 
 /**
  * FEAT-030 (UX açıklanabilirlik): Günlük limitin AÇIK dökümü.
@@ -90,6 +92,9 @@ function BudgetBreakdown({ dokum }) {
  * - Alt grup: Strateji (Emanet, Gelir, Reel Butce, Gorulen Net, Tam Net) - 5 kart
  */
 export default function Cockpit({ setActiveTab }) {
+  // Sade görünümde ANALİZ bölümleri gizlenir; risk taşıyanlar (kritik uyarılar, onay
+  // bekleyen aksiyonlar, atlanan düzenli kayıtlar, ilk adım) HER İKİ modda da durur.
+  const { basit, degistir, DETAYLI } = useGorunumModu();
   const [data, setData] = useState(null);
   const [pendingActions, setPendingActions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -171,11 +176,32 @@ export default function Cockpit({ setActiveTab }) {
 
   const investmentPnl = data.investment_pnl?.[0];
 
+  // Sade görünümde GİZLENEN analiz bölümlerinin adları. Sayı ELLE yazılmıyor: yalnız
+  // verisi olduğu için detaylı görünümde GERÇEKTEN çizilecek bölümler sayılır — yoksa
+  // "8 bölüm gizli" yazan ama açınca 3 bölüm gösteren bir arayüz olurdu.
+  // Bu liste sade görünümün dürüstlük kapısıdır: gizlemenin ne kadar gizlediğini
+  // kullanıcı okur, keşfetmek zorunda kalmaz.
+  const gizlenenBolumler = [
+    ['Stratejik göstergeler (emanet, beklenen gelir, reel bütçe, tam net değer)', true],
+    ['Aylık özet', true],
+    ['Abonelik yükü', data.abonelik_yuku?.adet > 0],
+    ['Borçsuzluk tarihi', !!data.borc_ozgurluk],
+    ['Faiz sızıntısı', data.faiz_sizintisi?.aylik_toplam > 0],
+    ['Kart kullanım oranı', ['yuksek', 'kritik'].includes(data.kart_kullanim?.band)],
+    ['Alacak yaşlandırma', data.alacak_yaslanma?.gecikmis_adet > 0],
+    ['Asgari ödeme tuzağı', data.asgari_tuzagi?.kartlar?.length > 0],
+    ['Yatırım kâr/zarar', !!investmentPnl],
+    ['30 günlük akış özeti', !!flowSummary],
+    ['Ödeme takvimi (60 gün)', data.upcoming_payments?.length > 0],
+    ['Tahsilat takvimi', data.upcoming_receivables?.length > 0],
+    ['Fiyat tazeliği', data.price_freshness?.items?.length > 0
+                       && !(data.price_freshness?.stale_count > 0)],
+  ].filter(([, cizilir]) => cizilir).map(([ad]) => ad);
+
   // BUG #006 fix: Yeni alanlar (eski cockpit response'i ile geriye uyumlu olsun diye fallback)
   const netDegerTam = data.net_deger_tam ?? data.net_deger;
   const alacaklarToplami = data.alacaklar_toplami ?? 0;
   const borclarToplami = data.borclar_toplami ?? 0;   // BUG #116: kişisel borç (net_deger_tam'dan −)
-  const alacaklarVar = alacaklarToplami > 0;
   // Tam Net Değer alt-yazısı: hem +alacak hem −kişisel-borç şeffaf gösterilir (#116)
   const netTamDetay = [
     alacaklarToplami > 0 ? `+${formatPara(alacaklarToplami)} alacak` : null,
@@ -204,6 +230,63 @@ export default function Cockpit({ setActiveTab }) {
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Yenile</span>
         </button>
+      </div>
+
+      {/* BUGÜN HARCAYABİLECEĞİN — ekranın yıldızı.
+          Eskiden bu kutu sayfanın ALTINCI bloğuydu: kullanıcının en sık sorduğu soruya
+          ("bugün ne kadar harcayabilirim?") ancak dokuz kartı geçtikten sonra ulaşıyordu.
+          Yer değişikliği her iki görünüm için de geçerli — detay isteyen kullanıcı da bu
+          sayıyı önce görmek ister, farkı aşağıda ne kadar devam ettiğidir.
+          `guvenli_harcama` ve `nakit_runway_gun` satırları yalnız detaylı görünümde:
+          ikisi de ileriye dönük PROJEKSİYON, bugünün kararı değil. */}
+      <div className="card p-5 sm:p-6 border-brand-200 dark:border-brand-800/50
+                      bg-gradient-to-br from-brand-50 via-white to-white
+                      dark:from-brand-950/40 dark:via-zinc-900 dark:to-zinc-900">
+        <h3 className="bolum-etiket">Bugün harcayabileceğin</h3>
+        <p className="font-numeric text-4xl sm:text-5xl font-bold leading-none mt-1.5
+                      text-brand-700 dark:text-brand-300">
+          {formatPara(data.today_target)}
+        </p>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-2">
+          Ay sonuna {data.days_remaining} gün · Günlük limit {formatPara(data.daily_limit)}
+          {data.carried_forward !== 0 && (
+            <span className={signClass(data.carried_forward)}>
+              {' '}· Devreden {data.carried_forward > 0 ? '+' : ''}{formatPara(data.carried_forward)}
+            </span>
+          )}
+        </p>
+
+        {/* FEAT-030: günlük limitin açık dökümü. Sade görünümde de KALIR — "bu sayı
+            nereden geliyor?" sorusu, finansa yeni olan kullanıcının ilk sorusudur. */}
+        <BudgetBreakdown dokum={data.butce_dokum} />
+
+        {/* Zikzak projeksiyonu — bugün harcamazsan yarınki limit yükselir. */}
+        {data.yarin_limit_harcamasiz > data.daily_limit && (
+          <p className="text-xs text-positive-700 dark:text-positive-400 mt-1.5 flex items-center gap-1">
+            <Waves className="w-3.5 h-3.5 shrink-0" />
+            Bugün harcamazsan yarın limitin {formatPara(data.yarin_limit_harcamasiz)}/gün'e çıkar
+          </p>
+        )}
+
+        {!basit && data.guvenli_harcama !== undefined && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            Güvenli harcama (90g öngörü, kart borcu düşülmüş):{' '}
+            <span className={`font-numeric font-semibold ${data.guvenli_harcama > 0 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
+              {formatPara(data.guvenli_harcama)}
+            </span>
+          </p>
+        )}
+        {!basit && data.nakit_runway_gun !== undefined && data.nakit_runway_gun !== null && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            Nakit runway:{' '}
+            <span className={`font-numeric font-semibold ${data.nakit_runway_gun >= 30 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
+              {data.nakit_runway_gun} gün
+            </span>
+            <span className="text-zinc-500"> (gelirsiz, 30g harcama hızıyla)</span>
+          </p>
+        )}
       </div>
 
       {/* FEAT-041: deterministik İLK ADIM — tüm sinyallerin tek en-yüksek-etkili hamlesi */}
@@ -268,73 +351,93 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
-      {/* ===== USTGRUP: OPERASYONEL ===== */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Eye className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-          <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-            Operasyonel manzara
-          </h3>
-        </div>
+      {/* GÖSTERGELER.
+          Sade görünümde DÖRT sayı: param var mı (Nakit), ne kadar borcum var (Kart,
+          Kredi), toplamda neredeyim (Net Değer). Dördü de backend'in döndürdüğü HAM
+          alan — burada hiçbir toplama yapılmıyor (ADR-001: motor hesaplar, arayüz
+          gösterir). Detaylı görünümde dokuz gösterge ve iki grup başlığı gelir;
+          "Görülen / Tam Net Değer" ayrımı ancak alacak-borç kavramını bilene bir şey
+          anlatır, o yüzden sade tarafta yok. */}
+      {basit ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard title="Nakit" value={data.nakit_kasa} variant="positive" icon={Wallet} />
           <MetricCard title="Kart Borcu" value={data.kart_borcu} variant="negative" icon={CreditCard} />
           <MetricCard title="Kredi Borcu" value={data.kredi_borcu} variant="negative" icon={Building2} />
-          <MetricCard title="Yatırım" value={data.yatirim_deger} variant="brand" icon={TrendingUp} />
-        </div>
-      </div>
-
-      {/* ===== ALT GRUP: STRATEJIK ===== */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Telescope className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-          <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-            Stratejik manzara
-          </h3>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <MetricCard
-            title="Emanet"
-            value={data.emanet_kasa}
-            variant="warn"
-            icon={Lock}
-            isEmanet
-            subtitle="Net değere dahil değil"
-          />
-          <MetricCard
-            title="Beklenen Gelir"
-            value={data.beklenen_gelir}
-            variant="positive"
-            icon={Banknote}
-            subtitle="Bu ay sonuna kadar"
-          />
-          <MetricCard
-            title="Reel Bütçe"
-            value={data.reel_butce}
-            variant={data.reel_butce >= 0 ? 'positive' : 'negative'}
-            icon={Calculator}
-            subtitle="Gölge muhasebe sonrası"
-          />
-          {/* Gorulen Net Deger - operasyonel rakam, cuzdan acildiginda gorunen */}
-          <MetricCard
-            title="Görülen Net Değer"
+            title="Net Değer"
             value={data.net_deger}
             variant={data.net_deger >= 0 ? 'positive' : 'negative'}
             icon={Scale}
-            subtitle="Alacaksız (operasyonel)"
-          />
-          {/* Tam Net Deger - stratejik rakam, sozlesmeli alacaklar dahil */}
-          <MetricCard
-            title="Tam Net Değer"
-            value={netDegerTam}
-            variant={netDegerTam >= 0 ? 'positive' : 'negative'}
-            icon={Telescope}
-            subtitle={netTamDetay
-              ? `${netTamDetay} dahil`
-              : 'Alacak/borç yok, görülen ile aynı'}
+            subtitle="Varlıklar eksi borçlar"
           />
         </div>
-      </div>
+      ) : (
+        <>
+          {/* ===== USTGRUP: OPERASYONEL ===== */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Eye className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+              <h3 className="bolum-etiket">Operasyonel manzara</h3>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <MetricCard title="Nakit" value={data.nakit_kasa} variant="positive" icon={Wallet} />
+              <MetricCard title="Kart Borcu" value={data.kart_borcu} variant="negative" icon={CreditCard} />
+              <MetricCard title="Kredi Borcu" value={data.kredi_borcu} variant="negative" icon={Building2} />
+              <MetricCard title="Yatırım" value={data.yatirim_deger} variant="brand" icon={TrendingUp} />
+            </div>
+          </div>
+
+          {/* ===== ALT GRUP: STRATEJIK ===== */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Telescope className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+              <h3 className="bolum-etiket">Stratejik manzara</h3>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <MetricCard
+                title="Emanet"
+                value={data.emanet_kasa}
+                variant="warn"
+                icon={Lock}
+                isEmanet
+                subtitle="Net değere dahil değil"
+              />
+              <MetricCard
+                title="Beklenen Gelir"
+                value={data.beklenen_gelir}
+                variant="positive"
+                icon={Banknote}
+                subtitle="Bu ay sonuna kadar"
+              />
+              <MetricCard
+                title="Reel Bütçe"
+                value={data.reel_butce}
+                variant={data.reel_butce >= 0 ? 'positive' : 'negative'}
+                icon={Calculator}
+                subtitle="Gölge muhasebe sonrası"
+              />
+              {/* Gorulen Net Deger - operasyonel rakam, cuzdan acildiginda gorunen */}
+              <MetricCard
+                title="Görülen Net Değer"
+                value={data.net_deger}
+                variant={data.net_deger >= 0 ? 'positive' : 'negative'}
+                icon={Scale}
+                subtitle="Alacaksız (operasyonel)"
+              />
+              {/* Tam Net Deger - stratejik rakam, sozlesmeli alacaklar dahil */}
+              <MetricCard
+                title="Tam Net Değer"
+                value={netDegerTam}
+                variant={netDegerTam >= 0 ? 'positive' : 'negative'}
+                icon={Telescope}
+                subtitle={netTamDetay
+                  ? `${netTamDetay} dahil`
+                  : 'Alacak/borç yok, görülen ile aynı'}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       {/* FEAT-022: finansal sağlık skoru — şeffaf composite capstone */}
       {data.saglik_skoru && (() => {
@@ -352,70 +455,24 @@ export default function Cockpit({ setActiveTab }) {
             <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
               <div className={`h-full rounded-full ${barCls}`} style={{ width: `${sk.skor}%` }} />
             </div>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {sk.bilesenler.map((b) => (
-                <span key={b.ad} className="chip chip-neutral text-[10px]">{b.ad} {b.puan}</span>
-              ))}
-            </div>
+            {/* Beş bileşenin puan dökümü uzman bilgisidir; sade görünümde skorun
+                kendisi ve rengi kalır. */}
+            {!basit && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {sk.bilesenler.map((b) => (
+                  <span key={b.ad} className="chip chip-neutral text-[10px]">{b.ad} {b.puan}</span>
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}
 
-      {/* Günlük limit kutusu */}
-      <div className="card p-5 border-brand-200 dark:border-brand-800/50 bg-brand-50/50 dark:bg-brand-950/20">
-        <div>
-          <h3 className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-            Bugünkü harcama hedefi
-          </h3>
-          <p className="font-numeric text-3xl sm:text-4xl font-bold text-brand-700 dark:text-brand-400">
-            {formatPara(data.today_target)}
-          </p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Ay sonuna {data.days_remaining} gün · Günlük limit {formatPara(data.daily_limit)}
-            {data.carried_forward !== 0 && (
-              <span className={signClass(data.carried_forward)}>
-                {' '}· Devreden {data.carried_forward > 0 ? '+' : ''}{formatPara(data.carried_forward)}
-              </span>
-            )}
-          </p>
-          {/* FEAT-030: günlük limitin açık dökümü (UX açıklanabilirlik) */}
-          <BudgetBreakdown dokum={data.butce_dokum} />
-          {/* Zikzak projeksiyonu — kurucu "biriken güç": bugün harcamazsan yarınki limit yükselir */}
-          {data.yarin_limit_harcamasiz > data.daily_limit && (
-            <p className="text-xs text-positive-600 dark:text-positive-400 mt-1.5 flex items-center gap-1">
-              <Waves className="w-3.5 h-3.5 shrink-0" />
-              Bugün harcamazsan yarın limitin {formatPara(data.yarin_limit_harcamasiz)}/gün'e çıkar
-            </p>
-          )}
-          {/* FEAT-009: ileriye-dönük güvenli harcama tabanı — lumpy yükümlülükleri hesaba katar (kart hariç) */}
-          {data.guvenli_harcama !== undefined && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 shrink-0" />
-              Güvenli harcama (90g öngörü, kart borcu düşülmüş):{' '}
-              <span className={`font-numeric font-semibold ${data.guvenli_harcama > 0 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
-                {formatPara(data.guvenli_harcama)}
-              </span>
-            </p>
-          )}
-          {/* FEAT-010: nakit runway — gelirsiz mevcut nakit kaç gün yeter */}
-          {data.nakit_runway_gun !== undefined && data.nakit_runway_gun !== null && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 shrink-0" />
-              Nakit runway:{' '}
-              <span className={`font-numeric font-semibold ${data.nakit_runway_gun >= 30 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
-                {data.nakit_runway_gun} gün
-              </span>
-              <span className="text-zinc-500"> (gelirsiz, 30g harcama hızıyla)</span>
-            </p>
-          )}
-        </div>
-      </div>
-
       {/* A3: Aylık özet — kurucu "durum raporu" */}
-      <MonthlySummary />
+      {!basit && <MonthlySummary />}
 
       {/* FEAT-006: toplam abonelik yükü — glanceable (Rocket Money headline) */}
-      {data.abonelik_yuku?.adet > 0 && (
+      {!basit && data.abonelik_yuku?.adet > 0 && (
         <div className="card p-3 flex items-center gap-2 text-sm">
           <RefreshCw className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
           <span className="text-zinc-600 dark:text-zinc-300">
@@ -427,7 +484,7 @@ export default function Cockpit({ setActiveTab }) {
       )}
 
       {/* FEAT-012: borçsuz olma tarihi — borçtan çıkış tarihinin motive edici hedefi */}
-      {data.borc_ozgurluk && (
+      {!basit && data.borc_ozgurluk && (
         <div className="card p-3 flex items-center gap-2 text-sm">
           <Target className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
           <span className="text-zinc-600 dark:text-zinc-300">
@@ -441,7 +498,7 @@ export default function Cockpit({ setActiveTab }) {
       )}
 
       {/* FEAT-013: faiz sızıntısı — borç faiz maliyeti (sarsıcı realist sinyal) */}
-      {data.faiz_sizintisi?.aylik_toplam > 0 && (
+      {!basit && data.faiz_sizintisi?.aylik_toplam > 0 && (
         <div className="card p-3 flex items-center gap-2 text-sm border-negative-200 dark:border-negative-800/50">
           <AlertTriangle className="w-4 h-4 text-negative-500 shrink-0" />
           <span className="text-zinc-600 dark:text-zinc-300">
@@ -453,7 +510,7 @@ export default function Cockpit({ setActiveTab }) {
       )}
 
       {/* FEAT-016: kart kullanım oranı (utilization) + kredi sağlığı — yalnız yüksek/kritik bantta */}
-      {data.kart_kullanim && ['yuksek', 'kritik'].includes(data.kart_kullanim.band) && (() => {
+      {!basit && data.kart_kullanim && ['yuksek', 'kritik'].includes(data.kart_kullanim.band) && (() => {
         const ku = data.kart_kullanim;
         const pct = Math.min(100, ku.oran);
         const barColor = ku.band === 'kritik' ? 'bg-negative-500' : 'bg-warn-500';
@@ -486,7 +543,7 @@ export default function Cockpit({ setActiveTab }) {
       })()}
 
       {/* FEAT-027: alacak yaşlandırma — gecikmiş alacakları vade-yaşına göre önceliklendir */}
-      {data.alacak_yaslanma?.gecikmis_adet > 0 && (
+      {!basit && data.alacak_yaslanma?.gecikmis_adet > 0 && (
         <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
           <Users className="w-4 h-4 text-warn-600 dark:text-warn-500 shrink-0 mt-0.5" />
           <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
@@ -505,7 +562,7 @@ export default function Cockpit({ setActiveTab }) {
       )}
 
       {/* FEAT-015: kart asgari-ödeme tuzağı — sadece asgari ödeme senaryosu (görünmez maliyet) */}
-      {data.asgari_tuzagi?.kartlar?.length > 0 && (
+      {!basit && data.asgari_tuzagi?.kartlar?.length > 0 && (
         <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
           <AlertTriangle className="w-4 h-4 text-warn-600 dark:text-warn-500 shrink-0 mt-0.5" />
           <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
@@ -594,7 +651,7 @@ export default function Cockpit({ setActiveTab }) {
       </div>
 
       {/* Yatırım K/Z */}
-      {investmentPnl && (
+      {!basit && investmentPnl && (
         /* Sadeleştirme: dört alt-kalem katlanır ama SONUÇ (brüt kâr + getiri) özet
            olarak başlıkta kalır — kullanıcı açmadan da kârda mı zararda mı bilir. */
         <KatlanirBolum
@@ -631,7 +688,7 @@ export default function Cockpit({ setActiveTab }) {
       )}
 
       {/* Akış Özeti — cashflow forecast özeti (30 gün) */}
-      {flowSummary && (
+      {!basit && flowSummary && (
         <div className="card p-4 border-brand-200/60 dark:border-brand-800/40 bg-brand-50/30 dark:bg-brand-950/10">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
@@ -722,7 +779,7 @@ export default function Cockpit({ setActiveTab }) {
 
       {/* Takvim 2 sütun */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {data.upcoming_payments?.length > 0 && (
+        {!basit && data.upcoming_payments?.length > 0 && (
           /* Sadeleştirme: 60 günlük ödeme takvimi PLANLAMA bilgisidir, acil değil —
              katlı gelir. Özet başlıkta kaldığı için bilgi eksilmez (kalem sayısı +
              toplam net etki görünür). */
@@ -767,7 +824,7 @@ export default function Cockpit({ setActiveTab }) {
           </KatlanirBolum>
         )}
 
-        {data.upcoming_receivables?.length > 0 && (
+        {!basit && data.upcoming_receivables?.length > 0 && (
           <KatlanirBolum
             ikon={Users}
             baslik="Yaklaşan tahsilatlar"
@@ -801,7 +858,11 @@ export default function Cockpit({ setActiveTab }) {
       </div>
 
       {/* Fiyat tazeliği */}
-      {data.price_freshness?.items?.length > 0 && (
+      {/* Bayat fiyat, ekrandaki yatırım sayılarını YANLIŞ yapar — bu bir veri
+          kalitesi riskidir, analiz süsü değil. O yüzden `stale_count > 0` ise bölüm
+          sade görünümde de kalır. */}
+      {(!basit || data.price_freshness?.stale_count > 0)
+        && data.price_freshness?.items?.length > 0 && (
         /* Sadeleştirme: operasyonel bir liste — normalde katlı. AMA bayat fiyat varsa
            `vurgu` rozeti katlıyken de görünür (BUG #239 sınıfı: tazelik sessizce
            kaybolmamalı) ve bölüm kendiliğinden açık gelir. */
@@ -836,6 +897,35 @@ export default function Cockpit({ setActiveTab }) {
             ))}
           </div>
         </KatlanirBolum>
+      )}
+
+      {/* SADE GÖRÜNÜMÜN DÜRÜSTLÜK SATIRI.
+          Sadeleştirme, gizlediğini söylemediği anda bilgi eksiltmeye döner. Bu kart
+          kaç bölümün ve HANGİ bölümlerin gizlendiğini yazar, geçişi de tek tık yapar.
+          Sayı elle değil, gerçekten çizilecek bölümler sayılarak üretilir. */}
+      {basit && gizlenenBolumler.length > 0 && (
+        <div className="card card-interaktif p-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">
+                Sade görünümdesin — {gizlenenBolumler.length} analiz bölümü gizli
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                {gizlenenBolumler.join(' · ')}
+              </p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">
+                Uyarılar, onay bekleyen aksiyonlar ve hesap durumun sade görünümde de gizlenmez.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => degistir(DETAYLI)}
+              className="btn btn-secondary !text-xs flex-shrink-0"
+            >
+              Detaylı görünüme geç <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Manuel fiyat güncelleme modal */}

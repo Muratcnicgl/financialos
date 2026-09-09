@@ -15,23 +15,78 @@
  *    (çıkmaz sokak). Artık `has_password` ile dallanır: şifresi yoksa "Şifre belirle".
  */
 import { useState, useEffect } from 'react';
-import { KeyRound, Mail, Download, Trash2, ShieldCheck, Compass } from 'lucide-react';
+import {
+  KeyRound, Mail, Download, Trash2, ShieldCheck, Compass,
+  LayoutDashboard, SlidersHorizontal,
+} from 'lucide-react';
 import { authApi, userApi, onboardingApi, clearTokens, ApiError } from '../api.js';
+import { useGorunumModu } from '../hooks/useGorunumModu.js';
 
 const SILME_ONAY = 'HESABIMI SIL';
 
 function Bolum({ ikon: Ikon, baslik, aciklama, children }) {
   return (
-    <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
-      <div className="flex items-start gap-2">
-        <Ikon className="w-4 h-4 mt-0.5 text-brand-600 dark:text-brand-400 flex-shrink-0" />
-        <div>
+    <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3">
+      <div className="flex items-start gap-2.5">
+        <span className="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-950/40 flex items-center justify-center flex-shrink-0">
+          <Ikon className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+        </span>
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold">{baslik}</h2>
-          {aciklama && <p className="text-xs text-zinc-500 mt-0.5">{aciklama}</p>}
+          {aciklama && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{aciklama}</p>}
         </div>
       </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * GÖRÜNÜM ANAHTARI — sade ve detaylı arayüz arasındaki iki yönlü geçiş.
+ *
+ * Buraya konuldu çünkü Hesap paneli, kullanıcının "beni ilgilendiren ayarlar" diye
+ * baktığı tek yer. Anahtar iki yönlü ve KALICI SONUÇ DOĞURMAZ: sıkılan kullanıcı sadeye
+ * döner, eksik hisseden detaylıya geçer. Tek yönlü bir "basitleştir" düğmesi, geri
+ * dönüşü olmadığı için kullanıcının denemesini engeller.
+ *
+ * Metin, sade modda NEYİN GİZLENDİĞİNİ açıkça söyler: gizlemenin dürüst hâli,
+ * gizlendiğini yazmaktır.
+ */
+function GorunumAnahtari() {
+  const { basit, degistir, BASIT, DETAYLI } = useGorunumModu();
+  return (
+    <Bolum
+      ikon={basit ? LayoutDashboard : SlidersHorizontal}
+      baslik="Arayüz yoğunluğu"
+      aciklama="İkisi de aynı verilere bakar; fark, aynı anda ekranda ne kadarının durduğu.
+                Her an değiştirebilirsin — veri kaybı olmaz, hiçbir kayıt silinmez."
+    >
+      <div className="segment w-full" role="group" aria-label="Arayüz yoğunluğu">
+        <button
+          type="button"
+          aria-pressed={basit}
+          onClick={() => degistir(BASIT)}
+          className="segment-secenek"
+        >
+          <LayoutDashboard className="w-4 h-4" /> Sade
+        </button>
+        <button
+          type="button"
+          aria-pressed={!basit}
+          onClick={() => degistir(DETAYLI)}
+          className="segment-secenek"
+        >
+          <SlidersHorizontal className="w-4 h-4" /> Detaylı
+        </button>
+      </div>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+        {basit
+          ? 'Sade: 5 sekme ve özet ekranda günlük karar için gerekenler. Faiz sızıntısı, '
+            + 'kart kullanım oranı, vade takvimi gibi analiz bölümleri gizli — kritik '
+            + 'uyarılar, onay bekleyen aksiyonlar ve hesaplarının durumu gizlenmez.'
+          : 'Detaylı: 13 sekme ve tüm analiz katmanı açık. Hiçbir bölüm gizli değil.'}
+      </p>
+    </Bolum>
   );
 }
 
@@ -120,9 +175,9 @@ export default function Hesap() {
   return (
     <div className="space-y-4 max-w-2xl">
       <div>
-        <h1 className="text-lg font-semibold">Hesap</h1>
-        <p className="text-xs text-zinc-500 mt-1">
-          Verilerin senin. Buradan düzeltebilir, indirebilir veya tamamen silebilirsin.
+        <h1 className="text-xl font-bold tracking-tight">Hesap</h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          Arayüzünü ayarla; verilerini düzelt, indir veya tamamen sil. Verilerin senin.
         </p>
       </div>
 
@@ -142,15 +197,18 @@ export default function Hesap() {
       <Bolum ikon={ShieldCheck} baslik="Kimlik">
         <dl className="text-sm space-y-1">
           <div className="flex gap-2">
-            <dt className="text-zinc-500 w-24">Ad</dt>
+            <dt className="text-zinc-500 dark:text-zinc-400 w-24">Ad</dt>
             <dd>{profil?.name || '—'}</dd>
           </div>
           <div className="flex gap-2">
-            <dt className="text-zinc-500 w-24">E-posta</dt>
-            <dd>{profil?.email || '—'}</dd>
+            <dt className="text-zinc-500 dark:text-zinc-400 w-24">E-posta</dt>
+            <dd className="truncate">{profil?.email || '—'}</dd>
           </div>
         </dl>
       </Bolum>
+
+      {/* Arayüz yoğunluğu anahtarı — sade/detaylı geçişi burada yaşar. */}
+      <GorunumAnahtari />
 
       {rehber && !rehber.tamamlandi && (
         <Bolum

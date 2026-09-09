@@ -1,25 +1,46 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
+import { SEKMELER, kisayolSirasi } from '../lib/sekmeler.js';
 
-const COMMANDS = [
-  { id: 'cockpit',      label: 'Cockpit\'e geç',           hint: 'Cmd+1' },
-  { id: 'coach',        label: 'Koç\'a geç',               hint: 'Cmd+2' },
-  { id: 'accounts',     label: 'Hesaplar\'a geç',          hint: 'Cmd+3' },
-  { id: 'transactions', label: 'İşlemler\'e geç',          hint: 'Cmd+4' },
-  { id: 'incomedebt',   label: 'Gelir & Borç\'a geç',      hint: 'Cmd+5' },
-  { id: 'redlines',     label: 'Kırmızı Çizgiler\'e geç',  hint: 'Cmd+6' },
-  { id: 'reports',      label: 'Raporlar\'a geç',           hint: 'Cmd+7' },
-  // FE-007: kalan 4 sekme de palette'te aranabilir (Cmd kısayolları yalnız 1-7 bağlı, hint yok).
-  { id: 'cashflow',     label: 'Nakit Akışı\'na geç',      hint: '' },
-  { id: 'debtstrategy', label: 'Borç Stratejisi\'ne geç',  hint: '' },
-  { id: 'goals',        label: 'Hedefler\'e geç',          hint: '' },
-  { id: 'budget',       label: 'Bütçe\'ye geç',            hint: '' },
-];
+/**
+ * Komut paleti. Liste artık `lib/sekmeler.js`'ten türer.
+ *
+ * Eski hâlde komutlar elle yazılıydı ve 13 sekmenin YALNIZ 11'i vardı: "Aile" ve
+ * "Hesap" panellerine Cmd+K ile hiç ulaşılamıyordu. Kısayol etiketleri (Cmd+1..) de
+ * elle sayılmıştı; sıra moda göre değiştiği için artık hesaplanıyor.
+ *
+ * Palet BİLEREK her iki modda da TÜM panelleri listeler: sade görünüm sekme çubuğunu
+ * kısaltır, panelleri silmez. Aramayı bilen kullanıcı sadeliği kaybetmeden derine
+ * inebilir — ve palette bir de görünümü değiştiren komut vardır.
+ */
+function komutlar(basit, onModDegistir) {
+  const sira = kisayolSirasi(basit);
+  const liste = SEKMELER.map((s) => {
+    const i = sira.indexOf(s.id);
+    return {
+      id: s.id,
+      label: s.komut,
+      hint: i >= 0 && i < 9 ? `Cmd+${i + 1}` : '',
+      calistir: (setActiveTab) => setActiveTab(s.id),
+    };
+  });
+  if (onModDegistir) {
+    liste.push({
+      id: 'gorunum-modu',
+      label: basit ? 'Görünümü detaylıya çevir' : 'Görünümü sadeye çevir',
+      hint: '',
+      calistir: () => onModDegistir(),
+    });
+  }
+  return liste;
+}
 
-export default function CommandPalette({ onClose, setActiveTab }) {
+export default function CommandPalette({ onClose, setActiveTab, basit = false, onModDegistir }) {
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef(null);
+
+  const COMMANDS = useMemo(() => komutlar(basit, onModDegistir), [basit, onModDegistir]);
 
   const filtered = query.trim()
     ? COMMANDS.filter(c => c.label.toLowerCase().includes(query.toLowerCase()))
@@ -29,7 +50,7 @@ export default function CommandPalette({ onClose, setActiveTab }) {
   useEffect(() => { setSelectedIdx(0); }, [query]);
 
   const execute = (cmd) => {
-    setActiveTab(cmd.id);
+    cmd.calistir(setActiveTab);
     onClose();
   };
 
@@ -69,7 +90,7 @@ export default function CommandPalette({ onClose, setActiveTab }) {
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="max-h-64 overflow-y-auto py-1">
+        <div className="max-h-80 overflow-y-auto py-1">
           {filtered.length === 0 ? (
             <p className="px-4 py-6 text-sm text-zinc-500 text-center">Komut bulunamadı</p>
           ) : (

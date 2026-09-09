@@ -1,15 +1,18 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { SEKMELER, gorunurSekmeler, sekmeEtiketi } from '../lib/sekmeler.js';
+import { useGorunumModu } from '../hooks/useGorunumModu.js';
 
-const SHORTCUTS = [
-  { key: 'Cmd/Ctrl + K',     label: 'Komut paleti aç / kapat' },
-  { key: 'Cmd/Ctrl + 1',     label: 'Cockpit' },
-  { key: 'Cmd/Ctrl + 2',     label: 'Koç' },
-  { key: 'Cmd/Ctrl + 3',     label: 'Hesaplar' },
-  { key: 'Cmd/Ctrl + 4',     label: 'İşlemler' },
-  { key: 'Cmd/Ctrl + 5',     label: 'Gelir & Borç' },
-  { key: 'Cmd/Ctrl + 6',     label: 'Kırmızı Çizgiler' },
-  { key: 'Cmd/Ctrl + 7',     label: 'Raporlar' },
+/**
+ * Klavye kısayolları ekranı.
+ *
+ * Panel kısayolları artık ELLE YAZILMIYOR: liste `lib/sekmeler.js`'ten, sıra da aktif
+ * görünüm modundan gelir. Eski hâl bir belge-kod ayrışmasıydı — tablo "Cmd+6 → Kırmızı
+ * Çizgiler" diyor, alt not "Cmd+1..6 her zaman aktif" diyor, kod ise 1..9'u bağlıyordu.
+ * Sade görünümde kısayollar görünen sekmelere bağlandığı için bu ekran da moda uymalı;
+ * yoksa yardım ekranı yanlış şeyi öğretir.
+ */
+const SABIT_KISAYOLLAR = [
   { key: '?',                label: 'Bu yardım ekranı' },
   { key: 'Y',                label: 'Bekleyen aksiyonu onayla' },
   { key: 'N',                label: 'Bekleyen aksiyonu reddet' },
@@ -20,6 +23,15 @@ const SHORTCUTS = [
 ];
 
 export default function HelpModal({ onClose }) {
+  const { basit } = useGorunumModu();
+  const panelKisayollari = gorunurSekmeler(basit)
+    .slice(0, 9)
+    .map((s, i) => ({ key: `Cmd/Ctrl + ${i + 1}`, label: sekmeEtiketi(s, basit) }));
+  const SHORTCUTS = [
+    { key: 'Cmd/Ctrl + K', label: 'Komut paleti aç / kapat' },
+    ...panelKisayollari,
+    ...SABIT_KISAYOLLAR,
+  ];
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -56,7 +68,10 @@ export default function HelpModal({ onClose }) {
           </tbody>
         </table>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-4">
-          Y/N/E → input dışındayken bekleyen aksiyona uygulanır · Cmd+1..6 → her zaman aktif
+          Y/N/E → input dışındayken bekleyen aksiyona uygulanır ·
+          Cmd+1..{panelKisayollari.length} → her zaman aktif
+          {basit && SEKMELER.length > panelKisayollari.length
+            && ` · sade görünümde ${SEKMELER.length - panelKisayollari.length} panel Cmd+K ile aranır`}
         </p>
       </div>
     </div>

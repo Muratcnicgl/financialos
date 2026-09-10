@@ -26,9 +26,11 @@ GUNCELLEMELER
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -139,11 +141,66 @@ def _judge_kosumu(judge_provider, cevaplar: List[Tuple[str, str, str]],
     return ozet, rapor_satirlari(sonuclar)
 
 
+def hiz_sinirla(provider, bekle: float):
+    """Gerçek sağlayıcı istekleri arasına ASGARİ `bekle` saniye koyar (`--bekle`).
+
+    NEDEN VAR — ÖLÇÜLEN DURUM (11 Eyl 2026)
+    ----------------------------------------
+    Bu depoda koç kalitesi 2 Eylül'den 11 Eylül'e kadar HİÇ geçerli ölçülemedi. Sebep
+    kalite değildi: geçerli tek altın halka (OpenRouter) bayat bir model adı yüzünden
+    404 dönüyordu ve geri kalan sağlayıcıların GÜNLÜK tavanları eval'i taşıyamıyordu:
+
+        Groq ....... 1000 istek/gün  ·  8.000 token/DAKİKA
+        OpenRouter ... 50 istek/gün
+        Gemini ....... 20 istek/gün   (bir eval koşumu ~16 istek)
+
+    Yani günde birkaç kez ölçüm yapılabilecek TEK sağlayıcı Groq'tur ve onun tavanı
+    GÜNLÜK değil DAKİKALIKTIR. Koşucu istekleri arka arkaya atınca ikinci istek
+    413/429 alır ve koşum "sağlayıcı cevap vermedi" diye GEÇERSİZ sayılır — oysa kota
+    değil, HIZ aşılmıştır. Ölçüldü: beklemesiz koşumda 8 senaryodan 3'ü ölü çağrı;
+    50 sn beklemeyle aynı senaryolar cevap verdi.
+
+    BEKLEME NEDEN BURADA, `app/coach.py`'de DEĞİL
+    ----------------------------------------------
+    Sağlayıcı sınıflarına `sleep` koymak, ÜRÜNÜN sıcak yolunu ölçüm aracının ihtiyacına
+    göre yavaşlatmak olurdu — kullanıcı bir koç mesajı için 50 sn beklemez. Kısıt
+    ölçüm harness'ına aittir; `--bekle` verilmedikçe hiçbir şey değişmez (varsayılan 0).
+
+    Sarmalama `_raw_chat`'e takılır: sayılan ve sınırlanan şey AĞA ÇIKAN istektir
+    (`app/coach.py`'deki kota muhasebesiyle aynı kanca noktası, aynı gerekçe). Her
+    sağlayıcının KENDİ saati vardır — tavan hesap başınadır, zincir başına değil.
+    `FallbackProvider`ın `_raw_chat`i yoktur; alt sağlayıcıları TEK TEK sarılır.
+    """
+    if bekle <= 0:
+        return provider
+    altlar = getattr(provider, "providers", None)
+    if altlar:
+        for alt in altlar:
+            hiz_sinirla(alt, bekle)
+        return provider
+    ham = getattr(provider, "_raw_chat", None)
+    if ham is None:
+        return provider
+    son = [0.0]
+
+    @functools.wraps(ham)
+    def _bekleyen_raw_chat(*args, **kwargs):
+        gecen = time.monotonic() - son[0]
+        if son[0] and gecen < bekle:
+            time.sleep(bekle - gecen)
+        son[0] = time.monotonic()
+        return ham(*args, **kwargs)
+
+    provider._raw_chat = _bekleyen_raw_chat
+    return provider
+
+
 def _tek_kosum(saglayici_adi: Optional[str], judge_provider, args) -> Optional[Dict]:
     provider, hata = _saglayici_kur(saglayici_adi)
     if provider is None:
         print(f"[ATLANDI] {saglayici_adi or '(.env)'}: sağlayıcı kurulamadı — {hata}")
         return None
+    hiz_sinirla(provider, getattr(args, "bekle", 0.0))
     ad = getattr(provider, "NAME", type(provider).__name__)
     print(f"\n=== Sağlayıcı: {ad} ({getattr(provider, 'model', '?')}) ===")
 
@@ -273,6 +330,10 @@ def main() -> None:
     ayristirici.add_argument("--altin", action="store_true",
                              help="ALTIN SENARYO SETİ (G1-G6): koçun muhakemesini ölçer "
                                   "(1 Eyl 2026 gerçek manzarası; bkz. scripts/coach_altin.py)")
+    ayristirici.add_argument("--bekle", type=float, default=0.0, metavar="SANIYE",
+                             help="gercek saglayici istekleri arasi ASGARI bekleme. "
+                                  "Groq'un DAKIKALIK token tavani (8.000 TPM) icin ~50; "
+                                  "verilmezse hicbir sey degismez (bkz. hiz_sinirla)")
     args = ayristirici.parse_args()
 
     if args.gecmis:

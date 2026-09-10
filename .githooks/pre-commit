@@ -83,4 +83,19 @@ elif command -v python3 >/dev/null 2>&1; then
   python3 -m scripts.canli_durum --sessiz 2>/dev/null || true
 fi
 
+# ── MODEL ADI ÇÜRÜMESİ (BUG #369) ─────────────────────────────────────────────
+# Sabit model kimliği bu depoda ÜÇ KEZ sessizce çürüdü (BUG #315, Cerebras deprecation,
+# BUG #369) ve üçünde de belirti "sağlayıcı bizi istemiyor" diye okundu: 402, 404, 429.
+# Üçünde de çürümeyi bulan şey bir kapı değil, AYLAR SONRA koşulan canlı bir eval oldu —
+# `data/eval_runs.jsonl`de 10 Eylül koşumunun beş sağlayıcısı da `gecerli: false` yazdı
+# çünkü geçerli tek halkanın model adı katalogdan kalkmıştı.
+# `ci_durum`/`canli_durum` ile aynı desen: operatörün zaten yaptığı işe bir satır iliştir.
+# `--sessiz`: ad katalogda duruyorsa hiç konuşmaz. Commit'i ASLA engellemez — ağa çıkar,
+# ve ağsız bir makinede kırmızı veren kapı, ölçtüğü şeyi değil bağlantıyı ölçer.
+if [ -x ./venv/Scripts/python.exe ]; then
+  ./venv/Scripts/python.exe -m scripts.model_canliligi --sessiz 2>/dev/null || true
+elif command -v python3 >/dev/null 2>&1; then
+  python3 -m scripts.model_canliligi --sessiz 2>/dev/null || true
+fi
+
 exit 0

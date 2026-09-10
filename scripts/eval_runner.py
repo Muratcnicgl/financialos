@@ -59,7 +59,37 @@ def _canonical_db():
     breaker'la atlanıp ZAYIF sağlayıcıya düşülüyor → action senaryoları provider-boyut
     gürültüsüyle bozuluyor (6/8 → 4/8). Minimal DB davranışı sağlayıcı-boyutundan İZOLE
     ölçer. Grounding-analiz senaryoları sağlayıcı-halüsinasyonuna duyarlıdır (kaçınılmaz;
-    grounding uydurmayı DOĞRU yakalar → confidence düşer). Bkz. memory reference_groq_tpm_limiti.
+    grounding uydurmayı DOĞRU yakalar → confidence düşer).
+
+    ÖLÇÜM NOTU (11 Eyl 2026) — yukarıdaki "~8000+ token" artık tahmin değil.
+    O rakam ölçülmemiş bir yaklaşıklıktı. ALTIN set isteği (DİKKAT: bu fixture DEĞİL,
+    `scripts/coach_altin.altin_db()`) Groq'a gönderilip sağlayıcının KENDİ sayacıyla
+    (`usage.prompt_tokens`) ölçüldü:
+
+        tam altın istek (Groq'un 413'ünden) ..... 8.353 token
+        system prompt ........................... 7.755 token
+          ├─ SABİT talimat metni ................ 6.646 token
+          └─ veriden türeyen bağlam .......... ≥ 1.109 token  (kokpit + checkpoint'ler
+                                                   — bu blok system prompt'un İÇİNDE)
+        system prompt DIŞI ........................ 598 token  (kullanıcı mesajı +
+                                                   araç şeması + sohbet iskelesi)
+        Groq TPM tavanı ......................... 8.000 token  → aşım 353 token
+
+    Buradan çıkan asıl sayı şu: SABİT maliyet 6.646 + 598 = **7.244 token**. Yani
+    Groq'un dakikalık bütçesinin %91'i, kullanıcının verisi HİÇ eklenmeden dolar;
+    manzaranın tamamına kalan pay ~756 token. Bu fixture'ın minimal tutulması o dar
+    payı korur — yani yukarıdaki karar ÇÜRÜTÜLMÜŞ DEĞİLDİR, ölçülmüştür.
+
+    İKİ SINIR, açıkça yazılıyor ki bir sonraki tur bunları gerçek sanmasın:
+      · Ölçüm ALTIN fixture üzerinde yapıldı; BU fonksiyonun kendi (minimal) manzarası
+        ayrıca ölçülmedi. Dolayısıyla "minimal DB şu kadar token" denemez.
+      · "≥ 1.109" bir ALT SINIRDIR: veriden türeyen bloklar kesilirken bölüm sınırı
+        `\n# ` alındı ve kokpitin iç başlıkları kesimi erken bitirdi (20.957 karakterin
+        yalnız 2.768'i çıkarılabildi). Gerçek pay bundan büyüktür.
+
+    NOT (aynı gün ölçülen kota tavanları): Groq 1000 istek/gün · 8.000 token/dk ·
+    OpenRouter 50 istek/gün (03:00 TR'de sıfırlanır) · Gemini 20 istek/gün. Yani
+    GÜNLÜK başlık en geniş olan Groq'tur ve altın seti ona kapatan şey 353 token'dır.
     """
     eng = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(eng)

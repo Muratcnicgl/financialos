@@ -59,9 +59,29 @@ def test_HOOK_COMMITI_ENGELLEMEZ():
     tam da servisi onaracak commit'i engellerdi. `ci_durum` ile aynı gerekçe.
     """
     metin = HOOK.read_text(encoding="utf-8")
-    satir = [s for s in metin.splitlines() if "canli_durum" in s]
-    assert satir, "çağrı yok"
-    for s in satir:
+
+    # BUG #370 — BU TEST ÇAĞRIYI DEĞİL, METNİ ÖLÇÜYORDU.
+    #
+    # Eski süzgeç `if "canli_durum" in s` idi: adı GEÇEN her satırı bir ÇAĞRI sayıyordu,
+    # YORUM satırlarını da. Bu depoda hook'a yazılan gerekçeler kardeş araçlara ada ada
+    # atıf yapıyor ("`ci_durum`/`canli_durum` ile aynı desen") — yani teste takılmak için
+    # hatalı bir çağrı yazmak gerekmiyordu, DOĞRU bir cümle yazmak yetiyordu.
+    #
+    # Ölçüldü (11 Eyl 2026): hook'a BUG #369 gerekçesi eklendi, tek satırlık bir yorum
+    # `canli_durum` adını taşıdı ve süit kırmızıya döndü. Kırılan şey davranış değildi;
+    # kapı, koruduğu davranışa hiç dokunulmadan alarm verdi.
+    #
+    # BUG #365'in aynı sınıfı: *test, ölçmek istediği şeyi değil başka bir şeyi ölçüyordu.*
+    # Eskisinin yeşil kalması bir tasarım değil, tesadüftü — o güne dek kimse aracın adını
+    # bir yorumda anmamıştı. Yorum satırı ELENİR: `#` ile başlayan bir satır kabuk
+    # tarafından hiç çalıştırılmaz, dolayısıyla commit'i düşürmesi de mümkün değildir.
+    # Süzgeç DARALMADI, DOĞRULANDI: çalışmayan bir satır zaten kapının konusu değildi.
+    komutlar = [
+        s for s in metin.splitlines()
+        if "canli_durum" in s and not s.lstrip().startswith("#")
+    ]
+    assert komutlar, "çağrı yok — yalnız yorumda anılıyorsa araç ÖLÜ demektir"
+    for s in komutlar:
         assert "|| true" in s, f"çağrı commit'i düşürebilir: {s.strip()}"
         assert "--sessiz" in s, f"ayakta iken de konuşuyor (gürültü): {s.strip()}"
 

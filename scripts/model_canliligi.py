@@ -104,7 +104,21 @@ OLCULEMEYEN = {
 
 
 def _saglayici_siniflari() -> dict:
-    """`NAME` (BÜYÜK) -> sağlayıcı sınıfı. Alt sınıf ağacından TÜRETİLİR."""
+    """`NAME` (BÜYÜK) -> sağlayıcı sınıfı. Alt sınıf ağacından TÜRETİLİR.
+
+    BUG #372 — TEST SAHTELERİ GERÇEK SAĞLAYICIYI GÖLGELİYORDU.
+    `LLMProvider.__subclasses__()` CANLI bir kayıttır: o an bellekte var olan HER alt
+    sınıfı verir, nerede tanımlandığına bakmaz. `tests/test_coach_eszamanlilik.py`
+    içinde `class Sahte(LLMProvider)` var ve `NAME = "Gemini"` taşıyor — sözlükte
+    "GEMINI" anahtarını GERÇEK `GeminiProvider`ın üstüne yazıyordu. O sahtenin
+    `DEFAULT_MODEL`i olmadığı için Gemini "modelsiz" görünüp raporun dışında kalıyordu.
+
+    Arıza SIRAYA VE ÇÖPE BAĞLIYDI: sahte sınıf hâlâ hayattaysa gölgeliyor, toplanmışsa
+    gölgelemiyor. Bu yüzden yerelde YEŞİL, CI'da KIRMIZI verdi — "benim makinemde
+    çalışıyor" sınıfının ta kendisi (ölçüldü: CI `backend-tests` iki koşum üst üste).
+
+    Süzgeç: yalnız `app.coach` MODÜLÜNDE tanımlanmış sınıflar. Test sahteleri, notebook
+    denemeleri ve ileride başka modüllere yazılacak adaptörler artık kaydı kirletemez."""
     from app.coach import LLMProvider
 
     def hepsi(sinif):
@@ -112,7 +126,11 @@ def _saglayici_siniflari() -> dict:
             yield alt
             yield from hepsi(alt)
 
-    return {getattr(s, "NAME", "").upper(): s for s in hepsi(LLMProvider)}
+    return {
+        getattr(s, "NAME", "").upper(): s
+        for s in hepsi(LLMProvider)
+        if getattr(s, "__module__", "") == "app.coach"
+    }
 
 
 def etkin_modeller() -> list[tuple[str, str]]:
@@ -128,11 +146,13 @@ def etkin_modeller() -> list[tuple[str, str]]:
     cikti = []
     for onek in SAGLAYICI_ONEKLERI:
         sinif = siniflar.get(onek)
-        if sinif is None:  # pragma: no cover — test_env_adi_kapisi bunu zaten dayatıyor
-            continue
         model = saglayici_modeli(onek) or getattr(sinif, "DEFAULT_MODEL", None)
-        if model:
-            cikti.append((onek, model))
+        # BUG #372'nin ikinci yüzü: ÇÖZÜLEMEYEN SAĞLAYICI SESSİZCE DÜŞMEZ.
+        # Önceki hâl `continue` diyordu; sonuç, kapsamı olduğundan DAR bir raporu
+        # tam görünmesiydi — bu aracın diğer sağlayıcılar için kınadığı davranışın
+        # aynısı. Ad çözülemiyorsa satır KALIR, değeri boş gelir ve `rapor()`
+        # ÖLÇÜLEMEDİ yazar (L45: bilinmeyen sıfır değildir).
+        cikti.append((onek, model or ""))
     return cikti
 
 
@@ -188,6 +208,9 @@ def rapor(etkin: list[tuple[str, str]], katalog: set[str] | None,
                 ek = f" — katalogda: {oneri}" if oneri else ""
                 satirlar.append(f"  {onek:<11} {model:<52} ÇÜRÜMÜŞ{ek}")
                 curuyen.append((onek, model, oneri))
+        elif not model:
+            satirlar.append(f"  {onek:<11} {'(ad cozulemedi)':<52} ÖLÇÜLEMEDİ "
+                            f"(saglayici sinifi bulunamadi — kayit kirlenmis olabilir)")
         else:
             satirlar.append(f"  {onek:<11} {model:<52} ÖLÇÜLEMEDİ ({OLCULEMEYEN.get(onek, '?')})")
     return satirlar, curuyen

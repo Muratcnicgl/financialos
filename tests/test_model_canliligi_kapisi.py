@@ -163,3 +163,59 @@ def test_free_dusunce_UCRETLI_hali_onerilir():
 def test_karsiligi_YOKSA_uydurulmaz():
     """Boş öneri, yanlış öneriden iyidir — uydurulmuş bir ad yeni bir çürümedir."""
     assert _oneri({"baska/model"}, "kalkmis/model:free") == ""
+
+# ── 6. TEST SAHTELERİ KAYDI KİRLETEMEZ (BUG #372) ────────────────────────────
+def test_TEST_SAHTESI_gercek_saglayiciyi_GOLGELEYEMEZ(monkeypatch):
+    """
+    ÖLÇÜLEN ARIZA (11 Eyl 2026): CI `backend-tests` iki koşum üst üste kırmızıydı,
+    yerel süit yeşildi. Sebep bu testin kendisiydi.
+
+    `LLMProvider.__subclasses__()` CANLI bir kayıttır — o an bellekte var olan HER alt
+    sınıfı verir. `tests/test_coach_eszamanlilik.py` içinde `class Sahte(LLMProvider)`
+    var ve `NAME = "Gemini"` taşıyor. Sözlükte "GEMINI" anahtarı gerçek
+    `GeminiProvider`ın ÜSTÜNE yazılıyor, sahtenin `DEFAULT_MODEL`i olmadığı için Gemini
+    "modelsiz" görünüyor ve rapordan düşüyordu.
+
+    Arıza SIRAYA VE ÇÖPE bağlıydı: sahte hâlâ hayattaysa gölgeliyor, toplanmışsa
+    gölgelemiyor — yani "benim makinemde çalışıyor" sınıfının ta kendisi.
+
+    Bu test o sahteyi BURADA, bilerek yaratır: süzgeç (`__module__ == "app.coach"`)
+    kaldırılırsa KIRILIR.
+    """
+    from app.coach import LLMProvider
+
+    # `.env` BU TESTİ MASKELİYORDU — ve maskeleme, arızanın kendisiyle aynı sınıftandır.
+    # Geliştiricinin `.env`i `GEMINI_MODEL` doldurduğu için, sınıf gölgelense bile model
+    # adı env'den geliyor ve test YEŞİL kalıyordu. Mutasyonla ölçüldü: modül süzgeci
+    # silindiğinde test kırılmadı. CI'da `.env` YOK — maske kalkıyor ve kırmızı orada
+    # patlıyordu. Kaynağı kesiyoruz: bu test YALNIZ sınıfın DEFAULT_MODEL'ine baksın.
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+
+    class SahteGemini(LLMProvider):        # noqa: D401 — kasten kirletiyoruz
+        NAME = "Gemini"                     # gerçek sağlayıcıyla AYNI ad
+        # DEFAULT_MODEL YOK — gölgelerse Gemini "modelsiz" kalır
+
+        def chat(self, system_prompt, messages, tools):  # pragma: no cover
+            raise AssertionError("çağrılmamalı")
+
+    try:
+        modeller = dict(etkin_modeller())
+        assert "GEMINI" in modeller, "sahte sınıf gerçek sağlayıcıyı kayıttan düşürdü"
+        assert modeller["GEMINI"], (
+            "GEMINI'nin model adı boş — test sahtesi gerçek sınıfı gölgeledi"
+        )
+    finally:
+        del SahteGemini
+
+
+def test_COZULEMEYEN_saglayici_SESSIZCE_DUSMEZ():
+    """
+    BUG #372'nin ikinci yüzü. Önceki hâl, sınıfı çözülemeyen sağlayıcıyı `continue` ile
+    atlıyordu: rapor kapsamı olduğundan DAR olurdu ve TAM görünürdü — bu aracın diğer
+    sağlayıcılar için kınadığı davranışın aynısı. Bilinmeyen sıfır değildir (L45).
+    """
+    satirlar, curuyen = rapor([("GEMINI", "")], set())
+    assert len(satirlar) == 1, "satır tamamen düştü"
+    assert "ÖLÇÜLEMEDİ" in satirlar[0]
+    assert curuyen == [], "ad çözülemedi diye ÇÜRÜMÜŞ sayıldı — sahte kırmızı"

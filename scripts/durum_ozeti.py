@@ -32,6 +32,23 @@ import sys
 import urllib.request
 from pathlib import Path
 
+# Windows konsolu cp1254'tur; bir GÖRÜNÜRLÜK aracı bir çıktı karakteri yüzünden çökemez
+# (canli_durum.py, ci_durum.py, belge_denetimi.py ile aynı gerekçe).
+#
+# BUG #366 — bu betik, konvansiyonu uygulayan ÜÇ kardeşinin arasında TEK eksikti ve
+# eksiklik tam da en pahalı yerde ortaya çıktı: `--hizli` koşumu backlog satırında
+# `⏸` (U+23F8) karakterinde `UnicodeEncodeError` ile öldü. Ölçülen bedel kaybedilen tek
+# satır değil, SONRASININ TAMAMIYDI — bayat belge sayısı ve erişilebilirlik oranı hiç
+# yazdırılamadı. Üstelik `_guvenli()` kendi sözünü tutamadı ("biri ölçülemezse
+# ÖLÇÜLEMEDİ yazar ve devam eder"): o sarmalayıcı ÖLÇMEYİ koruyor, YAZMAYI değil.
+# Betik çocuk süreçlerine `PYTHONIOENCODING=utf-8` geçiriyordu (aşağıda, dört yerde)
+# ama kendi stdout'unu hiç onarmıyordu; yani kuralı biliyor, kendine uygulamıyordu.
+#
+# Bu, deponun "neredeyiz" sorusunu soran TEK KAYNAĞIdır (L79): bayatlamamak için
+# türetilmiş olmak yetmez, TÜRETİMİN SONUNU YAZDIRABİLMEK de gerekir.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+
 KOK = Path(__file__).resolve().parent.parent
 if str(KOK) not in sys.path:
     sys.path.insert(0, str(KOK))

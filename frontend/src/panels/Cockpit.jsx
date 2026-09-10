@@ -17,6 +17,7 @@ import Onboarding from '../components/Onboarding.jsx';  // H20: ilk kullanım re
 import KatlanirBolum from '../components/KatlanirBolum.jsx';
 import AkisSparkline from '../components/AkisSparkline.jsx';
 import ButceSeridi from '../components/ButceSeridi.jsx';
+import BuAyCikacak from '../components/BuAyCikacak.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 // Sade / detaylı görünüm: bu panel ikisinin de yükünü taşır (bkz. lib/gorunumModu.js).
 import { useGorunumModu } from '../hooks/useGorunumModu.js';
@@ -80,6 +81,28 @@ function BudgetBreakdown({ dokum }) {
     </div>
   );
 }
+
+/**
+ * AYNI GERÇEĞİ İKİ KEZ YAZMA KURALI.
+ *
+ * Ölçülen sorun (10 Eyl 2026, gerçek veriyle): ekranda "Kart kullanımı %80
+ * (9.600/12.000)" adanmış kartı ile "Kart kullanım oranı yüksek — Kart 80.0% dolu"
+ * uyarısı yan yana duruyordu; asgari-ödeme tuzağı da aynı şekilde iki kez. Dört kutu,
+ * iki bilgi. Adanmış kart zengin (çubuk + hedef borç + gerekçe), uyarı yalnız düzyazı.
+ *
+ * Kural: adanmış kart GERÇEKTEN ÇİZİLİYORSA aynı konunun uyarısı bastırılır.
+ * "Çiziliyorsa" şartı önemli — sade görünümde o kartlar gizli ve o zaman uyarı TEK
+ * kaynaktır, bastırılmaz. Risk taşıyan bir sinyali, onu gösteren tek yer kapalıyken
+ * susturmak, sadeleştirme değil bilgi kaybıdır.
+ *
+ * Eşleştirme `kod` iledir, başlık dizesiyle DEĞİL: başlık bir yazım düzeltmesiyle bile
+ * değişir ve kural sessizce çalışmayı bırakırdı. Kodların varlığını, benzersizliğini ve
+ * buradaki listenin ölü olmadığını `tests/test_uyari_kodu_kapisi.py` ölçer.
+ */
+const KART_KARTI_OLAN_UYARILAR = {
+  kart_kullanim: ['kart_kullanim_kritik', 'kart_kullanim_yuksek'],
+  kart_asgari:   ['kart_asgari_tuzak', 'kart_asgari_sarmal'],
+};
 
 /**
  * Cockpit — Ana finansal kontrol paneli.
@@ -265,6 +288,18 @@ export default function Cockpit({ setActiveTab }) {
 
   const tumKartlar = [...operasyonel, ...stratejik];
 
+  // Hangi adanmış kartlar GERÇEKTEN çiziliyor? (sade görünümde ikisi de gizli)
+  const kartKullanimCiziliyor = !basit && data.kart_kullanim
+    && ['yuksek', 'kritik'].includes(data.kart_kullanim.band);
+  const kartAsgariCiziliyor = !basit && data.asgari_tuzagi?.kartlar?.length > 0;
+  const bastirilan = new Set([
+    ...(kartKullanimCiziliyor ? KART_KARTI_OLAN_UYARILAR.kart_kullanim : []),
+    ...(kartAsgariCiziliyor ? KART_KARTI_OLAN_UYARILAR.kart_asgari : []),
+  ]);
+  const tumUyarilar = data.alerts || [];
+  const gorunurUyarilar = tumUyarilar.filter((a) => !bastirilan.has(a.kod));
+  const tekrarBastirilan = tumUyarilar.length - gorunurUyarilar.length;
+
   // Sade görünümün dört sayısı: param var mı · ne kadar borcum var · neredeyim.
   // Yatırım ve "Görülen/Tam" ayrımı burada yok — ikisi de kavram bilgisi ister.
   const sadeKartlar = [
@@ -345,6 +380,12 @@ export default function Cockpit({ setActiveTab }) {
             </span>
           )}
         </p>
+
+        {/* İKİNCİ SAYI (kullanıcı bildirimi, 10 Eyl 2026): üstteki sayı MC4 gereği kart
+            borcunun TAMAMINI düşer — bir stok ile bir akışı aynı kefeye koyar. Bu satır
+            "bu ay kasandan ne çıkacak"ı söyler. Kurucu kural bozulmadı, bilgi saklanmadı.
+            Her iki görünümde de kalır: sadeleştirme, riski gizlemek değildir. */}
+        <BuAyCikacak takvim={data.nakit_takvimi} gunKaldi={data.days_remaining} />
 
         {/* Dökümün GÖRSEL hâli: hangi kalem baskın, tek bakışta. Sayı listesi altta
             katlı duruyor — şerit oranı, liste gerçeği verir. */}
@@ -654,10 +695,12 @@ export default function Cockpit({ setActiveTab }) {
         </div>
       )}
 
-      {/* Uyarılar */}
-      {data.alerts && data.alerts.length > 0 && (
+      {/* Uyarılar — adanmış kartı çizilen konular BURADA TEKRARLANMAZ (bkz. dosya
+          başındaki kural). Bastırılan uyarı sayısı `gizliUyari` ile birlikte sayılır:
+          ekrandan bir şey kalkıyorsa kaç tane kalktığı söylenmeli. */}
+      {gorunurUyarilar.length > 0 && (
         <div className="space-y-2">
-          {data.alerts.map((alert, i) => (
+          {gorunurUyarilar.map((alert, i) => (
             <div
               key={i}
               className={`card p-4 ${
@@ -692,9 +735,11 @@ export default function Cockpit({ setActiveTab }) {
             </div>
           ))}
           {/* #126: sığmayan uyarılar — alert yorgunluğu için gizlenenlerin sayısı */}
-          {data.gizli_uyari_sayisi > 0 && (
+          {(data.gizli_uyari_sayisi > 0 || tekrarBastirilan > 0) && (
             <p className="text-xs text-zinc-500 text-center pt-1">
-              +{data.gizli_uyari_sayisi} düşük öncelikli uyarı daha
+              {data.gizli_uyari_sayisi > 0 && `+${data.gizli_uyari_sayisi} düşük öncelikli uyarı daha`}
+              {data.gizli_uyari_sayisi > 0 && tekrarBastirilan > 0 && ' · '}
+              {tekrarBastirilan > 0 && `${tekrarBastirilan} uyarı aşağıdaki kartlarda ayrıntılı gösteriliyor`}
             </p>
           )}
         </div>

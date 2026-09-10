@@ -17,15 +17,6 @@
       {
         "closing_balance": 0.0,
         "crunch": false,
-        "date": "2026-01-02",
-        "events": [],
-        "inflows": 0.0,
-        "opening_balance": 0.0,
-        "outflows": 0.0
-      },
-      {
-        "closing_balance": 0.0,
-        "crunch": false,
         "date": "2026-01-03",
         "events": [],
         "inflows": 0.0,
@@ -553,20 +544,29 @@
         "inflows": 0.0,
         "opening_balance": 0.0,
         "outflows": 0.0
+      },
+      {
+        "closing_balance": 0.0,
+        "crunch": false,
+        "date": "2026-03-03",
+        "events": [],
+        "inflows": 0.0,
+        "opening_balance": 0.0,
+        "outflows": 0.0
       }
     ],
-    "end_date": "2026-03-02",
+    "end_date": "2026-03-03",
     "horizon_days": 60,
     "sankey": {
       "links": [],
       "nodes": []
     },
-    "start_date": "2026-01-02",
+    "start_date": "2026-01-03",
     "summary": {
       "crunch_count": 0,
       "crunch_dates": [],
       "lowest_balance": 0.0,
-      "lowest_date": "2026-01-02",
+      "lowest_date": "2026-01-03",
       "net_flow": 0.0,
       "opening_balance": 0.0,
       "total_payable": 0.0,
@@ -796,6 +796,7 @@
     "alerts": [
       {
         "baslik": "Nakit çok düşük",
+        "kod": "nakit_dusuk",
         "mesaj": "Kasada 0,00 TL. Acil durum tamponu yok.",
         "seviye": "uyari"
       }
@@ -811,7 +812,7 @@
       "beklenen_gelir": 0.0,
       "bu_ayki_taksit": 0,
       "daily_limit": 0.0,
-      "days_remaining": 27,
+      "days_remaining": 21,
       "kart_borcu": 0.0,
       "nakit": 0.0,
       "reel_butce": 0.0
@@ -819,8 +820,8 @@
     "carried_forward": 0.0,
     "category_patterns": [],
     "daily_limit": 0.0,
-    "date": "2026-01-02",
-    "days_remaining": 27,
+    "date": "2026-01-03",
+    "days_remaining": 21,
     "emanet_kasa": 0.0,
     "faiz_sizintisi": {
       "aylik_toplam": 0.0,
@@ -869,9 +870,9 @@
       "ay_sonu_bakiye": 0.0,
       "ay_sonu_belirsiz_nakitse": 0.0,
       "baslangic_nakit": 0.0,
-      "bugun": "2026-01-02",
+      "bugun": "2026-01-03",
       "en_dusuk_bakiye": 0.0,
-      "en_dusuk_tarih": "2026-01-02",
+      "en_dusuk_tarih": "2026-01-03",
       "erisilebilir_toplam": 0.0,
       "hesabi_belirsiz": [],
       "hesabi_belirsiz_toplam": 0.0,
@@ -880,7 +881,7 @@
       "karta_yazilacak_toplam": 0.0,
       "toplam_cikis": 0.0,
       "toplam_giris": 0.0,
-      "ufuk": "2026-01-28",
+      "ufuk": "2026-01-23",
       "yatirimda_bekleyen": 0.0,
       "yatirimda_bekleyen_kalemler": []
     },
@@ -909,8 +910,8 @@
     },
     "son_islemler": [],
     "sonraki_eylem": null,
-    "statu": "Ay sonuna 27 gün, günlük limit 0 TL. Sıkı dönem.",
-    "tarih_turkce": "4 Eylül 2026 Cuma",
+    "statu": "Ay sonuna 21 gün, günlük limit 0 TL. Sıkı dönem.",
+    "tarih_turkce": "10 Eylül 2026 Perşembe",
     "today_target": 0.0,
     "upcoming_payments": [],
     "upcoming_receivables": [],
@@ -1150,7 +1151,7 @@
       "transaction_count": 0
     },
     "period": {
-      "end": "2026-01-28",
+      "end": "2026-01-23",
       "label": "Eylül 2026",
       "month": 9,
       "start": "2026-01-01",
@@ -1177,7 +1178,7 @@
     "days": 30,
     "items": [
       {
-        "date": "2026-01-02",
+        "date": "2026-01-03",
         "investment_value": 0.0,
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0
@@ -1196,7 +1197,7 @@
       "total_payable": 0,
       "total_receivable": 0
     },
-    "today": "2026-01-02"
+    "today": "2026-01-03"
   },
   "/api/subscriptions": {
     "abonelikler": [],
@@ -1483,7 +1484,7 @@
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0,
         "receivables": 0.0,
-        "snapshot_date": "2026-01-02",
+        "snapshot_date": "2026-01-03",
         "user_id": 1,
         "workspace_id": 1
       }
@@ -1801,7 +1802,7 @@
         "net_worth_full": 0.0,
         "net_worth_seen": 0.0,
         "receivables": 0.0,
-        "snapshot_date": "2026-01-02",
+        "snapshot_date": "2026-01-03",
         "user_id": 1,
         "workspace_id": 1
       }

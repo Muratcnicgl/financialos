@@ -138,6 +138,17 @@ def _etiketsiz_desen(kod: Optional[str]) -> re.Pattern[str]:
 #: yalnız İŞARETLENİR ki bir sonraki tur canlı veride sayılabilsin.
 #: Dürüst not: ölçülen 5 zayıf beraatın 5'i de AYNI tutarın tekrarı — bağımsız gözlem
 #: sayısı esasen 1. Kapıya dönüşmesi daha geniş bir dağılım ister.
+#:
+#: BAĞIMSIZ CANLI GÖZLEM #2 (10 Eyl 2026, gerçek kullanıcı sohbeti — beklenen veri geldi):
+#:   koç `13.518,48` yazdı. Bu sayı hiçbir yerde YOK; koçun uydurmasıydı (5 hafta önceki
+#:   2.310 TL'lik bir gideri bugünün nakdinden İKİNCİ kez düşmüştü). Beraat sebebi:
+#:   `nakit_takvimi.toplam_cikis` = 13.434,02'ye %0,63 uzaklık — tamamen alakasız bir
+#:   yaprak. Bayrak `zayif=True` yandı, `ok` True kaldı, güven 0,9'da durdu ve kullanıcı
+#:   sonraki ÜÇ turda yanlış tabandan hesap gördü.
+#:   Bu, #325'in beklediği bağımsız gözlemdir ve ilkinden FARKLI bir mekanizmadır
+#:   (o meşru bir türevdi, bu uydurma). Bayrak artık tüketiciye taşınıyor (`zayif` /
+#:   `zayif_tutarlar`) ve koç izine yazılıyor — sayılabilsin diye. Eşik ve `ok`
+#:   semantiği hâlâ DEĞİŞMEDİ; dağılım genişleyince kapı kararı veriyle verilir.
 ZAYIF_BERAAT_ESIGI = 0.5
 
 
@@ -294,6 +305,13 @@ def check_grounding(
             continue
         etiketsiz.append(round(val, 2))
 
+    #: BUG #325 tamamlama: bayrak vardı ama TÜKETİCİYE HİÇ ULAŞMIYORDU. `zayif` yalnız
+    #: `dogrulanan` içindeki bir alandı; kod tabanında bir tek yer onu YAZIYOR, hiçbir yer
+    #: OKUMUYORDU (10 Eyl 2026 taraması). Yani "bir sonraki tur canlı veride sayılabilsin"
+    #: vaadi teknik olarak imkânsızdı: sayaç kuruluydu, kadranı yoktu. Özet artık sonucun
+    #: kendisinde — çağıran taraf güveni kısabilsin ve iz kaydına yazabilsin diye.
+    #: KARAR DEĞİŞMEDİ: `ok` hâlâ yalnız `unverified`/`etiketsiz`e bakar.
+    zayif_tutarlar = [d["tutar"] for d in dogrulanan if d.get("zayif")]
     return {
         "ok": not unverified and not etiketsiz,
         "checked": checked,
@@ -302,6 +320,8 @@ def check_grounding(
         # BUG #324: beraatin izi. Tüketiciler bunu yok sayabilir (`ok` semantiği
         # değişmedi), ama bir "geçti" kararı artık gerekçesiz değil.
         "dogrulanan": dogrulanan,
+        "zayif": len(zayif_tutarlar),
+        "zayif_tutarlar": zayif_tutarlar,
     }
 
 

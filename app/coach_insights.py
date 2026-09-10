@@ -81,6 +81,14 @@ InsightType = Literal[
     "decision_rhythm",
 ]
 
+#: KOCUN KENDI CIKTISINI olcen icgoru tipleri — operator/kalite dongusu icindir,
+#: kocun "kullanici hakkinda ogrendiklerim" hafizasina AIT DEGILDIR.
+#: Ikisi de `CoachMemory.role == "assistant"` uzerinden hesaplanir: biri kocun hangi MC
+#: kuralini kac kez andigini, oteki kocun sorularinin OARS dengesini olcer. Koca kendi
+#: istatistigini "kullanici gercegi" diye geri beslemek, hem kategori hatasi hem de
+#: sinirli slotlarin israfidir (bkz. `format_insights_for_prompt`).
+OPERATOR_ICGORU_TIPLERI: tuple = ("mc_reference_frequency", "question_typology")
+
 ConfidenceBasis = Literal["data_grounded", "mc_rule", "pattern_grounded"]
 ParaCategory = Literal["project", "area", "resource", "archive"]
 
@@ -2232,6 +2240,21 @@ def format_insights_for_prompt(
         .filter(
             CoachInsight.user_id == user_id,
             CoachInsight.status == "active",
+            # OLCULEN DEFEKT (10 Eyl 2026, canli baglam): kocun 5 hafiza slotunun IKISINI
+            # ve tam da EN YUKSEK oncelikli ikisini kocun KENDI telemetrisi isgal ediyordu:
+            #   [MC_REFERENCE_FREQUENCY] "MC8 kurali 6 kez referans verildi (rank 1/3)"  (sp=10)
+            #   [QUESTION_TYPOLOGY]      "Dusuk acik soru orani / OARS dengesi"          (sp=?)
+            # Ikisi de `role == "assistant"` mesajlarini, yani KOCUN CIKTISINI olcer;
+            # kullanici hakkinda hicbir sey soylemezler. Blogun basligi ise "Bu kullanici
+            # hakkinda gecmis etkilesimlerden ogrenilen gerceklerdir" diyor — kategori hatasi.
+            # Zarar token degil SLOT: gercek kullanici gercekleri (sp=5) yapisal olarak
+            # disari itiliyordu. Kayitlar DB'de kaliyor; yalnizca kocun kendi baglamina
+            # girmiyorlar (operator/kalite dongusu onlari okumaya devam eder).
+            # NULL TUZAGI (ilk denemede olculdu): SQL'de `NULL NOT IN (...)` -> NULL,
+            # yani tipi bos olan GERCEK kullanici gercekleri de sessizce dusuyordu
+            # (3 gercek gozlem birden kayboldu). Bos tip acikca korunur.
+            or_(CoachInsight.insight_type.is_(None),
+                CoachInsight.insight_type.notin_(OPERATOR_ICGORU_TIPLERI)),
         )
         .order_by(
             CoachInsight.sort_priority.desc().nullslast(),

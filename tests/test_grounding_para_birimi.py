@@ -100,8 +100,9 @@ def test_etiketsiz_bos_yanit_yesil_kalir():
     """L6: kapı ürünü kıramaz — tutar içermeyen normal cümle yeşil."""
     r = check_grounding("Merhaba, bugün nasıl yardımcı olabilirim?", COCKPIT)
     # BUG #324: `dogrulanan` sözleşmeye EKLENDİ (beraatin gerekçesi). Hiç tutar yoksa boş.
+    # BUG #325 tamamlama: `zayif`/`zayif_tutarlar` de eklendi — hiç tutar yoksa 0/boş.
     assert r == {"ok": True, "checked": 0, "unverified": [], "etiketsiz": [],
-                 "dogrulanan": []}
+                 "dogrulanan": [], "zayif": 0, "zayif_tutarlar": []}
 
 
 def test_etiketli_tutar_etiketsiz_sayilmaz():
@@ -166,9 +167,15 @@ def test_donus_sozlesmesi_alanlari():
     Bu test, alan EKLEMEYİ de yakalar ve bu bilinçli: dönüş sözleşmesi sessizce büyürse
     tüketiciler (eval, chat, trace) hangi alana güvenebileceğini bilemez. BUG #324'te
     kapı değişikliği YAKALADI ve sözleşme burada yazıya döküldü — gevşetilmedi.
+
+    BUG #325 TAMAMLAMA (10 Eyl 2026): `zayif` + `zayif_tutarlar` eklendi. Kapı bunu da
+    yakaladı ve sözleşme yine ELLE genişletildi — çünkü eklemenin sebebi ölçülmüş bir
+    defekt: bayrak `dogrulanan` içinde gömülüydü, kod tabanında hiçbir tüketici onu
+    okumuyordu, dolayısıyla #325'in "canlı veride sayılabilsin" vaadi imkânsızdı.
     """
     r = check_grounding("Kart borcun 42.100,50 TL.", COCKPIT)
-    assert set(r) == {"ok", "checked", "unverified", "etiketsiz", "dogrulanan"}
+    assert set(r) == {"ok", "checked", "unverified", "etiketsiz", "dogrulanan",
+                      "zayif", "zayif_tutarlar"}
 
 
 def test_para_etiketi_varsayilani_tl():

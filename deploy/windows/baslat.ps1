@@ -16,6 +16,23 @@ param(
 $ErrorActionPreference = "Stop"
 $KOK = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $PY = Join-Path $KOK "venv\Scripts\python.exe"
+# BUG #303'un ikinci ayagi (10 Eyl 2026): uvicorn `python.exe` + `-WindowStyle Hidden`
+# ile aciliyordu. `gizli_calistir.vbs`in kendi belgesi bunun NEDEN yetmedigini yaziyor:
+# `-WindowStyle Hidden` pencereyi ancak ACILDIKTAN SONRA gizler, yani ekranda bir an
+# siyah kutu cakar. Sarmalayici gorevin KENDISINI gizlemisti; icerideki uvicorn
+# baslatmasi disarida kalmisti.
+#
+# `pythonw.exe` GUI alt sistemine baglidir ve konsolu HIC yaratmaz. Ciktilar zaten
+# dosyaya yonlendiriliyor (asagida -RedirectStandardOutput/Error), yani konsolsuz
+# calismak hicbir bilgiyi kaybettirmez.
+#
+# AYRI DEGISKEN — bilerek (ilk denemede olculdu): `$PY` ayni zamanda GOC DURUMUNU ve
+# yedegi OLCEN komutlarda kullaniliyor (`& $PY -m scripts.goc_durumu`). pythonw konsola
+# baglanmadigi icin o cagrilar cikis kodu/cikti URETMEDI; betik "goc durumu OLCULEMEDI"
+# deyip uygulamayi hic baslatmadi. Yani tek degiskeni degistirmek, pencereyi gizlerken
+# uygulamayi kapatiyordu. Olcen komutlar `$PY`, YALNIZ sunucu baslatma `$PYW` kullanir.
+$PYW = Join-Path $KOK "venv\Scripts\pythonw.exe"
+if (-not (Test-Path $PYW)) { $PYW = $PY }
 $LOGDIZIN = Join-Path $KOK "logs"
 $LOG = Join-Path $LOGDIZIN "uvicorn.out.log"
 $HATA = Join-Path $LOGDIZIN "uvicorn.err.log"
@@ -79,7 +96,7 @@ Yaz "baslatiliyor (port $Port)"
 # kimse okumamisti. Sunucu yiginini ilan etmek saldirgana eslesme kolayligi verir,
 # kullaniciya hicbir sey. Bu bayrak uvicorn'un protokol katmaninda basligi HIC eklememesini
 # saglar; ASGI ara katmani bunu YAPAMAZ (baslik uvicorn tarafindan sonradan eklenir).
-$p = Start-Process -FilePath $PY `
+$p = Start-Process -FilePath $PYW `
     -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$Port", "--no-server-header" `
     -WorkingDirectory $KOK -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput $LOG -RedirectStandardError $HATA

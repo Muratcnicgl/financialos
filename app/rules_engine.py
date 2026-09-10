@@ -654,6 +654,72 @@ def _get_next_due_date(today: date, day_of_month: int) -> date:
     return candidate
 
 
+def kart_son_odeme(acc, today: date) -> Optional[Dict]:
+    """Bir kredi kartının SIRADAKİ son ödemesi — tarih + o tarihte ödenecek TUTAR. TEK KAYNAK.
+
+    NEDEN TEK KAYNAK (ölçülen defekt, 10 Eyl 2026, gerçek banka verisi): kart son ödemesi
+    ÜÇ ayrı yerde ayrı ayrı türetiliyordu — `_collect_upcoming_reminders` (0-7 gün),
+    `calculate_nakit_takvimi` (ay sonu takvimi) ve cockpit'in `upcoming_payments`i. İlk
+    ikisi kendi kopyasını yazmıştı, ÜÇÜNCÜSÜ HİÇ YAZMAMIŞTI: 60 günlük "Yaklaşan ödemeler"
+    listesi yalnız kredi taksitlerini taşıyordu (`_collect_upcoming_loan_payments` adı
+    zaten bunu söylüyor). Kullanıcı ekranda iki kredi taksitini gördü, 10.020,75 TL'lik
+    kart borcunu göremedi ve bunu bildirdi. Kalemin en büyüğü listede yoktu.
+
+    TUTAR NEDEN `statement_balance` (BUG #337 sözleşmesi): son ödeme gününde ödenmesi
+    gereken şey EKSTREDEN KALAN borçtur, güncel borç değil. Kesimden sonra yapılan
+    harcamalar GELECEK dönemin ekstresine yazılır; onları bu ayın nakit çıkışına koymak
+    olmayan bir açık üretir (BUG #331'in aynı ailesi). Ölçüldü (bir bankanın kart ekranı,
+    10 Eyl 2026): güncel borç 10.020,75 · ekstreden kalan 6.576,90 · dönem içi 3.443,85.
+    Son ödeme gününde ödenecek olan 6.576,90'dır; 3.443,85 SONRAKİ ekstreye yazılıdır.
+    `statement_balance` NULL ise (= BİLİNMİYOR) `balance`e düşülür — eski davranış korunur.
+
+    Borcu olmayan kart None döner: ödenecek bir şey yokken takvimde satır olmaz.
+    """
+    if acc.account_type != AccountType.credit_card or not acc.payment_day:
+        return None
+    # NULL = bilinmiyor → güncel borca düş. SIFIR geçerli bir değerdir ("ekstre kapandı").
+    tutar = acc.balance if acc.statement_balance is None else acc.statement_balance
+    if D(tutar or 0) <= D("0.01"):
+        return None
+    return {
+        "tarih": _get_next_due_date(today, acc.payment_day),
+        "tutar": float(tutar),
+        # Tutarın ekstreden mi yoksa güncel borçtan mı geldiğini SÖYLE: arayüz/koç
+        # "yaklaşık" demek zorunda kalmasın diye. Varsayım gizlenmez.
+        "ekstre_biliniyor": acc.statement_balance is not None,
+    }
+
+
+def _collect_upcoming_card_payments(
+    user_id: int,
+    today: date,
+    db: Session,
+    horizon_days: int = 60,
+) -> List[Dict]:
+    """Önümüzdeki N gün içindeki kredi kartı son ödemeleri (`kart_son_odeme` tek kaynağı)."""
+    horizon = today + timedelta(days=horizon_days)
+    kartlar = (
+        db.query(Account)
+        .filter(
+            _scope(Account, user_id),
+            Account.account_type == AccountType.credit_card,
+        )
+        .all()
+    )
+    upcoming = []
+    for kart in kartlar:
+        son = kart_son_odeme(kart, today)
+        if son and today <= son["tarih"] <= horizon:
+            upcoming.append({
+                "ad": f"{kart.name} son ödeme",
+                "tutar": son["tutar"],
+                "tarih": son["tarih"].isoformat(),
+                "tip": "kart_odeme",
+                "ekstre_biliniyor": son["ekstre_biliniyor"],
+            })
+    return upcoming
+
+
 def _collect_upcoming_reminders(
     user_id: int, today: date, db: Session,
     accounts: List, kart_borcu: float,
@@ -762,21 +828,20 @@ def _collect_upcoming_reminders(
     # uyarmalı ("borç hazırlığı yap"). Kart %99.8 doluyken bu hayati; RecurringExpense/Debt
     # kapsamı bunu içermiyordu → eksikti.
     for acc in accounts:
-        if acc.account_type != AccountType.credit_card:
+        son = kart_son_odeme(acc, today)      # tarih+tutar TEK KAYNAK (bkz. kart_son_odeme)
+        if not son:
             continue
-        if not acc.payment_day or (acc.balance or 0.0) <= 0.01:  # borç yoksa hatırlatma yok
-            continue
-        target = _get_next_due_date(today, acc.payment_day)
-        days_until = (target - today).days
+        days_until = (son["tarih"] - today).days
         if 0 <= days_until <= REMINDER_DAYS:
             reminders.append({
                 "type": "card_payment",
                 "name": f"{acc.name} son ödeme",
-                "amount": acc.balance,           # güncel kart borcu (yaklaşık ödenecek)
+                "amount": son["tutar"],          # ekstreden kalan (bilinmiyorsa güncel borç)
                 "days_until": days_until,
-                "due_date": target.isoformat(),
+                "due_date": son["tarih"].isoformat(),
                 "account_name": acc.name,
                 "card_risk": True,               # yüksek öncelik + vurgu (sıralama başa alır)
+                "ekstre_biliniyor": son["ekstre_biliniyor"],
             })
 
     reminders.sort(key=lambda x: (not x["card_risk"], x["days_until"]))
@@ -808,6 +873,7 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
         if d.direction == DebtDirection.payable:
             alerts.append({
                 "seviye": "kritik",
+                "kod": "borc_gecikmis",
                 "baslik": f"Gecikmiş borç: {d.counterparty}",
                 "mesaj": f"{d.counterparty}'a {_para(d.amount)} borç {gecikme} gün gecikti — öde.",
                 "tutar": d.amount,
@@ -815,6 +881,7 @@ def _collect_overdue_debts(user_id: int, today: date, db: Session) -> List[Dict]
         else:
             alerts.append({
                 "seviye": "uyari",
+                "kod": "alacak_gecikmis",
                 "baslik": f"Gecikmiş alacak: {d.counterparty}",
                 "mesaj": f"{d.counterparty} {_para(d.amount)} {gecikme} gün gecikti — tahsil et.",
                 "tutar": d.amount,
@@ -858,6 +925,7 @@ def _crunch_alert_from_summary(
     lowest_date = summary.get("lowest_date", first_crunch)
     return {
         "seviye": "kritik",
+        "kod": "nakit_krizi",
         "baslik": "Nakit krizi öngörüsü",
         "mesaj": (
             f"{horizon_days} gün içinde nakit sıfırın altına düşüyor "
@@ -1140,12 +1208,27 @@ def _category_overspend_alerts(
     envelopes = {e.category: D(e.monthly_amount) for e in db.query(Envelope).filter(
         _scope(Envelope, user_id), Envelope.is_active == True).all()}  # noqa: E712
 
+    # BUG #264 (ADR-046) KAPSAM BOŞLUĞU — ölçüldü 10 Eyl 2026, gerçek kullanıcı verisi.
+    # Kullanıcı ekranda şunu gördü: "Kategori aşım öngörüsü: borc_odeme — bu gidişle ay sonu
+    # ~4.932,69 TL olur (geçen ay 2.242,99 TL, %119.9 fazla). HIZ KES."
+    # `borc_odeme` bir SİSTEM kategorisidir; kart borcunu daha çok ödemek iyi bir şeydir ve
+    # "hız kes" tam ters tavsiyedir. ADR-046 bu dışlamayı zaten tanımlamış ve
+    # `sistem_slug_kumesi` tek kaynağını kurmuştu — ama yalnız KARDEŞ analize
+    # (`_spending_patterns`, "Davranış Kalıpları") bağlanmıştı. Aynı soruyu soran iki
+    # analizden biri filtreli, öteki filtresizdi; boşluk sessizdi çünkü hiçbir test
+    # "aynı kural her iki yolda da geçerli mi" diye sormuyordu.
+    # Okuma yolu: tohumlama TETİKLEMEZ (rules_engine DB'ye yazmaz), kaydı olmayan
+    # kullanıcı belgeli varsayılana düşer — davranış değişmez.
+    sistem_slugs = sistem_slug_kumesi(db, user_id)
+
     warnings: List[Dict] = []
     for c in curr["expense_categories"]:
         cat = c["category"]
         mtd = c["total"]
         if mtd <= 0:
             continue
+        if cat is not None and _cat_norm(cat) in sistem_slugs:
+            continue  # muhasebe işlemi — kişisel harcama artışı DEĞİL (ADR-046)
         if cat in envelopes:
             ref, ref_label = envelopes[cat], "bütçe"       # FEAT-001: gerçek zarf bütçesi
         else:
@@ -1157,6 +1240,7 @@ def _category_overspend_alerts(
             asim_pct = round((projected - ref) / ref * 100, 1)
             warnings.append({
                 "seviye": "uyari",
+                "kod": "kategori_asim",
                 "baslik": f"Kategori aşım öngörüsü: {cat}",
                 "mesaj": (
                     f"{cat} bu gidişle ay sonu ~{_para(projected)} olur "
@@ -1373,6 +1457,7 @@ def _subscription_price_alerts_from_result(sub_result: Dict) -> List[Dict]:
             artis_pct = round((yeni - eski) / eski * 100, 1)
             alerts.append({
                 "seviye": "uyari",
+                "kod": "abonelik_zam",
                 "baslik": f"Abonelik zammı: {s['isim']}",
                 "mesaj": (
                     f"{s['isim']} {_tl(eski)} → {_para(yeni)}'ye çıkmış "
@@ -1549,6 +1634,7 @@ def _bayat_fiyat_alerts(bayat_fiyatlar: List[Tuple[Optional[datetime], str, str]
     adlar = ", ".join(ad for _, ad, _ in ciddi[:3])
     return [{
         "seviye": "uyari",
+        "kod": "fiyat_bayat",
         "baslik": "Yatırım fiyatı güncellenmiyor",
         "mesaj": (
             f"{adlar} için son fiyat {en_eski[2]} güncellendi — fiyat kaynağı susuyor. "
@@ -1570,6 +1656,7 @@ def _min_payment_trap_alerts(trap: Optional[Dict]) -> List[Dict]:
     if worst.get("asla_bitmez"):
         return [{
             "seviye": "kritik",
+            "kod": "kart_asgari_sarmal",
             "baslik": "Kart asgari ödeme sarmalı",
             "mesaj": (
                 f"{worst['ad']} kartı SADECE asgari ödemeyle ASLA kapanmaz — asgari ödeme aylık "
@@ -1580,6 +1667,7 @@ def _min_payment_trap_alerts(trap: Optional[Dict]) -> List[Dict]:
     if worst.get("ay", 0) >= _MIN_TRAP_ALERT_MONTHS:
         return [{
             "seviye": "uyari",
+            "kod": "kart_asgari_tuzak",
             "baslik": "Kart asgari ödeme tuzağı",
             "mesaj": (
                 f"{worst['ad']} kartını yalnız asgariyle ödersen {worst['ay']} ay sürünür ve "
@@ -1816,18 +1904,24 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
     yil_ay = bugun.strftime("%Y-%m")
     kalemler: List[Dict] = []
 
-    def _ekle(tarih: date, ad: str, tutar, tip: str, giris: bool) -> None:
+    def _ekle(tarih: date, ad: str, tutar, tip: str, giris: bool,
+              ekstra: Optional[Dict] = None) -> None:
         t = D(tutar or 0)
         if t <= 0 or not (bugun <= tarih <= ay_sonu):
             return
-        kalemler.append({
+        kalem = {
             "tarih": tarih.isoformat(),
             "ad": ad,
             "tutar": round(t, 2),                 # DAİMA POZİTİF büyüklük
             "yon": "giris" if giris else "cikis",  # yön KELİMEYLE
             "etki": round(t if giris else -t, 2),  # ve İŞARETLE
             "tip": tip,
-        })
+        }
+        # `ekstra`: kaleme özgü, DÜRÜSTLÜK taşıyan alanlar (örn. kart tutarının ekstreden
+        # mi yoksa güncel borçtan mı geldiği). Arayüz "yaklaşık" demek zorunda kalmasın.
+        if ekstra:
+            kalem.update(ekstra)
+        kalemler.append(kalem)
 
     for inc in db.query(RecurringIncome).filter(
             _scope(RecurringIncome, user_id), RecurringIncome.is_active == True).all():
@@ -1893,11 +1987,14 @@ def calculate_nakit_takvimi(user_id: int, db: Session, bugun: date) -> Dict:
             if acc.next_payment_date:
                 _ekle(acc.next_payment_date, acc.name, acc.monthly_payment,
                       "kredi_taksit", False)
-        elif acc.payment_day and D(acc.balance or 0) > 0:
+        else:
             # Kart ödemesi HİÇBİR tarihli listede yoktu — G3'te 8.221,13 TL bu yüzden
-            # hesaba hiç girmedi. Tutar GÜNCEL borçtur (bkz. veri modeli tuzağı).
-            _ekle(_get_next_due_date(bugun, acc.payment_day), acc.name, acc.balance,
-                  "kart_odeme", False)
+            # hesaba hiç girmedi. Tarih+tutar artık TEK KAYNAKTAN (`kart_son_odeme`):
+            # ödenecek olan EKSTREDEN KALAN borçtur; bilinmiyorsa güncel borca düşülür.
+            son = kart_son_odeme(acc, bugun)
+            if son:
+                _ekle(son["tarih"], acc.name, son["tutar"], "kart_odeme", False,
+                      ekstra={"ekstre_biliniyor": son["ekstre_biliniyor"]})
 
     kalemler.sort(key=lambda k: (k["tarih"], k["yon"]))
 
@@ -2455,6 +2552,9 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
 
     # Yaklaşan ödemeler ve tahsilatlar
     upcoming_payments = _collect_upcoming_loan_payments(user_id, today, db)
+    # Kart son ödemesi de bir ÖDEMEDİR. 60 günlük takvim yalnız kredi taksitlerini
+    # taşıyordu; en büyük kalem (kart) listede yoktu — kullanıcı bunu ekranda fark etti.
+    upcoming_payments.extend(_collect_upcoming_card_payments(user_id, today, db))
     upcoming_payments.extend(upcoming_incomes)
     upcoming_payments = sorted(upcoming_payments, key=lambda x: x["tarih"])
 
@@ -2686,12 +2786,14 @@ def detect_alerts(
         if kullanim >= 95:
             alerts.append({
                 "seviye": "kritik",
+                "kod": "kart_kullanim_kritik",
                 "baslik": "Kart kullanım oranı %95 üzeri",
                 "mesaj": f"Kart {kullanim:.1f}% dolu. Yeni harcama riskli, kalan limit {_para(kart_limit - kart_borcu)}.",
             })
         elif kullanim >= 80:
             alerts.append({
                 "seviye": "uyari",
+                "kod": "kart_kullanim_yuksek",
                 "baslik": "Kart kullanım oranı yüksek",
                 "mesaj": f"Kart {kullanim:.1f}% dolu.",
             })
@@ -2700,6 +2802,7 @@ def detect_alerts(
     if reel_butce < 0:
         alerts.append({
             "seviye": "kritik",
+            "kod": "reel_butce_negatif",
             "baslik": "Reel bütçe negatif",
             "mesaj": f"Beklenen gelirle birlikte bile bütçe {_para(reel_butce)}. Kart borcu nakdi aşıyor.",
         })
@@ -2708,6 +2811,7 @@ def detect_alerts(
     if nakit < 1000:
         alerts.append({
             "seviye": "uyari",
+            "kod": "nakit_dusuk",
             "baslik": "Nakit çok düşük",
             "mesaj": f"Kasada {_para(nakit)}. Acil durum tamponu yok.",
         })
@@ -2716,15 +2820,23 @@ def detect_alerts(
     week_horizon = today + timedelta(days=7)
     big_payments = [
         p for p in upcoming_payments
-        if p.get("tip") == "kredi_taksit"
+        # Kart son ödemesi de "büyük ödeme"dir: filtre yalnız kredi taksitine bakınca
+        # nakdin yarısını aşan bir kart ödemesi sessiz kalıyordu (aynı parçalı-takvim ailesi).
+        if p.get("tip") in ("kredi_taksit", "kart_odeme")
         and date.fromisoformat(p["tarih"]) <= week_horizon
         and D(p.get("tutar", 0)) > nakit / 2  # ADR-030: para Decimal karşılaştırma (nakit/2)
     ]
     for p in big_payments:
         alerts.append({
             "seviye": "uyari",
+            "kod": "yaklasan_buyuk_odeme",
             "baslik": f"7 gün içinde büyük ödeme: {p['ad']}",
-            "mesaj": f"{p['tarih']} tarihinde {_para(p['tutar'])} — nakitin %{(p['tutar'] / max(nakit, 1)) * 100:.0f}'i.",
+            # ADR-030: para aritmetiği Decimal. Eskiden `p['tutar'] / max(nakit,1)`
+            # yazıyordu ve YALNIZ kredi taksiti (DB'den Decimal) geldiği için kazara
+            # çalışıyordu; listeye kart ödemesi (float) girer girmez TypeError verdi.
+            # Gizli bağımlılık: "bu listeye yalnız Decimal taşıyan üretici yazabilir".
+            "mesaj": f"{p['tarih']} tarihinde {_para(p['tutar'])} — nakitin "
+                     f"%{(D(p['tutar']) / max(D(nakit), D(1))) * 100:.0f}'i.",
         })
 
     return alerts

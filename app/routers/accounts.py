@@ -44,6 +44,16 @@ class AccountBase(BaseModel):
     credit_limit: FinansOptOran = None  # SEC-032
     statement_day: Optional[int] = Field(None, ge=1, le=31)
     payment_day: Optional[int] = Field(None, ge=1, le=31)
+    # BUG #337 / #330 TAMAMLAMA — modelde VARDI, API'de YOKTU.
+    # Olculdu (10 Eyl 2026, gercek kart verisi girilirken): PUT /api/accounts/{id} govdesine
+    # `statement_balance` konuldu, 200 dondu ve HICBIR SEY YAZILMADI. Sebep: Pydantic
+    # bilinmeyen alani sessizce atar; alan burada tanimli degildi. Sessiz no-op, hatadan
+    # kotudur — istemci "yazdim" sanir. Motor da bu yuzden ekstre borcunu goremeyip guncel
+    # borcu, bankanin asgari oranini goremeyip koddaki yedek orani kullanmaya devam etti.
+    # statement_balance: SON EKSTREDEN KALAN BORC (None = bilinmiyor, 0 = ekstre kapandi)
+    statement_balance: FinansOptBakiye = None  # SEC-032
+    # min_payment_ratio: bankanin asgari odeme orani 0-1 (None = bilinmiyor -> yedek oran)
+    min_payment_ratio: Optional[float] = Field(None, ge=0, le=1)
     # Kredi
     interest_rate: FinansOptOran = None  # SEC-032
     monthly_payment: FinansOptOran = None  # SEC-032
@@ -70,6 +80,8 @@ class AccountUpdate(BaseModel):
     credit_limit: FinansOptOran = None  # SEC-032
     statement_day: Optional[int] = Field(None, ge=1, le=31)
     payment_day: Optional[int] = Field(None, ge=1, le=31)
+    statement_balance: FinansOptBakiye = None  # SEC-032 (bkz. AccountBase gerekcesi)
+    min_payment_ratio: Optional[float] = Field(None, ge=0, le=1)
     interest_rate: FinansOptOran = None  # SEC-032
     monthly_payment: FinansOptOran = None  # SEC-032
     remaining_installments: Optional[int] = Field(None, ge=0)

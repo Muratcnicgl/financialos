@@ -35,7 +35,13 @@ const COCKPIT = {
   },
   sonraki_eylem: { tip: 'firsat', eylem: 'Kart borcunu kapat', gerekce: 'Faiz en pahalı kalemin.' },
   saglik_skoru: { skor: 72, seviye: 'orta', bilesenler: [{ ad: 'Likidite', puan: 18 }] },
-  alerts: [{ seviye: 'kritik', baslik: 'Kart limiti kritik', mesaj: 'Limitin %92 dolu.' }],
+  alerts: [
+    // Kodsuz uyarı: hiçbir zaman bastırılmaz (eski kayıtlar da güvende olmalı).
+    { seviye: 'kritik', baslik: 'Kart limiti kritik', mesaj: 'Limitin %92 dolu.' },
+    // Adanmış kartı OLAN uyarı: detaylı görünümde bastırılır, sade görünümde kalır.
+    { seviye: 'uyari', kod: 'kart_kullanim_kritik',
+      baslik: 'Kart kullanım oranı %95 üzeri', mesaj: 'Kart 92.0% dolu.' },
+  ],
   gizli_uyari_sayisi: 0,
   accounts: [{ id: 1, ad: 'Nakit Kasa', account_type: 'cash', bakiye: 12000 }],
   investment_pnl: [{ toplam_maliyet: 4000, guncel_deger: 5000, brut_kar: 1000, getiri_yuzde: 25 }],
@@ -201,5 +207,32 @@ describe('detaylı görünüm — hiçbir bölüm eksilmez', () => {
   it('bugünkü hedef her iki görünümde de en üstteki karttır', async () => {
     await cizdir(DETAYLI);
     expect(screen.getByText('Bugün harcayabileceğin')).toBeInTheDocument();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// AYNI GERÇEK İKİ KEZ YAZILMAZ — ama tek kaynak kapanınca susturulmaz
+// ══════════════════════════════════════════════════════════════════════
+
+describe('uyarı tekrarı', () => {
+  it('detaylı görünümde adanmış kart çiziliyorsa aynı konunun uyarısı bastırılır', async () => {
+    await cizdir(DETAYLI);
+    // Adanmış kart duruyor
+    expect(screen.getByText(/Kart kullanımı/)).toBeInTheDocument();
+    // Aynı konunun uyarısı ikinci kez yazılmıyor
+    expect(screen.queryByText('Kart kullanım oranı %95 üzeri')).not.toBeInTheDocument();
+    // Kodsuz uyarı asla bastırılmaz
+    expect(screen.getByText('Kart limiti kritik')).toBeInTheDocument();
+  });
+
+  it('bastırılan uyarı SESSİZCE kaybolmaz — kaç tanesi kartta gösteriliyor, yazılır', async () => {
+    await cizdir(DETAYLI);
+    expect(screen.getByText(/kartlarda ayrıntılı gösteriliyor/)).toBeInTheDocument();
+  });
+
+  it('sade görünümde kart gizli olduğu için uyarı BASTIRILMAZ (tek kaynak odur)', async () => {
+    await cizdir(BASIT);
+    expect(screen.queryByText(/Kart kullanımı/)).not.toBeInTheDocument();   // kart gizli
+    expect(screen.getByText('Kart kullanım oranı %95 üzeri')).toBeInTheDocument();
   });
 });

@@ -152,7 +152,19 @@ from app.money_format import format_para as _para, para_etiketi  # BUG #256 (H4)
 from app.models import CoachInsight, InsightPriority
 from app.reasoning_trace import TraceRecorder
 from app.models import OperationName
-from app.grounding import check_grounding  # LLM-003: cikti dogrulama (grounding)
+from app.grounding import (  # LLM-003: cikti dogrulama (grounding)
+    ZAYIF_BERAAT_ESIGI,
+    check_grounding,
+)
+
+#: Zayif beraat halinde raporlanan guvenin tavani.
+#: NEDEN 0,6 (ve neden bir olcum DEGIL): mevcut iki hal arasinda bir ara banttir —
+#: dogrulanmis cevap modelin bildirdigi guveni korur (tipik 0,9), grounding IHLALI
+#: 0,4'e duser. Zayif beraat ikisinin arasindadir: sayi bir yaprakla eslesti ama
+#: eslesme tesadufi olabilir. Deger su an OLCULMUS degildir ve oyle iddia edilmiyor;
+#: `grounding_zayif` sayaci ize yazildigi icin bir sonraki tur bunu canli dagilimla
+#: yerine koyabilir (BUG #325'in kendi sarti: 'daha genis bir dagilim ister').
+ZAYIF_BERAAT_GUVEN_TAVANI = 0.6
 from app.prompt_safety import guvenli_metin as _guvenli  # BUG #257 (H9): kullanici verisi baglamin YAPISINI degistiremez
 from app.user_prefs import user_today_by_id  # BUG #237 (D17): 'bugün' kullanıcının saat diliminde
 # kota-exempt: motor rezervasyon yapmaz (uç yapar); buradan yalnız GERÇEK istek SAYIMI
@@ -514,6 +526,63 @@ V3_GOD_MODE_PROMPT = V3_GOD_MODE_PROMPT.replace("{PAYLOAD_SABLONLARI}", _payload
 # koçun HİTAP kuralına uyan "onayını bekliyorum" biçimi ikisinde de yoktu → ölçüm 8/12 kaçak).
 # Liste artık tek kaynaktan üretilir: yasak cümle eklendiğinde dedektör de onu tanır (L27).
 V3_GOD_MODE_PROMPT = V3_GOD_MODE_PROMPT.replace("{SAHTE_NIYET_ORNEKLERI}", _sahte_niyet_ornekleri())
+
+
+# ============================================================
+# ARAÇ MEKANİĞİ — YALNIZ TOOL AÇIKKEN GÖNDERİLİR (prompt bütçesi)
+# ============================================================
+#
+# ÖLÇÜLEN DEFEKT (10 Eyl 2026, canlı sağlayıcılarla ölçüldü): koçun tek isteği
+# **10.430 token**. Elimizdeki her ücretsiz kademe bunun altında: Groq 8.000 TPM
+# (413 "Request too large for model ... Limit 8000, Requested 10430"), Gemini günde
+# 20 istek. Yani koç, erişilebilir EN YETENEKLİ modele (gpt-oss-120b) hiç ulaşamıyor;
+# sınıfının en küçük modeline mahkûm kalıyor ve zayıf muhakeme yeni hata üretiyor.
+# `tests/test_prompt_butcesi_kapisi.py` bu döngüyü 1 Eyl 2026'da teşhis edip FREN
+# koymuştu (tavan = o günkü boyut) ama küçültmeyi kimse yapmadı: fren büyümeyi
+# durdurur, boyutu düşürmez.
+#
+# BU KESME NE DEĞİL: kural silmek değil. Aşağıdaki üç blok `propose_action` aracının
+# MEKANİĞİDİR — hangi fiil tool tetikler, sınıflandırma tablosu, payload'a hangi alan
+# yazılır, özet nasıl kurulur. `offer_propose=False` olan turda (soru/analiz; trafiğin
+# çoğu) bu araç modele HİÇ verilmiyor — `active_tools` yalnız `save_insight` taşır.
+# Yani model, okuduğu talimatı uygulayamaz bile. Uygulanamaz talimat, isteğin %16'sını
+# yiyen ölü ağırlıktır.
+#
+# NE KESİLMİYOR (bilerek, her turda kalır): varsayım/halüsinasyon yasağı, ADR-001
+# hesap uydurma yasağı, doğru çerçeveyle başlama, SAHTE TAMAMLAMA ve SAHTE NİYET
+# yasakları. Bunlar araç YOKKEN daha da kritiktir — "kaydettim" demenin bedeli tam da
+# araç yokken ödenir. Kesilen üç blok, araç açıldığında bire bir geri gelir.
+_ARAC_MEKANIGI_BLOKLARI: List[str] = []
+for _bas, _son in (
+    ("# \U0001F534\U0001F534\U0001F534 KURAL SIFIR", "\U0001F534 VARSAYIM VE HAL"),
+    ("\U0001F534 HESAP TAHM", "# KARAKTER"),
+    ("# AKSIYON SEÇİM TABLOSU", "# \U0001F534\U0001F534\U0001F534 META"),
+):
+    _i = V3_GOD_MODE_PROMPT.find(_bas)
+    _j = V3_GOD_MODE_PROMPT.find(_son, _i) if _i >= 0 else -1
+    if _i >= 0 and _j > _i:
+        _ARAC_MEKANIGI_BLOKLARI.append(V3_GOD_MODE_PROMPT[_i:_j])
+
+#: Kesilen başlığın yerine geçen tek satır. Başlığı sessizce silmek kalan yasakları
+#: başlıksız bırakır ve modele "demek ki bu turda kaydedebiliyorum" izlenimi verir —
+#: kesmenin amacı bunun TERSİ. Maliyeti ~20 token, kazancı ~1.700.
+ARAC_KAPALI_NOTU = (
+    "# \U0001F534 AKSIYON ARACI BU TURDA KAPALI\n\n"
+    "Bu turda hiçbir kayıt/işlem aracın YOK. Hiçbir şeyi kaydedemez, ekleyemez, "
+    "güncelleyemezsin; ettiğini ima eden bir cümle de kuramazsın.\n\n"
+)
+
+
+def sistem_promptu(arac_acik: bool) -> str:
+    """Bu tura ait sistem promptu. Araç kapalıysa araç MEKANİĞİ gönderilmez (bütçe)."""
+    if arac_acik or not _ARAC_MEKANIGI_BLOKLARI:
+        return V3_GOD_MODE_PROMPT
+    metin = V3_GOD_MODE_PROMPT
+    for _sira, _blok in enumerate(_ARAC_MEKANIGI_BLOKLARI):
+        metin = metin.replace(_blok, ARAC_KAPALI_NOTU if _sira == 0 else "", 1)
+    return metin
+
+
 
 
 PROPOSE_ACTION_SCHEMA = {
@@ -3082,6 +3151,15 @@ class CoachEngine:
                 else [SAVE_INSIGHT_SCHEMA]
             )
 
+            # PROMPT BÜTÇESİ: aracın MEKANİĞİ, araç verilmeyen turda gönderilmez.
+            # Prompt yukarıda (STEP A) tam hâliyle kurulur — sınıflandırma öncesi bağlam
+            # gerekiyor; niyet belli olur olmaz araç blokları düşer. Ölçülen kazanç
+            # ~1.637 token (isteğin %16'sı) ve turların çoğunda geçerli. Kesilen tek şey
+            # MEKANİK; yasaklar (sahte niyet/tamamlama, varsayım, ADR-001) yerinde kalır.
+            if not offer_propose:
+                system_prompt = system_prompt.replace(
+                    V3_GOD_MODE_PROMPT, sistem_promptu(False), 1)
+
             with recorder.step(OperationName.OBSERVATION, intent="Soru-bildirim siniflandirma") as s:
                 # BUG #267: gerekçe trace'e düşer — "neden kaydetmedin?" sorusu log okumadan
                 # cevaplanabilsin (BUG #253 ilkesi: kullanıcı kendi sistemini görebilmeli).
@@ -3404,6 +3482,26 @@ class CoachEngine:
                 # Halusinasyon supheli tutar varsa raporlanan guveni asagi cek
                 if confidence is not None:
                     confidence = min(confidence, 0.4)
+            elif grounding.get("zayif"):
+                # BUG #325 TAMAMLAMA — ZAYIF BERAAT ARTIK SESSIZ DEGIL.
+                #
+                # Olculen defekt (10 Eyl 2026, gercek kullanici sohbeti): koc `13.518,48`
+                # yazdi; boyle bir sayi hicbir yerde yoktu (5 hafta onceki bir gideri
+                # bugunun nakdinden ikinci kez dusmustu). Alakasiz bir yaprakla %0,63
+                # yakinlik yakaladigi icin beraat etti, `ok` True kaldi, guven 0,9'da
+                # durdu ve kullanici sonraki UC turda yanlis tabandan hesap gordu.
+                #
+                # `ok` semantigi ve tolerans DEGISMIYOR (BUG #316 dersi + #325'in olculmus
+                # gerekcesi: kapiya donusmesi daha genis bir dagilim ister). Degisen tek
+                # sey: zayif beraat artik (a) guveni kisar, (b) ize yazilir -> canli veride
+                # SAYILABILIR olur. #325 bunu istemis ama bayragi kimse okumuyordu.
+                logger.warning(
+                    "grounding ZAYIF beraat user_id=%s: dayanagi alakasiz olabilecek "
+                    "tutarlar=%s (esik %%%s)",
+                    user_id, grounding["zayif_tutarlar"], ZAYIF_BERAAT_ESIGI,
+                )
+                if confidence is not None:
+                    confidence = min(confidence, ZAYIF_BERAAT_GUVEN_TAVANI)
 
             # --------------------------------------------------------
             # STEP F: Final answer
@@ -3411,7 +3509,11 @@ class CoachEngine:
             with recorder.step(OperationName.FINAL_ANSWER, intent="Yanit kullaniciya hazir") as s:
                 s.observation = (
                     f"reply_len={len(reply)}, action_count={len(proposed_actions)}, "
-                    f"grounding_ok={grounding['ok']}, grounding_checked={grounding['checked']}"
+                    f"grounding_ok={grounding['ok']}, grounding_checked={grounding['checked']}, "
+                    # BUG #325 tamamlama: sayac artik izde. Boylece "zayif beraat ne siklikta
+                    # ve hangi tutarlarda oluyor" sorusu CANLI VERIDEN cevaplanabilir; esigin
+                    # kapiya donusup donusmeyecegine bir sonraki tur veriyle karar verir.
+                    f"grounding_zayif={grounding.get('zayif', 0)}"
                 )
                 if confidence is not None:
                     s.confidence_score = confidence

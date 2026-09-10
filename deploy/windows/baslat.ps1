@@ -125,11 +125,27 @@ $mutexAdi = "Local\FinancialOS-Baslat-$Port"
 $mutex = New-Object System.Threading.Mutex($false, $mutexAdi)
 $kilitBende = $false
 try {
-    # Bekleme süresi kritik bölümün EN UZUN hâline göre seçildi: göç ölçümü + yedek +
-    # `alembic upgrade head` + 40 sn'lik açılış bekleyişi. 180 sn, `FinancialOS-Saglik`
-    # görevinin 5 dakikalık `ExecutionTimeLimit`inin altında kalır — yani kilit beklemek,
-    # görevin zamanlayıcı tarafından öldürülmesine yol açmaz.
-    $kilitBende = $mutex.WaitOne([TimeSpan]::FromSeconds(180))
+    # BUG #371 — BEKLEME SÜRESİ, ÇAĞIRANIN BÜTÇESİNE GÖRE SEÇİLİR.
+    #
+    # İlk yazımda 180 sn'ydi ve gerekçesi "kritik bölümün en uzun hâli" idi. O gerekçe bu
+    # betiğe TEK BAŞINA bakıyordu; oysa bir ÇAĞIRANI var ve bütçesi daha dar:
+    #     deploy/windows/guncelle.ps1 →  $b | Wait-Process -Timeout 180
+    # Yani 180'de vazgeçip dağıtımı BAŞARISIZ sayıyor. Kendi bütçemi de 180 koymak,
+    # en kötü hâlde toplamı 220-230 sn'ye çıkarıyordu (180 kilit + ~10 göç + 40 sağlık).
+    #
+    # Bu ortalama koşumda GÖRÜNMEZ — kilidi tutan taraf, uygulama ayaktayken saniyeler
+    # içinde "zaten calisiyor" deyip çıkar. Görünür olduğu an tam da onarım anıdır:
+    # `FinancialOS-Saglik` uygulamayı AÇARKEN `guncelle.ps1` koşarsa dağıtım zaman
+    # aşımına düşerdi. Yani en kötü günde ortaya çıkacak sınıftan bir hata.
+    #
+    # 90 sn ARİTMETİKLE seçildi:   90 + ~10 + 40 = 140 sn  <  180 sn   (40 sn pay kalır)
+    # ve hâlâ her gerçek kritik bölümden kat kat uzundur: kilidi tutan taraf ya saniyeler
+    # içinde çıkar ya da uygulamayı açıp 40 sn'lik sağlık bekleyişini bitirir.
+    # Diğer tavanlar bağlayıcı değil (Saglik ExecutionTimeLimit 5 dk, Baslat 10 dk).
+    #
+    # Ders: bir zaman aşımı tek taraflı bir karar değil, İKİ TARAFLI BİR SÖZLEŞMEDİR —
+    # "en uzun iş ne kadar sürer" kadar "onu kim, ne kadar bekliyor" da sabitin parçasıdır.
+    $kilitBende = $mutex.WaitOne([TimeSpan]::FromSeconds(90))
 } catch [System.Threading.AbandonedMutexException] {
     # Kilidi tutan süreç bırakmadan öldü. Kilit BİZE geçti (WaitOne bunu istisnayla
     # bildirir ama sahipliği verir). Uygulama yarım kalmış olabilir; aşağıdaki port ve
@@ -139,7 +155,7 @@ try {
 }
 
 if (-not $kilitBende) {
-    # 180 sn boyunca kilit alınamadı. Bu, "başlat" işinin YAPILMADIĞI anlamına GELMEZ —
+    # 90 sn boyunca kilit alınamadı. Bu, "başlat" işinin YAPILMADIĞI anlamına GELMEZ —
     # tam tersine, başka bir örnek onu hâlâ yapıyor. Doğru cevap ikinci bir uvicorn
     # açmak değil, SONUCU ÖLÇMEK (L45: bilinmeyen sıfır değildir, ama ölçülebilir).
     if (Saglikli) {
@@ -147,7 +163,7 @@ if (-not $kilitBende) {
         $mutex.Dispose()
         exit 0
     }
-    Yaz "BASLATILAMADI: baska bir baslatma 180 sn'dir surüyor ve uygulama hala cevap vermiyor"
+    Yaz "BASLATILAMADI: baska bir baslatma 90 sn'dir surüyor ve uygulama hala cevap vermiyor"
     $mutex.Dispose()
     exit 1
 }

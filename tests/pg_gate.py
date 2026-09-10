@@ -14,8 +14,50 @@ Kullanım (dual-dialect test):
 
 Çalışan postgres kaynağı (öncelik):
 1. env `PG_TEST_URL` (CI: GitHub Actions postgres service veya compose db).
-2. Yerel pgserver instance (localhost:5433) — bu oturumda arka planda koşuyor.
+2. Yerel pgserver instance (localhost:5433).
 Hiçbiri ulaşılamazsa `pytest.skip` (ana SQLite süiti bloklanmaz).
+
+YERELDE POSTGRES'İ AYAĞA KALDIRMA — ÖLÇÜLMÜŞ TARİF (11 Eyl 2026)
+-----------------------------------------------------------------
+Yukarıdaki "bu oturumda arka planda koşuyor" cümlesi BİR OTURUMA aitti; o oturum
+kapandığında tarif de kayboldu ve `pgserver` bu makinede kurulu bile değildi. Sonuç:
+dual-dialect kapıları AYLARDIR yalnız CI'da koşuyordu — yani yerelde kırmızıyı
+göremediğin, CI'da ise logunu okumak için yetki gerektiren bir kör nokta.
+
+    pip install pgserver          # 12,8 MB wheel; postgres 16.2 binary'sini taşır
+    BIN=venv/Lib/site-packages/pgserver/pginstall/bin
+
+    "$BIN/pg_ctl.exe" -D <veri-dizini> \
+        -o "-p 5433 -c listen_addresses=127.0.0.1" -l pg.log -w -t 30 start
+
+    PG_TEST_URL=postgresql://postgres@127.0.0.1:5433/postgres pytest tests/ -q
+
+ÖLÇÜLEN TUZAKLAR (11 Eyl 2026, bu makinede):
+  1. `pgserver.get_server()` KULLANMA: `--locale=C` geçirmez ve `initdb` düşer
+     (M49'un yukarıda yazdığı hatanın ta kendisi).
+  2. `postgres.exe`'yi DOĞRUDAN çağırma: yükseltilmiş bir kabukta
+     *"Execution of PostgreSQL by a user with administrative permissions is not
+     permitted"* der ve hiç açılmaz. Her zaman `pg_ctl` üzerinden başlat.
+  3. `pg_ctl` ile başlatılan sunucu, onu başlatan kabuk süreci öldürülünce birlikte
+     ölür. "Connection refused" görürsen önce PORTU ölç
+     (`netstat -ano | findstr :5433`), sonra sürücüyü suçla — ölçüldü: psycopg2
+     kuruluyken de aynı hata "sürücü yok" gibi okunuyor.
+
+⚠️ ÇÖZÜLMEMİŞ: `initdb` BU MAKİNEDE UTF8 CLUSTER KURAMIYOR.
+`--encoding=UTF8 --locale=C` ile üç kez denendi, üçünde de post-bootstrap adımında
+düştü:  `FATAL: invalid byte sequence for encoding "UTF8": 0xdd 0xe7`.
+`0xdd 0xe7` = cp1254'te **"İç"** — yani Windows kullanıcı adındaki ("Murat Can İçgil")
+Türkçe karakterler bootstrap SQL'ine cp1254 baytları olarak sızıyor.
+
+`--encoding=SQL_ASCII` ile cluster KURULUR ve sunucu açılır (18 dual-dialect kapısı
+geçer), AMA Türkçe veri yazan kapı `UnicodeEncodeError: 'ascii' codec can't encode
+character '\\u015f'` ile kırılır. **Bu bir SAHTE KIRMIZIDIR** — kusur kodda değil,
+kurduğun veritabanındadır. SQL_ASCII'yi bilerek ve geçici olarak kullan, bulduğun
+kırmızıyı koda yazma.
+
+Kod tarafı 11 Eyl'de bu yolla ölçüldü: SQLite süiti 3.635 yeşil (coverage %94,08),
+dual-dialect kapıları 18 yeşil. Yani CI'daki bir kırmızı bu iki ölçümle
+AÇIKLANAMIYORSA sebep koddan başka yerdedir (Linux, `.env` yokluğu, servis kabı).
 """
 from __future__ import annotations
 

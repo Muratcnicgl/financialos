@@ -147,7 +147,7 @@
 - **Etki:** Orta · **Efor:** L
 
 ### [BE-022] Structured/JSON logging ve korelasyon yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: JSON logging var ama request-id/trace correlation yok
+- **Durum:** ✅ KAPANDI — 11 Eyl 2026 ölçümü: madde bayattı. BUG #280 (`app/correlation.py`, `main.py` middleware) istek kimliğini vekilden devralır ya da üretir (`secrets`, 8 karakter), `ContextVar` ile taşır; JSON log satırının her birinde `istek_id` alanı var (canlı `financialos.log`: 189 satır gerçek kimlikli), hata yanıtı ve kullanıcı ekranı aynı kimliği gösterir. Kapı `tests/test_korelasyon_kapisi.py` (10 test: devralma, temizleme, sızmama). Aksiyon'daki `structlog` ve `user_id` contextvar'ı YOK ve gerekmiyor: eşleşme anahtarı istek kimliğidir, kullanıcı `error_logs.last_user_id`'den okunur.
 - **Kanıt:** `app/main.py:57-61` tek `basicConfig`
 - **Aksiyon:** `structlog` JSON + request-id middleware + `contextvars` (`trace_id`/`user_id`).
 - **Etki:** Orta · **Efor:** M

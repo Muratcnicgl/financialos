@@ -41,7 +41,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [DOCS-007] CONTRIBUTING/geliştirme rehberi yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: kökte CONTRIBUTING yok ama docs/contributing.md var
+- **Durum:** ✅ KAPANDI — 11 Eyl 2026: `docs/contributing.md` GitHub'ın tanıdığı konumdadır (kök/docs/.github); eksik olan içerikti — kurulum ve PR akışı vardı, **commit mesajı konvansiyonu, BUG #NNN/backlog kodu, üç eş (madde durumu · üretilen indeks · defter satırı), "kapı yoksa iddia yok" kuralı ve yerel kapılar (ruff ratchet, sır taraması, docs altkümesi, PostgreSQL tarifi)** eklendi. Ölçüm: son 40 commit'in 33'ü kimlik taşıyor; konvansiyon o pratiği yazıya döker.
 - **Kanıt:** repo (CONTRIBUTING.md yok)
 - **Aksiyon:** CONTRIBUTING.md: kurulum, test, BUG #NNN konvansiyonu, ADR-001 kuralı, commit stili. (PROJE.md'ler var ama insan-odaklı rehber ayrı.)
 - **Etki:** Düşük · **Efor:** S
@@ -78,7 +78,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [DOCS-013] Bu backlog'un kendisi karar kaydına bağlanmalı (izlenebilirlik)
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: uygulanan-fixler ledger var ama son commit'ler M/BUG etiketi
+- **Durum:** ✅ KAPANDI — 11 Eyl 2026 ölçümü: son 40 commit'in **33'ü** `BUG #NNN`, backlog kodu (`SEC-004`) ya da `ADR-NNN` taşıyor; kalan 7 docs/arayüz commit'i. Bağ üç yerde: commit gövdesi → `sections/<BOYUT>.md` durum satırı (tarih + BUG #) → `uygulanan-fixler.md` defter satırı; `DURUM-INDEX.md` ve `backlog.md` öncelik bloğu bunlardan ÜRETİLİR (`backlog_ozeti.py --yaz`, kapı `test_backlog_tutarliligi_kapisi`). Konvansiyon `docs/contributing.md`'ye yazıldı (DOCS-007). Commit mesajını dayatan bir hook bilerek yok: metin kalitesini kod ölçemez, üretilen indeks tutarlılığını ölçer.
 - **Sorun/Fırsat:** 500+ madde üretildi; uygulananların ADR/commit'e bağlanması gerekir yoksa tekrar keşfedilir.
 - **Kanıt:** `docs/kalite-seruveni/` (bu çalışma)
 - **Aksiyon:** Uygulanan her maddeyi commit mesajında `[BE-001]` gibi ID ile referansla; backlog'da durum güncelle.

@@ -48,6 +48,17 @@ export function sekmeEtiketi(sekme, basit) {
 }
 
 /**
+ * Belge başlığı (BUG #392 / A11Y-017, WCAG 2.4.2): sekme değişince `document.title` de
+ * değişir — ekran okuyucu ve tarayıcı geçmişi "hangi paneldeyim"i buradan okur. Tek
+ * kaynak yine SEKMELER; bilinmeyen id'de yalnız ürün adı.
+ */
+export const URUN_ADI = 'FinancialOS';
+export function sayfaBasligi(sekmeId, basit) {
+  const sekme = SEKMELER.find((s) => s.id === sekmeId);
+  return sekme ? `${sekmeEtiketi(sekme, basit)} · ${URUN_ADI}` : URUN_ADI;
+}
+
+/**
  * Cmd/Ctrl+1..9 sırası. Basit modda kısayol GÖRÜNEN sekmelere bağlanır: kullanıcıyı
  * çubukta olmayan bir panele ışınlayan kısayol, aktif sekmesi görünmeyen bir arayüz
  * bırakır.

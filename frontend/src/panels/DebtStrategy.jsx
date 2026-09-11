@@ -353,16 +353,19 @@ export default function DebtStrategy() {
       {/* Ekstra ödeme slider */}
       <div className="card p-4">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">
+          <label htmlFor="ekstra-aylik-odeme" className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">
             Opsiyonel ekstra aylık ödeme
           </label>
           <span className="text-base font-semibold font-numeric text-brand-600 dark:text-brand-400">{paraTam(extraMonthly)}</span>
         </div>
+        {/* BUG #392 (A11Y-012): label bağı + TL formatlı değer metni (WCAG 4.1.2) */}
         <input
+          id="ekstra-aylik-odeme"
           type="range"
           min="0"
           max="5000"
           step="100"
+          aria-valuetext={paraTam(extraMonthly)}
           value={extraMonthly}
           onChange={(e) => setExtraMonthly(Number(e.target.value))}
           onMouseUp={handleExtraCommit}

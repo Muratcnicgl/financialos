@@ -30,7 +30,7 @@ import OgreticiSihirbaz from './components/OgreticiSihirbaz.jsx';
 import YardimKosesi from './components/YardimKosesi.jsx';
 import { onboardingApi } from './api.js';
 // Sekme listesi burada DEĞİL: üç yerde ayrı yazılıydı ve ayrışmıştı (lib/sekmeler.js).
-import { gorunurSekmeler, sekmeEtiketi, kisayolSirasi } from './lib/sekmeler.js';
+import { gorunurSekmeler, sekmeEtiketi, kisayolSirasi, sayfaBasligi } from './lib/sekmeler.js';
 import { useGorunumModu } from './hooks/useGorunumModu.js';
 import GorunumSecici from './components/GorunumSecici.jsx';
 
@@ -311,6 +311,11 @@ function AppContent({ onLogout }) {
     const sagTasma = solTasma + dugme.offsetWidth - serit.clientWidth;
     if (solTasma < 0) serit.scrollLeft += solTasma - 8;
     else if (sagTasma > 0) serit.scrollLeft += sagTasma + 8;
+  }, [activeTab, basit]);
+
+  // BUG #392 (A11Y-017): belge başlığı aktif paneli söyler (WCAG 2.4.2).
+  useEffect(() => {
+    document.title = sayfaBasligi(activeTab, basit);
   }, [activeTab, basit]);
 
   // ARIA sekme örüntüsünün klavye yarısı (APG "tabs, manual activation").

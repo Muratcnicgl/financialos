@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
+import { useDialog } from '../lib/dialog.js';
 import { goalsApi } from '../api';
 import { formatTL, formatTLSuffix, formatDate, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
@@ -195,6 +196,11 @@ function GoalCard({ goal, onSelect }) {
 
 function GoalDetailModal({ goal, onClose }) {
   const toast = useToast();
+  // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
+  const baslikId = useId();
+  const kutuRef = useRef(null);
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useDialog(kutuRef, onCloseRef);
   const [tab, setTab] = useState('allocations');
   const [allocations, setAllocations] = useState([]);
   const [rules, setRules] = useState([]);
@@ -237,14 +243,15 @@ function GoalDetailModal({ goal, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        ref={kutuRef} role="dialog" aria-modal="true" aria-labelledby={baslikId} tabIndex={-1}
+        className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/50 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
         <div className="border-b border-zinc-300 dark:border-zinc-700/50 p-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xl flex-shrink-0">{getGoalIcon(goal.goal_type)}</span>
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 truncate">{goal.title}</h3>
+            <h3 id={baslikId} className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 truncate">{goal.title}</h3>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
@@ -389,6 +396,11 @@ function RulesTab({ rules, goalId, onRefresh }) {
 
 function GoalCreateWizard({ onClose }) {
   const toast = useToast();
+  // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
+  const baslikId = useId();
+  const kutuRef = useRef(null);
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useDialog(kutuRef, onCloseRef);
   const [step, setStep] = useState(1); // 1=tip, 2=detay
   const [goalType, setGoalType] = useState(null);
   const [form, setForm] = useState({ title: '', target_amount: '', target_date: '' });
@@ -421,15 +433,16 @@ function GoalCreateWizard({ onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/50 rounded-lg w-full max-w-md"
+        ref={kutuRef} role="dialog" aria-modal="true" aria-labelledby={baslikId} tabIndex={-1}
+        className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/50 rounded-lg w-full max-w-md outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="border-b border-zinc-300 dark:border-zinc-700/50 p-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 id={baslikId} className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
             {step === 1 ? 'Hedef Türü Seç' : 'Hedef Detayları'}
           </h3>
-          <button type="button" onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
+          <button type="button" onClick={onClose} aria-label="Kapat" className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 min-w-[44px] min-h-[44px] inline-flex items-center justify-center shrink-0 -my-2 -mr-2">
             <X className="w-5 h-5" />
           </button>
         </div>

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
+import { useDialog } from '../lib/dialog.js';
 import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Banknote, Calculator, Scale, AlertTriangle,
@@ -1170,6 +1171,11 @@ function CockpitSkeleton() {
 // ============================================================
 
 function PriceUpdateModal({ account, onClose, onUpdated }) {
+  // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
+  const baslikId = useId();
+  const kutuRef = useRef(null);
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useDialog(kutuRef, onCloseRef);
   const [newPrice, setNewPrice] = useState(account.fiyat?.toString() || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -1199,8 +1205,9 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
       onClick={onClose}
     >
-      <div className="card p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-semibold mb-1">Fiyat güncelle</h3>
+      <div ref={kutuRef} role="dialog" aria-modal="true" aria-labelledby={baslikId} tabIndex={-1}
+        className="card p-6 w-full max-w-md outline-none" onClick={(e) => e.stopPropagation()}>
+        <h3 id={baslikId} className="font-semibold mb-1">Fiyat güncelle</h3>
         <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
           {account.ad} · {account.fund_code}
         </p>

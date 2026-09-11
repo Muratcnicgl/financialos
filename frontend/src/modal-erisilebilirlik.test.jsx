@@ -70,3 +70,35 @@ describe('A11Y-001 — ortak Modal', () => {
     }
   });
 });
+
+// ── BUG #396: kendi düzenini taşıyan diyaloglar da aynı davranışı alır ────────────────
+import { readdirSync, statSync } from 'node:fs';
+
+function jsxDosyalari(dir, out = []) {
+  for (const ad of readdirSync(dir)) {
+    const yol = join(dir, ad);
+    if (statSync(yol).isDirectory()) jsxDosyalari(yol, out);
+    else if (ad.endsWith('.jsx') && !ad.includes('.test.')) out.push(yol);
+  }
+  return out;
+}
+
+describe('A11Y-001 — tam-ekran kaplama taşıyan her dosya diyalog rolü taşır', () => {
+  it('kaplama sayısı = dialog rolü sayısı (dosya bazında); davranış tek kaynaktan', () => {
+    let kaplama = 0, hook = 0;
+    for (const f of jsxDosyalari(__dirname)) {
+      // Yorum satırları sayılmaz (Modal.jsx docstring'i rolü anlatır, taşımaz).
+      const src = readFileSync(f, 'utf-8').split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+      const k = (src.match(/fixed inset-0/g) || []).length;
+      if (k === 0) continue;
+      kaplama += k;
+      const rol = (src.match(/role="dialog"/g) || []).length;
+      const paylasilan = /import Modal from '\.\.\/components\/Modal\.jsx'/.test(src);
+      expect(rol > 0 || paylasilan, `${f.split('src')[1]}: kaplama var, dialog rolü yok`).toBe(true);
+      if (!paylasilan) expect(rol, `${f.split('src')[1]}: ${k} kaplama / ${rol} dialog`).toBe(k);
+      if (/useDialog\(/.test(src)) hook += 1;
+    }
+    expect(kaplama, 'kapsam tabanı (L45)').toBeGreaterThanOrEqual(10);
+    expect(hook, 'useDialog benimseyen DOSYA sayısı — ölçülen 7 (6 dosyada 7 diyalog + ortak Modal)').toBeGreaterThanOrEqual(7);
+  });
+});

@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useId, useRef } from 'react';
+import { useDialog } from '../lib/dialog.js';
 import { X } from 'lucide-react';
 import { SEKMELER, gorunurSekmeler, sekmeEtiketi } from '../lib/sekmeler.js';
 import { useGorunumModu } from '../hooks/useGorunumModu.js';
@@ -32,11 +33,11 @@ export default function HelpModal({ onClose }) {
     ...panelKisayollari,
     ...SABIT_KISAYOLLAR,
   ];
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
+  const baslikId = useId();
+  const kutuRef = useRef(null);
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useDialog(kutuRef, onCloseRef);
 
   return (
     <div
@@ -44,11 +45,12 @@ export default function HelpModal({ onClose }) {
       onClick={onClose}
     >
       <div
-        className="card p-6 w-full sm:max-w-md max-h-[70vh] overflow-y-auto"
+        ref={kutuRef} role="dialog" aria-modal="true" aria-labelledby={baslikId} tabIndex={-1}
+        className="card p-6 w-full sm:max-w-md max-h-[70vh] overflow-y-auto outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Klavye Kısayolları</h3>
+          <h3 id={baslikId} className="font-semibold">Klavye Kısayolları</h3>
           <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat" aria-label="Kapat">
             <X className="w-4 h-4" />
           </button>

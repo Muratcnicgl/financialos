@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
+import { useDialog } from '../lib/dialog.js';
 import { Brain, X, AlertTriangle, ShieldCheck, Loader2, Check } from 'lucide-react';
 import { premortemApi, actionsApi } from '../api.js';
 import { formatPara } from '../lib/money.js';
@@ -26,12 +27,11 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
   const [result, setResult] = useState(null);
   const [error, setError]   = useState(null);
 
-  // Escape ile kapat
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
+  const baslikId = useId();
+  const kutuRef = useRef(null);
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useDialog(kutuRef, onCloseRef, isOpen);
 
   // isOpen değişince: aç → yükle, kapat → sıfırla
   useEffect(() => {
@@ -91,7 +91,8 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
       onClick={onClose}
     >
       <div
-        className="card p-6 w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+        ref={kutuRef} role="dialog" aria-modal="true" aria-labelledby={baslikId} tabIndex={-1}
+        className="card p-6 w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER */}
@@ -99,7 +100,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
           <div className="flex items-center gap-2.5">
             <Brain className="w-6 h-6 text-warn-600 dark:text-warn-500 flex-shrink-0" />
             <div>
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
+              <h3 id={baslikId} className="font-semibold text-zinc-900 dark:text-zinc-50">
                 Premortem Analizi
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">

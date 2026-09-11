@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef } from 'react';
+import { useId, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useDialog } from '../lib/dialog.js';
 
 /**
  * Ortak modal (BUG #395 / A11Y-001, FE-004).
@@ -9,52 +10,17 @@ import { X } from 'lucide-react';
  * başlık bağı, Escape, odak yönetimi yoktu (WCAG 4.1.2 / 2.1.2 / 2.4.3). Kopya sayısı
  * kadar düzeltme yerine tek bileşen: sözleşme burada, dört panel yalnız içe aktarır.
  *
- * Davranış (APG "dialog (modal)"):
- *  - `role="dialog" aria-modal="true" aria-labelledby={başlık}`
- *  - Açılışta odak ilk odaklanabilir öğeye (yoksa kutuya); kapanışta tetikleyene döner.
- *  - Escape kapatır; Tab/Shift+Tab kutunun içinde döner (focus trap).
- *  - Arka plana tıklama kapatır; kutuya tıklama yayılmaz.
+ * Davranış `lib/dialog.js` `useDialog`ta (BUG #396: kendi düzenini taşıyan diyaloglar da
+ * aynı kaynağı kullanır): rol/aria-modal/başlık bağı burada, odak/Escape/Tab döngüsü orada.
+ * Arka plana tıklama kapatır; kutuya tıklama yayılmaz.
  */
-const ODAKLANABILIR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 export default function Modal({ title, children, onClose, genislik = 'md' }) {
   const baslikId = useId();
   const kutuRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  useEffect(() => {
-    const tetikleyen = document.activeElement;
-    const kutu = kutuRef.current;
-    // İlk odak İÇERİĞİN ilk alanına (başlıktaki "Kapat" düğmesine değil): kullanıcı formu
-    // doldurmaya gelir. Düğme yine sekme sırasındadır; döngü onu da kapsar.
-    const icerik = kutu?.querySelector('[data-modal-icerik]');
-    const ilk = icerik?.querySelector(ODAKLANABILIR) || kutu?.querySelector(ODAKLANABILIR);
-    (ilk || kutu)?.focus();
-
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onCloseRef.current?.();
-        return;
-      }
-      if (e.key !== 'Tab' || !kutu) return;
-      const ogeler = [...kutu.querySelectorAll(ODAKLANABILIR)];
-      if (ogeler.length === 0) { e.preventDefault(); kutu.focus(); return; }
-      const ilkOge = ogeler[0];
-      const sonOge = ogeler[ogeler.length - 1];
-      if (e.shiftKey && (document.activeElement === ilkOge || !kutu.contains(document.activeElement))) {
-        e.preventDefault(); sonOge.focus();
-      } else if (!e.shiftKey && document.activeElement === sonOge) {
-        e.preventDefault(); ilkOge.focus();
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      if (tetikleyen && typeof tetikleyen.focus === 'function') tetikleyen.focus();
-    };
-  }, []);
+  useDialog(kutuRef, onCloseRef);
 
   const maxW = genislik === 'lg' ? 'sm:max-w-lg' : 'sm:max-w-md';
   return (

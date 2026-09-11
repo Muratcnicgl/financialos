@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useDialog } from '../lib/dialog.js';
 import { Search, X } from 'lucide-react';
 import { SEKMELER, kisayolSirasi } from '../lib/sekmeler.js';
 
@@ -46,7 +47,10 @@ export default function CommandPalette({ onClose, setActiveTab, basit = false, o
     ? COMMANDS.filter(c => c.label.toLowerCase().includes(query.toLowerCase()))
     : COMMANDS;
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  // BUG #396 (A11Y-001): rol + odak/Escape/Tab döngüsü tek kaynaktan; ilk odak zaten arama kutusu.
+  const kutuRef = useRef(null);
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useDialog(kutuRef, onCloseRef);
   useEffect(() => { setSelectedIdx(0); }, [query]);
 
   const execute = (cmd) => {
@@ -55,7 +59,6 @@ export default function CommandPalette({ onClose, setActiveTab, basit = false, o
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape') { onClose(); return; }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIdx(i => Math.min(i + 1, filtered.length - 1));
@@ -73,7 +76,8 @@ export default function CommandPalette({ onClose, setActiveTab, basit = false, o
       onClick={onClose}
     >
       <div
-        className="card w-full sm:max-w-md overflow-hidden"
+        ref={kutuRef} role="dialog" aria-modal="true" aria-label="Komut paleti" tabIndex={-1}
+        className="card w-full sm:max-w-md overflow-hidden outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-200 dark:border-zinc-700">
@@ -84,9 +88,10 @@ export default function CommandPalette({ onClose, setActiveTab, basit = false, o
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Komut ara..."
+            aria-label="Komut ara"
             className="flex-1 bg-transparent outline-none text-sm placeholder-zinc-400 min-h-0"
           />
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1 text-zinc-500 dark:text-zinc-400">
+          <button type="button" onClick={onClose} aria-label="Kapat" className="btn btn-ghost btn-icon !p-1 text-zinc-500 dark:text-zinc-400">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>

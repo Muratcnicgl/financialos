@@ -111,6 +111,9 @@ class ChatResponse(BaseModel):
     # tam olarak bu alan. Varsayılan False → mevcut istemciler kırılmaz; okuyan istemci
     # "tekrar dene" / uyarı rozeti kurabilir, izleme de düşmeyi 200'lerin içinden sayabilir.
     llm_kullanilamadi: bool = False
+    # BUG #409 (LLM-038): koç düştüyse NEDEN — "kota" | "ag" | "saglayici" | "bilinmeyen";
+    # düşmediyse None. Ham istisna dışarı çıkmaz, sınıfı çıkar.
+    hata_sinifi: Optional[str] = None
 
 
 class TraceStepOut(BaseModel):
@@ -464,11 +467,14 @@ def chat(
             success = False
             error_msg = str(e)
             logger.error("coach chat başarısız user_id=%s: %s", user.id, e, exc_info=True)
+            from app.llm_hata import hata_sinifi as _hata_sinifi, kullanici_mesaji
+            hata_sinifi = _hata_sinifi(e)   # BUG #409 (LLM-038)
             result = {
-                "reply": "Koç şu an cevap veremedi (sağlayıcılar meşgul olabilir). Birazdan tekrar dene.",
+                "reply": kullanici_mesaji(hata_sinifi),
                 "proposed_actions": [],
                 "cockpit_snapshot": None,
                 "llm_kullanilamadi": True,   # BUG #376: bu yol da "koç düştü"dür, bayrak taşır
+                "hata_sinifi": hata_sinifi,
             }
 
     duration_ms = int((time.time() - t_start) * 1000)
@@ -498,6 +504,7 @@ def chat(
         usage=post_usage,
         coach_memory_id=result.get("coach_memory_id"),
         llm_kullanilamadi=bool(result.get("llm_kullanilamadi", False)),
+        hata_sinifi=result.get("hata_sinifi"),
     )
 
 

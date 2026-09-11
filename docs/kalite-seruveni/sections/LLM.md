@@ -355,7 +355,7 @@ Harcamanı kaydettim."`
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-038] Chat hatası düz string reply — yapısal sınıflandırma yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: ham exception loglu ama tip siniflandirma yok
+- **Durum:** ✅ KAPANDI — **BUG #409 (12 Eyl 2026):** iki düşme yolu (router except'i, motorun "tüm sağlayıcılar denendi" dalı) tek düz cümle dönüyordu. `app/llm_hata.py` sınıflandırmayı YENİDEN YAZMAZ — `provider_errors.siniflandir` (BUG #269, kod yapıdan, metinde sayı yok) tek kaynak; ilk yazım kendi `429` regex'iyle tam BUG #269'un hatasını tekrar etmişti, ad-çakışması kapısı yakaladı. Küme: `kota`/`gecici`/`istek_cok_buyuk`/`kalici`/`bilinmeyen` (kodsuz KALICI kullanıcıya "bilinmeyen"dir — geri çekilme kararı ile dürüst cevap ayrı şeyler). Kullanıcı mesajı sınıfa göre, ham istisna yine yalnız logda (korelasyon kimliğiyle, BUG #280). `ChatResponse.hata_sinifi` (başarıda None; `llm_kullanilamadi` ile birlikte). Kapı `tests/test_llm_hata_sinifi_kapisi.py`: 10 sınıflandırma örneği (4290≠429 dahil), tek-kaynak kapısı (`re.compile` yok), kapalı küme = mesaj tablosu, ham detay sızmaz, router yolu uçtan uca; mutasyonla doğrulandı.
 - **Kanıt:** `coach.py:1612-1621`; `routers/coach.py:306-313`
 - **Aksiyon:** Hata tipine göre kullanıcı mesajı (quota/network/400); ham exception gösterme, logla (request_id).
 - **Etki:** Düşük · **Efor:** S

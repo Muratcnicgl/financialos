@@ -3144,17 +3144,20 @@ class CoachEngine:
                 # "sadece yorumlayan AI yok, veriler sağlam" mesajı ver. grounding şeması tutarlı.
                 logger.error(
                     f"{self.provider_name} hatasi (tum provider'lar denendi)", exc_info=True)
+                # BUG #409 (LLM-038): "neden" yapısal — kota/ağ/sağlayıcı/bilinmeyen; mesaj sınıfa
+                # göre, ham istisna yine yalnız logda.
+                from app.llm_hata import hata_sinifi as _hata_sinifi, kullanici_mesaji
+                hata_sinifi = _hata_sinifi(e)
                 return {
-                    "reply": (
-                        "Koç (yapay zekâ yorumlayıcı) şu an ulaşılamıyor — sağlayıcı kotası "
-                        "dolmuş olabilir. Ama panelindeki tüm veriler güncel ve doğru: kokpit, "
-                        "günlük limit, bütçe zarfları, borç planı ve alacakların motor tarafından "
-                        "hesaplanıyor ve koça ihtiyaç duymadan çalışıyor. Birkaç dakika sonra "
-                        "tekrar yazabilirsin."
+                    "reply": kullanici_mesaji(hata_sinifi) + (
+                        " Panelindeki tüm veriler güncel ve doğru: kokpit, günlük limit, bütçe "
+                        "zarfları, borç planı ve alacakların motor tarafından hesaplanıyor ve koça "
+                        "ihtiyaç duymadan çalışıyor."
                     ),
                     "proposed_actions": [],
                     "cockpit_snapshot": cockpit_dict,
                     "grounding": {"ok": True, "checked": 0, "unverified": []},
+                    "hata_sinifi": hata_sinifi,
                     # BUG #276: bu dalın YAPISAL işareti. Ölçüm, kalite koşumunun tamamen ölü
                     # bir koça %83.3 verdiğini gösterdi — çünkü senaryoların çoğu OLUMSUZ
                     # kriterdi ("aksiyon yok", "sahte tamamlama yok") ve hiç cevap vermeyen

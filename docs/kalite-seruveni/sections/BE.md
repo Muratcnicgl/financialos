@@ -190,7 +190,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [BE-029] AsyncIOScheduler çok-kullanıcı batch'i tek session'da sıralı — hata yalıtımı zayıf
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: rollback eklendi ama batch tek paylaşılan session
+- **Durum:** ✅ KAPANDI — **BUG #400 (11 Eyl 2026):** extractor hataları zaten yutulup rollback ediliyordu (BUG #062); açık kalan iki şeydi — tüm kullanıcılar tek session'ı paylaşıyordu ve kullanıcı-seviyesi bir istisna döngüyü kesiyordu (kalan kullanıcılar o gece insight almıyor, kayıt kimin düştüğünü söylemiyordu). `_kullanici_basina` iskeleti: liste kısa session'la, her kullanıcı kendi session'ında, hatası kendine, özet "N kullanici, M hata"; iki gece işi de bunu kullanır. Kapı `tests/test_batch_kullanici_yalitimi_kapisi.py`: session sayısı/kimliği, 2. kullanıcı patlarken 3. koşar, iki iş de iskelette; mutasyonla doğrulandı.
 - **Kanıt:** `app/scheduler.py:148-152`, `run_periodic_batch_for_user:123-129`
 - **Aksiyon:** User başına ayrı session scope + hata'da rollback.
 - **Etki:** Orta · **Efor:** S

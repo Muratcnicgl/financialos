@@ -262,30 +262,47 @@ def _izlenen_is(job_name: str, *, yeniden_firlat: bool = False):
     return dekorator
 
 
+def _kullanici_basina(is_adi: str, calistir) -> str:
+    """Çok-kullanıcılı batch'in ortak iskeleti (BUG #400 / BE-029).
+
+    Eskiden bütün kullanıcılar TEK session'da sırayla koşuyordu: bir kullanıcının
+    extractor'ı session'ı `PendingRollback`a düşürürse (BUG #062 rollback'i vardı) kimlik
+    haritası ve yüklenmiş nesneler yine paylaşılıyordu; kullanıcı-seviyesi bir istisna
+    (örn. workspace sorgusu) ise döngüyü tamamen kesiyordu — geriye kalan kullanıcılar o
+    gece insight almıyordu ve iş kaydı bunu "hata" diye yazıyordu, KİMİN düştüğünü değil.
+    Şimdi: kullanıcı listesi kısa bir session'la alınır; her kullanıcı KENDİ session'ında
+    koşar ve kendi hatasını taşır; kayıt "N kullanici, M hata" der.
+    """
+    with _db_session() as db:
+        user_ids = _get_active_user_ids(db)
+    hata = 0
+    for uid in user_ids:
+        try:
+            with _db_session() as db:
+                results = calistir(db, uid)
+            logger.info(f"{is_adi} for user {uid}: {results}")
+        except Exception:  # noqa: BLE001 — bir kullanıcının hatası diğerlerini düşürmez
+            hata += 1
+            logger.exception("[%s] kullanici %s dustu; digerleri devam", is_adi, uid)
+    return f"{len(user_ids)} kullanici" + (f", {hata} hata" if hata else "")
+
+
 @_izlenen_is("nightly_batch")
 async def nightly_batch_job() -> str:
     """APScheduler cron job - gece 03:00 calisir, tum user'lar icin batch."""
     logger.info(f"Nightly batch job started at {datetime.utcnow().isoformat()}")
-    with _db_session() as db:
-        user_ids = _get_active_user_ids(db)
-        for uid in user_ids:
-            results = run_periodic_batch_for_user(db, uid)
-            logger.info(f"Nightly batch for user {uid}: {results}")
+    ozet = _kullanici_basina("Nightly batch", run_periodic_batch_for_user)
     logger.info(f"Nightly batch job completed at {datetime.utcnow().isoformat()}")
-    return f"{len(user_ids)} kullanici"
+    return ozet
 
 
 @_izlenen_is("k2_batch")
 async def k2_batch_job() -> str:
     """APScheduler cron job - gece 03:30, K2 LLM consolidation."""
     logger.info(f"K2 batch job started at {datetime.utcnow().isoformat()}")
-    with _db_session() as db:
-        user_ids = _get_active_user_ids(db)
-        for uid in user_ids:
-            results = run_k2_batch_for_user(db, uid)
-            logger.info(f"K2 batch for user {uid}: {results}")
+    ozet = _kullanici_basina("K2 batch", run_k2_batch_for_user)
     logger.info(f"K2 batch job completed at {datetime.utcnow().isoformat()}")
-    return f"{len(user_ids)} kullanici"
+    return ozet
 
 
 @dataclass(frozen=True)

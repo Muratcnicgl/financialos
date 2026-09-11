@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { cashflowApi, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
@@ -28,6 +28,9 @@ export default function Cashflow() {
   const [refreshing, setRefreshing] = useState(false);
 
   const includeKey = [...include].sort().join(',');
+  // BUG #411 (FE-028): effect `include` Set'ini değil, anahtardan TÜRETİLEN listeyi okur —
+  // Set kimliği her tıklamada değişir, anahtar yalnız içerik değişince; susturma gerekmez.
+  const includeList = useMemo(() => includeKey.split(',').filter(Boolean), [includeKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +38,7 @@ export default function Cashflow() {
 
     cashflowApi.getForecast({
       days: horizon,
-      include: [...include],
+      include: includeList,
       crunchThreshold,
     }).then(result => {
       if (!cancelled) setData(result);
@@ -46,7 +49,7 @@ export default function Cashflow() {
     });
 
     return () => { cancelled = true; };
-  }, [horizon, includeKey, crunchThreshold]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [horizon, includeList, crunchThreshold, toast]);
 
   const handleRefresh = () => {
     setRefreshing(true);

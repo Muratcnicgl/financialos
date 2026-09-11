@@ -46,6 +46,7 @@ export function useDialog(kutuRef, onCloseRef, acik = true) {
       document.removeEventListener('keydown', onKey);
       if (tetikleyen && typeof tetikleyen.focus === 'function') tetikleyen.focus();
     };
+    // Neden susturuldu: kutu/kapatıcı ref'tir (kimlik sabit); tek tetik açılış — bkz. üstteki not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acik]);
 }

@@ -42,6 +42,8 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
       return;
     }
     runPremortem();
+    // Neden susturuldu: analiz yalnız AÇILIŞTA ve aksiyon değişince koşar; `runPremortem` her
+    // render'da yeni kimlik alır, bağımlılığa girse her render yeniden LLM çağırırdı (kota).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, actionId]);
 

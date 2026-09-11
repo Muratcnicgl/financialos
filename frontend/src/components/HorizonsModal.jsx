@@ -132,6 +132,8 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
       return;
     }
     runSimulation();
+    // Neden susturuldu: simülasyon yalnız AÇILIŞTA ve aksiyon değişince koşar; `runSimulation`
+    // her render'da yeni kimlik alır, bağımlılığa girse her render yeniden istek atardı.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, actionId]);
 

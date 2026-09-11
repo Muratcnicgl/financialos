@@ -99,6 +99,8 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
       prevEditRequestedAt.current = editRequestedAt;
       if (!editing) startEdit();
     }
+    // Neden susturuldu: bu effect bir OLAY tetikleyicisidir (E kısayolu); `editing`/`startEdit`
+    // bağımlılığa girse her düzenleme durumu değişiminde yeniden tetiklenirdi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editRequestedAt]);
 
@@ -263,6 +265,8 @@ export default function PendingActions({ actions, onResolved, accounts }) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+    // Neden susturuldu: dinleyici bir kez bağlanır; güncel liste kapanış yerine ref/setState
+    // üzerinden okunur, her render'da yeniden bağlamak tuş olaylarını kaçırırdı.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -271,6 +271,7 @@ export default function DebtStrategy() {
     }
   };
 
+  // Neden susturuldu: ilk yükleme bir kez; `fetchData` her render'da yeni kimlik alır.
   useEffect(() => { fetchData(0); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const debtsById = useMemo(() => {

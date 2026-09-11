@@ -168,7 +168,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [FE-028] `useEffect` exhaustive-deps susturmaları, biri gerçek risk
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: Cashflow includeKey düzeldi ama susturma yorumu kaldı
+- **Durum:** ✅ KAPANDI — **BUG #411 (12 Eyl 2026):** 7 susturma ölçüldü. Cashflow'unki gerçek riskti: effect `include` Set'ini okuyup bağımlılığa `includeKey`'i yazıyordu — liste artık anahtardan `useMemo` ile türetilir, susturma kalktı, `toast` bağımlılığa girdi (Toast API `useMemo`lu, kimliği sabit). Kalan 6 meşru olay/açılış tetikleyicisi (E kısayolu, klavye dinleyicisi, modal açılışı ×2, ilk yükleme, diyalog kancası) — her biri "Neden susturuldu" gerekçesi taşır. Kapı `effect-susturma.test.jsx`: gerekçesiz susturma yok, Cashflow'da yok, toplam ≤ 6; mutasyonla doğrulandı.
 - **Kanıt:** `Cashflow.jsx:48`; `DebtStrategy.jsx:106`; `PendingActions.jsx:50,209`
 - **Aksiyon:** Cashflow'da `include`'ı `includeKey`'den türet, susturmayı kaldır; diğerlerinde gerçek bağımlılık.
 - **Etki:** Düşük · **Efor:** S

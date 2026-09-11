@@ -100,6 +100,7 @@ def update_envelope(
     user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> EnvelopeOut:
+    """Zarfı güncelle."""
     env = db.query(Envelope).filter(
         Envelope.id == envelope_id, scope_filter(Envelope, user.id, ws_id),
     ).first()
@@ -119,6 +120,7 @@ def delete_envelope(
     user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ) -> None:
+    """Zarfı sil."""
     env = db.query(Envelope).filter(
         Envelope.id == envelope_id, scope_filter(Envelope, user.id, ws_id),
     ).first()

@@ -58,6 +58,7 @@ def category_breakdown(
     current_user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Son N günün kategori dağılımı (gider / gelir / ikisi)."""
     since = user_today(current_user) - timedelta(days=days)  # BUG #237 (D17)
 
     # BUG #073 fix (P0-11/RRE-001): transaction_type de select+group_by'a eklendi. "both"

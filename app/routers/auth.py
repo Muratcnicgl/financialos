@@ -156,6 +156,7 @@ _KAYIT_JENERIK_YANIT = {"message": "Kayıt alındı. E-postandaki bağlantıyla 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
+    """Kayıt; KVKK onayı zorunlu, kayıt modu ve davet kuralları uygulanır."""
     _rate_limit(request, "register", db=db)  # BUG #182: paylasilan sayac
     if not body.kvkk_consent:
         raise HTTPException(422, "KVKK açık rıza zorunlu (kvkk_consent=true).")
@@ -246,6 +247,7 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> dict:
 
 @router.post("/login", response_model=TokenOut)
 def login(body: LoginIn, request: Request, db: Session = Depends(get_db)) -> TokenOut:
+    """E-posta + şifre ile giriş; access ve refresh token döner."""
     _rate_limit(request, "login", db=db)  # BUG #182: paylasilan sayac
     email = body.email.lower().strip()
     user = db.query(User).filter(User.email == email).first()
@@ -290,6 +292,7 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)) -> TokenOut:
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(body: RefreshIn, request: Request, db: Session = Depends(get_db)):
+    """Refresh token'ı (jti) kara listeye alır."""
     # BUG #172 (P2/c): logout YALNIZ refresh'i iptal ediyordu; eldeki access token 30 dakika
     # daha çalışıyordu (ortak bilgisayarda "çıkış yaptım" yanılsaması). Authorization
     # başlığındaki access token da kara listeye alınır.
@@ -313,6 +316,7 @@ def logout(body: RefreshIn, request: Request, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
+    """Oturumdaki kullanıcı."""
     return user
 
 
@@ -502,6 +506,7 @@ def password_reset_request(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> dict:
+    """Şifre sıfırlama bağlantısı ister (e-posta ile)."""
     _rate_limit(request, "pwreset", db=db)  # BUG #182: paylasilan sayac
     email = body.email.lower().strip()
     user = db.query(User).filter(User.email == email).first()
@@ -543,6 +548,7 @@ def password_reset_request(
 
 @router.post("/password-reset-confirm")
 def password_reset_confirm(body: PasswordResetConfirmIn, db: Session = Depends(get_db)) -> dict:
+    """Sıfırlama token'ı ile yeni şifre belirler."""
     try:
         payload = _auth.decode_token(body.token, expected_type="pwreset")
     except _jwt.PyJWTError:

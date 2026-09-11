@@ -47,7 +47,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DOCS-008] API dokümantasyonu (OpenAPI) zayıf — endpoint özet/örnek eksik
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: endpoint meta düzensiz (bazı router summary'siz)
+- **Durum:** ✅ KAPANDI — **BUG #394 (11 Eyl 2026):** ölçüm: 125 handler, hepsi tag'li, hiçbiri `summary=` (FastAPI başlığı fonksiyon adından türetir — yeterli), **24'ü docstring'siz** (OpenAPI'de açıklama boş). 24 uca tek satırlık açıklama yazıldı; kapı `tests/test_uc_aciklamasi_kapisi.py` `app.routes` ağacından türetir (iç içe router'ları gezer — düz bakan tarayıcı 1 uç görür), yeni açıklamasız uç kırmızı. Üretilen sözleşme zaten tek referans: `docs/api-reference/api-sozlesmesi.json` (KAP-01). Yanıt örnekleri (`response` examples) BİLEREK yok: 125 uca elle örnek, ölçülmemiş bir ihtiyaç için bakım yüküdür.
 - **Kanıt:** `app/routers/*` (summary/tags/örnek tutarsız); `/docs` üretilen sözleşme
 - **Aksiyon:** Endpoint meta zenginleştir (API-014); üretilen OpenAPI'yi tek API referansı yap.
 - **Etki:** Düşük · **Efor:** M

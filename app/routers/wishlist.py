@@ -55,6 +55,7 @@ def _to_out(w: WishlistItem, now: datetime) -> WishlistOut:
 @router.get("", response_model=dict)
 def list_wishlist(db: Session = Depends(get_db), user: User = Depends(get_current_user),
                   ws_id: Optional[int] = Depends(active_workspace_id)):  # M43
+    """İstek listesi; her kalem için bekleme süresi hesaplanır."""
     now = datetime.utcnow()
     rows = (
         db.query(WishlistItem)
@@ -74,6 +75,7 @@ def list_wishlist(db: Session = Depends(get_db), user: User = Depends(get_curren
 def add_wishlist(payload: WishlistCreate, db: Session = Depends(get_db),
                  user: User = Depends(get_current_user),
                  ws_id: Optional[int] = Depends(active_workspace_id)):  # M43
+    """İstek listesine kalem ekle."""
     w = WishlistItem(user_id=user.id, workspace_id=ws_id, item=payload.item, amount=payload.amount,
                      note=payload.note, status="pending")
     db.add(w)
@@ -86,6 +88,7 @@ def add_wishlist(payload: WishlistCreate, db: Session = Depends(get_db),
 def resolve_wishlist(item_id: int, status: str = Query(..., pattern="^(bought|dismissed)$"),
                      db: Session = Depends(get_db), user: User = Depends(get_current_user),
                      ws_id: Optional[int] = Depends(active_workspace_id)):  # M43
+    """Kalemi sonuçlandır: bought | dismissed (yalnız pending)."""
     w = db.query(WishlistItem).filter(
         WishlistItem.id == item_id, scope_filter(WishlistItem, user.id, ws_id)).first()
     if not w:

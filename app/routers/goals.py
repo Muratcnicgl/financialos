@@ -114,6 +114,7 @@ def get_goal(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Tek hedef; kapsam dışı hedef 404."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
         scope_filter(models.Goal, current_user.id, ws_id),
@@ -131,6 +132,7 @@ def update_goal(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Hedefi kısmi güncelle (PATCH)."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
         scope_filter(models.Goal, current_user.id, ws_id),
@@ -157,6 +159,7 @@ def delete_goal(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Hedefi sil."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
         scope_filter(models.Goal, current_user.id, ws_id),
@@ -270,6 +273,7 @@ def list_allocations(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Hedefe bağlı tahsisler."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
         scope_filter(models.Goal, current_user.id, ws_id),
@@ -292,6 +296,7 @@ def delete_allocation(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Tahsisi sil."""
     alloc = db.query(models.GoalAllocation).filter(
         models.GoalAllocation.id == allocation_id,
     ).first()
@@ -325,6 +330,7 @@ def create_rule(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Hedefe otomatik tahsis kuralı ekle."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
         scope_filter(models.Goal, current_user.id, ws_id),
@@ -355,6 +361,7 @@ def list_rules(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Hedefin kuralları."""
     goal = db.query(models.Goal).filter(
         models.Goal.id == goal_id,
         scope_filter(models.Goal, current_user.id, ws_id),
@@ -377,6 +384,7 @@ def update_rule(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Kuralı kısmi güncelle (PATCH)."""
     rule = db.query(models.GoalRule).filter(
         models.GoalRule.id == rule_id
     ).first()
@@ -406,6 +414,7 @@ def delete_rule(
     current_user: models.User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
 ):
+    """Kuralı sil."""
     rule = db.query(models.GoalRule).filter(
         models.GoalRule.id == rule_id
     ).first()

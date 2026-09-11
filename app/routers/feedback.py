@@ -88,6 +88,7 @@ def create_feedback(
     user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),
 ) -> FeedbackOut:
+    """Kapalı beta geri bildirimi kaydeder."""
     # BUG #281: sürüm İSTEMCİNİN BEYANI DEĞİL, sunucudan türetilir. İstemciye sorulsaydı
     # bayat bir sekme eski sürümü bildirir ve "hangi kod koşuyordu" sorusu yanlış
     # cevaplanırdı — üstelik yanlışlık sessiz olurdu.
@@ -120,6 +121,7 @@ def list_feedback(
     user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),
 ) -> List[Feedback]:
+    """Geri bildirim listesi."""
     # Kullanıcı yalnız KENDİ gönderdiklerini görür (izolasyon). Admin-tümü görünümü ayrı iş.
     rows = db.execute(
         select(Feedback)

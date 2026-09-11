@@ -76,6 +76,7 @@ def _isaretle(db: Session, user_id: int, tablo: str, satir_id: int) -> None:
 
 @router.get("/demo", response_model=DemoDurumu)
 def demo_durumu(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Örnek veri yüklü mü ve kaç satır (onboarding şeridi bunu okur)."""
     n = db.query(DemoDataMarker).filter(DemoDataMarker.user_id == user.id).count()
     return DemoDurumu(yuklu=n > 0, satir_sayisi=n)
 

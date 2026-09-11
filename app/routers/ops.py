@@ -21,12 +21,14 @@ import math
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from pydantic import Field
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
+from app.rate_limit import rate_limit
 from app.models import User, SchedulerRun, ApiCallLog, ApiCallStatus
 from app.serializers import UtcDateTime
 
@@ -168,3 +170,31 @@ def llm_sagligi(gun: int = 7, db: Session = Depends(get_db),
     gun = max(1, min(gun, 90))
     return LlmSagligi(gun=gun, saglayicilar=saglayici_sagligi(db, gun))
 
+
+# ── İSTEMCİ HATA RAPORU (BUG #406 · OBS-013) ─────────────────────────────────────
+# Tarayıcıda çöken panel ve yakalanmamış promise reddi artık sunucu defterine düşer;
+# `error_logs` aynı parmak-izi birleştirmesiyle "kaç kez, kimde, hangi yolda" der.
+# Kimlik zorunlu (anonim çöp yok) ve IP başına 30/dk (döngüye giren sekme defteri dolduramaz).
+
+class IstemciHatasi(BaseModel):
+    tip: str = Field(default="Error", max_length=60)
+    mesaj: str = Field(default="", max_length=500)
+    yigin: str = Field(default="", max_length=4000)
+    yol: str = Field(default="", max_length=120)     # aktif sekme / konum — PII değil
+
+
+class IstemciHatasiCevap(BaseModel):
+    kayit_id: Optional[int] = None
+
+
+@router.post("/istemci-hata", response_model=IstemciHatasiCevap, status_code=202)
+def istemci_hatasi_bildir(govde: IstemciHatasi, request: Request,
+                          db: Session = Depends(get_db),
+                          user: User = Depends(get_current_user)) -> IstemciHatasiCevap:
+    """Tarayıcı hatasını (çöken panel, yakalanmamış promise) sunucu hata defterine yazar."""
+    rate_limit(request, "istemci_hata", db)
+    from app.correlation import istek_id
+    from app.error_tracking import kaydet_istemci
+    kid = kaydet_istemci(db, tip=govde.tip, mesaj=govde.mesaj, yol=govde.yol, yigin=govde.yigin,
+                         user_id=user.id, istek_id=istek_id())
+    return IstemciHatasiCevap(kayit_id=kid)

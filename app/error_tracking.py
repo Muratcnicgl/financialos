@@ -170,3 +170,54 @@ def kaydet(db, *, hata: BaseException, yol: str, metod: str,
             pass
         logger.exception("[error_tracking] hata kaydedilemedi (istek etkilenmedi)")
         return None
+
+
+# ── İSTEMCİ (TARAYICI) HATALARI — BUG #406 / OBS-013 ─────────────────────────────
+# Sunucu hataları parmak iziyle birleşip `error_logs`'a düşüyordu; tarayıcıda çöken bir
+# panel yalnız kullanıcının konsolunda kalıyordu (ErrorBoundary konsola yazıyordu, o kadar).
+# Aynı defter, aynı birleştirme: tip + yol + yığının ilk üç çerçevesi (sütun/satır numaraları
+# dahil, mesaj hariç — mesaj değişken taşır). Yığın ve mesaj maskeden geçer (SEC-009 sınıfı).
+
+def istemci_parmak_izi(tip: str, yol: str, yigin: str) -> str:
+    cerceveler = [s.strip() for s in (yigin or "").splitlines() if s.strip()][:4]
+    ham = f"istemci|{tip}|{yol}|{'|'.join(cerceveler)}"
+    return hashlib.sha256(ham.encode("utf-8")).hexdigest()[:32]
+
+
+def kaydet_istemci(db, *, tip: str, mesaj: str, yol: str, yigin: str = "",
+                   user_id: Optional[int] = None, istek_id: Optional[str] = None) -> Optional[int]:
+    """Tarayıcı hatasını `error_logs`'a yazar (aynı parmak izi → sayaç). Dönüş: kayıt id."""
+    from app.models import ErrorLog
+    try:
+        tip = temizle(tip or "Error", max_uzunluk=60)
+        fp = istemci_parmak_izi(tip, yol, yigin)
+        simdi = datetime.now(timezone.utc).replace(tzinfo=None)
+        kayit = db.query(ErrorLog).filter(ErrorLog.fingerprint == fp).first()
+        if kayit:
+            kayit.occurrence_count = (kayit.occurrence_count or 1) + 1
+            kayit.last_seen_at = simdi
+            if user_id and kayit.last_user_id != user_id:
+                kayit.last_user_id = user_id
+            if istek_id:
+                kayit.last_istek_id = istek_id[:64]
+        else:
+            kayit = ErrorLog(
+                fingerprint=fp,
+                error_type=f"istemci:{tip}"[:80],
+                message=temizle(mesaj),
+                path=f"istemci:{yol}"[:200],
+                method="JS",
+                traceback_tail=temizle(yigin[-2000:], max_uzunluk=2000),
+                first_seen_at=simdi, last_seen_at=simdi, occurrence_count=1,
+                last_user_id=user_id, last_istek_id=(istek_id or None) and istek_id[:64],
+            )
+            db.add(kayit)
+        db.commit()
+        return kayit.id
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:   # ruff S110: sessiz değil, ama istek de düşmez
+            logger.debug("[error_tracking] rollback da başarısız", exc_info=True)
+        logger.exception("[error_tracking] istemci hatasi kaydedilemedi (istek etkilenmedi)")
+        return None

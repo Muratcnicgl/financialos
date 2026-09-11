@@ -49,7 +49,9 @@ _DEFAULTS = {
     # çalınmış token) saniyede yüzlerce onay/redle DB'yi ve reflection arka planını
     # doldurabilir. Panelin gerçek kullanımı bir eylem onayı için 1-2 istek; 60/dk onun
     # çok üstünde, kötüye kullanımın çok altında.
-    "actions": (60, 60),     # 60 / dakika
+    "actions": (60, 60),
+    # BUG #406: istemci hata raporu — bir döngüye giren tarayıcı defteri dolduramasın
+    "istemci_hata": (30, 60),     # 60 / dakika
 }
 
 _RATE: dict[str, deque] = defaultdict(deque)

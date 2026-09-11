@@ -60,11 +60,13 @@ def gecici_saglayici():
 
 
 def test_kota_sarmali_istegin_kendi_suresini_olcer(gecici_saglayici):
-    Sinif = gecici_saglayici("YavasTest")
+    # Windows uyku çözünürlüğü ~15,6 ms: 20 ms uyku 14 ms ölçülebiliyor (commit hook'unda
+    # ölçüldü). Eşik uykunun yarısı; süreyi sıfır/None'dan ayırmak yeter, hassasiyet değil.
+    Sinif = gecici_saglayici("YavasTest", gecikme=0.05)
     with kota.cagri_olcumu() as olcum:
         Sinif().chat("s", [], [])
     assert len(olcum) == 1
-    assert olcum[0].sure_ms is not None and olcum[0].sure_ms >= 15, olcum[0]
+    assert olcum[0].sure_ms is not None and olcum[0].sure_ms >= 25, olcum[0]
     del Sinif
 
 

@@ -554,6 +554,13 @@ export const healthApi = {
   check: () => request('/api/health'),
 };
 
+// BUG #406 (OBS-013): tarayıcı hatası sunucu defterine. Kimlik yoksa göndermez (401 olurdu).
+export const istemciHataApi = {
+  bildir: (hata) => (getAccessToken()
+    ? request('/api/ops/istemci-hata', { method: 'POST', body: hata })
+    : Promise.resolve(null)),
+};
+
 // =============================================================
 // AUTH API (M11 / ADR-033)
 // =============================================================

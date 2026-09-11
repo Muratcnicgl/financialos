@@ -1,6 +1,8 @@
 import { Component } from 'react';
 import { AlertTriangle, RefreshCw, MessageSquarePlus } from 'lucide-react';
 import FeedbackWidget from './FeedbackWidget.jsx';
+import { istemciHataApi } from '../api.js';
+import { hataBildir } from '../lib/hataBildir.js';
 
 /**
  * FE-003: Global hata sınırı. Bir panel render sırasında çökerse (ör. beklenmedik veri
@@ -27,9 +29,16 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // Konsola yaz — tanılanabilir olsun (üretimde bir gözlemlenebilirlik hook'una bağlanabilir).
     // eslint-disable-next-line no-console
     console.error('Panel çöktü (ErrorBoundary):', error, info?.componentStack);
+    // BUG #406 (OBS-013): konsol kullanıcıda kalır; defter operatörde. Ateşle-unut.
+    hataBildir({
+      tip: error?.name || 'RenderError',
+      mesaj: error?.message || String(error),
+      yigin: `${error?.stack || ''}
+${info?.componentStack || ''}`,
+      yol: `panel:${this.props.resetKey ?? '?'}`,
+    }, istemciHataApi.bildir);
   }
 
   componentDidUpdate(prevProps) {

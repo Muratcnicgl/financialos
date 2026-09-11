@@ -82,7 +82,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [OBS-013] Frontend gözlemlenebilirliği yok — JS hatası/console görünmüyor
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: ErrorBoundary var ama backend raporlama yok
+- **Durum:** ✅ KAPANDI — **BUG #406 (12 Eyl 2026):** `POST /api/ops/istemci-hata` (kimlikli, IP başına 30/dk) tarayıcı hatasını mevcut `error_logs` defterine yazar — aynı parmak-izi birleştirmesi (tip + yol + yığının ilk çerçeveleri, mesaj hariç), maskeden geçer, korelasyon kimliği taşır. İstemci: `lib/hataBildir.js` (oturumda aynı hata bir kez, en çok 10 rapor, asla fırlatmaz), `main.jsx` `error`+`unhandledrejection`, `ErrorBoundary` çöken paneli raporlar; kimlik yoksa göndermez. Sentry bilerek yok: tek operatör, defter zaten var. Kapılar: `tests/test_istemci_hata_kapisi.py` (6) + `hata-bildir.test.jsx` (5). API sözleşmesi bilinçli yeniden donduruldu (+1 korumalı uç).
 - **Kanıt:** `frontend/src/main.jsx` (error reporting yok)
 - **Aksiyon:** Global `window.onerror`/`unhandledrejection` → backend log endpoint veya Sentry; FE-005 sessiz rejection'ları yakalar.
 - **Etki:** Düşük · **Efor:** M

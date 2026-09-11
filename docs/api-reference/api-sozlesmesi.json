@@ -2161,6 +2161,20 @@
     }
   },
   {
+    "yol": "/api/ops/istemci-hata",
+    "metot": "POST",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": "IstemciHatasi",
+    "yanitlar": {
+      "202": "IstemciHatasiCevap",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
     "yol": "/api/ops/llm",
     "metot": "GET",
     "kimlik": "korumali",

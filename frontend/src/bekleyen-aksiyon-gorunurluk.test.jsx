@@ -22,8 +22,12 @@ vi.mock('./api.js', async () => {
 });
 
 const HESAPLAR = [
-  { id: 7, name: 'Garanti Kart' },
-  { id: 3, name: 'Nakit Kasa' },
+  // BUG #377 (FE-026): bu bileşene üretimde KOKPİT hesapları gelir ve kokpit hesabı `ad`
+  // taşır (rules_engine "ad": acc.name) — `/api/accounts`'un `name`'i değil. Bu fikstür
+  // `name` ile yazılmıştı: bileşenin hiç almadığı bir şekle karşı yeşildi ve `.name`
+  // okuyan satırı onaylıyordu. Test gerçeği modellemeli; şekil düzeltildi.
+  { id: 7, ad: 'Garanti Kart' },
+  { id: 3, ad: 'Nakit Kasa' },
 ];
 
 function kartOdemesi() {

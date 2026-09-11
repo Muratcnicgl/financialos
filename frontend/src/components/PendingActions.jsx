@@ -47,7 +47,13 @@ function PayloadOzeti({ payload, accounts }) {
   const p = safeParsePayload(payload);
   const satirlar = Object.entries(p).filter(([, v]) => v !== null && v !== undefined && v !== '');
   if (!satirlar.length) return null;
-  const hesapAdi = (id) => accounts?.find(a => a.id === id)?.name || `#${id}`;
+  // FE-026 / BUG #377: bu bileşene gelen `accounts` KOKPİT yükünden geliyor (Cockpit.jsx
+  // `data?.accounts`, Coach.jsx `cockpit?.accounts`) ve kokpit hesabı `ad` taşır —
+  // `/api/accounts`'un `name`'i değil (rules_engine 2442: `"ad": acc.name`). Aynı dosyanın
+  // 125 ve 164. satırları zaten `.ad` okuyordu; yalnız bu satır `.name` diyordu ve
+  // özet tablosu her hesabı "#3" diye gösteriyordu — sessiz, çünkü `|| \`#${id}\`` düşüşü
+  // hatayı bir görünüm sanmaya yetiyordu.
+  const hesapAdi = (id) => accounts?.find(a => a.id === id)?.ad || `#${id}`;
   return (
     <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
       {satirlar.map(([k, v]) => (

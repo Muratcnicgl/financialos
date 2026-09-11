@@ -52,9 +52,8 @@ Ata sürüm **"Sovereign OS"**: tamamen yerel, internetsiz, **Qwen 2.5** ile ken
 
 <!-- OTOMATIK-ONCELIK:BASLA — elle düzenleme; `python scripts/backlog_ozeti.py --yaz` -->
 
-**Üretildi:** `scripts/backlog_ozeti.py` · seçim elle, durum `sections/`ten · **4 açık / 10 kapandı**
+**Üretildi:** `scripts/backlog_ozeti.py` · seçim elle, durum `sections/`ten · **3 açık / 11 kapandı**
 
-- 🔲 **FE-026** — Hesap alan adı tutarsızlığı: `.ad` vs `.name` (latent bug) (açık)
 - 🟡 **BE-009** — Merkezî exception handler yok — `chat` endpoint hataları 200 ile gizliyor (kısmen)
 - 🟡 **API-004** — `/api/coach/chat` hata durumunda HTTP 200 dönüyor — sözleşme ihlali (kısmen)
 - 🟡 **RESIL-016** — Chat endpoint tüm hataları yutup 200 dönüyor — hata görünmez, retry yok (kısmen)
@@ -69,6 +68,7 @@ Ata sürüm **"Sovereign OS"**: tamamen yerel, internetsiz, **Qwen 2.5** ile ken
 - ✅ **RULE-006** — Para hesaplarında `float` + `round()` banker's rounding sürüklenmesi (kapandı)
 - ✅ **RULE-040** — Modüller arası para tipi tutarsızlığı: Account=Float, Goal=Numeric — köprüde hassasiyet kaybı (kapandı)
 - ✅ **FE-002** — Dinamik Tailwind sınıfları prod build'de purge oluyor (renkler kaybolur) — GERÇEK BUG (kapandı)
+- ✅ **FE-026** — Hesap alan adı tutarsızlığı: `.ad` vs `.name` (latent bug) (kapandı)
 - ✅ **SEC-001** — Kimlik doğrulama tamamen yok — `get_current_user` ilk kullanıcıyı döndürüyor (kapandı)
 - ✅ **DATA-003** — SQLite `PRAGMA foreign_keys=ON` hiçbir yerde ayarlanmıyor — FK/ON DELETE sessizce kapalı (kapandı)
 

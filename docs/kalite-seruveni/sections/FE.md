@@ -156,7 +156,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [FE-026] Hesap alan adı tutarsızlığı: `.ad` vs `.name` (latent bug)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: PendingActions .ad vs .name latent boş isim
+- **Durum:** ✅ KAPANDI — BUG #377 (11 Eyl 2026): `PayloadOzeti.hesapAdi` `.name` okuyordu, gelen liste KOKPİT hesabı (`ad`) → özet tablosu her hesabı `#id` gösteriyordu. `.ad`'a çevrildi; vitest kapısı doğru dalı (`update_account_balance`) ölçer, mutasyonla doğrulandı. Diğer `.name` kullanımları (`Transactions.jsx`, `Accounts.jsx`) `/api/accounts`'tan besleniyor, doğru.
 - **Kanıt:** `PendingActions.jsx:79,118` (`.ad`) vs `Transactions.jsx:294`/`Accounts.jsx:218` (`.name`)
 - **Aksiyon:** `a.name ?? a.ad` veya kaynağı standardize; backend ad/name farkını netleştir.
 - **Etki:** Orta · **Efor:** S

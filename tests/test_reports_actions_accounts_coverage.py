@@ -516,15 +516,15 @@ def test_approve_olmayan_404(db_session):
         app.dependency_overrides.clear()
 
 
-def test_approve_zaten_executed_422(db_session):
-    """actions.py:263-267 — execute başarısız (zaten executed) → 422."""
+def test_approve_zaten_executed_409(db_session):
+    """actions.py:263-267 — execute başarısız (zaten executed) → 409."""
     try:
         acc = _cash(db_session)
         p = _pending(db_session, 1, {"transaction_type": "expense", "amount": 50.0,
                                      "account_id": acc.id, "auto_update_balance": True},
                      status=ActionStatus.executed)
         r = _client(db_session).post(f"/api/actions/{p.id}/approve")
-        assert r.status_code == 422
+        assert r.status_code == 409  # BUG #402: durum çatışması
     finally:
         app.dependency_overrides.clear()
 
@@ -563,13 +563,13 @@ def test_reject_olmayan_action_404(db_session):
         app.dependency_overrides.clear()
 
 
-def test_reject_zaten_executed_404(db_session):
-    """reject: status != pending → success False → 404."""
+def test_reject_zaten_executed_409(db_session):
+    """reject: status != pending → success False → 409."""
     try:
         p = _pending(db_session, 1, {"transaction_type": "expense", "amount": 100.0},
                      status=ActionStatus.executed)
         r = _client(db_session).post(f"/api/actions/{p.id}/reject")
-        assert r.status_code == 404
+        assert r.status_code == 409  # BUG #402: durum çatışması, 'bulunamadı' değil
     finally:
         app.dependency_overrides.clear()
 

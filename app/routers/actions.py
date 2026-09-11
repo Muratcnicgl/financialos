@@ -255,6 +255,28 @@ class ActionHistoryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+def _yurutucu_hatasi(result: dict, varsayilan: str) -> HTTPException:
+    """Yürütücünün `{success: False, ...}` sözlüğünü HTTP statüsüne çevirir (BUG #402 / BE-011).
+
+    Eskiden approve her başarısızlığı 422'ye, reject her başarısızlığı 404'e çeviriyordu:
+    "kural engelledi" (politika), "zaten uygulandı" (durum çatışması) ve "hesap yok" (girdi)
+    aynı koddan dönüyor, istemci ayıramıyordu. Sınıf yürütücüde işaretlenir, statü burada:
+      rule_blocked → 403 · kod="zaten" → 409 · kod="bulunamadi" → 404 · diğer → 422.
+    Yürütücü sözleşmesi (dict) bilerek korunur: ADR-001 enforcement kod seviyesinde,
+    istisna hiyerarşisi her handler'ı değiştirirdi — sınıf etiketi aynı ayrımı verir.
+    """
+    detay = result.get("error") or result.get("message") or varsayilan
+    if result.get("rule_blocked"):
+        kod = status.HTTP_403_FORBIDDEN
+    elif result.get("kod") == "zaten":
+        kod = status.HTTP_409_CONFLICT
+    elif result.get("kod") == "bulunamadi":
+        kod = status.HTTP_404_NOT_FOUND
+    else:
+        kod = status.HTTP_422_UNPROCESSABLE_ENTITY
+    return HTTPException(status_code=kod, detail=detay)
+
+
 # ============================================================
 # ENDPOINTS
 # ============================================================
@@ -315,10 +337,7 @@ def approve_action(
     result = execute_pending_action(db=db, action_id=action_id, user_id=current_user.id)
 
     if not result.get("success"):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=result.get("error", "Aksiyon uygulanamadi."),
-        )
+        raise _yurutucu_hatasi(result, "Aksiyon uygulanamadi.")
 
     # Execute sonrasi snapshot — M43: aktif workspace deltası
     with workspace_scope(ws_id):
@@ -399,7 +418,7 @@ def reject_action(
     result = reject_pending_action(db=db, action_id=action_id, user_id=current_user.id, reason=reason)
 
     if not result.get("success"):
-        raise HTTPException(status_code=404, detail=result.get("error", "Aksiyon reddetme basarisiz."))
+        raise _yurutucu_hatasi(result, "Aksiyon reddetme basarisiz.")
 
     return result
 

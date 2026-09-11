@@ -557,12 +557,13 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
     )
 
     if not pending:
-        return {"success": False, "error": f"Aksiyon bulunamadi: id={action_id}"}
+        return {"success": False, "error": f"Aksiyon bulunamadi: id={action_id}", "kod": "bulunamadi"}
 
     if pending.status != ActionStatus.pending:
         return {
             "success": False,
-            "error": f"Aksiyon zaten '{pending.status.value}' durumunda — tekrar uygulanamaz."
+            "error": f"Aksiyon zaten '{pending.status.value}' durumunda — tekrar uygulanamaz.",
+            "kod": "zaten",   # BUG #402: router 409'a çevirir
         }
 
     try:
@@ -652,9 +653,9 @@ def reject_pending_action(db: Session, action_id: int, user_id: int, reason: Opt
         .first()
     )
     if not pending:
-        return {"success": False, "error": "Aksiyon bulunamadi."}
+        return {"success": False, "error": "Aksiyon bulunamadi.", "kod": "bulunamadi"}
     if pending.status != ActionStatus.pending:
-        return {"success": False, "error": f"Aksiyon zaten '{pending.status.value}'."}
+        return {"success": False, "error": f"Aksiyon zaten '{pending.status.value}'.", "kod": "zaten"}
 
     pending.status = ActionStatus.rejected
     pending.resolved_at = datetime.utcnow()

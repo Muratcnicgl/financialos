@@ -87,7 +87,7 @@ def test_approve_olmayan_404(db_session):
         app.dependency_overrides.clear()
 
 
-def test_approve_zaten_executed_422(db_session):
+def test_approve_zaten_executed_409(db_session):
     try:
         acc = _cash(db_session)
         p = _pending(db_session, 1, {"transaction_type": "expense", "amount": 100.0,
@@ -95,7 +95,7 @@ def test_approve_zaten_executed_422(db_session):
         p.status = ActionStatus.executed
         db_session.commit()
         r = _client(db_session).post(f"/api/actions/{p.id}/approve")
-        assert r.status_code == 422
+        assert r.status_code == 409  # BUG #402: durum çatışması
     finally:
         app.dependency_overrides.clear()
 

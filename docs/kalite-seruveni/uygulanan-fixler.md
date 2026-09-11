@@ -1213,3 +1213,4 @@ Tur şu şikâyetle başladı: koç kalitesi düşük, düzeltmeler ölçülemiy
 | #423 | **"GÖRÜLEN" / "TAM" NET DEĞER AÇIKLAMASIZDI (UX-021)** | `MetricCard.aciklama` + erişilebilir "?" düğmesi; iki karta kavram metni. | `MetricCard.jsx`, `Cockpit.jsx`, `metric-card-aciklama.test.jsx` | RTL 2 test; vitest 289; build | ✅ |
 | #424 | **EMANET DOKUNULMAZLIĞI TAAHHÜT METNİ VE BAĞLANTISIZDI (UX-022)** | `MetricCard.aciklamaBaglanti`; emanet kartında kendine-söz metni + Kırmızı Çizgiler bağlantısı. | `MetricCard.jsx`, `Cockpit.jsx`, test | RTL; vitest 291 | ✅ |
 | #425 | **KART DOLULUĞU KARTINA SOMUT MESAFE (UX-003)** | Bar/%/band zaten vardı (madde bayat); "limite X kaldı" eklendi. | `Cockpit.jsx`, test | RTL | ✅ |
+| #426 | **BEKLEYEN ALACAK ÖZETİ YALNIZ TOPLAMDI (UX-007)** | Adet · en eskisi · gecikmiş şerit bandı. Test fikstürü UTC yerine yerel gün (gece 00-03 TR'de 12≠13). | `IncomeDebt.jsx`, test | RTL; vitest 293; build | ✅ |

@@ -46,7 +46,7 @@
 - **Etki:** Orta · **Efor:** M · **Not:** Chip'ler soru olmalı, KURAL SIFIR'ı bozmamalı.
 
 ### [UX-007] 13 alacak için yaşlandırma (aging) görünümü yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: yaşlandırma bandı var ama IncomeDebt toplam-bekleyen bandı yok
+- **Durum:** ✅ KAPANDI — **BUG #426 (12 Eyl 2026):** kokpitte yaşlandırma kartı zaten vardı; Gelir & Borç panelinin "Bekleyen alacak" özeti yalnız toplamdı. Toplamın altında bant: "N alacak · en eskisi X gün · [M gecikmiş · tutar]" (gecikmiş kırmızı şerit; yaş = bugün − vade, yerel gün). Sıralama değiştirilmedi: liste zaten vade sırasıyla geliyor (`due_date asc nulls last`, backend). Kapı `borc-alacak-tahsilat.test.jsx` — ilk yazımda UTC/yerel gün farkı (gece 00-03 TR) 12 yerine 13 ölçtü; fikstür yerel güne çevrildi (takvim-fikstürü dersinin üçüncü yüzü).
 - **Kanıt:** `IncomeDebt.jsx:75-93,581-592`
 - **Aksiyon:** "Toplam bekleyen: X · en eskisi N gün" bandı; varsayılan "en eski/gecikmiş önce"; gecikmiş kırmızı şerit.
 - **Etki:** Yüksek · **Efor:** S

@@ -110,7 +110,19 @@ export default function IncomeDebt() {
     const pendingPayable = debts
       .filter(d => !d.is_paid && d.direction === 'payable')
       .reduce((sum, d) => sum + (d.amount || 0), 0);
-    return { monthlyIncome, monthlyExpense, pendingReceivable, pendingPayable };
+    // BUG #426 (UX-007): toplam yetmez — en eski/gecikmiş alacağın yaşı bandı taşır.
+    // Yaş = bugün − vade (vade yoksa sayılmaz); gecikmiş = vadesi geçmiş.
+    const bugun = todayLocalISO();
+    const bekleyenAlacaklar = debts.filter(d => !d.is_paid && d.direction === 'receivable');
+    const gecikmisAlacak = bekleyenAlacaklar.filter(d => d.due_date && d.due_date < bugun);
+    const enEskiGun = bekleyenAlacaklar.reduce((enEski, d) => {
+      if (!d.due_date) return enEski;
+      const gun = Math.round((new Date(bugun + 'T00:00:00') - new Date(d.due_date + 'T00:00:00')) / 86400000);
+      return Math.max(enEski, gun);
+    }, 0);
+    return { monthlyIncome, monthlyExpense, pendingReceivable, pendingPayable,
+             bekleyenAlacakAdet: bekleyenAlacaklar.length, gecikmisAlacakAdet: gecikmisAlacak.length,
+             gecikmisAlacakToplam: gecikmisAlacak.reduce((t, d) => t + (d.amount || 0), 0), enEskiGun };
   }, [incomes, expenses, debts]);
 
   // ============================================================
@@ -292,6 +304,18 @@ export default function IncomeDebt() {
           <p className="font-numeric text-base font-bold text-positive-600 dark:text-positive-400">
             +{formatSayi(summary.pendingReceivable)} <span className="text-[10px] font-normal">{paraEtiketi()}</span>
           </p>
+          {/* BUG #426 (UX-007): toplam-bekleyen bandı — adet, en eskisi, gecikmiş kırmızı */}
+          {summary.bekleyenAlacakAdet > 0 && (
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1" data-testid="alacak-bandi">
+              {summary.bekleyenAlacakAdet} alacak
+              {summary.enEskiGun > 0 && <> · en eskisi {summary.enEskiGun} gün</>}
+              {summary.gecikmisAlacakAdet > 0 && (
+                <span className="ml-1 rounded px-1 bg-negative-100 text-negative-700 dark:bg-negative-900/40 dark:text-negative-300 font-medium">
+                  {summary.gecikmisAlacakAdet} gecikmiş · {formatSayi(summary.gecikmisAlacakToplam)}
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <div className="card p-3">
           <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">

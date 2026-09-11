@@ -131,3 +131,25 @@ describe('BUG #241 — tahsilat nakde yansır ve GÖRÜNÜR', () => {
     expect(screen.queryByText(/nakit karşılığı da geri alınacak/)).not.toBeInTheDocument();
   });
 });
+
+describe('UX-007 — bekleyen alacak bandı (BUG #426)', () => {
+  it('toplamın altında adet, en eskisinin yaşı ve gecikmiş şerit görünür', async () => {
+    // Yerel gün (UTC değil): panel `todayLocalISO()` ile yerel günü okur; gece 00-03 TR'de
+    // UTC tarihi bir gün geridedir ve 12 yerine 13 ölçülür (ilk yazımda tam bu oldu).
+    const yerel = (kaydir) => {
+      const d = new Date(); d.setDate(d.getDate() + kaydir);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const gecmis = yerel(-12);   // 12 gün gecikmiş
+    const gelecek = yerel(20);
+    await panelAc({ debts: [
+      { ...ALACAK, id: 11, amount: 1500, due_date: gecmis },
+      { ...ALACAK, id: 12, amount: 2000, due_date: gelecek },
+    ] });
+    const bant = await screen.findByTestId('alacak-bandi');
+    expect(bant).toHaveTextContent(/2 alacak/);
+    expect(bant).toHaveTextContent(/en eskisi 12 gün/);
+    expect(bant).toHaveTextContent(/1 gecikmiş/);
+    expect(bant).toHaveTextContent(/1\.500/);
+  });
+});

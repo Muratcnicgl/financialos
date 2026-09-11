@@ -226,7 +226,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DATA-035] `Account.current_price` vs `PriceHistory` cache tutarlılığı guard'sız
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: last_price_update var, cache guard + yaş uyarısı doğrulanamadı (models.py:206)
+- **Durum:** ✅ KAPANDI — **BUG #386 (11 Eyl 2026):** iki yarım iddia ölçüldü. Yaş uyarısı VAR (BUG #239): backend türetir (`fiyat_bayat`/`fiyat_yas`), Hesaplar paneli "Fiyat (bayat)", kokpit tazelik rozetleri, koç promptunda "FİYAT BAYAT" bloğu, kural motorunda `fiyat_bayat`; canlıda tek yatırım hesabı, fiyat dün 23:45 çekilmiş, cron 1/1. Cache guard VAR: doğrudan `current_price` atayan üç nokta (fund_tracker, price_providers/router, action_executor satış) aynı anda `last_price_update` yazar; accounts router koşullu yazar ve mevcut testlerle örtülü. Eksik olan ölçümdü — kapı `tests/test_fiyat_onbellegi_kapisi.py` (yeni doğrudan yazma noktası damgayı unutursa kırmızı; `simulation_engine` bellek-içi, gerekçeli muaf).
 - **Kanıt:** `app/models.py:172-173` cache; `:540-579` kaynak
 - **Aksiyon:** Cache'i tek noktadan güncelle; `last_price_update` yaşını Cockpit'te göster, N günden eskiyse uyar.
 - **Etki:** Orta · **Efor:** M

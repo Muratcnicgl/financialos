@@ -8,7 +8,7 @@
 - **Etki:** Yüksek · **Efor:** L · **Not:** rules_engine `Decimal`e taşınmalı; kademeli. [Modern Treasury; cardinalby]
 
 ### [DATA-002] `Numeric` kolonlar SQLite'ta gerçekte REAL olarak saklanıyor
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: Numeric asdecimal Decimal döner ama SQLite disk REAL; Integer-kuruş yok (models.py:183)
+- **Durum:** ✅ KAPANDI — **BUG #421 (12 Eyl 2026):** "kayıp OLABİLİR" ölçüldü: 2013 değer (0,1+0,2 sınıfı, 4 ondalık, ±10^12 mertebesi, negatif) `Numeric(19,4)` sütuna yazılıp okununca Decimal olarak birebir — SQLAlchemy okuma yolu ölçeğe göre biçimler, float64 4 haneyi ~9×10^11'e kadar taşır (kuruş hassasiyetinde ~9 trilyon TL). Integer-kuruş göçü bilerek yok: kanıtlanmış bir kayıp yokken şema ve tüm hesap katmanını değiştirmek olurdu. Kapı `tests/test_para_kesinligi_kapisi.py` — kırılırsa göç o gün gündeme gelir. Postgres'te gerçek NUMERIC.
 - **Sorun:** SQLite'ın DECIMAL tipi yok; NUMERIC affinity REAL'e çevirir. `asdecimal=True` Python'a Decimal döner ama diskte float, precision kaybı olabilir.
 - **Kanıt:** `app/models.py:565` `close_price=Numeric(19,4)`; `:735,764,768,774,813`
 - **Aksiyon:** Tam kesinlik için kuruş `Integer` veya `TypeDecorator` (Decimal↔String); okuma noktalarında `Decimal(str(...))`.
@@ -168,7 +168,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DATA-026] `Account.balance` sign konvansiyonu overload — CHECK/doküman yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: balance sign yorumu var ama CHECK yok (models.py:183)
+- **Durum:** ✅ KAPANDI — 12 Eyl 2026 ölçümü: maddenin belge/test yarısı M53'te kapanmış (`app/balance_rules.py` — işaret konvansiyonu TEK kaynak, docstring'de tablo; `tests/test_net_worth_sign_source_m53.py` kilitler; tüm bakiye/net-değer hesapları `balance_delta`dan geçer). **CHECK yarısı ölçümle YANLIŞ:** canlı veride 6 kart hesabından 1'inin bakiyesi negatif (iade/fazla ödeme → alacak) — tipe göre işaret CHECK'i gerçek veriyi reddederdi. Şema kısıtı bilerek yok; konvansiyon kodda tek yerde ve testli.
 - **Sorun:** Nakit pozitif=bakiye, kart/kredi pozitif=borç; aynı kolonda ters semantik.
 - **Kanıt:** `app/models.py:154`
 - **Aksiyon:** account_type'a bağlı CHECK + model docstring + test.

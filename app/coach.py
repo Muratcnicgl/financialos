@@ -1846,133 +1846,18 @@ class GeminiProvider(LLMProvider):
 
 
 # ============================================================
-# 9. GROQ PROVIDER
-# ============================================================
-
-class GroqProvider(LLMProvider):
-    # Groq 17 Haz 2026'da llama-3.3-70b-versatile'i DEPRECATE etti (404). Önerilen halef:
-    # openai/gpt-oss-120b (tool-calling'de güçlü). Eval bunu yakaladı: eski model → Groq düşer,
-    # zayıf Gemini'ye kalıyordu → gerçekleşmiş eylemde propose_action kaçıyordu.
-    DEFAULT_MODEL = "openai/gpt-oss-120b"
-    NAME = "Groq"
-
-    def __init__(self, api_key: str, model: Optional[str] = None):
-        from groq import Groq
-        self.client = Groq(api_key=api_key, timeout=llm_timeout_saniye())  # BUG #263
-        self.model = model or self.DEFAULT_MODEL
-
-    def _raw_chat(self, system_prompt, messages, tools):
-        groq_tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": t["name"],
-                    "description": t["description"],
-                    "parameters": t["parameters"],
-                },
-            }
-            for t in tools
-        ]
-
-        groq_messages = [{"role": "system", "content": system_prompt}]
-        groq_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
-
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=groq_messages,
-            tools=groq_tools,
-            tool_choice="auto",
-            temperature=0.2,
-            max_tokens=4096,
-        )
-
-        msg = response.choices[0].message
-
-        text = msg.content or ""
-        tool_calls = []
-
-        if msg.tool_calls:
-            for tc in msg.tool_calls:
-                if tc.function and tc.function.name:
-                    try:
-                        args = json.loads(tc.function.arguments) if tc.function.arguments else {}
-                    except Exception:
-                        args = {}
-                    tool_calls.append({"name": tc.function.name, "input": args})
-
-        usage = None
-        if response.usage:
-            usage = {
-                "input_tokens": response.usage.prompt_tokens,
-                "output_tokens": response.usage.completion_tokens,
-            }
-
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
-                           usage=usage, provider_used="groq",
-                           model_name=self.model)
-
-    def chat(self, system_prompt, messages, tools):
-        return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
-
-
-# ============================================================
-# 10. CEREBRAS PROVIDER (BUG #028)
-# ============================================================
-
-class CerebrasProvider(LLMProvider):
-    # Cerebras 27 May 2026'da qwen-3-235b-a22b-instruct-2507'i deprecate etti (404). gpt-oss-120b
-    # güncel + tool-calling güçlü (Groq ile tutarlı). Eval canlı çalıştırmasında yakalandı.
-    DEFAULT_MODEL = "gpt-oss-120b"
-    NAME = "Cerebras"
-
-    def __init__(self, api_key: str, model: Optional[str] = None):
-        from openai import OpenAI
-        self.client = OpenAI(api_key=api_key, base_url="https://api.cerebras.ai/v1",
-                             timeout=llm_timeout_saniye())  # BUG #263
-        self.model = model or self.DEFAULT_MODEL
-
-    def _raw_chat(self, system_prompt, messages, tools):
-        oai_tools = [
-            {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["parameters"]}}
-            for t in tools
-        ]
-        oai_messages = [{"role": "system", "content": system_prompt}]
-        oai_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
-
-        kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2, "max_tokens": 4096}
-        if oai_tools:
-            kwargs["tools"] = oai_tools
-            kwargs["tool_choice"] = "auto"
-
-        response = self.client.chat.completions.create(**kwargs)
-        msg = response.choices[0].message
-        text = msg.content or ""
-        tool_calls = []
-        if msg.tool_calls:
-            for tc in msg.tool_calls:
-                if tc.function and tc.function.name:
-                    try:
-                        args = json.loads(tc.function.arguments) if tc.function.arguments else {}
-                    except Exception:
-                        args = {}
-                    tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
-                           usage=_openai_compat_usage(response),
-                           provider_used=self.NAME.lower(), model_name=self.model)
-
-    def chat(self, system_prompt, messages, tools):
-        return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
-
-
-# ============================================================
-# 10b/c. TOGETHER + DEEPINFRA (M13/ADR-034 revize — OpenAI-uyumlu, Cerebras deseni)
+# 9a. OPENAI-UYUMLU ORTAK GOVDE (BUG #399 / BE-002)
 # ============================================================
 
 class _OpenAICompatMixin:
-    """OpenAI-uyumlu _raw_chat — Cerebras/OpenRouter/Together/DeepInfra ortak gövdesi.
+    """OpenAI-uyumlu `_raw_chat` — Groq/Cerebras/OpenRouter/Together/DeepInfra TEK gövdesi.
 
-    Alt sınıf `NAME`, `DEFAULT_MODEL`, `BASE_URL` verir. Kod tekrarını azaltır
-    (P2-12 refactor'ının küçük bir adımı; mevcut Cerebras/OpenRouter korunur).
+    Alt sınıf `NAME`, `DEFAULT_MODEL`, `client` (chat.completions arayüzü) ve `model` verir.
+    BUG #399 (BE-002): mixin 13 Tem'de yazılmış ama yalnız Together/DeepInfra kullanıyordu;
+    Cerebras ve OpenRouter'ın gövdesi mixin'le BAYT BAYT aynıydı, Groq'unki yalnız boş araç
+    listesini de gönderiyordu (`tools=[]`) — bir hata dört yerde düzeltiliyordu. Artık tek
+    yer; kapı `tests/test_saglayici_govdesi_kapisi.py` beş sınıfın `_raw_chat`inin bu
+    fonksiyon OLDUĞUNU dayatır (yeni kopya kırmızı).
     """
     def _raw_chat(self, system_prompt, messages, tools):
         oai_tools = [
@@ -2005,6 +1890,46 @@ class _OpenAICompatMixin:
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
 
 
+# ============================================================
+# 9. GROQ PROVIDER
+# ============================================================
+
+class GroqProvider(_OpenAICompatMixin, LLMProvider):
+    # Groq 17 Haz 2026'da llama-3.3-70b-versatile'i DEPRECATE etti (404). Önerilen halef:
+    # openai/gpt-oss-120b (tool-calling'de güçlü). Eval bunu yakaladı: eski model → Groq düşer,
+    # zayıf Gemini'ye kalıyordu → gerçekleşmiş eylemde propose_action kaçıyordu.
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
+    NAME = "Groq"
+
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        from groq import Groq
+        self.client = Groq(api_key=api_key, timeout=llm_timeout_saniye())  # BUG #263
+        self.model = model or self.DEFAULT_MODEL
+
+
+
+# ============================================================
+# 10. CEREBRAS PROVIDER (BUG #028)
+# ============================================================
+
+class CerebrasProvider(_OpenAICompatMixin, LLMProvider):
+    # Cerebras 27 May 2026'da qwen-3-235b-a22b-instruct-2507'i deprecate etti (404). gpt-oss-120b
+    # güncel + tool-calling güçlü (Groq ile tutarlı). Eval canlı çalıştırmasında yakalandı.
+    DEFAULT_MODEL = "gpt-oss-120b"
+    NAME = "Cerebras"
+
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        from openai import OpenAI
+        self.client = OpenAI(api_key=api_key, base_url="https://api.cerebras.ai/v1",
+                             timeout=llm_timeout_saniye())  # BUG #263
+        self.model = model or self.DEFAULT_MODEL
+
+
+
+# ============================================================
+# 10b/c. TOGETHER + DEEPINFRA (M13/ADR-034 revize — OpenAI-uyumlu, Cerebras deseni)
+# ============================================================
+
 class TogetherProvider(_OpenAICompatMixin, LLMProvider):
     NAME = "Together"
     DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
@@ -2033,7 +1958,7 @@ class DeepInfraProvider(_OpenAICompatMixin, LLMProvider):
 # 11. OPENROUTER PROVIDER (BUG #028)
 # ============================================================
 
-class OpenRouterProvider(LLMProvider):
+class OpenRouterProvider(_OpenAICompatMixin, LLMProvider):
     # BUG #315 — SABİT MODEL KİMLİĞİ SESSİZCE ÇÜRÜR.
     # Eski varsayılan `meta-llama/llama-3.3-70b-instruct:free` OpenRouter kataloğundan
     # KALKMIŞTI (ölçüldü: `/api/v1/models` içinde yok; ücretli `:free`-siz hâli duruyor).
@@ -2081,37 +2006,6 @@ class OpenRouterProvider(LLMProvider):
         )
         self.model = model or self.DEFAULT_MODEL
 
-    def _raw_chat(self, system_prompt, messages, tools):
-        oai_tools = [
-            {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["parameters"]}}
-            for t in tools
-        ]
-        oai_messages = [{"role": "system", "content": system_prompt}]
-        oai_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
-
-        kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2, "max_tokens": 4096}
-        if oai_tools:
-            kwargs["tools"] = oai_tools
-            kwargs["tool_choice"] = "auto"
-
-        response = self.client.chat.completions.create(**kwargs)
-        msg = response.choices[0].message
-        text = msg.content or ""
-        tool_calls = []
-        if msg.tool_calls:
-            for tc in msg.tool_calls:
-                if tc.function and tc.function.name:
-                    try:
-                        args = json.loads(tc.function.arguments) if tc.function.arguments else {}
-                    except Exception:
-                        args = {}
-                    tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
-                           usage=_openai_compat_usage(response),
-                           provider_used=self.NAME.lower(), model_name=self.model)
-
-    def chat(self, system_prompt, messages, tools):
-        return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
 
 
 # ============================================================

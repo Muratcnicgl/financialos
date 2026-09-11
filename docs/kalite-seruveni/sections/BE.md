@@ -8,7 +8,7 @@
 - **Etki:** Yüksek · **Efor:** L · **Not:** Davranış değişmeden saf taşıma; her adımda test çalıştır. (zhanymkanov/fastapi-best-practices)
 
 ### [BE-002] OpenAI-uyumlu 3 provider `_raw_chat` gövdesi neredeyse birebir aynı
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: _OpenAICompatMixin var ama Groq/Cerebras/OpenRouter kopya gövde
+- **Durum:** ✅ KAPANDI — **BUG #399 (11 Eyl 2026):** `_OpenAICompatMixin` 13 Tem'de yazılmış ama yalnız Together/DeepInfra kullanıyordu; Cerebras ve OpenRouter gövdesi mixin'le bayt bayt aynıydı, Groq tek farkla (boş `tools=[]` de gönderiyordu) kopyaydı. Üçü mixin'e taşındı (−148/+42 satır); tek davranış farkı: Groq artık araç yokken alanı hiç göndermiyor (diğer dördüyle aynı). Kapı `tests/test_saglayici_govdesi_kapisi.py`: beş sınıfın `_raw_chat`i (kota sarmalının altındaki `__wrapped__`) mixin'in fonksiyonunun kendisi; sahte istemciyle araç/kullanım/kimlik sözleşmesi. Mutasyonla doğrulandı; mevcut Groq sözleşme testleri ve kota muhasebesi kapısı yeşil.
 - **Sorun:** Groq/Cerebras/OpenRouter `_raw_chat` kodu kopya; bir bug 3 yerde düzeltiliyor.
 - **Kanıt:** `app/coach.py:972-1023, 1039-1067, 1090-1118`
 - **Aksiyon:** `OpenAICompatibleProvider` temel sınıfı (`base_url`, `NAME`, `DEFAULT_MODEL`, `default_headers` param); üçü türesin.

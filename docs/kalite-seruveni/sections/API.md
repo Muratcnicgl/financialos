@@ -24,7 +24,7 @@
 - **Etki:** Yüksek · **Efor:** M · **Not:** BE-009/BE-011 ile aynı kök.
 
 ### [API-004] `/api/coach/chat` hata durumunda HTTP 200 dönüyor — sözleşme ihlali
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: chat provider hatasında 200 döner
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: chat provider hatasında 200 döner · **BUG #376 (11 Eyl 2026):** `ChatResponse.llm_kullanilamadi` eklendi — koçun düştüğü artık sözleşmede görünür; 5xx yarısı bilinçli olarak yapılmadı (200 + panel verisi korunur, RESIL-004)
 - **Sorun/Fırsat:** İstemci başarı sanır, retry/hata UX'i kuramaz, monitoring 5xx görmez.
 - **Kanıt:** `app/routers/coach.py:306-313`
 - **Aksiyon:** Gerçek hatada 4xx/5xx + problem+json; başarılı ama "koç meşgul" durumunu ayrı alanla belirt.

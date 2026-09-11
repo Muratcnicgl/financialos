@@ -99,7 +99,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [RESIL-016] Chat endpoint tüm hataları yutup 200 dönüyor — hata görünmez, retry yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: chat 200+graceful (bilinçli BE-009) ama logger.error eklendi
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: chat 200+graceful (bilinçli BE-009) ama logger.error eklendi · **BUG #376 (11 Eyl 2026):** `ChatResponse.llm_kullanilamadi` eklendi — koçun düştüğü artık sözleşmede görünür; 5xx yarısı bilinçli olarak yapılmadı (200 + panel verisi korunur, RESIL-004)
 - **Kanıt:** `app/routers/coach.py:306-313`
 - **Aksiyon:** Gerçek hata 5xx (BE-009/API-004); istemci retry/degrade UX kurabilsin.
 - **Etki:** Yüksek · **Efor:** S

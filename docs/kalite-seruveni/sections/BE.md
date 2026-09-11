@@ -63,7 +63,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [BE-009] Merkezî exception handler yok — `chat` endpoint hataları 200 ile gizliyor
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: ham hata kapatıldı ama chat provider hatasında 200 döner
+- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: ham hata kapatıldı ama chat provider hatasında 200 döner · **BUG #376 (11 Eyl 2026):** `ChatResponse.llm_kullanilamadi` eklendi — koçun düştüğü artık sözleşmede görünür; 5xx yarısı bilinçli olarak yapılmadı (200 + panel verisi korunur, RESIL-004)
 - **Sorun:** `/api/coach/chat` tüm `Exception`'ı yakalayıp `reply="...{e}"` ile HTTP 200 dönüyor; istemci başarı sanır, ham exception sızar, monitoring 5xx görmez.
 - **Kanıt:** `app/routers/coach.py:306-313`
 - **Aksiyon:** `add_exception_handler(DomainError,...)` + genel Exception handler; 500 + `problem+json`. (FastAPI Handling Errors + RFC 9457)

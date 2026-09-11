@@ -20,6 +20,7 @@ devam etmeli.
 import logging
 from datetime import date
 from fastapi import APIRouter, Depends
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.user_prefs import user_today  # BUG #197: kullanici saat dilimi
@@ -80,8 +81,22 @@ def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict,
     if mevcut is None:
         db.add(NetWorthSnapshot(user_id=user_id, workspace_id=workspace_id,  # M43
                                 snapshot_date=today, **degerler))
-        db.commit()
-        return
+        try:
+            db.commit()
+            return
+        except IntegrityError:
+            # BUG #378 — BAK-SONRA-YAZ YARIŞI. Aynı gün için iki EŞ ZAMANLI kokpit isteği
+            # (canlıda ölçüldü, 10 Eyl 23:30:09 ve :12, iki ayrı istek kimliği) ikisi de
+            # `mevcut is None` gördü, ikisi de INSERT etti; ikincisi
+            # `UNIQUE (user_id, snapshot_date)` ile düştü ve uyarı olarak loglandı.
+            # Yarışı kaybetmek bir hata DEĞİLDİR: kazanan satırı yazdı, kaybeden o satırı
+            # bugünün son bilinen durumuyla GÜNCELLEMELİDİR (bu fonksiyonun sözleşmesi
+            # upsert — BUG #292). Uyarı kanalı gerçek arızalar için kalsın; yarış
+            # gürültü üretmesin (L22: okunmayan uyarı, uyarı değildir).
+            db.rollback()
+            mevcut = q.first()
+            if mevcut is None:  # pragma: no cover — UNIQUE düştü ama satır yok: gerçek arıza
+                raise
 
     # BUG #292: gün içi güncelleme. Karşılaştırma float üzerinden — DB Numeric(19,4)
     # Decimal döner, cockpit float verir (B1 sınırı); tip farkı "değişti" sanılmamalı.

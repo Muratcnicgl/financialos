@@ -213,3 +213,51 @@ def test_workspace_dalinda_da_guncellenir(db):
     assert len(kayitlar) == 1, "workspace dalında ikinci satır açılmamalı"
     assert float(kayitlar[0].net_worth_full) == 4200.0
     assert kayitlar[0].workspace_id == 7
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 4 — BUG #378: BAK-SONRA-YAZ YARIŞI — kaybeden taraf hata değil, GÜNCELLEME yoludur
+# ══════════════════════════════════════════════════════════════════════════
+def test_bug378_es_zamanli_iki_istek_ikincisi_gunceller(db, monkeypatch):
+    """
+    Canlıda ölçüldü (10 Eyl 2026 23:30): aynı güne iki eş zamanlı kokpit isteği; ikisi de
+    "bugün kayıt yok" gördü, ikisi de INSERT etti → ikincisi `UNIQUE (user_id,
+    snapshot_date)` ile düştü ve "snapshot kaydedilemedi" uyarısı üretti (×4).
+
+    Yarış burada DETERMİNİSTİK kurulur: fonksiyonun ilk `first()` çağrısı None döner
+    (bayat okuma), ama arada başka bir istek satırı yazmıştır. Beklenen: exception YOK,
+    satır TEK, ve değeri kaybeden isteğin (daha güncel) verisiyle güncellenmiş.
+    """
+    # 1) "Başka istek" bugünün satırını yazdı (kazanan): net değer 0
+    db.add(NetWorthSnapshot(user_id=1, workspace_id=None, snapshot_date=BUGUN,
+                            net_worth_seen=0, net_worth_full=0, cash=0, card_debt=0,
+                            loan_debt=0, investment_value=0, receivables=0))
+    db.commit()
+
+    # 2) Kaybeden istek daha güncel veriyle gelir: bir hesap eklendi
+    db.add(Account(user_id=1, name="Kumbara", account_type=AccountType.cash, balance=1234.0))
+    db.commit()
+    kokpit = _cockpit(db)
+    assert kokpit["net_deger"] == 1234.0
+
+    # 3) Bayat okumayı taklit et: fonksiyonun İLK `first()` çağrısı None döner
+    gercek_query = db.query
+    sayac = {"first": 0}
+
+    class BayatQuery:
+        def __init__(self, q): self._q = q
+        def filter(self, *a, **k): return BayatQuery(self._q.filter(*a, **k))
+        def first(self):
+            sayac["first"] += 1
+            return None if sayac["first"] == 1 else self._q.first()
+
+    monkeypatch.setattr(db, "query", lambda *a, **k: BayatQuery(gercek_query(*a, **k)))
+
+    _ensure_today_snapshot(db, 1, kokpit, None, today=BUGUN)   # exception FIRLATMAMALI
+
+    monkeypatch.undo()
+    satirlar = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.snapshot_date == BUGUN).all()
+    assert len(satirlar) == 1, "yarış ikinci satır üretti — UNIQUE nasıl geçti?"
+    assert float(satirlar[0].net_worth_seen) == 1234.0, (
+        "kaybeden istek satırı güncellemedi — eski değer kaldı (sessiz kayıp)"
+    )

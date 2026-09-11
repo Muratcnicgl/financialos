@@ -56,7 +56,7 @@ def iki_kullanici(engine_and_session, monkeypatch):
         users.append((u.id, ws.id))
     db.close()
 
-    import scripts.backfill_net_worth as bf
+    import app.services.net_worth_backfill as bf
     import app.startup as startup_mod
     monkeypatch.setattr(bf, "SessionLocal", Session)
     monkeypatch.setattr(startup_mod, "SessionLocal", Session)

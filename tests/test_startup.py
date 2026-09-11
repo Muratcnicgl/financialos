@@ -54,7 +54,7 @@ def test_eksik_gun_backfill_cagirir(Session, monkeypatch):
     called = {}
     # BUG #163: catch-up artık kullanıcı başına çağırır → imza `user_id` de alır
     monkeypatch.setattr(
-        "scripts.backfill_net_worth.run_backfill",
+        "app.services.net_worth_backfill.run_backfill",
         lambda start, end, verbose=False, user_id=None:
             called.setdefault("n", (start, end, user_id)) or 5)
     startup.catch_up_snapshots()

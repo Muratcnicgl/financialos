@@ -156,9 +156,10 @@ def test_imajda_yikici_sema_araci_yok():
 # ------------------------------------------------------------
 
 def test_calisma_zamani_gerekli_scriptler_imajda_kaliyor():
-    """Eleme fazla geniş olursa uygulama prod'da çöker — `app/startup.py` bunu import ediyor."""
+    """Eleme fazla geniş olursa uygulama prod'da çöker — `app/startup.py` bunları import ediyor."""
     yollar = {p.relative_to(KOK).as_posix() for p in imaja_giren_dosyalar()}
-    zorunlu = {"scripts/__init__.py", "scripts/backfill_net_worth.py",
+    # BUG #401: backfill hesabı app/services'e taşındı; betik artık çalışma zamanı için zorunlu değil.
+    zorunlu = {"scripts/__init__.py", "app/services/net_worth_backfill.py",
                "app/main.py", "alembic.ini", "docker-entrypoint.sh",
                "docs/legal/kvkk-consent-v3.md"}   # BUG #191: hukuki metin API'den sunulur
     eksik = sorted(z for z in zorunlu if z not in yollar)

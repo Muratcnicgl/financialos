@@ -214,7 +214,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [BE-033] `main.py` runtime içinde `scripts.*` import ediyor — katman ihlali
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: scripts startup.py'ye taşındı ama runtime scripts'e bağımlı
+- **Durum:** ✅ KAPANDI — **BUG #401 (11 Eyl 2026):** `git grep` tek satır gösterdi: `app/startup.py` → `scripts.backfill_net_worth.run_backfill`. Hesaplama `app/services/net_worth_backfill.py`e taşındı; betik ince CLI sarmalayıcı, eski adları yeniden dışa aktarır (testler/elle kullanım bozulmadı). İmaj kapısı artık betiği değil servisi zorunlu sayar. Kapı `tests/test_katman_kapisi.py`: `app/` altında `scripts` içe aktarımı AST ile 0 (yorum/docstring sayılmaz), kapsam tabanı 50 modül. Yan kazanım: taşınan ölü `TransactionType` importu silindi, ruff F tavanı 201→200.
 - **Sorun:** `from scripts.backfill_net_worth import run_backfill`; app runtime'ı scripts'e bağımlı, dağıtımda bulunmayabilir.
 - **Kanıt:** `app/main.py:68-106`
 - **Aksiyon:** `run_backfill`'i `app/services/net_worth_service.py`'ye taşı.

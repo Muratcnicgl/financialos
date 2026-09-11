@@ -30,7 +30,7 @@ def catch_up_snapshots() -> None:
     diğer kullanıcıların net-değer geçmişinde kalıcı boşluklar oluşuyordu (trend/atıf raporları
     sessizce eksik). Kullanıcı başına ayrı aralık hesaplanır — herkesin kendi boşluğu kadar.
     """
-    from scripts.backfill_net_worth import run_backfill
+    from app.services.net_worth_backfill import run_backfill  # BUG #401: runtime scripts/'e bağımlı değil
 
     db = SessionLocal()
     try:

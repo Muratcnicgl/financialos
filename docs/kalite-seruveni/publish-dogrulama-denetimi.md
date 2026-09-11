@@ -1,6 +1,6 @@
 # PUBLISH DOĞRULAMA DENETİMİ — 8 boyut, salt-okur + çelişme turu
 
-**Koşum:** 5 Ağustos 2026, 13:20-13:54 · 49 ajan · 3.97M token · workflow `wf_ddd8b54e-1c9`
+**Koşum:** 5 Ağustos 2026, 13:20-13:54 · 8 boyut · 49 paralel tarama turu
 **Yöntem:** her boyut bağımsız bir denetçi tarafından SALT-OKUR tarandı (kod okuma + kendi geçici probları + canlı DB salt-okur sorguları); ardından **her bulgu ayrı bir çelişme (adversarial) ajanına** verildi ve çürütülmeye çalışıldı. Aşağıdakiler çelişme turundan SAĞ ÇIKAN bulgulardır.
 **Sonuç:** 40 bulgu onaylandı, 1 çürütüldü.
 

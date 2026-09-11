@@ -5,7 +5,7 @@
 uygula, sonucu bildir"*). Murat **veto** hakkını saklı tutar.
 
 > **Bu ADR bir yöntem değişikliği de kaydeder.** `masterprompt-kapali-beta.md` §5 şöyle
-> bitiyordu: *"Kararı Murat verir… asistan araci üç seçeneği ölçüp sunar, **seçmez**."*
+> bitiyordu: *"Kararı Murat verir… otomasyon üç seçeneği ölçüp sunar, **seçmez**."*
 > Bu kural **24 gün boyunca kararın açık kalmasına** sebep oldu: her tur seçenekler
 > yeniden sunuldu, karar hiç verilmedi. Wave-Y bunu bilinçli olarak tersine çevirdi.
 > Sunmak, karar vermek değildir.

@@ -7,7 +7,7 @@ yazılmamalı."*
 
 ÖLÇÜLEN DURUM: `RecurringExpense.account_id` **zorunluydu** (`nullable=False`). Yani
 "sigara" gibi bazen kartla bazen nakitle yapılan bir harcamayı sisteme girmek için bir
-hesap SEÇMEK gerekiyordu — ve bu seçim bir varsayımdı. Asistan da bunu yaptı: kullanıcının
+hesap SEÇMEK gerekiyordu — ve bu seçim bir varsayımdı. İlk uygulama da bunu yaptı: kullanıcının
 üç yaşam giderini karta bağladı. Kullanıcı bunu fark edip düzeltilmesini istedi.
 
 TASARIM — ÜÇ KOVA, HİÇBİRİ SESSİZ DEĞİL:

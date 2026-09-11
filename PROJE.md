@@ -30,7 +30,7 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > (`VerifiedAndReputablePolicyState=1`) ve pandas'ın imzasız `timestamps...pyd` dosyasını
 > engelliyor. Aynı ilke `_greenlet...pyd` ve `computer-control-mcp.exe`'yi de kesiyor
 > (CodeIntegrity Id 3033/3077, 20 Ağu-2 Eyl arası 36 olay). SAC tek yönlüdür — kapatılırsa
-> Windows yeniden kurulmadan geri açılamaz; karar kullanıcınındır, asistan değiştirmez.
+> Windows yeniden kurulmadan geri açılamaz; karar kullanıcınındır, otomasyon değiştirmez.
 > **GÜNCEL (2 Eyl, ikinci tur): 3349 passed, 18 skipped, 0 failed.** Smart App Control
 > kullanıcı tarafından KAPATILDI → pandas/greenlet `.pyd` engeli kalktı, `test_multi_asset`
 > yeşile döndü. Önceki temiz koşum (1 Eyl): 3272 passed.
@@ -123,7 +123,7 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 >
 > **METODOLOJİ:** bir ratchet kapısı bu turda ÜÇ kez değişikliği reddetti ve üçünde de
 > haklı çıktı — tavan değil TASARIM düzeldi. Mutasyon BEŞ kez kapının kendi kör noktasını
-> buldurdu. Asistan iki kez bir KOD VARSAYIMINI ölçüm sandı ve kullanıcı düzeltti
+> buldurdu. İki kez bir KOD VARSAYIMI ölçüm sanıldı ve kullanıcı düzeltti
 > (asgari oran, maaş günü) — *bir sayının nereden geldiğini sormadan onu ölçüm sayma.*
 >
 > **BUG #323 — ÜRÜN, SÖYLEDİĞİ ŞEYİ YAPMAYI REDDEDİYORDU (3 Eyl 2026).** Kullanıcı
@@ -722,7 +722,7 @@ D (M90-91 flaky-yok 3× + p95<20ms + kapanış). Çıktı: `goal-charter-wave6.m
 
 - **LİSANS + ATIF (7 Ağu 2026 kararı):** repo **"Tüm Hakları Saklıdır"** (MIT'ten çevrildi; MIT 6 May–7 Ağu
   arası geçerliydi ve o dönem edinilen kopyalar için geri alınamaz). Commit mesajlarına
-  **Commit mesajlarına araç/asistan atfı EKLENMEZ** — yasal zorunluluk değil, proje sahibinin tercihi. Proje tek yazarlıdır ve commit geçmişi bunu yansıtır.
+  **Commit mesajlarına araç atfı EKLENMEZ** — yasal zorunluluk değil, proje sahibinin tercihi. Proje tek yazarlıdır ve commit geçmişi bunu yansıtır.
   **Geçmiş temizliği TAMAM (7 Ağu 2026):** `git-filter-repo` mesaj-callback ile 574 commit işlendi,
   311 mesaj değişti, kalan trailer 0; `push --force` (main + 99 tag) yapıldı. Bütünlük kanıtı:
   `HEAD^{tree}` rewrite öncesi/sonrası aynı (`c9a718e7…`) — içerik/yazar/tarih değişmedi, yalnız

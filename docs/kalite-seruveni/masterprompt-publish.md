@@ -1,10 +1,10 @@
 # MASTERPROMPT — PUBLISH YOLU (Wave-9)
 
-> **Bu dosya bir plan değil, bir TALİMATTIR.** asistan araci her oturumda bu dosyayı okur ve
+> **Bu dosya bir plan değil, bir TALİMATTIR.** her çalışma oturumunda bu dosya okunur ve
 > buradaki protokolü uygular. "Kaldığımız yerden devam" = bu dosyanın §11 DURUM TABLOSU'ndaki
 > ilk ⬜/🟡 satırdan devam etmek demektir.
 >
-> **Sürüm:** v2.0 · **Yazıldı:** 2026-08-04 · **Revize:** 2026-08-05 (41 bug sonrası ders-kuralları) · **Sahip:** Murat İçgil · **Yürütücü:** asistan araci
+> **Sürüm:** v2.0 · **Yazıldı:** 2026-08-04 · **Revize:** 2026-08-05 (41 bug sonrası ders-kuralları) · **Sahip:** Murat İçgil · **Yürütücü:** Murat İçgil
 > **Değişiklik günlüğü:** §12 (yalnız İLERİ yönlü — kapsam daraltma/kalite düşürme yasak)
 
 ---
@@ -28,7 +28,7 @@ Bunlar `PROJE.md`'den devralınır ve bu goal boyunca **sertleştirilmiş** hali
 | # | Kural | Bu goal'de anlamı |
 |---|---|---|
 | K1 | Türkçe, direkt, dalkavukluk yok | Rapor = bulgu + kanıt. "Harika gidiyoruz" cümlesi yok. |
-| K3 | asistan araci'un yapabildiğini kullanıcıya delege etme | Yalnız §9'daki İNSAN-KAPISI listesi delege edilir. Başka hiçbir şey. |
+| K3 | Otomasyonun yapabildiğini elle işe delege etme | Yalnız §9'daki İNSAN-KAPISI listesi delege edilir. Başka hiçbir şey. |
 | K12 | Kalite MUTLAK, basitlik gerekçe değil | "MVP yeter / pratik / hızlı / şimdilik" → **yasak gerekçe**, reddedilir. |
 | R3 | Memory vs disk çelişirse **disk** gerçek | Her iddia `git`/`pytest`/`alembic`/`inspect`/`curl` ile doğrulanır. |
 | D1 | Yeni mimari karar öncesi 2-3 sektör referansı | ADR yazılmadan mimari karar uygulanmaz. |
@@ -125,31 +125,31 @@ yazılır, sonra ilgili faza görev olarak bağlanır. Buraya yazılmayan şey u
 | # | Madde | Kaynak | Bağlı faz | Durum |
 |---|---|---|---|---|
 | H1 | **Yeni kullanıcı kendi verisini + kendi öznel kurallarını kurabilmeli** — sistem tek kişinin OS'u olmaktan çıkıp ürün olmalı | Murat (4 Ağu) | P3.5 | ✅ kayıt→boş dünya→kendi hesabı→kendi kuralı (dayatılan) uçtan uca testli; kalan: kişiselleştirme alanları (H4) |
-| H2 | Kodda/prompt'ta gerçek kişi adı, banka markası, kişisel senaryo kalmamalı (statik kapı ile kilitle) | asistan (ölçüldü) | P3.5.1 | ✅ 45 iz temizlendi (yorum/docstring + kullanıcıya görünen placeholder); kapı TÜM app/+frontend/src |
-| H3 | Kullanıcının yazdığı kırmızı çizgi, koddaki MC1 kadar sert dayatılmalı | asistan | P3.5.2 | ✅ BUG #192 — rules-as-data, aksiyon öncesi kod-seviyesi dayatma (11 test) |
-| H4 | Para birimi / dil / saat dilimi / kategori seti kullanıcı başına | asistan | P3.5.3 | 🟡→✅ **KATEGORİ SETİ DE KAPANDI (BUG #264 / ADR-046, 7 Ağu):** kategori artık bir KAYIT (`categories`) ve kod hiçbir kararı ADA bağlamıyor. Ölçülen defekt: bir harcamanın **kredi kartına** yazılıp yazılmayacağı beş sabit Türkçe ada bağlıydı (`_CARD_CATEGORIES`) — kendi kategorisini adlandıran kullanıcıda kural sessizce ölüyor, "market" deyip nakit ödeyende ise **iki bakiye birden** yanlış çıkıyordu. İkinci küme (`_PATTERN_EXCLUDED_CATEGORIES`) muhasebe işlemini harcama uyarısından ada bakarak çıkarıyordu; sınıf taraması `borc_geri_odeme`'nin listede HİÇ olmadığını buldu (bugün canlı defekt). Arayüzde üç ayrı, birbirinden farklı sabit liste vardı. Silme = hedefe taşı / gizle; sistem kategorisi korumalı. Göç davranışı değiştirmez, **sahipliği** değiştirir. **Kalan:** yalnız dil/i18n — kapalı beta TR olduğu için yayın-engeli DEĞİL. Önceki: **görüntüleme kısmı KAPANDI (BUG #256 / ADR-044, 7 Ağu):** biçimlendirme yedi yerden **tek kaynağa** indi (`app/money_format.py` + `frontend/src/lib/money.js`), 167 backend + 91 frontend ham "TL" sabiti kalktı, **grounding para birimine bağlandı** (etiket değişince doğrulama sessiz-yeşile düşüyordu). TRY kilidi BİLİNÇLİ kalıyor: çoklu para birimiyle hesap tutma (kur çevrimi) ayrı ADR ister. Saat dilimi zaten ✅ (#197/#237). **Kalan:** dil/i18n ve kategori seti — açık |
-| H5 | Boş-durum kırılmamalı + **isteğe bağlı** demo veri (tek tuşla sil) | asistan | P3.5.5 | ✅ BUG #194 — `/api/onboarding/demo`; kaldırma KULLANICININ verisine dokunmaz (testli) |
-| H6 | Hesabını silen kullanıcının verisi **gerçekten** silinmeli (KVKK "unutulma"), yedeklerdeki durum yazılı olmalı | asistan | P3.4 / P4.4 | ✅ **BUG #204** — KIRIKTI: verisi olan kullanıcı hesabını silemiyordu (FK ihlali). Şema-türetimli determinist silme + 4 test |
-| H7 | Veri dışa aktarma **taşınabilir** formatta (JSON/CSV) ve tam olmalı | asistan | P3.4 | ✅ doğrulandı (14 tablo, goal çocukları dahil) |
-| H8 | Kullanıcı başına LLM maliyet tavanı — bir kullanıcı bütçeyi tüketip diğerlerini kilitleyememeli | asistan | P3.1 | ✅ ADR-041 / BUG #188 |
-| H9 | Koça yazılan metin **prompt injection** taşıyabilir; koç başkasının verisine ulaşamamalı | asistan | P2.8 | ✅ **BUG #257 / ADR-045** — ölçüldü: kullanıcı, hesap adı/kural başlığı gibi alanlarla koç bağlamında **kendi `## SİSTEM` bölümünü açabiliyordu** (paylaşılan workspace'te başka üyenin koçunu etkiler). `app/prompt_safety.guvenli_metin` ile yapı taşıyan işaretler nötrlendi (satır sonu/başlık/çit/rol-token/görünmez karakter); sınıf taraması kalıcı yolu da buldu (insight → prompt → insight). 15 test + mutasyon + kapsam tabanı. Kabul edilen risk artık yalnız 'model ikna edilebilir' |
-| H10 | E-posta şablonları ürün kimliğiyle konuşmalı, kişisel imza taşımamalı | asistan | P3.5.1 | ✅ **BUG #205** — şifre sıfırlama şablonunda kişisel gmail vardı; `SUPPORT_EMAIL` + kapı genişletildi |
-| H11 | Şifre sıfırlama/oturum akışı gerçek e-posta ile uçtan uca denenmeli (SMTP canlı) | asistan | P6.3 | ⬜ |
-| H12 | Kayıt sırasında KVKK rızası sürüm/tarih ile saklanmalı (mevcut) + metin **yayında erişilebilir** olmalı | asistan | P4.3 | ✅ BUG #191 (v2) |
-| H13 | "Yatırım tavsiyesi değildir" uyarısı koç arayüzünde de görünmeli (yalnız sözleşmede değil) | asistan | P4.2 | ✅ koç paneli + kayıt ekranı |
-| H14 | Yedekten **geri yükleme provası** yapılmadan yedek sayılmaz | asistan | P5.1 | ✅ SQLite + **PostgreSQL (prod yolu)** provası otomatik koşuyor |
-| H15 | Beta kullanıcısının bildirdiği hata, geliştiriciye **kullanıcı verisi sızmadan** ulaşmalı | asistan | P7 | ✅ **BUG #209** — geri bildirim kimseye ULAŞMIYORDU; `scripts/beta_triage.py` (hata kayıtlarıyla yan yana, e-posta maskeli) |
-| H16 | Fiyat sağlayıcıları (TEFAS/BIST/döviz) çöktüğünde uygulama çalışmaya devam etmeli, sayı **bayat** işaretlenmeli | asistan | P5.2 | ✅ **BUG #211** — fon/hisse zaten bayat işaretliydi (`fund_tracker.is_stale` → Cockpit "N eski"); **döviz** kör noktaydı: sağlayıcı düşer düşmez kur TAMAMEN kayboluyordu. Son bilinen değer artık `bayat`/`yas_dakika` ile döner, koç "şu anki" DEMEZ, 12 saatten eskisi hiç sunulmaz (8 test) |
-| H17 | Çok kullanıcı aynı anda koç kullanınca sağlayıcı kotası/kilit sorunu olmamalı | asistan | P3.1 / P8 | ✅ **BUG #212** — iki defekt: (a) kota akışı "oku → LLM çağır → yaz" olduğu için hakkı 1 kalan kullanıcı paralel istekle tavanı deliyordu (ölçüldü: `[200,200,200]`); rezervasyon desenine geçildi. (b) muhasebe etiketi `FallbackProvider`'ın **paylaşılan** durumundan okunuyordu → `fallback(gemini)` limit tablosunda yok → günlük kota koruması sessizce ölüydü (5 test) |
-| H18 | Kullanıcı silme/çıkarma sonrası workspace sahipliği ortada kalmamalı | asistan | P3.4 | ✅ **BUG #206** — VERİ KAYBI: aile workspace'i sahibiyle siliniyordu (eşin verisi yok oluyordu). Sahiplik devri + 3 test |
-| H19 | **`alembic/env.py` config URL'ini yok sayıyor** — test/script içinden migration çağrısı GERÇEK DB'ye gidebilir (BUG #196) | asistan (ölçüldü 5 Ağu) | P5.4 | ✅ düzeltildi + veri-dolu migration provası (4 test) |
-| H20 | Onboarding UI: demo veri + ilk-kurulum rehberi arayüze bağlanmalı | asistan | P3.3 | ✅ **BUG #262 ile GERÇEKTEN kapandı (7 Ağu).** Eski "✅ sıralı yol" iddiası yarımdı: kart ilk hesap eklenince kayboluyor, birincil düğmesi ölü bağlantıydı. Artık 4 adımlı ilerleme kartı — durum backend'de türetilir, her adım düğmesi gerçekten sekme açar, demo veri adım saymaz, gizleme geri alınabilir |
-| H21 | Kullanıcı-tanımlı kural arayüzü: kural tiplerini UI'dan seçebilmeli | asistan | P3.5.2 | ✅ kırmızı-çizgi formunda "otomatik uygulansın mı?" seçimi (3 tip) |
-| H22 | **Hiçbir güvenlik sınırı tek katmanda (ters vekilde) yaşamamalı** — nginx atlanabilir, yapılandırma sessizce değişebilir | asistan (ölçüldü 5 Ağu) | P2.9 | ✅ **BUG #213** — gövde sınırı YALNIZ `client_max_body_size 1m` idi; uygulama katmanına taşındı (chunked dahil), nginx şablonu testle kilitlendi |
-| H23 | **Operatör betanın kullanılıp kullanılmadığını görebilmeli** — beta'nın en olası başarısızlığı gürültülü çöküş değil SESSİZ TERK'tir | asistan (ölçüldü 5 Ağu) | P7/P8 | ✅ **BUG #214** — yalnız şikâyet edeni gören `beta_triage` vardı; `scripts/beta_metrics.py` (onboarding hunisi, sessiz terk, tutunma, koç hata oranı — **yalnız sayı, PII testle yasak**) |
-| H24 | **Kullanıcının GÖRDÜĞÜ katman da boş/hata durumunda sınanmalı** — backend uçları sağlam diye arayüz sağlam değildir; kullanıcı beyaz ekran görür, süit yeşil kalır | asistan (ölçüldü 5 Ağu) | P3.2 | ✅ **BUG #218/#219** — 13 panel hem boş-veri hem hata yolunda taranıyor (`empty-state` + `error-state`, 54 test); mock'lar tahmin değil **gerçek boş-kullanıcı cevapları** (fixture + sözleşme kayması kapısı) |
-| H25 | **Kapsam ölçülmeden kapı sayılmaz** — "hepsini tarar" diyen her kapıya taban (minimum sayı) assert et; kütüphane sürümü kapıyı sessizce körleştirebilir | asistan (ölçüldü 5 Ağu) | P0/P1 | ✅ **BUG #217** — iki kapı (boş-durum taraması + izolasyon matrisi kapsamı) fiilen ölüydü; envanter OpenAPI'ye taşındı + taban assert (L11) |
-| H26 | **Kullanıcıya YAYINLANAN her beyan ile GERÇEK davranış arasına test koy** — gizlilik/veri-işleyen/KVKK metinleri, "şunu göndermiyoruz" cümleleri ve kurulum dokümanlarının vaatleri. Belge elle senkron kalmaz; yanlış beyan hukuki risktir | asistan (ölçüldü 5 Ağu) | P4 | ✅ **BUG #231** — envanter "ham işlem listesi gönderilmez" diyordu, gerçekte açıklamalar + üçüncü kişi adları gidiyordu. Kapı artık gerçek koç bağlamını üretip beyanla karşılaştırıyor (L9) |
+| H2 | Kodda/prompt'ta gerçek kişi adı, banka markası, kişisel senaryo kalmamalı (statik kapı ile kilitle) | denetim (ölçüldü) | P3.5.1 | ✅ 45 iz temizlendi (yorum/docstring + kullanıcıya görünen placeholder); kapı TÜM app/+frontend/src |
+| H3 | Kullanıcının yazdığı kırmızı çizgi, koddaki MC1 kadar sert dayatılmalı | denetim | P3.5.2 | ✅ BUG #192 — rules-as-data, aksiyon öncesi kod-seviyesi dayatma (11 test) |
+| H4 | Para birimi / dil / saat dilimi / kategori seti kullanıcı başına | denetim | P3.5.3 | 🟡→✅ **KATEGORİ SETİ DE KAPANDI (BUG #264 / ADR-046, 7 Ağu):** kategori artık bir KAYIT (`categories`) ve kod hiçbir kararı ADA bağlamıyor. Ölçülen defekt: bir harcamanın **kredi kartına** yazılıp yazılmayacağı beş sabit Türkçe ada bağlıydı (`_CARD_CATEGORIES`) — kendi kategorisini adlandıran kullanıcıda kural sessizce ölüyor, "market" deyip nakit ödeyende ise **iki bakiye birden** yanlış çıkıyordu. İkinci küme (`_PATTERN_EXCLUDED_CATEGORIES`) muhasebe işlemini harcama uyarısından ada bakarak çıkarıyordu; sınıf taraması `borc_geri_odeme`'nin listede HİÇ olmadığını buldu (bugün canlı defekt). Arayüzde üç ayrı, birbirinden farklı sabit liste vardı. Silme = hedefe taşı / gizle; sistem kategorisi korumalı. Göç davranışı değiştirmez, **sahipliği** değiştirir. **Kalan:** yalnız dil/i18n — kapalı beta TR olduğu için yayın-engeli DEĞİL. Önceki: **görüntüleme kısmı KAPANDI (BUG #256 / ADR-044, 7 Ağu):** biçimlendirme yedi yerden **tek kaynağa** indi (`app/money_format.py` + `frontend/src/lib/money.js`), 167 backend + 91 frontend ham "TL" sabiti kalktı, **grounding para birimine bağlandı** (etiket değişince doğrulama sessiz-yeşile düşüyordu). TRY kilidi BİLİNÇLİ kalıyor: çoklu para birimiyle hesap tutma (kur çevrimi) ayrı ADR ister. Saat dilimi zaten ✅ (#197/#237). **Kalan:** dil/i18n ve kategori seti — açık |
+| H5 | Boş-durum kırılmamalı + **isteğe bağlı** demo veri (tek tuşla sil) | denetim | P3.5.5 | ✅ BUG #194 — `/api/onboarding/demo`; kaldırma KULLANICININ verisine dokunmaz (testli) |
+| H6 | Hesabını silen kullanıcının verisi **gerçekten** silinmeli (KVKK "unutulma"), yedeklerdeki durum yazılı olmalı | denetim | P3.4 / P4.4 | ✅ **BUG #204** — KIRIKTI: verisi olan kullanıcı hesabını silemiyordu (FK ihlali). Şema-türetimli determinist silme + 4 test |
+| H7 | Veri dışa aktarma **taşınabilir** formatta (JSON/CSV) ve tam olmalı | denetim | P3.4 | ✅ doğrulandı (14 tablo, goal çocukları dahil) |
+| H8 | Kullanıcı başına LLM maliyet tavanı — bir kullanıcı bütçeyi tüketip diğerlerini kilitleyememeli | denetim | P3.1 | ✅ ADR-041 / BUG #188 |
+| H9 | Koça yazılan metin **prompt injection** taşıyabilir; koç başkasının verisine ulaşamamalı | denetim | P2.8 | ✅ **BUG #257 / ADR-045** — ölçüldü: kullanıcı, hesap adı/kural başlığı gibi alanlarla koç bağlamında **kendi `## SİSTEM` bölümünü açabiliyordu** (paylaşılan workspace'te başka üyenin koçunu etkiler). `app/prompt_safety.guvenli_metin` ile yapı taşıyan işaretler nötrlendi (satır sonu/başlık/çit/rol-token/görünmez karakter); sınıf taraması kalıcı yolu da buldu (insight → prompt → insight). 15 test + mutasyon + kapsam tabanı. Kabul edilen risk artık yalnız 'model ikna edilebilir' |
+| H10 | E-posta şablonları ürün kimliğiyle konuşmalı, kişisel imza taşımamalı | denetim | P3.5.1 | ✅ **BUG #205** — şifre sıfırlama şablonunda kişisel gmail vardı; `SUPPORT_EMAIL` + kapı genişletildi |
+| H11 | Şifre sıfırlama/oturum akışı gerçek e-posta ile uçtan uca denenmeli (SMTP canlı) | denetim | P6.3 | ⬜ |
+| H12 | Kayıt sırasında KVKK rızası sürüm/tarih ile saklanmalı (mevcut) + metin **yayında erişilebilir** olmalı | denetim | P4.3 | ✅ BUG #191 (v2) |
+| H13 | "Yatırım tavsiyesi değildir" uyarısı koç arayüzünde de görünmeli (yalnız sözleşmede değil) | denetim | P4.2 | ✅ koç paneli + kayıt ekranı |
+| H14 | Yedekten **geri yükleme provası** yapılmadan yedek sayılmaz | denetim | P5.1 | ✅ SQLite + **PostgreSQL (prod yolu)** provası otomatik koşuyor |
+| H15 | Beta kullanıcısının bildirdiği hata, geliştiriciye **kullanıcı verisi sızmadan** ulaşmalı | denetim | P7 | ✅ **BUG #209** — geri bildirim kimseye ULAŞMIYORDU; `scripts/beta_triage.py` (hata kayıtlarıyla yan yana, e-posta maskeli) |
+| H16 | Fiyat sağlayıcıları (TEFAS/BIST/döviz) çöktüğünde uygulama çalışmaya devam etmeli, sayı **bayat** işaretlenmeli | denetim | P5.2 | ✅ **BUG #211** — fon/hisse zaten bayat işaretliydi (`fund_tracker.is_stale` → Cockpit "N eski"); **döviz** kör noktaydı: sağlayıcı düşer düşmez kur TAMAMEN kayboluyordu. Son bilinen değer artık `bayat`/`yas_dakika` ile döner, koç "şu anki" DEMEZ, 12 saatten eskisi hiç sunulmaz (8 test) |
+| H17 | Çok kullanıcı aynı anda koç kullanınca sağlayıcı kotası/kilit sorunu olmamalı | denetim | P3.1 / P8 | ✅ **BUG #212** — iki defekt: (a) kota akışı "oku → LLM çağır → yaz" olduğu için hakkı 1 kalan kullanıcı paralel istekle tavanı deliyordu (ölçüldü: `[200,200,200]`); rezervasyon desenine geçildi. (b) muhasebe etiketi `FallbackProvider`'ın **paylaşılan** durumundan okunuyordu → `fallback(gemini)` limit tablosunda yok → günlük kota koruması sessizce ölüydü (5 test) |
+| H18 | Kullanıcı silme/çıkarma sonrası workspace sahipliği ortada kalmamalı | denetim | P3.4 | ✅ **BUG #206** — VERİ KAYBI: aile workspace'i sahibiyle siliniyordu (eşin verisi yok oluyordu). Sahiplik devri + 3 test |
+| H19 | **`alembic/env.py` config URL'ini yok sayıyor** — test/script içinden migration çağrısı GERÇEK DB'ye gidebilir (BUG #196) | denetim (ölçüldü 5 Ağu) | P5.4 | ✅ düzeltildi + veri-dolu migration provası (4 test) |
+| H20 | Onboarding UI: demo veri + ilk-kurulum rehberi arayüze bağlanmalı | denetim | P3.3 | ✅ **BUG #262 ile GERÇEKTEN kapandı (7 Ağu).** Eski "✅ sıralı yol" iddiası yarımdı: kart ilk hesap eklenince kayboluyor, birincil düğmesi ölü bağlantıydı. Artık 4 adımlı ilerleme kartı — durum backend'de türetilir, her adım düğmesi gerçekten sekme açar, demo veri adım saymaz, gizleme geri alınabilir |
+| H21 | Kullanıcı-tanımlı kural arayüzü: kural tiplerini UI'dan seçebilmeli | denetim | P3.5.2 | ✅ kırmızı-çizgi formunda "otomatik uygulansın mı?" seçimi (3 tip) |
+| H22 | **Hiçbir güvenlik sınırı tek katmanda (ters vekilde) yaşamamalı** — nginx atlanabilir, yapılandırma sessizce değişebilir | denetim (ölçüldü 5 Ağu) | P2.9 | ✅ **BUG #213** — gövde sınırı YALNIZ `client_max_body_size 1m` idi; uygulama katmanına taşındı (chunked dahil), nginx şablonu testle kilitlendi |
+| H23 | **Operatör betanın kullanılıp kullanılmadığını görebilmeli** — beta'nın en olası başarısızlığı gürültülü çöküş değil SESSİZ TERK'tir | denetim (ölçüldü 5 Ağu) | P7/P8 | ✅ **BUG #214** — yalnız şikâyet edeni gören `beta_triage` vardı; `scripts/beta_metrics.py` (onboarding hunisi, sessiz terk, tutunma, koç hata oranı — **yalnız sayı, PII testle yasak**) |
+| H24 | **Kullanıcının GÖRDÜĞÜ katman da boş/hata durumunda sınanmalı** — backend uçları sağlam diye arayüz sağlam değildir; kullanıcı beyaz ekran görür, süit yeşil kalır | denetim (ölçüldü 5 Ağu) | P3.2 | ✅ **BUG #218/#219** — 13 panel hem boş-veri hem hata yolunda taranıyor (`empty-state` + `error-state`, 54 test); mock'lar tahmin değil **gerçek boş-kullanıcı cevapları** (fixture + sözleşme kayması kapısı) |
+| H25 | **Kapsam ölçülmeden kapı sayılmaz** — "hepsini tarar" diyen her kapıya taban (minimum sayı) assert et; kütüphane sürümü kapıyı sessizce körleştirebilir | denetim (ölçüldü 5 Ağu) | P0/P1 | ✅ **BUG #217** — iki kapı (boş-durum taraması + izolasyon matrisi kapsamı) fiilen ölüydü; envanter OpenAPI'ye taşındı + taban assert (L11) |
+| H26 | **Kullanıcıya YAYINLANAN her beyan ile GERÇEK davranış arasına test koy** — gizlilik/veri-işleyen/KVKK metinleri, "şunu göndermiyoruz" cümleleri ve kurulum dokümanlarının vaatleri. Belge elle senkron kalmaz; yanlış beyan hukuki risktir | denetim (ölçüldü 5 Ağu) | P4 | ✅ **BUG #231** — envanter "ham işlem listesi gönderilmez" diyordu, gerçekte açıklamalar + üçüncü kişi adları gidiyordu. Kapı artık gerçek koç bağlamını üretip beyanla karşılaştırıyor (L9) |
 
 ---
 
@@ -376,16 +376,16 @@ ADR-040), duyuru metni, dokümantasyon (kullanıcı rehberi güncel), destek/ile
 
 ---
 
-## §5. PARALEL AJAN PROTOKOLÜ
+## §5. PARALEL TARAMA PROTOKOLÜ
 
-Murat paralel çalışmayı onayladı. Ajanlar **keşif ve tarama** için kullanılır, **karar** için değil.
+Paralel tarama turları **keşif ve tarama** için kullanılır, **karar** için değil.
 
-- **Ne zaman ajan:** geniş tarama (çok dosya/dizin), bağımsız denetim boyutları, çok sayıda
+- **Ne zaman paralel tarama:** geniş tarama (çok dosya/dizin), bağımsız denetim boyutları, çok sayıda
   endpoint/dosyanın aynı ölçütle taranması, birbirine bağımsız iş parçaları.
-- **Ne zaman ajan DEĞİL:** mimari karar, bug fix'in doğruluğu, kapı geçme kararı — bunlar bende kalır.
-- **Ajan brief şablonu:** (1) tek cümle görev, (2) tam kapsam (dosya/dizin listesi), (3) aranan
+- **Ne zaman DEĞİL:** mimari karar, bug fix'in doğruluğu, kapı geçme kararı — bunlar elle verilir.
+- **Tarama brief şablonu:** (1) tek cümle görev, (2) tam kapsam (dosya/dizin listesi), (3) aranan
   ölçüt, (4) beklenen çıktı formatı, (5) **"bulgunu dosya:satır ile kanıtla"**, (6) yasak: fix yapma.
-- **AJAN RAPORU KANIT DEĞİLDİR.** Her ajan bulgusu, kapıya sayılmadan önce **benim tarafımdan**
+- **TARAMA RAPORU KANIT DEĞİLDİR.** Her tarama bulgusu, kapıya sayılmadan önce **elle**
   dosya/komut ile doğrulanır. Doğrulanamayan bulgu düşer.
 
 ---
@@ -429,7 +429,7 @@ Kanıt üretilemeyen madde `KANIT YOK` etiketiyle §11'e yazılır ve **kapı ge
 
 ## §9. İNSAN-KAPISI (KURAL 3 istisnaları — YALNIZ bunlar delege edilir)
 
-Bunlar asistan araci'un yapamayacağı gerçek elle görevlerdir. Her biri için Murat'a **net talimat**
+Bunlar otomasyonun yapamayacağı gerçek elle görevlerdir. Her biri için Murat'a **net talimat**
 verilir, beklenen çıktı yazılır, geri dönene kadar **başka fazlar paralel yürür**.
 
 1. **§9.1 Sunucu provizyonu** — Oracle Free Tier hesabı/VM/SSH anahtarı. (P6)
@@ -784,7 +784,7 @@ Harcamanı kaydettim."` aksiyon yokken **hiçbir uyarı
 >   ile backend'de tek kaynak, demo satırları adım saymaz, gizleme kalıcı + Hesap panelinden geri alınabilir.
 >   Yan bulgu: `require_write()` router seviyesindeydi, okuma uçlarını da kilitliyordu (`viewer` üye 403 alıyordu).
 >   Kalıcı kapı: her adımın sekmesi `App.jsx`'ten TÜRETİLEN gerçek sekme kümesinde olmalı (L27). Mutasyon 4/4.
-> - **LİSANS/ATIF geçmişi:** `git-filter-repo` ile 574 commit işlendi, **311 mesajdan** asistan atıf satırları
+> - **LİSANS/ATIF geçmişi:** `git-filter-repo` ile 574 commit işlendi, **311 mesajdan** araç atıf satırları
 >   silindi, `push --force` (main + 99 tag). Bütünlük kanıtı: `HEAD^{tree}` rewrite öncesi/sonrası AYNI
 >   (`c9a718e7…`) — içerik/yazar/tarih değişmedi. GitHub API `contributors` artık tek kişi döndürüyor;
 >   repo sayfasındaki "Contributors 2" kutusu GitHub'ın önbelleği (veri temiz).
@@ -957,8 +957,8 @@ bulgusu, dördü kalite/kapı borcu:**
 seçen kod sayısı kadardır), **L27** (kapı listeyi elle taşıyorsa ölçmüyordur — kaynaktan türet),
 **L28** ("çökmedim" başarı değil, "atlandı" geçti değil).
 
-**Çalışma biçimi notu:** D31-D40 triyajı 4 ajanlı bir workflow ile **paralel** koşturuldu
-(her ajan kendi kanıtını çalıştırarak üretti); ana iş SOLO ilerledi. Triyaj çıktısı
+**Çalışma biçimi notu:** D31-D40 triyajı dört **paralel** tarama turuyla koşturuldu
+(her tur kendi kanıtını çalıştırarak üretti); ana iş tek hatta ilerledi. Triyaj çıktısı
 bulguların hangisinin hâlâ geçerli olduğunu kanıtla gösterdi — D35 örneğin ARTIK GEÇERSİZ
 (BUG #220 ile kapanmış, rapordaki hüküm bloğu bayat).
 
@@ -1123,10 +1123,10 @@ yollarında da vardı — denetim onları D14/D15 kapsamında görmemişti.
 → yedek → `alembic upgrade head` (9 migration) → satır kaybı yok, bakiye değişmedi.
 Yedekler: `data/backups/2026-08-05-141912.db` ve `-142714.db`.
 
-**(b) TOKEN BÜTÇESİ — workflow maliyeti ölçüldü.** Denetim 49 ajanla koştu: **~3.97M token,
-haftalık limitin ~%50'si.** Pahalı kısım 41 çelişme ajanıydı. Kural: workflow yalnız Murat
-açıkça isterse, **tavan konarak** (en fazla 5 ajan) ve çelişme turu yalnız kritik/yüksek
-bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
+**(b) DENETİM MALİYETİ — ölçüldü.** Denetim 49 paralel tarama turuyla koştu ve pahalıydı;
+pahalı kısım 41 çelişme turuydu. Kural: geniş paralel tarama yalnız açıkça istendiğinde,
+**tavan konarak** (en fazla 5 tur) ve çelişme turu yalnız kritik/yüksek bulgulara.
+Bu oturumun tamamı tek hatta koştu — 9 bulgu, 9 commit.
 
 ---
 
@@ -1156,7 +1156,7 @@ bulgulara. Bu oturumun tamamı SOLO koştu — 9 bulgu, 9 commit.
    kapısı, workspace-insert kapısı ve alembic zinciri kapsam tabanı aldı; veri-işleyen envanteri
    zaten yeni kapıyla (BUG #242) taban assert'li yazıldı.
 
-**İNSAN-KAPISI (asistan yapamaz, Murat'ta):** §9 — Oracle VM + domain/DNS + canlı sırlar,
+**İNSAN-KAPISI (otomasyon yapamaz, elle):** §9 — Oracle VM + domain/DNS + canlı sırlar,
 gerçek davetliler, gerçek trafik, duyuru. Canlı deploy olmadan P6/P7/P8/P9 kapanmaz.
 **Not:** prod yığını artık gerçekten açılabilir durumda (#230); canlı deploy'un bilinen
 teknik engeli kalmadı.
@@ -1187,7 +1187,7 @@ yayın-engeli değil). **H4'ün para birimi ayağı da KAPANDI (7 Ağu, BUG #256
 
 | Sürüm | Tarih | Değişiklik | Gerekçe |
 |---|---|---|---|
-| v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, ajan protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
+| v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, paralel tarama protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
 | v2.0 | 2026-08-05 | **§1.3 DERS-KURALLARI (L1-L10)** eklendi — 41 bug'dan çıkarılan, tekrar etmemesi gereken hata SINIFLARI. Faz kapıları KORUNDU, hiçbiri gevşetilmedi | Murat'ın 3. adımı: "masterprompt'u gerileme/duraksama yönü hariç, kaliteyi artırma amaçlı geliştir" |
 | v2.7 | 2026-08-06 | **§11.0: D24 kapandı (BUG #240, 14 kapı).** §1.3'e **L23** (bir şeyin YOKLUĞUNU raporlaması gereken yüzey, envanterini o şeyin ÇIKTISINDAN türetemez — boş liste "her şey yolunda" gibi okunur; yan tuzak: envanter beyandan gelince eski tüketici hep-yeşile döner) ve **L24** (izleme çağrısı işin GÖVDESİNE yazılıyorsa unutulur — kaydı planlama noktasına bağla, sözleşmeyi iş listesini gezerek assert et, dışarıda koşan kardeş işleri de kapsa) eklendi. Runbook cron-sağlığı bölümü yeni alanlarla güncellendi. Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin D24'ü: 5 cron işinden 3'ü kayıt tutmuyordu, KVKK 90-gün saklama işi dahil sessizce ölebilirdi. Sınıf taraması prod yedeğinde aynı defekti buldu ve fix'in canlı kapıda yarattığı hep-yeşil tuzağını kapattı |
 | v2.6 | 2026-08-06 | **§11.0: D23 kapandı (BUG #239, 18 backend + 4 vitest kapı).** §1.3'e **L21** (sinyal hesaplanıyor olabilir ama karar veren katmana hiç ulaşmayabilir — sinyali karar sözleşmesine koy) ve **L22** (etiket eşiği ile alarm eşiği ayrı olmalı; tek eşik ya gürültü ya sessizlik üretir) eklendi. Ayrıca önceki oturumun §11.0'da İLAN ETTİĞİ ama tabloya hiç yazmadığı **L19/L20** materyalize edildi (aynı sınıf: ilan ≠ materyalize, L17). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin D23'ü: koç bayat fiyattan "%30 kârdasın" diyordu; tazelik verisi vardı ama yalnız HTTP katmanındaydı. Sınıf taraması Hesaplar panelinin fiyatı koşulsuz "Güncel fiyat" diye etiketlediğini buldu — çelişme turunun "başka yüzeyde sinyal var" telafisini kısmen çürüttü |

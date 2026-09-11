@@ -6,7 +6,7 @@ nakite yazilmammalidir."
 
 OLCULEN DURUM: `recurring_expenses.account_id` NOT NULL idi. Yani "sigara" gibi bazen
 kartla bazen nakitle yapilan bir harcamayi sisteme girmek icin bir hesap SECMEK
-gerekiyordu — ve o secim bir VARSAYIMDI. Asistan da bunu yapti (uc yasam giderini karta
+gerekiyordu — ve o secim bir VARSAYIMDI. Ilk uygulama da bunu yapti (uc yasam giderini karta
 bagladi); kullanici fark edip duzeltilmesini istedi.
 
 NULL artik gecerli bir cevaptir: "bilmiyorum / o an belli olur". Nakit takviminde ne

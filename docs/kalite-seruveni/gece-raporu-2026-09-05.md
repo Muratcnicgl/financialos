@@ -79,7 +79,7 @@ Gece boyunca 10 dakikada bir kesintisiz satır yazıldı; üç dağıtımın hi�
 üretmedi. `schtasks`: `FinancialOS-Saglik` **Ready**, son koşum tam zamanında.
 
 **KANIT YOK:** Healthchecks arayüzündeki *Last Ping*'in ilerlediğini ve *UP* bildiriminin
-geldiğini **doğrulayamadım** — bunun için ping URL'si (bir sır) gerekir ve asistan onu
+geldiğini **doğrulayamadım** — bunun için ping URL'si (bir sır) gerekir ve otomasyon onu
 kullanmaz. Ölçebildiğim: **ping'in ATILDIĞI** (§2.3-B), varış değil. Bu ayrım kayda geçsin.
 
 ### 2.3 KARAR DALI TESTİ — **bu sabah TAZE koşuldu, iki yönde**

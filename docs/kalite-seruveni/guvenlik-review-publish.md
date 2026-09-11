@@ -3,8 +3,8 @@
 **Tarih:** 2026-08-04/05 · **Kapsam:** kapalı-beta öncesi zorunlu güvenlik kapısı · **Durum:** ✅ KAPI GEÇTİ
 **Masterprompt:** `masterprompt-publish.md` §P2
 
-> Yöntem: iki bağımsız ajan tüm `app/`, `frontend/src/`, deploy dosyalarını taradı (34 bulgu
-> raporladı). **Ajan raporu kanıt sayılmadı** (§5) — her bulgu kod okunarak doğrulandı, gerçek
+> Yöntem: iki bağımsız tarama turu tüm `app/`, `frontend/src/`, deploy dosyalarını taradı (34 bulgu
+> raporladı). **Tarama raporu kanıt sayılmadı** (§5) — her bulgu kod okunarak doğrulandı, gerçek
 > olanlar TDD ile (önce kırmızı test) kapatıldı, gerçek olmayanlar/zaten korunanlar elendi.
 
 ---

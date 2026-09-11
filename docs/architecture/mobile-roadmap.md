@@ -17,7 +17,7 @@ Mobile'a geçişin üç ana paradigması var. Her birinin trade-off'u farklı, h
 **Artıları:**
 - Mevcut kodun %95'i korunur. 2-4 haftalık iş.
 - App Store onay süreci yok, anlık deploy.
-- Geliştirme akışın değişmez (asistan araci + PyCharm + uvicorn aynı kalır).
+- Geliştirme akışın değişmez (PyCharm + uvicorn aynı kalır).
 - iOS 16.4+ artık PWA push notification destekliyor.
 
 **Eksileri:**
@@ -251,7 +251,7 @@ Wave-3'e gitmeden mevcut webde **mobil uyumluluk** yapmak için yol haritası:
 
 ### Adım 1 — Responsive audit (D1, ertelendiydi)
 
-Memory'den çekilen asistan araci teşhis raporu hazır:
+Teşhis raporu hazır:
 
 - **Coach.jsx (45dk)**: `h-[calc(100vh-180px)]` sabit yerine `h-screen` + flex layout. Input bar `position: sticky bottom-0`. Mesaj scroll alanı `overflow-y-auto flex-1`.
 - **Accounts.jsx (30dk)**: Form modallarında `grid-cols-3` → `grid-cols-1 sm:grid-cols-3` (mobile'da tek sütun, sm+ ekranda 3).

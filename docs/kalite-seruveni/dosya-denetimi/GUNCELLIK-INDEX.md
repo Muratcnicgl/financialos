@@ -22,7 +22,7 @@ hem derin denetim (`dosya-denetimi/`) katmanlarının **önemli oranda bayat** o
 doğrulandı.
 
 ## M86 (Wave-6) — 74 RAPOR TAM GÜNCELLİK DEĞERLENDİRMESİ
-M77 yalnız banner + 2 bulgu örnekledi; **Wave-6 M86** 74 raporu 6 paralel subagent ile değerlendirdi
+M77 yalnız banner + 2 bulgu örnekledi; **Wave-6 M86** 74 raporu 6 paralel tarama turuyla değerlendirdi
 (her rapor için 2-3 kritik bulgu güncel koda karşı R3). Her rapora `M86 güncellik:` verdict damgası eklendi.
 
 ### Güncellik dağılımı (74 rapor)

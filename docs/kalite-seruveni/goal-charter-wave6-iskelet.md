@@ -31,7 +31,7 @@ BUG #161 kaçağı buradan geldi (M68). Tek kaynak (enum/registry) + tutarlılı
 
 ### C — Backlog tam doğrulama (M76 dürüst sınırı)
 Diğer 17 boyut (481 madde) `Durum` alanı aldı ama **madde-madde kod-doğrulanmadı**. RULE'da ölçülen %42 stale
-oranı ekstrapole edilirse ~200 maddenin zaten düzelmiş olması beklenir (TAHMİN). Her boyut bir subagent turu.
+oranı ekstrapole edilirse ~200 maddenin zaten düzelmiş olması beklenir (TAHMİN). Her boyut bir tarama turu.
 
 ### D — dosya-denetimi tam yeniden-doğrulama (M77 dürüst sınırı)
 75 per-dosya rapor banner'landı ama madde-madde doğrulanmadı (1 rapordan 2 bulgu örneklendi, 2/2 stale). ~75 tur.

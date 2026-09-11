@@ -3,13 +3,13 @@
 > **⏳ GÜNCELLİK (M77, 18 Tem 2026):** Bu rapor Wave-2/3 döneminde alınmış bir **tarihsel denetim anlık görüntüsüdür**. Bulgular güncel koda karşı madde-madde YENİDEN doğrulanmadı. Örneklem doğrulaması (M77): kritik `rules_engine.md` bulgularından RE-001 (evaluate_credit_card_strategy ölü kod) ve RE-002 (quick-entry bağlı değil) İKİSİ DE düzeltilmiş çıktı; RULE boyutunda ölçülen stale oranı ~%42. Bir bulguyu kullanmadan önce `file:line`'ı güncel kodda DOĞRULA — satır numaraları kaymış, sorun düzeltilmiş olabilir. Düzeltme durumu: `git log` + `docs/kalite-seruveni/uygulanan-fixler.md`.
 
 
-Kullanıcı talebi: "tüm projedeki her bir kodu ayrı ayrı ajanlara, tembellik yapmadan,
+Talep: "tüm projedeki her bir kodu ayrı ayrı, tembellik yapmadan,
 tam bakmadım demeden her detayı kontrol et." 37 backend dosyası **7 bağımsız adversarial
-ajanla** tam okundu; her ajan yalnız `file:line` + somut failure-senaryosu olan doğrulanmış
-defektleri döndürdü. Ana asistan her bulguyu **kod üzerinde bağımsız doğruladı** (körlemesine
-ajan sonucu kabul edilmedi); düzeltmeler önce kırmızı test → sonra fix (TDD) ile yapıldı.
+tarama turuyla** tam okundu; her tur yalnız `file:line` + somut failure-senaryosu olan doğrulanmış
+defektleri döndürdü. Her bulgu **kod üzerinde bağımsız doğrulandı** (körlemesine
+tarama sonucu kabul edilmedi); düzeltmeler önce kırmızı test → sonra fix (TDD) ile yapıldı.
 
-## Ajan dağılımı
+## Tur dağılımı
 1. rules_engine.py · 2. action_executor + simulation_engine · 3. analiz motorları (cashflow,
 premortem, debt_strategy, goal_engine, goal_rules, fund_tracker) · 4. veri katmanı (models,
 schemas, database, dependencies) · 5. mutasyon router'ları (transactions, actions, goals,
@@ -70,7 +70,7 @@ katmanı (coach.py, coach_insights.py).
 - coach_insights K2 duplicate → ✅ **ÇÖZÜLDÜ (BUG #104):** stabil kategori-bazlı title.
 
 ## SONUÇ — denetim tamamen kapatıldı (11 Tem 2026)
-7-ajan denetiminin TÜM bulguları çözüldü, mitige edildi, tasarım-gereği doğrulandı veya
+7 turlu denetimin TÜM bulguları çözüldü, mitige edildi, tasarım-gereği doğrulandı veya
 belgelenerek kapatıldı. Deterministik düzeltme kalmadı. Açık backlog yalnız: structured output
 (LLM-gated, contract harness ile de-risk), Account/Goal cascade (mimari tasarım), main.py stil.
 
@@ -120,7 +120,7 @@ Kurucu vizyona hizmet eden eklemeler: **A1 kart son ödeme reminder (#096)**, **
 grounding-tutarlı context (#099)**, **zikzak "yarınki limit" projeksiyonu (#100)** + frontend
 görünürlük, **koç davranış sözleşmesi uçtan-uca harness** (deterministik eval). Süit 162→280 yeşil.
 
-## Doğrulanan temiz alanlar (ajan raporlarından)
+## Doğrulanan temiz alanlar (tarama raporlarından)
 premortem.py, fund_tracker.py (tam temiz); rules_engine bölme-sıfır guard'ları + leap-year +
 shadow_accounting formülü; reports.py #073/#074 month-rollover; scheduler rollback; goals.py
 allocation guard (#072); Pydantic V1 leftover yok; dual-index anti-pattern yok; get_current_user

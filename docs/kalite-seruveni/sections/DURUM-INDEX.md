@@ -75,7 +75,7 @@ bir daha sessizce bayatlayamaz (L74'ün mekanizma karşılığı).
 ## Ne yapıldı
 1. **521 maddenin HEPSİNE açık `- **Durum:**` alanı eklendi** (greplenebilir). Kaynak: inline `✅` işareti.
    - Başlangıç: 50 madde inline `✅ KAPANDI`, 471 madde işaretsiz (`🔲 AÇIK — kod-doğrulaması bekliyor`).
-2. **En kritik boyut RULE (40 madde) tam kod-doğrulaması** yapıldı (bağımsız subagent, her madde güncel
+2. **En kritik boyut RULE (40 madde) tam kod-doğrulaması** yapıldı (bağımsız tarama turu, her madde güncel
    koda karşı R3 ile kontrol edildi — kanıt satırı + fonksiyon adı takip edildi).
 
 ## RULE boyutu — GERÇEK STALE ORANI ÖLÇÜLDÜ
@@ -106,7 +106,7 @@ RULE-037 (sıfır-tutar yutma), RULE-038 (magic number + işaret maskesi).
 RULE-029 (datetime karışımı default yolda), RULE-030 (kredi kartı döngüsü kapsam dışı), RULE-033 (banker's rounding).
 
 ## Diğer 17 boyut (445 madde) — M85'te TAM DOĞRULANDI (Wave-6)
-Wave-5 M76 yalnız alan ekledi; **Wave-6 M85** kalan 17 boyutun 445 `🔲 AÇIK` maddesini 7 paralel subagent ile
+Wave-5 M76 yalnız alan ekledi; **Wave-6 M85** kalan 17 boyutun 445 `🔲 AÇIK` maddesini 7 paralel tarama turuyla
 madde-madde güncel koda karşı R3 doğruladı. Artık her DURUM alanı `M85 R3 doğrulama:` + kod-kanıtı taşıyor.
 
 ### GERÇEK STALE ORANI ÖLÇÜLDÜ (445 madde)

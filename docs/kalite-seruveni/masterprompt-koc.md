@@ -890,7 +890,7 @@ Süitler: **backend 3380 · frontend 214 · e2e 8** — hepsi yeşil.
 ` → satır
   sonu). Kaçış dizisi içeren kod Write/Edit ile yazılır.
 
-**ATIF (kapandı, 2 Eyl):** GitHub'da tek katkıcı `Muratcnicgl`. `.asistan/` ve `PROJE.md`
+**ATIF (kapandı, 2 Eyl):** GitHub'da tek katkıcı `Muratcnicgl`. Yerel yapılandırma ve `PROJE.md`
 depodan çıktı (kök brifing artık **`PROJE.md`**; yerelde tek satırlık `@PROJE.md`
 yönlendirmesi var). Depo-yerel git kimliği `Murat Icgil <muraticgil@gmail.com>`,
 `includeCoAuthoredBy: false`. **Global git config'e DOKUNULMAZ.**

@@ -410,7 +410,7 @@ D6/D7/D8'den sonra, FSD migration sprint'iyle birlikte:
 
 ### Mevcut Durum
 
-Bug çıkıyor → asistan araci teşhis ediyor → fix → manuel test. Bu çalışıyor ama **proaktif değil reaktif**. BUG meydana çıkmadan tahmin etmek zor.
+Bug çıkıyor → teşhis → fix → manuel test. Bu çalışıyor ama **proaktif değil reaktif**. BUG meydana çıkmadan tahmin etmek zor.
 
 ### Hedef Mimari — Ölçülebilir Kalite
 

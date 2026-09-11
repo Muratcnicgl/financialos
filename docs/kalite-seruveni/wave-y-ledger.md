@@ -93,7 +93,7 @@ sonra "deploy.sh koştu mu?" sorusu yine cevapsız kalırdı.)*
 | `alembic check` | **FAILED** — ve bu BEKLENEN: SQLite'ta belgelenmiş ADR-036 sapması (bkz. `tests/test_fk_sapmasi_kapisi.py`, 5 test geçiyor). Bu satır bir arıza değil, kayda geçmiş bir lehçe farkıdır. |
 
 **KANIT YOK kalan tek alt madde:** kimlikli duman testi (giriş yapıp bir işlem okuma).
-`live_gate.py` bunu `--email/--password` ile koşar; asistan kullanıcı parolası
+`live_gate.py` bunu `--email/--password` ile koşar; otomasyon kullanıcı parolası
 kullanmaz/işlemez. `/api/ready` (DB + şema) ve 23 kimliksiz kontrol geçti; kimlikli
 ayak Murat tek komutla koşabilir:
 `python scripts/live_gate.py https://<adres> --email <e-posta> --password <parola>`
@@ -276,7 +276,7 @@ Sonra iki mutasyon koşulacak: **(1)** servis durdurulacak → alarm telefona ul
 **KARAR: A — kendi makine + Cloudflare Tunnel + SATIN ALINMIŞ alan adı.**
 Tam gerekçe: `docs/architecture/adr-057-barindirma.md` (ADR sayısı 56 → **57**).
 
-**Yöntem değişikliği kayda geçti.** `masterprompt-kapali-beta.md` §5 *"asistan seçmez"*
+**Yöntem değişikliği kayda geçti.** `masterprompt-kapali-beta.md` §5 *"otomasyon seçmez"*
 diyordu; ölçülen sonuç: kural yürürlükteyken B0 **24 gün açık kaldı** — her turda
 seçenekler yeniden sunuldu, karar hiç verilmedi. **Sunmak, karar vermek değildir.**
 Charter'daki o cümle üstü çizilerek düzeltildi, sebebiyle birlikte.
@@ -584,7 +584,7 @@ oluşmaz. Bugünkü ayarlar ölçüldü:
 uyutulmuş. Bu bir yapılandırma hatası değil, **kullanım deseni** — ve düzeltmesi kod değil
 karar.
 
-**Üç seçenek (hiçbiri asistan tarafından uygulanmadı; makinenin güç davranışı ve pil ömrü
+**Üç seçenek (hiçbiri uygulanmadı; makinenin güç davranışı ve pil ömrü
 Murat'ın kararıdır):**
 
 1. **Kapak kapanınca prizdeyken uyuma.** Arızayı kökten keser, pil davranışını

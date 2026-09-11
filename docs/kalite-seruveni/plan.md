@@ -1,6 +1,6 @@
 # FinancialOS Kalite & Gelişim Master Planı
 
-**Sahip:** Otonom ajan (tam yetki). **İlke:** araştır → teyit et → uygula → doğrula → öz-kontrol. Halüsinasyon/varsayım/tembellik/dalkavukluk YOK. Her adım kök vizyona (`origin-vision.md`) ve 7 meta-derse (`dersler-gemini.md`) hizmet eder.
+**Sahip:** Murat İçgil. **İlke:** araştır → teyit et → uygula → doğrula → öz-kontrol. Halüsinasyon/varsayım/tembellik/dalkavukluk YOK. Her adım kök vizyona (`origin-vision.md`) ve 7 meta-derse (`dersler-gemini.md`) hizmet eder.
 
 ## Yürütme protokolü (her değişiklikte)
 1. **Teyit:** iddiayı gerçek kodla/çalıştırarak doğrula (sim/test), varsayma.

@@ -1,5 +1,5 @@
 """
-Per-file denetim (ajan taraması) bulgularının düzeltme testleri — BUG #086, #089, #090.
+Per-file denetim (paralel tarama) bulgularının düzeltme testleri — BUG #086, #089, #090.
 Kök vizyon: "çift sayma yasak" + "sıfır matematik hatası".
 
 Deterministik: DB gerektirenler izole in-memory (conftest db_session); saf olanlar model/dataclass.

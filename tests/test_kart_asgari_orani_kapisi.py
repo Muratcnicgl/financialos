@@ -2,7 +2,7 @@
 BUG #330 KAPISI — KART ASGARİ ORANI KODA GÖMÜLÜ VE YANLIŞTI.
 
 ÖLÇÜLEN DEFEKT (4 Eylül 2026, gerçek kullanıcı, gerçek para kararı):
-Kullanıcı 14 Eylül'de kartına ne kadar ödeyeceğine karar veriyordu. Asistan asgariyi
+Kullanıcı 14 Eylül'de kartına ne kadar ödeyeceğine karar veriyordu. Koç asgariyi
 `debt_strategy.MIN_CARD_PAYMENT_RATIO = 0.25` sabitinden hesapladı:
 
     8.221,13 × %25 = 2.055,28   ← kullanıcıya SÖYLENEN

@@ -235,6 +235,10 @@ app.add_middleware(_GuvenlikBasliklari)
 # Bu middleware EN DISTA durur (Starlette'te en son eklenen en distadir): boylece
 # govde-boyutu ve kapasite reddi gibi ERKEN donen yollar da kimlik tasir — aksi halde
 # tam da en cok teshis gereken istekler kimliksiz kalirdi.
+# BUG #408 (OBS-020): finansal kaydın güncelleme/silme izi — ORM flush kancası, import
+# anında bağlanır (router'lara kanca konmaz, unutulamaz).
+from app import denetim as _denetim  # noqa: F401  (`import app.denetim` yazımı `app` adını gölgelerdi)
+
 # Ayrinti ve tasarim gerekceleri: app/correlation.py
 from starlette.middleware.base import BaseHTTPMiddleware as _BaseHTTP
 from starlette.requests import Request as _KorelasyonIstek

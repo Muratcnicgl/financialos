@@ -39,7 +39,7 @@ from app.models import (
     PersonalDebt, Goal, GoalAllocation, GoalRule, Envelope, WishlistItem, Feedback, Category,
     DemoDataMarker, MasterCheckpoint, NetWorthSnapshot, CoachMemory, CoachInsight,
     PendingAction, ActionHistory, DecisionJournal, ReasoningTrace, ApiCallLog,
-    WorkspaceMembership, BetaInvite, ErrorLog,
+    WorkspaceMembership, BetaInvite, ErrorLog, AuditLog,
 )
 
 # Export'a ASLA girmeyen kullanıcı kolonları — kimlik doğrulama sırrı/iç durum.
@@ -111,6 +111,8 @@ KAYIT: dict[str, TabloKaydi] = {
     "coach_insights": _u(CoachInsight, "coach_insights"),
     "reasoning_traces": _u(ReasoningTrace, "reasoning_traces"),
     "api_call_log": _u(ApiCallLog, "api_call_log"),
+    # BUG #408: finansal kaydın güncelleme/silme izi — kullanıcı verisidir (export + silme)
+    "audit_log": _u(AuditLog, "audit_log"),
     # — workspace —
     "workspace_memberships": _u(WorkspaceMembership, "workspace_memberships"),
     "workspaces": TabloKaydi("owner", Workspace, "workspaces"),

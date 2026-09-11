@@ -48,7 +48,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.error_tracking import temizle  # BUG #258: kalıcı çalışma kaydı maskeli yazılır
 from sqlalchemy import delete
-from app.models import ApiCallLog, RevokedToken, SchedulerRun, User, ReasoningTrace, Workspace
+from app.models import ApiCallLog, AuditLog, RevokedToken, SchedulerRun, User, ReasoningTrace, Workspace
 from app.rules_engine import workspace_scope  # M73: batch job'ları personal-workspace kapsamında koşar
 from app.coach_insights import (
     extract_breakthrough,
@@ -329,6 +329,8 @@ SAKLAMA_KURALLARI: tuple[SaklamaKurali, ...] = (
     SaklamaKurali("api_call_log", ApiCallLog.called_at, 90),
     SaklamaKurali("scheduler_runs", SchedulerRun.started_at, 90),
     SaklamaKurali("revoked_tokens", RevokedToken.expires_at, 0),
+    # BUG #408: denetim izi — hesap verebilirlik için diğerlerinden uzun (bir mali yıl).
+    SaklamaKurali("audit_log", AuditLog.created_at, 365),
 )
 
 

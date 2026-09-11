@@ -1222,6 +1222,7 @@
     "accounts": [],
     "action_history": [],
     "api_call_log": [],
+    "audit_log": [],
     "categories": [
       {
         "ad": "Abonelik",
@@ -1540,6 +1541,7 @@
     "accounts": [],
     "action_history": [],
     "api_call_log": [],
+    "audit_log": [],
     "categories": [
       {
         "ad": "Abonelik",

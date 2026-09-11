@@ -67,9 +67,10 @@ def _tohum(s, simdi=SIMDI):
 
 def test_kurallar_olculen_dort_tabloyu_kapsar():
     assert {k.tablo for k in scheduler.SAKLAMA_KURALLARI} == {
-        "reasoning_traces", "api_call_log", "scheduler_runs", "revoked_tokens"}
-    assert {k.gun for k in scheduler.SAKLAMA_KURALLARI if k.tablo != "revoked_tokens"} == {90}, (
+        "reasoning_traces", "api_call_log", "scheduler_runs", "revoked_tokens", "audit_log"}
+    assert {k.gun for k in scheduler.SAKLAMA_KURALLARI if k.tablo not in ("revoked_tokens", "audit_log")} == {90}, (
         "90 gün KVKK metnindeki akıl-yürütme sözüyle aynı — değişecekse metin de değişir")
+    assert next(k for k in scheduler.SAKLAMA_KURALLARI if k.tablo == "audit_log").gun == 365   # BUG #408: bir mali yıl
     assert next(k for k in scheduler.SAKLAMA_KURALLARI if k.tablo == "revoked_tokens").gun == 0
 
 
@@ -77,7 +78,7 @@ def test_her_kural_yalniz_esigi_asan_satiri_siler(Session):
     s = Session(); _tohum(s)
     silinen = scheduler.saklama_uygula(s, simdi=SIMDI); s.commit()
     assert silinen == {"reasoning_traces": 1, "api_call_log": 1,
-                       "scheduler_runs": 1, "revoked_tokens": 1}, silinen
+                       "scheduler_runs": 1, "revoked_tokens": 1, "audit_log": 0}, silinen
     assert [t.trace_id for t in s.query(ReasoningTrace).all()] == ["t-taze"]
     assert s.query(ApiCallLog).count() == 1
     assert s.query(SchedulerRun).count() == 1

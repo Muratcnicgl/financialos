@@ -142,7 +142,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [SEC-024] Denetim izi zayıf — kim/ne zaman/hangi IP eksik
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: ActionHistory audit var ama router DELETE/IP audit yok
+- **Durum:** ✅ KAPANDI — **BUG #408 (12 Eyl 2026), OBS-020 ile aynı iş:** `audit_log` (ekle-yalnız): finansal kaydın güncelleme/silme izi — aktör (`user_id`), zaman, varlık/id, delete'te tüm satır, update'te yalnız değişen alanların eski/yeni değeri, korelasyon kimliği. Kanca ROUTER'A DEĞİL ORM flush'a takılı (`app/denetim.py`, `Session.before_flush`): hangi yoldan gelirse gelsin yakalanır, yeni router kancayı unutamaz. Denetlenen tablolar kaynaktan türetilir (`user_id` + Numeric sütun; 4 gerekçeli muaf: snapshot, api_call_log, reasoning_traces, action_history). Eski değer DB'den okunur (commit sonrası süresi dolmuş nesnede ORM geçmişi boş — ölçüldü). Ekleme denetlenmez (kayıt kendisi kanıt). KVKK: `user_id` taşır → export'a girer, silmeyle gider; saklama 365 gün. Göç `e6f7a8b9c0d1` (SQLite'ta inline FK, Postgres'te adlı FK — sapma ratchet'i büyümedi). IP bilerek yok: korelasyon kimliği log satırına bağlar, IP orada. Kapı `tests/test_denetim_izi_kapisi.py` (6); mutasyonla doğrulandı.
 - **Kanıt:** ApiCallLog sadece LLM; finansal DELETE/UPDATE audit'lenmiyor
 - **Aksiyon:** Kritik mutasyonlar için append-only audit (aktör, ts, IP, önce/sonra).
 - **Etki:** Orta · **Efor:** M

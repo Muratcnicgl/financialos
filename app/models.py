@@ -1293,3 +1293,29 @@ class Feedback(Base):
     viewport_w = Column(Integer, nullable=True)       # ekran genişliği (L29'un veri tarafı)
     tarayici = Column(String(40), nullable=True)      # UA'dan türetilen kısa aile adı (ham UA saklanmaz)
     pwa = Column(Boolean, nullable=True)              # ana ekrana eklenmiş uygulamadan mı
+
+
+# ============================================================
+# DENETİM İZİ (BUG #408 · OBS-020 / SEC-024)
+# ============================================================
+
+class AuditLog(Base):
+    """Finansal kaydın GÜNCELLEME/SİLME izi — ekle-yalnız (append-only).
+
+    `ActionHistory` yalnız koç aksiyonlarını tutuyordu; panelden yapılan bir DELETE/PUT
+    hiçbir yerde kalmıyordu. Satır ORM flush anında `app/denetim.py` tarafından yazılır —
+    router'lara tek tek kanca UNUTULAMAZ (L14). `user_id` taşır: hesap silinince KVKK
+    yoluyla birlikte gider; saklama `SAKLAMA_KURALLARI`nda (365 gün).
+    """
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True)
+    entity = Column(String(40), nullable=False)      # tablo adı
+    entity_id = Column(Integer, nullable=True)
+    action = Column(String(10), nullable=False)      # "update" | "delete"
+    before_json = Column(Text, nullable=True)        # delete: tüm satır · update: değişen alanların eski değeri
+    after_json = Column(Text, nullable=True)         # update: değişen alanların yeni değeri
+    istek_id = Column(String(64), nullable=True)     # korelasyon kimliği (BUG #280)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

@@ -154,7 +154,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [SEC-026] Global paylaşılan `CoachEngine` singleton — multi-user'da bağlam sızması riski
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: engine stateless workspace_scope ama multi-user izolasyon testi doğrulanmadı (coach.py:332)
+- **Durum:** ✅ KAPANDI — **BUG #415 (12 Eyl 2026):** ölçüm: motor örnek durumu yalnız `provider` + `max_history_turns`; bağlam her çağrıda DB'den kullanıcı filtresiyle kurulur. Kapı `tests/test_koc_motoru_yalitim_kapisi.py`: aynı motor nesnesinde A sohbet ettikten sonra B'nin sistem promptu (iki geçiş, dört çağrı) A'nın hesabını ve mesajını taşımaz; motor çağrıda örnek durumu edinmez; yasaklı durum adları yok. `FallbackProvider.last_used_provider` paylaşımı bilinir ve muhasebe ona dayanmaz (`test_coach_eszamanlilik`).
 - **Kanıt:** `routers/coach.py:249-256`
 - **Aksiyon:** Engine stateless kalsın (şu an `_build_context_message(db,user_id)` çağrı-başı — doğru); multi-user'da durum eklenmemesini test et.
 - **Etki:** Orta · **Efor:** S

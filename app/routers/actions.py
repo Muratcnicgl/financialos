@@ -32,6 +32,9 @@ import os
 from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import Request
+
+from app.rate_limit import rate_limit
 from pydantic import BaseModel
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
@@ -279,6 +282,7 @@ def get_pending_actions(
 @router.post("/{action_id}/approve")
 def approve_action(
     action_id: int,
+    request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -287,6 +291,7 @@ def approve_action(
     """Aksiyonu onayla ve uygula. ActionHistory'e snapshot yaz.
     Reflection hook router'da tetiklenir — execute commit sonrası,
     reflection hatası aksiyonu etkilemez (rollback güvenliği)."""
+    rate_limit(request, "actions", db)  # BUG #382 (SEC-004)
     from datetime import date
 
     # Oncelik: net worth snapshot al (execute oncesi) — M43: aktif workspace deltası
@@ -383,11 +388,13 @@ def approve_action(
 @router.post("/{action_id}/reject")
 def reject_action(
     action_id: int,
+    request: Request,
     body: RejectRequest = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Aksiyonu reddet. DB'de status=rejected, hicbir degisiklik uygulanmaz."""
+    rate_limit(request, "actions", db)  # BUG #382 (SEC-004)
     reason = body.reason if body else None
     result = reject_pending_action(db=db, action_id=action_id, user_id=current_user.id, reason=reason)
 
@@ -400,11 +407,13 @@ def reject_action(
 @router.post("/{action_id}/edit", response_model=PendingActionOut)
 def edit_action(
     action_id: int,
+    request: Request,
     body: EditActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Pending aksiyonun payload ve summary'sini guncelle (kullanici duzeltmesi)."""
+    rate_limit(request, "actions", db)  # BUG #382 (SEC-004)
     pending = (
         db.query(PendingAction)
         .filter(

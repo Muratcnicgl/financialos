@@ -21,7 +21,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-004] Rate limiting yok — LLM maliyeti ve DoS açık
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: rate_limit yalnız auth bucket'ları; actions/execute per-IP yok (rate_limit.py:18)
+- **Durum:** ✅ KAPANDI — BUG #382 (11 Eyl 2026): `actions` kovası (60/dk, IP başına, DB-destekli sayaç) approve/reject/edit uçlarına eklendi — varlık/kimlik kontrolünden ÖNCE (tahmin oyunu için de kapı). Koç/chat zaten günlük kota + eşzamanlılık tavanıyla, yetki/davet/fiyat uçları kendi kovalarıyla korunuyordu; `POST /api/user` auth açıkken 403. Kapı `tests/test_aksiyon_hiz_siniri_kapisi.py` (61. istek → 429, üç uçta), mutasyonla doğrulandı.
 - **Kanıt:** `app/main.py` sadece CORS; günlük sayaç var ama hız sınırı yok
 - **Aksiyon:** slowapi; coach/chat, user POST, actions/execute'e limit. (OWASP API4:2023)
 - **Etki:** Yüksek · **Efor:** S

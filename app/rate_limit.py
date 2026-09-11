@@ -44,6 +44,12 @@ _DEFAULTS = {
     # artık zorunlu ama tek bir kullanıcı da operatörün dış kotasını yakabilir/threadpool'u
     # doldurabilir. Panelin gerçek kullanımı (açılışta birkaç kur) bu tavanın çok altında.
     "prices": (30, 60),      # 30 / dakika
+    # SEC-004 kalan boşluğu (BUG #382, 11 Eyl 2026): approve/reject/edit uçlarının hız
+    # sınırı yoktu. Kimlik zorunlu, yani yabancı DoS değil; ama tek bir oturum (ya da
+    # çalınmış token) saniyede yüzlerce onay/redle DB'yi ve reflection arka planını
+    # doldurabilir. Panelin gerçek kullanımı bir eylem onayı için 1-2 istek; 60/dk onun
+    # çok üstünde, kötüye kullanımın çok altında.
+    "actions": (60, 60),     # 60 / dakika
 }
 
 _RATE: dict[str, deque] = defaultdict(deque)

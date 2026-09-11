@@ -33,6 +33,25 @@ param(
 
 $ErrorActionPreference = "Stop"
 $KOK = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+
+# BUG #373 — BUG #368'IN KARDESI: BU BETIK DE CAGIRANIN DIZININE BAGIMLIYDI.
+#
+# Asagida (satir ~87) `$fKaynak = (git log -1 ...)` var ve `Push-Location $KOK` blogunun
+# DISINDA kaliyor. Depo koku disindan cagrilinca:
+#
+#   fatal: not a git repository (or any of the parent directories): .git
+#   You cannot call a method on a null-valued expression.   ← `.Trim()` null uzerinde
+#
+# Betik ORADA coker; dagitim yapilmaz ve canli surum geride kalir. Olculdu (11 Eyl 03:20):
+# `guncelle.ps1` C:\Windows\system32'den cagrildi, canli damga 0c24027'de kaldi.
+#
+# Sinsi yani: ayni betik AYNI GUN, depo kokunden cagrildiginda SORUNSUZ kosmustu
+# (01:13'te arayuzu derleyip surumu senkronladi). Yani ariza betikte degil CAGRI
+# BICIMINDE gorunuyor — ve tam da bu yuzden "bende calisiyordu" diye kaydedilir.
+#
+# `baslat.ps1`de ayni kusur BUG #368'de kapatildi. Ayni ilac: dizini betik belirler.
+Set-Location $KOK
+
 $LOGDIZIN = Join-Path $KOK "logs"
 
 function Yaz($mesaj) {

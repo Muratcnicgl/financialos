@@ -54,7 +54,8 @@ if str(KOK) not in sys.path:
 # AYRIŞTIRICI KOPYALANMAZ — tek kaynak `scripts/backlog_ozeti.py`. Kapı ile üretici aynı
 # maddeleri görmezse biri diğerini doğrulamaz; `git ls-files`in beş kopyasıyla aynı ders (L71).
 from scripts.backlog_ozeti import (  # noqa: E402
-    BASLA, BITTI, INDEKS, ISARET_ANLAMI, KAPSAM_TABANI, maddeler, metin,
+    BACKLOG, BASLA, BITTI, INDEKS, ISARET_ANLAMI, KAPSAM_TABANI, ONCELIK_BASLA,
+    ONCELIK_BITTI, ONCELIKLI_KODLAR, maddeler, metin, oncelik_metni,
 )
 
 ISARETLER = "".join(ISARET_ANLAMI)
@@ -143,3 +144,39 @@ def test_INDEKS_OZETI_GUNCEL_kalir():
         "DURUM-INDEX.md'deki özet, sections/*.md ile uyuşmuyor (yani bayat). "
         "Düzelt: python scripts/backlog_ozeti.py --yaz"
     )
+
+
+def test_BACKLOG_ONCELIK_BLOGU_GUNCEL_kalir():
+    """BUG #375 — aynı hastalık, ikinci belge: `backlog.md`'nin "canlı bug" listesi.
+
+    11 Eyl 2026'da ölçüldü: liste yedi maddeyi "canlı" diye sunuyordu, beşi bölüm
+    dosyalarında ✅ kapalıydı. `belge_denetimi` dosyayı 34 gündür bayat gösteriyordu ama o
+    bir RAPORDUR, kapı değil — ve kimse bakmadı. Bu test bakar: bloktaki DURUM, bugünkü
+    `sections/*.md`'den üretilenle birebir aynı olmalı.
+    """
+    belge = BACKLOG.read_text(encoding="utf-8")
+    i, j = belge.find(ONCELIK_BASLA), belge.find(ONCELIK_BITTI)
+    assert i >= 0 and j > i, (
+        "backlog.md içinde otomatik öncelik bloğu yok. Elle yazılan liste bayatlar. "
+        f"İşaretler geri konmalı: {ONCELIK_BASLA} ... {ONCELIK_BITTI}"
+    )
+    mevcut = belge[i:j + len(ONCELIK_BITTI)]
+    assert mevcut == oncelik_metni(maddeler()), (
+        "backlog.md'deki öncelik bloğu sections/*.md ile uyuşmuyor (bayat). "
+        "Düzelt: python scripts/backlog_ozeti.py --yaz"
+    )
+
+
+def test_ONCELIK_blogu_KAPANANI_canli_gostermez():
+    """Sentetik: ✅ olan kod 'açık' listesinde DEĞİL, 'Kapananlar' altında olmalı;
+    sections'ta bulunmayan kod GİZLENMEZ (L45)."""
+    sahte = {"X.md": (
+        "### [RULE-001] eski bug\n- **Durum:** ✅ kapandı\n"
+        "### [FE-026] latent\n- **Durum:** 🔲 açık\n"
+    )}
+    blok = oncelik_metni(maddeler(sahte))
+    acik_kismi = blok.split("<details>")[0]
+    assert "FE-026" in acik_kismi and "RULE-001" not in acik_kismi, "kapanan madde canlı gösterildi"
+    assert "RULE-001" in blok, "kapanan madde tamamen kayboldu — kapandığı görünmeli"
+    eksik = [k for k in ONCELIKLI_KODLAR if k not in ("RULE-001", "FE-026")]
+    assert "BULUNAMADI" in blok and eksik[0] in blok, "bulunamayan kodlar gizlendi"

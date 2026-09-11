@@ -42,15 +42,39 @@ Ata sürüm **"Sovereign OS"**: tamamen yerel, internetsiz, **Qwen 2.5** ile ken
 | DVIZ | Raporlama & görselleştirme | 15 | [sections/DVIZ.md](sections/DVIZ.md) |
 | **TOPLAM** | **18 kategori** | **521** | |
 
-## Öne çıkan canlı bug'lar (öncelikli düzeltme)
-- **RULE-001** — `str(acc.account_type)` enum'da `"AccountType.cash"` döner → `account_type` kriterli GoalRule hiçbir işlemi yakalamıyor (sessiz ölü kural). Tek satır fix.
-- **RULE-002/003/004/005** — kart asgari ödeme sabitleniyor + kesim günü modulo / `statement_day_eff` / ayın-1'i dal hataları (yanlış kart stratejisi mesajı).
-- **RULE-006/040** — para `float` + banker's rounding → net_deger/progress/baseline kuruş sürüklenmesi.
-- **FE-002** — dinamik Tailwind renkleri prod build'de purge oluyor (görünmez renk bug'ı).
-- **FE-026** — hesap adı `.ad` vs `.name` tutarsızlığı (latent kırılma).
-- **BE-009 / API-004 / RESIL-016** — `/api/coach/chat` tüm hataları HTTP 200 ile gizliyor.
-- **SEC-001** — auth tamamen yok; `get_current_user` ilk kullanıcıyı döndürüyor (mobile/multi-user öncesi kritik).
-- **DATA-003** — SQLite FK pragma kapalı; `ondelete` tanımları hiç çalışmıyor.
+## Öne çıkan öncelikli maddeler
+
+> **Bu liste ELLE yazılıyordu ve 11 Eyl 2026'da ölçüldü:** "canlı bug" diye sunduğu yedi
+> maddenin BEŞİ bölüm dosyalarında ✅ kapalıydı (RULE-001, DATA-003, SEC-001, RULE-006,
+> FE-002). DURUM-INDEX'in 48 gün geride kalmasıyla aynı hastalık (L79). Artık SEÇİM elle
+> (`scripts/backlog_ozeti.py:ONCELIKLI_KODLAR`), DURUM `sections/`ten türetilir ve
+> `tests/test_backlog_tutarliligi_kapisi.py` bloğun güncel olduğunu dayatır.
+
+<!-- OTOMATIK-ONCELIK:BASLA — elle düzenleme; `python scripts/backlog_ozeti.py --yaz` -->
+
+**Üretildi:** `scripts/backlog_ozeti.py` · seçim elle, durum `sections/`ten · **4 açık / 10 kapandı**
+
+- 🔲 **FE-026** — Hesap alan adı tutarsızlığı: `.ad` vs `.name` (latent bug) (açık)
+- 🟡 **BE-009** — Merkezî exception handler yok — `chat` endpoint hataları 200 ile gizliyor (kısmen)
+- 🟡 **API-004** — `/api/coach/chat` hata durumunda HTTP 200 dönüyor — sözleşme ihlali (kısmen)
+- 🟡 **RESIL-016** — Chat endpoint tüm hataları yutup 200 dönüyor — hata görünmez, retry yok (kısmen)
+
+<details><summary>Kapananlar</summary>
+
+- ✅ **RULE-001** — `_matches` account_type kriteri hiçbir zaman eşleşmiyor (enum str bug) — CANLI HATA ✅ UYGULANDI (BUG #059) (kapandı)
+- ✅ **RULE-002** — Kart asgari ödemesi başlangıç bakiyesine sabitleniyor (yanlış amortisman) ✅ UYGULANDI (BUG #079) (kapandı)
+- ✅ **RULE-003** — `evaluate_credit_card_strategy` — `days_to_statement` modulo yanlış ay uzunluğuyla (kapandı)
+- ✅ **RULE-004** — Kart stratejisi `today.day > statement_day` — `statement_day_eff` yerine ham değer (kapandı)
+- ✅ **RULE-005** — Kart stratejisi `today.day > 1` koşulu ayın 1'ini yanlış dala atıyor (kapandı)
+- ✅ **RULE-006** — Para hesaplarında `float` + `round()` banker's rounding sürüklenmesi (kapandı)
+- ✅ **RULE-040** — Modüller arası para tipi tutarsızlığı: Account=Float, Goal=Numeric — köprüde hassasiyet kaybı (kapandı)
+- ✅ **FE-002** — Dinamik Tailwind sınıfları prod build'de purge oluyor (renkler kaybolur) — GERÇEK BUG (kapandı)
+- ✅ **SEC-001** — Kimlik doğrulama tamamen yok — `get_current_user` ilk kullanıcıyı döndürüyor (kapandı)
+- ✅ **DATA-003** — SQLite `PRAGMA foreign_keys=ON` hiçbir yerde ayarlanmıyor — FK/ON DELETE sessizce kapalı (kapandı)
+
+</details>
+
+<!-- OTOMATIK-ONCELIK:BITTI -->
 
 ## Sıradaki adımlar (2. tur)
 1. **Tekilleştirme + önceliklendirme:** Kategoriler arası çakışan maddeleri (ör. float-para RULE/DATA/BE; hata-yönetimi BE/API/RESIL) birleştir; P0/P1/P2 ata.

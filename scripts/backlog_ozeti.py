@@ -54,6 +54,19 @@ KAPSAM_TABANI = 400
 BASLA = "<!-- OTOMATIK-BACKLOG-OZETI:BASLA — elle düzenleme; `python scripts/backlog_ozeti.py --yaz` -->"
 BITTI = "<!-- OTOMATIK-BACKLOG-OZETI:BITTI -->"
 
+#: BUG #375 — `backlog.md`'deki "Öne çıkan canlı bug'lar" listesi de ELLE yazılmıştı ve
+#: 11 Eyl 2026'da ölçüldü: yedi maddenin BEŞİ bölüm dosyalarında ✅ kapalıyken belge hâlâ
+#: "canlı" diyordu (RULE-001, DATA-003, SEC-001, RULE-006, FE-002). DURUM-INDEX'in 48 gün
+#: geride kalmasıyla aynı hastalık, aynı ilaç: SEÇİM insanındır (hangi maddeler önemli),
+#: DURUM ölçümündür (açık mı kapalı mı). Kodlar burada durur, durumları `sections/`ten gelir.
+ONCELIKLI_KODLAR = (
+    "RULE-001", "RULE-002", "RULE-003", "RULE-004", "RULE-005", "RULE-006", "RULE-040",
+    "FE-002", "FE-026", "BE-009", "API-004", "RESIL-016", "SEC-001", "DATA-003",
+)
+BACKLOG = KOK / "docs" / "kalite-seruveni" / "backlog.md"
+ONCELIK_BASLA = "<!-- OTOMATIK-ONCELIK:BASLA — elle düzenleme; `python scripts/backlog_ozeti.py --yaz` -->"
+ONCELIK_BITTI = "<!-- OTOMATIK-ONCELIK:BITTI -->"
+
 _MADDE = re.compile(r"^### \[([A-Z0-9]+-\d+)\]([^\n]*)\n(.*?)(?=^### |\Z)", re.M | re.S)
 _DURUM = re.compile(r"^- \*\*Durum:\*\* *(.)", re.M)
 
@@ -106,14 +119,46 @@ def metin(kayitlar) -> str:
     return "\n".join(satirlar)
 
 
-def blogu_degistir(belge: str, yeni_blok: str) -> str:
-    i, j = belge.find(BASLA), belge.find(BITTI)
+def oncelik_metni(kayitlar) -> str:
+    """`backlog.md`'ye gömülecek "öncelikli maddeler" bloğu — DURUM sections'tan gelir.
+
+    Açık olanlar üstte (🔲, 🟡), kapananlar altta ve açıkça "kapandı" diye; listede
+    olup sections'ta bulunmayan kod da GİZLENMEZ, "bulunamadı" diye yazılır (L45).
+    """
+    haritasi = {kod: (baslik.strip(), isaret) for _ad, kod, baslik, isaret in kayitlar}
+    acik, kapali, kayip = [], [], []
+    for kod in ONCELIKLI_KODLAR:
+        if kod not in haritasi:
+            kayip.append(kod)
+            continue
+        baslik, isaret = haritasi[kod]
+        hedef = acik if isaret in ("🔲", "🟡") else kapali
+        hedef.append(f"- {isaret} **{kod}** — {baslik} ({ISARET_ANLAMI.get(isaret, '?')})")
+    satirlar = [
+        ONCELIK_BASLA,
+        "",
+        f"**Üretildi:** `scripts/backlog_ozeti.py` · seçim elle, durum `sections/`ten · "
+        f"**{len(acik)} açık / {len(kapali)} kapandı**",
+        "",
+    ]
+    satirlar += acik or ["- (öncelikli listede açık madde kalmadı)"]
+    if kapali:
+        satirlar += ["", "<details><summary>Kapananlar</summary>", ""] + kapali + ["", "</details>"]
+    if kayip:
+        satirlar += ["", "⚠️ `sections/` içinde BULUNAMADI: " + ", ".join(kayip)]
+    satirlar += ["", ONCELIK_BITTI]
+    return "\n".join(satirlar)
+
+
+def blogu_degistir(belge: str, yeni_blok: str, basla: str = BASLA, bitti: str = BITTI,
+                   dosya_adi: str = "DURUM-INDEX.md") -> str:
+    i, j = belge.find(basla), belge.find(bitti)
     if i < 0 or j < 0:
         raise SystemExit(
-            "DURUM-INDEX.md içinde otomatik blok işaretleri yok. Şu ikisi eklenmelidir:\n"
-            f"  {BASLA}\n  {BITTI}"
+            f"{dosya_adi} içinde otomatik blok işaretleri yok. Şu ikisi eklenmelidir:\n"
+            f"  {basla}\n  {bitti}"
         )
-    return belge[:i] + yeni_blok + belge[j + len(BITTI):]
+    return belge[:i] + yeni_blok + belge[j + len(bitti):]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -131,10 +176,17 @@ def main(argv: list[str] | None = None) -> int:
     blok = metin(kayitlar)
     if not secenek.yaz:
         print(blok)
+        print()
+        print(oncelik_metni(kayitlar))
         return 0
 
     INDEKS.write_text(blogu_degistir(INDEKS.read_text(encoding="utf-8"), blok), encoding="utf-8")
     print(f"DURUM-INDEX.md güncellendi ({len(kayitlar)} madde).")
+    BACKLOG.write_text(
+        blogu_degistir(BACKLOG.read_text(encoding="utf-8"), oncelik_metni(kayitlar),
+                       ONCELIK_BASLA, ONCELIK_BITTI, "backlog.md"),
+        encoding="utf-8")
+    print(f"backlog.md öncelik bloğu güncellendi ({len(ONCELIKLI_KODLAR)} kod).")
     return 0
 
 

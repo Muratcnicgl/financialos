@@ -148,7 +148,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [UX-023] Bildirim yorgunluğu — uyarı seviyeleri/sıklığı yönetilmiyor
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: alert seviye stili var ama katlanır kritik bandı yok
+- **Durum:** ✅ KAPANDI — **BUG #427 (12 Eyl 2026):** backend `seviye` alanı artık düzeni belirler: kritik uyarılar HEP açık ve üstte; kritik-dışı ilk 2 açık, gerisi "+N uyarı daha" düğmesi (`aria-expanded`) arkasında, açılır/kapanır. Mevcut bastırma (adanmış kartı olan konu tekrarlanmaz, #126 gizli sayısı) korundu. Kapı `cockpit-sade-gorunum.test.jsx` (1 kritik + 4 uyarı senaryosu).
 - **Kanıt:** `Cockpit.jsx:227-265,366-406,480-514`; usage `Coach.jsx:392-411`
 - **Aksiyon:** 1 "kritik" bandı üstte, gerisi katlanabilir "N bilgi"; backend `seviye` alanını kullan.
 - **Etki:** Orta · **Efor:** M

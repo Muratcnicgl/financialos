@@ -18,7 +18,7 @@
  * — ve gizlenen bölümlerin SAYISI ile ADLARI ekranda yazılı olmak zorunda.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
 import { yazModu, BASIT, DETAYLI } from './lib/gorunumModu.js';
 
@@ -242,5 +242,32 @@ describe('UX-003 — kart doluluğu somut mesafeyle (BUG #425)', () => {
     await cizdir(DETAYLI);
     const metin = screen.getByText(/limite .*260.* kaldı/);
     expect(metin).toBeInTheDocument();
+  });
+});
+
+describe('UX-023 — bildirim yorgunluğu: kritik açık, gerisi katlanır (BUG #427)', () => {
+  it('1 kritik + 4 uyarı → kritik + 2 görünür, "+2 uyarı daha" açar/kapatır', async () => {
+    const veri = {
+      ...COCKPIT,
+      alerts: [
+        { seviye: 'uyari', kod: 'u1', baslik: 'Uyarı bir', mesaj: 'm' },
+        { seviye: 'kritik', kod: 'k1', baslik: 'Kritik nakit', mesaj: 'm' },
+        { seviye: 'uyari', kod: 'u2', baslik: 'Uyarı iki', mesaj: 'm' },
+        { seviye: 'uyari', kod: 'u3', baslik: 'Uyarı üç', mesaj: 'm' },
+        { seviye: 'uyari', kod: 'u4', baslik: 'Uyarı dört', mesaj: 'm' },
+      ],
+      kart_kullanim: { ...COCKPIT.kart_kullanim, band: 'orta' },   // adanmış kart çizilmesin, bastırma karışmasın
+    };
+    await cizdir(DETAYLI, veri);
+    expect(screen.getByText('Kritik nakit')).toBeInTheDocument();
+    expect(screen.getByText('Uyarı bir')).toBeInTheDocument();
+    expect(screen.getByText('Uyarı iki')).toBeInTheDocument();
+    expect(screen.queryByText('Uyarı üç')).toBeNull();
+    const dugme = screen.getByRole('button', { name: /\+2 uyarı daha/ });
+    expect(dugme).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(dugme);
+    expect(screen.getByText('Uyarı dört')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Daha az uyarı/ }));
+    expect(screen.queryByText('Uyarı üç')).toBeNull();
   });
 });

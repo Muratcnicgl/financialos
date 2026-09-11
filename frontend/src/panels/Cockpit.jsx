@@ -117,7 +117,11 @@ const KART_KARTI_OLAN_UYARILAR = {
  * - Ust grup: Operasyonel (Nakit, Kart, Kredi, Yatirim) - 4 kart
  * - Alt grup: Strateji (Emanet, Gelir, Reel Butce, Gorulen Net, Tam Net) - 5 kart
  */
+// BUG #427 (UX-023): kritik-dışı uyarılardan kaçı katlanmadan görünür
+const KATLANMADAN_GORUNEN = 2;
+
 export default function Cockpit({ setActiveTab }) {
+  const [uyarilarAcik, setUyarilarAcik] = useState(false);
   // Sade görünümde ANALİZ bölümleri gizlenir; risk taşıyanlar (kritik uyarılar, onay
   // bekleyen aksiyonlar, atlanan düzenli kayıtlar, ilk adım) HER İKİ modda da durur.
   const { basit, degistir, DETAYLI } = useGorunumModu();
@@ -309,6 +313,13 @@ export default function Cockpit({ setActiveTab }) {
   const tumUyarilar = data.alerts || [];
   const gorunurUyarilar = tumUyarilar.filter((a) => !bastirilan.has(a.kod));
   const tekrarBastirilan = tumUyarilar.length - gorunurUyarilar.length;
+  // BUG #427 (UX-023): bildirim yorgunluğu — kritik olanlar HEP açık; kritik-dışı ilk
+  // KATLANMADAN_GORUNEN açık, gerisi "+N uyarı daha" arkasında (kullanıcı açar, kapatır).
+  const kritikUyarilar = gorunurUyarilar.filter((a) => a.seviye === 'kritik');
+  const digerUyarilar = gorunurUyarilar.filter((a) => a.seviye !== 'kritik');
+  const acikDiger = uyarilarAcik ? digerUyarilar : digerUyarilar.slice(0, KATLANMADAN_GORUNEN);
+  const katlananSayi = digerUyarilar.length - acikDiger.length;
+  const cizilecekUyarilar = [...kritikUyarilar, ...acikDiger];
 
   // Sade görünümün dört sayısı: param var mı · ne kadar borcum var · neredeyim.
   // Yatırım ve "Görülen/Tam" ayrımı burada yok — ikisi de kavram bilgisi ister.
@@ -714,7 +725,7 @@ export default function Cockpit({ setActiveTab }) {
           ekrandan bir şey kalkıyorsa kaç tane kalktığı söylenmeli. */}
       {gorunurUyarilar.length > 0 && (
         <div className="space-y-2">
-          {gorunurUyarilar.map((alert, i) => (
+          {cizilecekUyarilar.map((alert, i) => (
             <div
               key={i}
               className={`card p-4 ${
@@ -748,6 +759,13 @@ export default function Cockpit({ setActiveTab }) {
               </div>
             </div>
           ))}
+          {(katlananSayi > 0 || (uyarilarAcik && digerUyarilar.length > KATLANMADAN_GORUNEN)) && (
+            <button type="button" onClick={() => setUyarilarAcik((a) => !a)}
+                    aria-expanded={uyarilarAcik}
+                    className="btn btn-ghost !text-xs w-full justify-center">
+              {uyarilarAcik ? 'Daha az uyarı göster' : `+${katlananSayi} uyarı daha`}
+            </button>
+          )}
           {/* #126: sığmayan uyarılar — alert yorgunluğu için gizlenenlerin sayısı */}
           {(data.gizli_uyari_sayisi > 0 || tekrarBastirilan > 0) && (
             <p className="text-xs text-zinc-500 text-center pt-1">

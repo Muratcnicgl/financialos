@@ -649,6 +649,10 @@ export default function Cockpit({ setActiveTab }) {
                 Kart kullanımı{' '}
                 <span className={`font-numeric font-semibold ${txtColor}`}>%{ku.oran}</span>
                 <span className="text-zinc-500"> ({formatSayi(ku.toplam_borc)} / {formatPara(ku.toplam_limit)})</span>
+                {/* BUG #425 (UX-003): oranın yanında somut mesafe — "limite ne kadar kaldı" */}
+                {Number.isFinite(ku.toplam_limit - ku.toplam_borc) && (
+                  <span className={`text-xs ${txtColor}`}> · limite {formatPara(Math.max(0, ku.toplam_limit - ku.toplam_borc))} kaldı</span>
+                )}
               </span>
               {tr && (
                 <span className={`ml-auto text-xs font-numeric ${tr.iyilesme ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>

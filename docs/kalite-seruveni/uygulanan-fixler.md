@@ -1212,3 +1212,4 @@ Tur şu şikâyetle başladı: koç kalitesi düşük, düzeltmeler ölçülemiy
 | #422 | **PARA GİRDİLERİ YANLIŞ KLAVYE İPUCU VERİYORDU (UX-016)** | 14 tutar girdisi: 5 number, 8 ipucusuz text → hepsi text+decimal; iki `Number()` → `parseTRNumber`. Kaynaktan türetilen kapı. | 9 dosya, `para-girdisi-klavye.test.jsx` | vitest 287; build | ✅ |
 | #423 | **"GÖRÜLEN" / "TAM" NET DEĞER AÇIKLAMASIZDI (UX-021)** | `MetricCard.aciklama` + erişilebilir "?" düğmesi; iki karta kavram metni. | `MetricCard.jsx`, `Cockpit.jsx`, `metric-card-aciklama.test.jsx` | RTL 2 test; vitest 289; build | ✅ |
 | #424 | **EMANET DOKUNULMAZLIĞI TAAHHÜT METNİ VE BAĞLANTISIZDI (UX-022)** | `MetricCard.aciklamaBaglanti`; emanet kartında kendine-söz metni + Kırmızı Çizgiler bağlantısı. | `MetricCard.jsx`, `Cockpit.jsx`, test | RTL; vitest 291 | ✅ |
+| #425 | **KART DOLULUĞU KARTINA SOMUT MESAFE (UX-003)** | Bar/%/band zaten vardı (madde bayat); "limite X kaldı" eklendi. | `Cockpit.jsx`, test | RTL | ✅ |

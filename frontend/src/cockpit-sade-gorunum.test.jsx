@@ -236,3 +236,11 @@ describe('uyarı tekrarı', () => {
     expect(screen.getByText('Kart kullanım oranı %95 üzeri')).toBeInTheDocument();
   });
 });
+
+describe('UX-003 — kart doluluğu somut mesafeyle (BUG #425)', () => {
+  it('detaylı görünümde kart kullanım kartı "limite X kaldı" der (3260 − 3000 = 260)', async () => {
+    await cizdir(DETAYLI);
+    const metin = screen.getByText(/limite .*260.* kaldı/);
+    expect(metin).toBeInTheDocument();
+  });
+});

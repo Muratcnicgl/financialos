@@ -22,7 +22,7 @@
 - **Etki:** Yüksek · **Efor:** M · **Not:** Backend soft-delete veya gecikmeli commit gerekebilir.
 
 ### [UX-003] Kart doluluğu (%99.8) Cockpit'te sadece düz sayı
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: kart kullanım barı var ama MetricCard düz sayı
+- **Durum:** ✅ KAPANDI — **BUG #425 (12 Eyl 2026):** ölçüm: Cockpit'te adanmış kart-kullanım kartı zaten var (FEAT-016: bar, %, borç/limit, band rengi — kritik kırmızı, ≥%90), madde bayattı; eksik olan somut mesafeydi. Kart artık "· limite X kaldı" der (limit − borç, ≥ 0). MetricCard'a ayrıca bar konmadı: adanmış kart yüksek/kritik bantta çizilir ve uyarıyı bastırır (BUG #… tekrar önleme), ikinci bir bar çift sinyal olurdu. Kapı `cockpit-sade-gorunum.test.jsx` (3260−3000=260).
 - **Kanıt:** `Cockpit.jsx:149`; doluluk barı yalnız `Accounts.jsx:250-265`
 - **Aksiyon:** Cockpit kart kartına utilization bar + "%99.8 · limite 120 TL kaldı"; %95 üstünde kırmızı.
 - **Etki:** Yüksek · **Efor:** S

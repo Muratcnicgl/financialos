@@ -10,7 +10,7 @@
   "olcum_komutu": "ruff check . --no-cache --output-format concise  (aileye göre sayım)",
   "tavan": {
     "E9": 0,
-    "F": 199,
+    "F": 198,
     "B": 31,
     "S": 60
   },

@@ -94,7 +94,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-016] Hata mesajlarında iç bilgi/config sızıntısı
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: coach generic mesaj (coach.py:346) ama tüm endpoint garanti değil
+- **Durum:** ✅ KAPANDI — **BUG #412 (12 Eyl 2026):** ölçüm: merkezî 500 işleyicisi genel metin + korelasyon kodu (BUG #280, kapılı); açık 500'ler genel metinli; router'larda `detail=str(e)` tek yerde ve o kullanıcı-girdisi ayrıştırma mesajı (hızlı giriş ValueError). Kapı `tests/security/test_hata_detayi_sizinti_kapisi.py`: desen taraması + gerekçeli izin listesi (1) + 500 gövdesi ham metin taşımaz. Koç yolu ayrıca BUG #409 ile sınıflı genel mesaj.
 - **Kanıt:** `routers/coach.py:288-290`; `user.py:63-64`; `dependencies.py:40-42`
 - **Aksiyon:** Jenerik mesaj; detay sadece log'da; env değişken adlarını yanıttan çıkar. (OWASP API8:2023)
 - **Etki:** Düşük · **Efor:** S
@@ -124,7 +124,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-021] Bağımlılıklar aralıklı pin'li — supply-chain riski
-- **Durum:** 🟡 KISMEN — hash/lock hâlâ yok ama artık **ölçülüyor**: 9 paket aralıklı (`>=`) pin'li ve bu sayı ratchet ile kilitli (yeni esnek pin eklenirse kapı kırılır — `test_requirements_sabit_surumlu`). 4'ü LLM SDK'sı (hızlı sürüm döngüsü), 4'ü P2'nin 'en az şu sürüm' güvenlik tabanı (tavan koymak eski CVE'ye çivilerdi). Tam hash-pinning (pip-tools/uv lock) ayrı iş
+- **Durum:** ✅ KAPANDI — **BUG #390 (11 Eyl 2026), DEVOPS-005 ile aynı iş:** 9 aralıklı pin sıfıra indi, iki dosya tamamen `==`; kapı `tests/test_bagimlilik_sabitleme_kapisi.py` (dosyadan türetir). Eski ratchet (`test_requirements_sabit_surumlu`, ≤9) artık 0 ölçer. Hash'li lock bilerek yok: tek makine + CI + pip-audit her push'ta; ihtiyaç ölçülmeden ikinci araç eklemek L79 sınıfı.
 - **Kanıt:** `requirements.txt`: `anthropic>=0.79.0`, `google-genai>=0.3.0`, `groq>=0.11.0` vb.
 - **Aksiyon:** Kesin pin + `requirements.lock` (pip-tools/uv); hash doğrulama.
 - **Etki:** Düşük · **Efor:** S
@@ -166,7 +166,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [SEC-028] Scheduler kimlik/izolasyon bağlamı olmadan tüm kullanıcılar üzerinde çalışıyor
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: scheduler retention global, per-user izolasyon doğrulanmadı (scheduler.py:195)
+- **Durum:** ✅ KAPANDI — **BUG #400 (11 Eyl 2026), BE-029 ile aynı iş:** gece batch'leri kullanıcı başına AYRI session ve kendi `workspace_scope`'unda koşar; birinin hatası diğerini düşürmez, özet "N kullanici, M hata". Saklama işleri (BUG #383) tasarım gereği global: sildiği şey kullanıcı verisi değil süresi dolmuş günlük kaydıdır. Kapı `tests/test_batch_kullanici_yalitimi_kapisi.py`.
 - **Kanıt:** `app/scheduler.py:267,279`; `main.py:120-125`
 - **Aksiyon:** Job'ları user bazında izole et; bir user exception'ı batch'i durdurmasın; tenant sınırı.
 - **Etki:** Düşük · **Efor:** M

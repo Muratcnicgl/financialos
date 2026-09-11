@@ -169,8 +169,9 @@ export default function Transactions() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+      <div className="flex items-center justify-center py-20" role="status" aria-live="polite" aria-busy="true">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-500" aria-hidden="true" />
+        <span className="sr-only">Yükleniyor…</span>
       </div>
     );
   }

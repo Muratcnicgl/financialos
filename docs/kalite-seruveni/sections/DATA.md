@@ -111,7 +111,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [DATA-017] SQLEnum `values_callable` yalnız PriceHistory'de — tutarsız
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: values_callable bazı enum'larda var, AccountType/TransactionType'ta yok (models.py:180)
+- **Durum:** ✅ KAPANDI — **BUG #420 (12 Eyl 2026):** 11 SQLEnum sütunu ölçüldü: ad ≠ değer taşıyan iki enum (PriceSource, OperationName) zaten `values_callable`; kalan 8'in her üyesinde ad == değer, yani saklama biçimi ayırt edilemez — hepsine `values_callable` eklemek davranışı değiştirmeden dosya karıştırmak olurdu (ve mevcut PG enum tiplerini yeniden yazmayı gerektirirdi). Asıl risk ad ≠ değer olan yeni bir üye; kapı `tests/test_enum_saklama_kapisi.py` bunu kırmızı yapar.
 - **Kanıt:** `app/models.py:557-564` vs `:151,228,255`
 - **Aksiyon:** Tüm SQLEnum'lerde `values_callable` standardize (değer bazlı saklama).
 - **Etki:** Düşük · **Efor:** S

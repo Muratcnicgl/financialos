@@ -316,7 +316,7 @@ class RecurringIncome(Base):
     __tablename__ = "recurring_incomes"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
@@ -334,7 +334,7 @@ class RecurringExpense(Base):
     __tablename__ = "recurring_expenses"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
     amount = Column(Numeric(19, 4), nullable=False)
@@ -345,7 +345,7 @@ class RecurringExpense(Base):
     # girmek için bir hesap SEÇMEK gerekiyordu ve bu seçim bir VARSAYIMDI.
     # NULL = "hesabı o an belli olur" → nakit takviminde ne çıkışa ne karta sayılır;
     # `hesabi_belirsiz` kovasında AYRI gösterilir ve koç sorar (BUG #042'nin karşılığı).
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), index=True, nullable=True)
     category = Column(String(50), nullable=True)        # "abonelik", "fatura", "kira" vb.
     day_of_month = Column(Integer, nullable=False)       # Ayın kaçında ödenir (1-31)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -367,7 +367,7 @@ class Envelope(Base):
     __tablename__ = "envelopes"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     category = Column(String(50), nullable=False)          # Transaction.category ile eşleşir
     monthly_amount = Column(Numeric(14, 2), nullable=False)  # aylık bütçe (Decimal — RULE-006)
@@ -399,7 +399,7 @@ class Category(Base):
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     slug = Column(String(50), nullable=False)              # Transaction.category ile eşleşen normalize değer
     ad = Column(String(50), nullable=False)                # kullanıcıya görünen ad
@@ -1029,7 +1029,7 @@ class Goal(Base):
     # (M11 dersi, ADR-036 asset_type deseni). Bu yüzden schema-seviyesi sıkılaştırma Blok D (PostgreSQL)
     # geçişine ertelendi. UYGULAMA GARANTİSİ: create_goal HER ZAMAN user_id=current_user.id set eder
     # (goals.py); API üzerinden NULL-user goal YARATILAMAZ (tests/test_goal_user_id_guard.py kilitler).
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     title = Column(String(200), nullable=False)
     target_amount = Column(Numeric(14, 2), nullable=False)
@@ -1311,7 +1311,7 @@ class AuditLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="SET NULL"), index=True, nullable=True)
     entity = Column(String(40), nullable=False)      # tablo adı
     entity_id = Column(Integer, nullable=True)
     action = Column(String(10), nullable=False)      # "update" | "delete"

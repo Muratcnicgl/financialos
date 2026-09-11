@@ -59,7 +59,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [PERF-010] FK/filtre kolonlarında index eksik — join/lookup tam tarama
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: bazi FK tekil index'siz
+- **Durum:** ✅ KAPANDI — **BUG #418 (12 Eyl 2026):** ölçüm: 16 FK sütunu tekil indekssiz; yedisi her istekte filtre/join kolonu (beş `user_id`: categories/envelopes/goals/recurring_incomes/recurring_expenses; `recurring_expenses.account_id`; `audit_log.workspace_id`) → göç `f7a8b9c0d1e2` + model `index=True`. Kalan 9 düşük trafikli tarihsel bağlantı BİLEREK bırakıldı (kapı ratchet'ler ≤ 9). Dürüst not: bugünkü ölçekte (tek kullanıcı, yüzlerce satır) hız farkı ölçülemez — hijyen ve çok-kullanıcılı büyüme önlemi; `EXPLAIN` bu yüzden koşulmadı. Göç zinciri geçici DB'de upgrade→downgrade→upgrade doğrulandı. Kapı `tests/test_fk_indeks_kapisi.py` (her user_id FK indeksli; göç adları = model adları; ratchet).
 - **Kanıt:** `app/models.py:211,367,817` (indekssiz FK)
 - **Aksiyon:** Sık join edilen FK'lara index; `EXPLAIN QUERY PLAN` ile doğrula. (DATA-012)
 - **Etki:** Düşük · **Efor:** S

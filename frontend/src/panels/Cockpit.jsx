@@ -1231,8 +1231,8 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
             <p className="text-xs text-negative-600 dark:text-negative-400 mt-2">{err}</p>
           )}
           <div className="flex gap-2 mt-4">
-            <button type="submit" disabled={busy} className="btn btn-primary flex-1">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Kaydet'}
+            <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
+              {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Kaydet'}
             </button>
             <button type="button" onClick={onClose} className="btn btn-secondary">
               İptal

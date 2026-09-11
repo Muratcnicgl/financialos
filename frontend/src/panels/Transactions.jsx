@@ -401,12 +401,12 @@ function QuickEntry({ onSubmit, accounts }) {
             disabled={busy}
           />
         </div>
-        <button
+        <button aria-busy={busy}
           type="submit"
           disabled={busy || !text.trim()}
           className="btn btn-primary"
         >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ekle'}
+          {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Ekle'}
         </button>
       </form>
       <div className="flex items-center justify-between mt-2 text-[11px] text-zinc-500">
@@ -655,8 +655,8 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
         {error && <p className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
 
         <div className="flex gap-2 pt-2">
-          <button type="submit" disabled={busy} className="btn btn-primary flex-1">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (isNew ? 'Ekle' : 'Kaydet')}
+          <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{(isNew ? 'Ekle' : 'Kaydet')}
           </button>
           <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
         </div>
@@ -699,8 +699,8 @@ function ConfirmDeleteModal({ txn, onClose, onConfirm }) {
       </div>
       {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Evet, sil'}
+        <button aria-busy={busy} type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
+          {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Evet, sil'}
         </button>
         <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
       </div>

@@ -568,8 +568,8 @@ function AccountFormModal({ account, onClose, onSave }) {
         {error && <p className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
 
         <div className="flex gap-2 pt-2">
-          <button type="submit" disabled={busy} className="btn btn-primary flex-1">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (isNew ? 'Oluştur' : 'Kaydet')}
+          <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{(isNew ? 'Oluştur' : 'Kaydet')}
           </button>
           <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
         </div>
@@ -617,8 +617,8 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
         <input type="text" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="input font-numeric" placeholder="5223.81" autoFocus />
         {err && <p className="text-xs text-negative-600 dark:text-negative-400 mt-2">{err}</p>}
         <div className="flex gap-2 mt-4">
-          <button type="submit" disabled={busy} className="btn btn-primary flex-1">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Kaydet'}
+          <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Kaydet'}
           </button>
           <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
         </div>
@@ -661,8 +661,8 @@ function ConfirmDeleteModal({ account, onClose, onConfirm }) {
       </div>
       {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Evet, sil'}
+        <button aria-busy={busy} type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
+          {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Evet, sil'}
         </button>
         <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
       </div>

@@ -207,7 +207,7 @@
 - **Etki:** Düşük · **Efor:** L
 
 ### [DATA-032] `ApiCallLog` sınırsız büyür — retention yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: ReasoningTrace retention var ama ApiCallLog/CoachMemory sınırsız (scheduler.py:195)
+- **Durum:** ✅ KAPANDI — **BUG #383 (11 Eyl 2026):** canlı beta DB'si ölçüldü (40 gün): `revoked_tokens` 103 satır, 74'ü süresi dolmuş — `expires_at` "temizlik için" konmuş, hiçbir kod okumuyordu; `api_call_log` 311, `scheduler_runs` 127, retention yok. Gece işi (`nightly_trace_cleanup`, adı korundu) artık `SAKLAMA_KURALLARI`ndan okur: üç tablo 90 gün, `revoked_tokens` süresi dolan; tablo başına silinen sayı çalışma kaydına yazılır. `rate_limit_hits` kendi penceresini budar, `error_logs` parmak iziyle birleşir — gerekçeli muaf. `CoachMemory` bilerek dışarıda: koç SOHBET geçmişi (rol/içerik), günlük kaydı değil — ne kadar saklanacağı ürün/KVKK kararı; büyüme ölçüldü, 40 günde 50 satır (~1 satır/gün), işletimsel tehdit değil. Kapı `tests/test_saklama_kapisi.py`: `*_log/_runs/_hits/_traces/_tokens` adlı her tablo ya kuralda ya gerekçeli muaf; mutasyonla doğrulandı.
 - **Kanıt:** `app/models.py:450-489`
 - **Aksiyon:** N günden eski kayıt retention job veya aggregate. ReasoningTrace/CoachMemory de aynı sınıf.
 - **Etki:** Düşük · **Efor:** M

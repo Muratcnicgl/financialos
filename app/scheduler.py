@@ -48,7 +48,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.error_tracking import temizle  # BUG #258: kalıcı çalışma kaydı maskeli yazılır
 from sqlalchemy import delete
-from app.models import User, ReasoningTrace, Workspace
+from app.models import ApiCallLog, RevokedToken, SchedulerRun, User, ReasoningTrace, Workspace
 from app.rules_engine import workspace_scope  # M73: batch job'ları personal-workspace kapsamında koşar
 from app.coach_insights import (
     extract_breakthrough,
@@ -288,40 +288,70 @@ async def k2_batch_job() -> str:
     return f"{len(user_ids)} kullanici"
 
 
+@dataclass(frozen=True)
+class SaklamaKurali:
+    """Bir tablonun zaman sütunu ve kaç gün geriye kadar tutulacağı (0 = süresi dolanı sil)."""
+    tablo: str
+    sutun: Any            # InstrumentedAttribute — `sutun < esik` ile silinir
+    gun: int
+
+
+# BUG #383 (DATA-032): SAKLAMA KURALLARININ TEK KAYNAĞI.
+# Ölçüldü (11 Eyl 2026, canlı beta DB'si, 40 gün): `revoked_tokens` 103 satır, 74'ü
+# SÜRESİ DOLMUŞ — `expires_at` sütunu tam da "temizlik için" konmuştu (auth.py) ama
+# hiçbir yer okumuyordu; `api_call_log` 311, `scheduler_runs` 127 satır, retention yok.
+# Yalnız `reasoning_traces` temizleniyordu; `rate_limit_hits` kendi penceresini kendisi
+# budar (rate_limit.py), `error_logs` parmak izine göre birleştirilir (satır sayısı farklı
+# hata sayısıyla sınırlı) — ikisi kural gerektirmez. 90 gün: KVKK metnindeki akıl-yürütme
+# sözüyle aynı sıcak-katman süresi; `api_call_log` için günlük kota yalnız bugüne bakar
+# (llm_quota.py), ops uçları `scheduler_runs`'ta yalnız son koşuma bakar — 90 gün ikisinin
+# de çok üstünde. Süresi dolmuş bir token JWT `exp` doğrulamasında zaten reddedilir;
+# kara listedeki satırı ölü ağırlıktır (gün=0).
+SAKLAMA_KURALLARI: tuple[SaklamaKurali, ...] = (
+    SaklamaKurali("reasoning_traces", ReasoningTrace.created_at, 90),
+    SaklamaKurali("api_call_log", ApiCallLog.called_at, 90),
+    SaklamaKurali("scheduler_runs", SchedulerRun.started_at, 90),
+    SaklamaKurali("revoked_tokens", RevokedToken.expires_at, 0),
+)
+
+
+def saklama_uygula(db: Session, simdi: datetime | None = None) -> dict[str, int]:
+    """Her kural için `sutun < simdi - gun` satırlarını siler; tablo→silinen sayısı döner.
+
+    Tek transaction: bir tablo düşerse hiçbiri silinmiş sayılmaz (çağıran rollback eder).
+    Idempotent. `simdi` naif UTC — satırlar da öyle yazılır (auth.py `replace(tzinfo=None)`).
+    """
+    simdi = simdi or datetime.now(timezone.utc).replace(tzinfo=None)
+    silinen: dict[str, int] = {}
+    for kural in SAKLAMA_KURALLARI:
+        esik = simdi - timedelta(days=kural.gun)
+        sonuc = db.execute(delete(kural.sutun.class_).where(kural.sutun < esik))
+        silinen[kural.tablo] = sonuc.rowcount or 0
+    return silinen
+
+
 @_izlenen_is("nightly_trace_cleanup", yeniden_firlat=True)
 async def nightly_trace_cleanup_job() -> str:
     """
-    Reasoning trace retention job.
+    Saklama (retention) işi. Gece 04:00 İstanbul (nightly_batch ve k2_batch sonrası).
 
-    Deletes ReasoningTrace rows older than 90 days. Runs at 04:00
-    Istanbul daily (after nightly_batch and k2_batch). 90-day
-    retention follows the warm-tier convention used by Langfuse
-    and similar LLM observability stacks — long enough for audit
-    and debugging, short enough to keep the single-file SQLite
-    database lean. Idempotent: re-running has no effect if the
-    table is already trimmed.
+    Başta yalnız ReasoningTrace'i 90 günde buduyordu (Langfuse benzeri gözlem yığınlarının
+    sıcak-katman süresi; denetim/hata ayıklama için yeterince uzun, tek-dosya SQLite'ı
+    hafif tutacak kadar kısa). BUG #383: kurallar `SAKLAMA_KURALLARI`ndan okunur — iş adı
+    korunur ki `scheduler_runs` geçmişi ve ops uçları kopmasın.
 
     BUG #240: silinen satır sayısı çalışma kaydına düşer — KVKK'da verilen 90-gün
     saklama sözü ancak SAYIYLA doğrulanabilir (log okumak kanıt değildir).
     """
     db = SessionLocal()
     try:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=90)
-        stmt = delete(ReasoningTrace).where(
-            ReasoningTrace.created_at < cutoff
-        )
-        result = db.execute(stmt)
+        silinen = saklama_uygula(db)
         db.commit()
-        deleted = result.rowcount or 0
-        logger.info(
-            "[trace_cleanup] removed %d reasoning_trace rows older than %s",
-            deleted,
-            cutoff.isoformat(),
-        )
-        return f"{deleted} trace silindi (90 gun)"   # BUG #240
+        logger.info("[retention] silinen: %s", silinen)
+        return ", ".join(f"{t}={n}" for t, n in silinen.items()) + " (90 gun / suresi dolan)"
     except Exception:  # noqa: BLE001
         db.rollback()
-        logger.exception("[trace_cleanup] failed; rolled back transaction")
+        logger.exception("[retention] failed; rolled back transaction")
         raise
     finally:
         db.close()

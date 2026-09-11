@@ -172,22 +172,26 @@ KURALLAR: Tuple[UslupKurali, ...] = (
             r"\b(nakit_kasa|kart_borcu|emanet_kasa|today_target|carried_forward)\b",
             r"\b(bug|feat|adr|rule|sec|data|llm)\s*#?\s*-?\d{2,3}\b",
             r"\bmenu(sunde|sundeki|sune)\b",
-            # Ölçüm (canlı koşum): metin "reel butcen" diyordu — `\b` sonlu desen iyelik
-            # ekiyle sessizce kaçıyordu.
-            r"\breel\s+butce\w*",
+            # BUG #379 — "reel bütçe" bu listeden ÇIKARILDI. Eskiden buradaydı ("metin 'reel
+            # butcen' diyordu" ölçümüyle). Ama ölçüm eksikti: arayüzde kullanıcının gördüğü
+            # kartın başlığı tam olarak "Reel Bütçe" (`Cockpit.jsx` `title: 'Reel Bütçe'`).
+            # Kullanıcının EKRANDA OKUDUĞU ad jargon değildir; koçun o adı kullanması
+            # cezalandırılınca koç kartla aynı dili konuşamıyordu — kural ürünle çelişiyordu.
+            # 11 Eyl 2026'da üretim modeliyle ölçüldü: `analiz_grounded_format`taki tek
+            # IC_JARGON ihlali "reel bütçe **-7.700 TL**" satırıydı — kartın kendisi.
             r"\b\d+\s+gunluk\s+forecast\b",
         ),
         ihlal_ornekleri=(
             "Bu hesaplama 'Güvenli Borç Ödemesi' menüsündeki senaryolara dayanıyor.",
             "Cockpit verilerine göre durumun iyi.",
             "90 günlük forecast modeli bunu söylüyor.",
-            "Reel bütçen eksiye düşmüş.",
             "BUG #123 nedeniyle bu satır boş görünüyor.",
         ),
         mesru_ornekler=(
             "Elindeki nakdi, önümüzdeki gelirlerini ve acil-durum payını hesaba katarak söylüyorum.",
             "Önümüzdeki 90 günde nakit akışın iki kez sıkışıyor.",
             "Bütçenin %64'ünü kullandın.",
+            "Reel bütçen eksiye düştü: kart ödemesi nakdini aşıyor.",   # kartın adı, jargon değil (BUG #379)
         ),
     ),
     UslupKurali(

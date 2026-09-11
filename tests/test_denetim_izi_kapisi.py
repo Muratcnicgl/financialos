@@ -42,6 +42,9 @@ def test_denetlenen_tablolar_kaynaktan_turetilir_muaflar_gerekceli():
             "recurring_expenses", "envelopes", "wishlist_items"} <= t
     assert not (t & set(denetim.MUAF))
     assert "audit_log" not in t, "iz kendini denetlemez"
+    assert "master_checkpoints" in t, "BUG #414: para kuralları denetlenir (DATA-034)"
+    for ad, neden in denetim.EK_DENETLENEN.items():
+        assert ad in Base.metadata.tables and len(neden) > 20
     for ad, neden in denetim.MUAF.items():
         assert ad in Base.metadata.tables and len(neden) > 20, f"ölü ya da gerekçesiz muafiyet: {ad}"
 
@@ -107,3 +110,17 @@ def test_aktorsuz_kayit_flushu_dusurmez(s):
     g = Goal(user_id=None, title="x", goal_type="savings", target_amount=100)
     s.add(g); s.commit(); g.target_amount = 200; s.commit(); s.delete(g); s.commit()
     assert s.query(AuditLog).count() == 0
+
+
+def test_para_kurali_degisikligi_iz_birakir(s):
+    """DATA-034: MasterCheckpoint'in gevşetilmesi/silinmesi bakiye kadar izlenir (BUG #414)."""
+    from app.models import CheckpointType, MasterCheckpoint
+    mc = MasterCheckpoint(user_id=1, title="Kira", description="kira parasına dokunma",
+                          checkpoint_type=list(CheckpointType)[0], rule_type="min_cash_floor",
+                          rule_params='{"amount": 5000}')
+    s.add(mc); s.commit()
+    mc.rule_params = '{"amount": 100}'; mc.is_active = False; s.commit()
+    iz = s.query(AuditLog).filter_by(entity="master_checkpoints", action="update").one()
+    assert set(json.loads(iz.before_json)) == {"rule_params", "is_active"}
+    s.delete(mc); s.commit()
+    assert s.query(AuditLog).filter_by(entity="master_checkpoints", action="delete").count() == 1

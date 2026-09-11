@@ -219,7 +219,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DATA-034] `MasterCheckpoint` kritik güvenlik verisi — değişiklik audit'i yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: MasterCheckpoint hard-delete koruması var ama audit yok (models.py:373)
+- **Durum:** ✅ KAPANDI — **BUG #414 (12 Eyl 2026), BUG #408 üstüne:** `master_checkpoints` sayısal sütunu olmadığı için denetim türetimine (user_id + Numeric) girmiyordu; `EK_DENETLENEN` listesine gerekçesiyle eklendi — kuralın gevşetilmesi (`rule_params`/`is_active`) ve silinmesi `audit_log`a eski/yeni değerle düşer (aktör, zaman, korelasyon). Hard-delete koruması olduğu gibi. Kapı `tests/test_denetim_izi_kapisi.py::test_para_kurali_degisikligi_iz_birakir`.
 - **Sorun:** Emanet-satılamaz gibi enforcement kurallarını taşır; hard-delete/update edilebilir, updated_at/log yok.
 - **Kanıt:** `app/models.py:271-287`
 - **Aksiyon:** `updated_at`; değişiklikleri audit'e yaz; hard-delete engelle.

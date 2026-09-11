@@ -38,14 +38,23 @@ MUAF: dict[str, str] = {
 }
 
 
+#: Sayısal sütunu olmadığı için kurala girmeyen ama denetlenmesi gereken tablolar — NEDENİYLE.
+EK_DENETLENEN: dict[str, str] = {
+    # BUG #414 (DATA-034): kullanıcının para kuralları (emanet hesap, nakit tabanı, tek harcama
+    # tavanı) — sayısal sütun yok (`rule_params` JSON) ama bir kuralın gevşetilmesi/silinmesi
+    # en az bir bakiye değişikliği kadar izlenmelidir.
+    "master_checkpoints": "kullanıcının para kuralları; rule_params JSON, Numeric sütun yok",
+}
+
+
 def denetlenen_tablolar() -> set[str]:
-    """`user_id` + Numeric sütunu olan tablolar, muaflar çıkarılmış — kaynaktan türetilir."""
+    """`user_id` + Numeric sütunu olan tablolar (+ gerekçeli ekler), muaflar çıkarılmış."""
     out = set()
     for m in Base.registry.mappers:
         t = m.local_table
         if "user_id" in t.c and any(isinstance(c.type, Numeric) for c in t.c):
             out.add(t.name)
-    return out - set(MUAF)
+    return (out | set(EK_DENETLENEN)) - set(MUAF)
 
 
 def _ser(v):

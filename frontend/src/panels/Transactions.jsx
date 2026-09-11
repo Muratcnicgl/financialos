@@ -476,10 +476,10 @@ function TransactionRow({ txn, account, onEdit, onDelete }) {
             {sign}{formatSayi(txn.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle" aria-label="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil" aria-label="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -723,7 +723,7 @@ function Modal({ title, children, onClose }) {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{title}</h3>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat" aria-label="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

@@ -517,13 +517,13 @@ function IncomeRow({ income, onToggle, onEdit, onDelete }) {
             +{formatSayi(income.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
+            <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={income.is_active ? 'Pasifleştir' : 'Aktive et'} aria-label={income.is_active ? 'Pasifleştir' : 'Aktive et'}>
               <Power className={`w-3 h-3 ${income.is_active ? 'text-positive-600 dark:text-positive-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
             </button>
-            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle" aria-label="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil" aria-label="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -565,13 +565,13 @@ function ExpenseRow({ expense, accounts, onToggle, onEdit, onDelete }) {
             −{formatSayi(expense.amount)}
           </p>
           <div className="flex items-center justify-end gap-1 mt-1">
-            <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
+            <button type="button" onClick={onToggle} className="btn btn-ghost btn-icon !p-1" title={expense.is_active ? 'Pasifleştir' : 'Aktive et'} aria-label={expense.is_active ? 'Pasifleştir' : 'Aktive et'}>
               <Power className={`w-3 h-3 ${expense.is_active ? 'text-positive-600 dark:text-positive-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
             </button>
-            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle" aria-label="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil" aria-label="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -668,7 +668,7 @@ function DebtRow({ debt, accounts = [], onEdit, onDelete, onMarkPaid, onUndoPaid
               <button
                 onClick={onMarkPaid}
                 className="btn btn-ghost btn-icon !p-1 hover:!text-positive-600"
-                title="Ödendi olarak işaretle"
+                title="Ödendi olarak işaretle" aria-label="Ödendi olarak işaretle"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
               </button>
@@ -680,15 +680,15 @@ function DebtRow({ debt, accounts = [], onEdit, onDelete, onMarkPaid, onUndoPaid
                 type="button"
                 onClick={onUndoPaid}
                 className="btn btn-ghost btn-icon !p-1 hover:!text-warn-600"
-                title="Ödendi işaretini geri al"
+                title="Ödendi işaretini geri al" aria-label="Ödendi işaretini geri al"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
             )}
-            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle">
+            <button type="button" onClick={onEdit} className="btn btn-ghost btn-icon !p-1" title="Düzenle" aria-label="Düzenle">
               <Pencil className="w-3 h-3" />
             </button>
-            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil">
+            <button type="button" onClick={onDelete} className="btn btn-ghost btn-icon !p-1 hover:!text-negative-600" title="Sil" aria-label="Sil">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
@@ -1124,7 +1124,7 @@ function Modal({ title, children, onClose }) {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{title}</h3>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat" aria-label="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

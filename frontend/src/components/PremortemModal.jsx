@@ -107,7 +107,7 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5 flex-shrink-0" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5 flex-shrink-0" title="Kapat" aria-label="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

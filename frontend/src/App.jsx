@@ -420,7 +420,7 @@ function AppContent({ onLogout }) {
             <button
               onClick={toggleTheme}
               className="btn btn-ghost btn-icon !p-2"
-              title={theme === 'dark' ? 'Açık tema' : 'Koyu tema'}
+              title={theme === 'dark' ? 'Açık tema' : 'Koyu tema'} aria-label={theme === 'dark' ? 'Açık tema' : 'Koyu tema'}
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -429,7 +429,7 @@ function AppContent({ onLogout }) {
               <button
                 onClick={onLogout}
                 className="btn btn-ghost btn-icon !p-2"
-                title="Çıkış yap"
+                title="Çıkış yap" aria-label="Çıkış yap"
               >
                 <LogOut className="w-4 h-4" />
               </button>

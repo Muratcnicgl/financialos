@@ -61,7 +61,7 @@ export default function SistemDurumu({ onClose }) {
       <div className="card w-full max-w-sm p-5 space-y-4">
         <div className="flex items-start justify-between">
           <h3 className="font-semibold">Sistem durumu</h3>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1" title="Kapat">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1" title="Kapat" aria-label="Kapat">
             <X className="w-4 h-4" />
           </button>
         </div>

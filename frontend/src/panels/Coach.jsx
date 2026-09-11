@@ -562,7 +562,7 @@ function CoachInner({ onActionResolved }) {
           onClick={handleSend}
           disabled={!input.trim() || sending || usageBlock}
           className="btn btn-primary !py-3 flex-shrink-0"
-          title="Gönder (Enter)"
+          title="Gönder (Enter)" aria-label="Gönder (Enter)"
         >
           {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
         </button>

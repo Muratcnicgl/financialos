@@ -51,7 +51,7 @@ bir daha sessizce bayatlayamaz (L74'ün mekanizma karşılığı).
 | Boyut | ⏸ kapsam dışı | ⚪ defekt değil | ⛔ yapılmayacak | ✅ kapandı | 🔲 açık | 🟡 kısmen | toplam |
 |---|---|---|---|---|---|---|---|
 | A11Y | 2 | 0 | 0 | 9 | 7 | 2 | 20 |
-| API | 1 | 0 | 0 | 4 | 11 | 4 | 20 |
+| API | 1 | 0 | 0 | 5 | 11 | 3 | 20 |
 | BE | 0 | 0 | 0 | 15 | 23 | 2 | 40 |
 | DATA | 0 | 0 | 0 | 11 | 18 | 6 | 35 |
 | DEVOPS | 0 | 0 | 0 | 13 | 7 | 0 | 20 |
@@ -68,7 +68,7 @@ bir daha sessizce bayatlayamaz (L74'ün mekanizma karşılığı).
 | SEC | 1 | 1 | 0 | 17 | 6 | 10 | 35 |
 | TEST | 0 | 0 | 0 | 29 | 2 | 4 | 35 |
 | UX | 0 | 0 | 0 | 2 | 29 | 9 | 40 |
-| **TOPLAM** | **11** | **7** | **2** | **227** | **218** | **56** | **521** |
+| **TOPLAM** | **11** | **7** | **2** | **228** | **218** | **55** | **521** |
 
 <!-- OTOMATIK-BACKLOG-OZETI:BITTI -->
 

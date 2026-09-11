@@ -36,7 +36,7 @@ function makeFetchMock({ debts, accounts = [HESAP], kayit }) {
     if (u.pathname === '/api/debts') govde = debts;
     else if (u.pathname === '/api/accounts') govde = accounts;
     else if (u.pathname === '/api/incomes' || u.pathname === '/api/expenses') govde = [];
-    else if (/^\/api\/debts\/\d+$/.test(u.pathname) && init.method === 'PUT') {
+    else if (/^\/api\/debts\/\d+$/.test(u.pathname) && (init.method === 'PUT' || init.method === 'PATCH')) {  // BUG #410: kısmi güncelleme PATCH
       const yama = JSON.parse(init.body || '{}');
       // Backend sözleşmesi: ödendi işaretlenince nakit ayağı uygulanır ve İZ bırakır.
       govde = {
@@ -114,7 +114,7 @@ describe('BUG #241 — tahsilat nakde yansır ve GÖRÜNÜR', () => {
     fireEvent.click(await screen.findByTitle('Ödendi işaretini geri al'));
 
     await waitFor(() => {
-      const put = kayit.find(k => k.method === 'PUT' && k.yol === `/api/debts/${ODENMIS_ALACAK.id}`);
+      const put = kayit.find(k => (k.method === 'PUT' || k.method === 'PATCH') && k.yol === `/api/debts/${ODENMIS_ALACAK.id}`);
       expect(put).toBeTruthy();
       expect(JSON.parse(put.body)).toEqual({ is_paid: false });
     });

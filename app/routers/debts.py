@@ -116,6 +116,8 @@ def create_debt(
     return debt
 
 
+# BUG #410 (API-009): PATCH = kısmi güncelleme (gövde zaten `exclude_unset`); PUT geriye uyum.
+@router.patch("/{debt_id}", response_model=DebtOut)
 @router.put("/{debt_id}", response_model=DebtOut)
 def update_debt(
     debt_id: int,

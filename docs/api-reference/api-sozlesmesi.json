@@ -128,6 +128,35 @@
   },
   {
     "yol": "/api/accounts/{account_id}",
+    "metot": "PATCH",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "account_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "AccountUpdate",
+    "yanitlar": {
+      "200": "AccountOut",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/accounts/{account_id}",
     "metot": "PUT",
     "kimlik": "korumali",
     "koruma": [
@@ -1098,6 +1127,35 @@
     "istek_govdesi": null,
     "yanitlar": {
       "204": "govdesiz",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
+    "yol": "/api/debts/{debt_id}",
+    "metot": "PATCH",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "debt_id",
+        "yer": "path",
+        "zorunlu": true,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": "DebtUpdate",
+    "yanitlar": {
+      "200": "DebtOut",
       "422": "HTTPValidationError"
     }
   },

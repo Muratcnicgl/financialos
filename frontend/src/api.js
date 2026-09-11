@@ -253,7 +253,7 @@ export const accountsApi = {
   list:   (params) => request('/api/accounts', { params }),
   get:    (id) => request(`/api/accounts/${id}`),
   create: (data) => request('/api/accounts', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/accounts/${id}`, { method: 'PUT', body: data }),
+  update: (id, data) => request(`/api/accounts/${id}`, { method: 'PATCH', body: data }),  // BUG #410: kısmi güncelleme
   delete: (id) => request(`/api/accounts/${id}`, { method: 'DELETE' }),
 };
 
@@ -343,7 +343,7 @@ export const wishlistApi = {
 export const debtsApi = {
   list:   (params) => request('/api/debts', { params }),
   create: (data) => request('/api/debts', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/debts/${id}`, { method: 'PUT', body: data }),
+  update: (id, data) => request(`/api/debts/${id}`, { method: 'PATCH', body: data }),  // BUG #410: kısmi güncelleme
   delete: (id) => request(`/api/debts/${id}`, { method: 'DELETE' }),
   // 'Odendi' kisayolu — paid_date set ederek
   markPaid: (id, date = null) => request(`/api/debts/${id}`, {

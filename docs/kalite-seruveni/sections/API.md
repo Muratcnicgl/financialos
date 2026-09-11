@@ -59,7 +59,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [API-009] PATCH yok — kısmi güncelleme PUT ile tam-nesne zorunlu
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: goals PATCH var ama accounts/debts PATCH yok
+- **Durum:** ✅ KAPANDI — **BUG #410 (12 Eyl 2026):** madde ölçümle yarı yanlıştı: accounts/debts PUT işleyicileri zaten `exclude_unset` ile kısmi güncelleme yapıyordu (tüm alanlar Optional). Eksik olan fiil/sözleşmeydi. PATCH aynı işleyiciye bağlandı (PUT geriye uyum için kalır), istemci `update` çağrıları PATCH'e geçti. Kapı `tests/test_kismi_guncelleme_kapisi.py`: iki uçta iki fiille tek alan değişir, diğerleri None'a ezilmez. API sözleşmesi bilinçli yeniden donduruldu (+2 uç).
 - **Sorun/Fırsat:** Tek alan (örn. hesap adı) değiştirmek için tüm nesne gönderiliyor; eşzamanlı yazımda alan ezme riski.
 - **Kanıt:** `app/routers/accounts.py`, `debts.py` PUT endpoint'leri
 - **Aksiyon:** `PATCH` + `exclude_unset` (Pydantic) ile kısmi güncelleme.

@@ -169,6 +169,9 @@ def get_account(
     return acc
 
 
+# BUG #410 (API-009): gövde zaten kısmi (`exclude_unset`), yalnız fiil PUT'tu — PATCH aynı
+# işleyici, sözleşme açıkça "kısmi güncelleme" der; PUT geriye uyum için kalır.
+@router.patch("/{account_id}", response_model=AccountOut)
 @router.put("/{account_id}", response_model=AccountOut)
 def update_account(
     account_id: int,

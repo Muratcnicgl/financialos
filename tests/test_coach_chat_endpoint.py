@@ -63,3 +63,48 @@ def test_sec006_asiri_uzun_mesaj_422(client):
 def test_sec006_bos_mesaj_422(client):
     r = client.post("/api/coach/chat", json={"message": "", "include_cockpit": False})
     assert r.status_code == 422                       # min_length=1
+
+
+class _DusenEngine:
+    """Motor içeride yakaladı: özür metni + `llm_kullanilamadi` bayrağıyla döner (RESIL-004 yolu)."""
+    provider_name = "ScriptedProvider"
+    model = "scripted-1"
+
+    def chat(self, **kw):
+        return {"reply": "Koç (yapay zekâ yorumlayıcı) şu an ulaşılamıyor — panelindeki veriler güncel.",
+                "proposed_actions": [], "cockpit_snapshot": None, "llm_kullanilamadi": True,
+                "grounding": {"ok": True}}
+
+
+class _CalisanEngine:
+    provider_name = "ScriptedProvider"
+    model = "scripted-1"
+
+    def chat(self, **kw):
+        return {"reply": "Nakit kasanda 4.276 TL var.", "proposed_actions": [],
+                "cockpit_snapshot": None, "grounding": {"ok": True}}
+
+
+def test_bug376_kocun_DUSTUGU_sozlesmede_gorunur(client, monkeypatch):
+    """
+    BUG #376 — API-004/BE-009/RESIL-016'nın kalan boşluğu. 200 bilinçli (sohbet UX) ama
+    istemci "cevap" ile "özür metni"ni ayırt edemiyordu: motor `llm_kullanilamadi` üretiyor,
+    `ChatResponse` alanı taşımıyordu. İKİ düşme yolu da bayrağı taşımalı.
+    """
+    monkeypatch.setattr("app.routers.coach._get_engine", lambda: _DusenEngine())
+    r = client.post("/api/coach/chat", json={"message": "selam", "include_cockpit": False})
+    assert r.status_code == 200
+    assert r.json()["llm_kullanilamadi"] is True, "motorun bayrağı API'de kayboldu"
+
+    monkeypatch.setattr("app.routers.coach._get_engine", lambda: _FailEngine())
+    r = client.post("/api/coach/chat", json={"message": "selam", "include_cockpit": False})
+    assert r.status_code == 200
+    assert r.json()["llm_kullanilamadi"] is True, "router'ın kendi except yolu bayrak taşımıyor"
+
+
+def test_bug376_koc_CALISINCA_bayrak_yanmaz(client, monkeypatch):
+    """Gürültü tarafı: normal cevapta bayrak False — aksi hâlde istemci her cevapta uyarır."""
+    monkeypatch.setattr("app.routers.coach._get_engine", lambda: _CalisanEngine())
+    r = client.post("/api/coach/chat", json={"message": "selam", "include_cockpit": False})
+    assert r.status_code == 200
+    assert r.json()["llm_kullanilamadi"] is False

@@ -103,6 +103,14 @@ class ChatResponse(BaseModel):
     cockpit_snapshot: Optional[Dict[str, Any]] = None
     usage: Optional[UsageInfo] = None
     coach_memory_id: Optional[int] = None
+    # BUG #376 (API-004 / BE-009 / RESIL-016'nın kalan boşluğu): koç DÜŞTÜĞÜNDE de 200
+    # dönüyor — bu bilinçli (sohbet ekranı ham 5xx'te bozulmasın, deterministik panel
+    # verisi korunsun). Ama istemci "koç cevap verdi" ile "koç çöktü, özür metni geldi"yi
+    # AYIRT EDEMİYORDU: motor `llm_kullanilamadi` üretiyor, eval okuyor, API DÜŞÜRÜYORDU.
+    # Backlog'un kendi reçetesi ("başarılı ama koç meşgul durumunu AYRI ALANLA belirt")
+    # tam olarak bu alan. Varsayılan False → mevcut istemciler kırılmaz; okuyan istemci
+    # "tekrar dene" / uyarı rozeti kurabilir, izleme de düşmeyi 200'lerin içinden sayabilir.
+    llm_kullanilamadi: bool = False
 
 
 class TraceStepOut(BaseModel):
@@ -445,6 +453,7 @@ def chat(
                 "reply": "Koç şu an cevap veremedi (sağlayıcılar meşgul olabilir). Birazdan tekrar dene.",
                 "proposed_actions": [],
                 "cockpit_snapshot": None,
+                "llm_kullanilamadi": True,   # BUG #376: bu yol da "koç düştü"dür, bayrak taşır
             }
 
     duration_ms = int((time.time() - t_start) * 1000)
@@ -473,6 +482,7 @@ def chat(
         cockpit_snapshot=result.get("cockpit_snapshot"),
         usage=post_usage,
         coach_memory_id=result.get("coach_memory_id"),
+        llm_kullanilamadi=bool(result.get("llm_kullanilamadi", False)),
     )
 
 

@@ -205,7 +205,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [RULE-029] `date.today()` (lokal) ile naive-UTC DB alanları karışımı — gün kayması
-- **Durum:** 🟡 KISMEN — M76 kod-doğrulaması: today enjeksiyonu eklendi ama default yollar date.today()+utcnow() karıştırıyor (cashflow.py:274)
+- **Durum:** ✅ KAPANDI — 12 Eyl 2026 ölçümü: BUG #237 (D17) ile tek "bugün" kaynağı kullanıcının günü (`user_today`), `app/` altındaki her `date.today()` ya kullanıcı gününe çevrildi ya `tz-exempt` gerekçeli (statik kapı `test_saat_dilimi_kapisi`, BUG #401'de bir kaçağı daha yakaladı). `goal_engine._project_cash_completion`: 90-gün penceresi `utcnow` ile UTC eksenindeki `created_at`e karşı (doğru eksen), sonuç tarihi `user_today_by_id` — maddenin ±3 saat off-by-one'ı kalmadı. `debt_strategy`/`goal_engine`deki kalan `date.today()` çağrıları saf hesap yardımcılarında, gerekçeli muaf.
 - **Sorun:** cashflow/debt_strategy/goal `date.today()` (UTC+3) kullanır; `goal_engine._project_cash_completion` cutoff'u `datetime.utcnow()` ile kurup sonucu `date.today()` ile üretir → gece yarısı ±3 saat off-by-one.
 - **Kanıt:** `app/goal_engine.py:147, 168`; `app/cashflow.py:257`; `app/debt_strategy.py:216`
 - **Aksiyon:** Tek "bugün" kaynağı (enjekte edilen `today: date`); utcnow karşılaştırmalarını lokal tarih tabanına hizala.

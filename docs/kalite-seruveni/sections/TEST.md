@@ -204,7 +204,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [TEST-034] Contract testi yok: backend şema ↔ frontend api.js beklentisi
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: cockpit contract backend ama frontend yok
+- **Durum:** ✅ KAPANDI — **BUG #419 (12 Eyl 2026):** sözleşme zaten tek yerde donduruluyordu (`frontend/src/__fixtures__/bos-kullanici.json`, backend fixture kapısıyla koddan yenilenir); eksik olan frontend tarafının ona bakmasıydı. Kapı `kokpit-sozlesme.test.jsx`: `Cockpit.jsx`'in okuduğu 37 `data.<anahtar>` fixture'daki `/api/cockpit` gövdesinde var; backend alan adı değiştirirse fixture yenilenir, frontend kırmızı olur. Mutasyonla doğrulandı.
 - **Kanıt:** `frontend/PROJE.md` (mapping yok); `schemas.py`; `api.js`
 - **Aksiyon:** Kritik yanıt şemalarını (cockpit anahtarları) JSON snapshot; iki tarafta referans. Alan adı değişimi kırmızı verir.
 - **Etki:** Orta · **Efor:** M

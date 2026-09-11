@@ -79,6 +79,7 @@ def list_debts(
     direction: Optional[DebtDirection] = None,
     paid: Optional[bool] = Query(None, description="True: odenmis, False: odenmemis, None: hepsi"),
     counterparty: Optional[str] = None,
+    limit: int = Query(500, ge=1, le=1000),  # BUG #389 (API-002): ust sinir, transactions ile ayni desen
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
@@ -97,7 +98,7 @@ def list_debts(
     if counterparty:
         q = q.filter(PersonalDebt.counterparty == counterparty)
 
-    return q.order_by(PersonalDebt.due_date.asc().nulls_last(), PersonalDebt.id).all()
+    return q.order_by(PersonalDebt.due_date.asc().nulls_last(), PersonalDebt.id).limit(limit).all()
 
 
 @router.post("", response_model=DebtOut, status_code=status.HTTP_201_CREATED)

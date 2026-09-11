@@ -31,6 +31,12 @@
         "yer": "query",
         "zorunlu": false,
         "tip": "AccountType|null"
+      },
+      {
+        "ad": "limit",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
       }
     ],
     "istek_govdesi": null,
@@ -1023,6 +1029,12 @@
         "yer": "query",
         "zorunlu": false,
         "tip": "DebtDirection|null"
+      },
+      {
+        "ad": "limit",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
       },
       {
         "ad": "paid",

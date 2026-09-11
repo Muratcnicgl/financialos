@@ -13,7 +13,7 @@ guncelliyor, bakiye kendiliginden doruluyor (Improvement Backlog'da konusulmustu
 
 from datetime import datetime, date
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -112,6 +112,7 @@ class AccountOut(AccountBase, FiyatTazeligiMixin):
 @router.get("", response_model=List[AccountOut])
 def list_accounts(
     account_type: Optional[AccountType] = None,
+    limit: int = Query(500, ge=1, le=1000),  # BUG #389 (API-002): ust sinir, transactions ile ayni desen
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     ws_id: Optional[int] = Depends(active_workspace_id),  # M43
@@ -122,7 +123,7 @@ def list_accounts(
     q = db.query(Account).filter(scope_filter(Account, user.id, ws_id))  # M43 workspace scoping
     if account_type:
         q = q.filter(Account.account_type == account_type)
-    return q.order_by(Account.account_type, Account.id).all()
+    return q.order_by(Account.account_type, Account.id).limit(limit).all()
 
 
 @router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)

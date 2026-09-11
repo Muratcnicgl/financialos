@@ -10,7 +10,7 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [API-002] Liste endpoint'lerinde pagination yok — tüm veri tek yanıtta
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: bazı list limit aldı ama accounts/debts sınırsız, cursor yok
+- **Durum:** ✅ KAPANDI — **BUG #389 (11 Eyl 2026):** `GET /api/accounts` ve `GET /api/debts` de `limit` aldı (500, 1..1000; transactions'ın BUG #154 deseni); coach history zaten limitli. Kapı `tests/test_liste_ust_siniri_kapisi.py`: sınır üstünde satır varken yanıt sınırda, tavan aşımı 422, mutasyonla doğrulandı. Cursor/offset ve toplam sayı BİLEREK yapılmadı: tek kullanıcıda hesap/borç onlarca satır (canlı: <10 hesap); istemci sayfalama yapmıyor, ihtiyaç ölçülmeden eklenen cursor ölü API olur (L79 sınıfı). Büyüdüğü gün ölçülür, eklenir.
 - **Sorun/Fırsat:** transactions/accounts/debts/coach history tüm kayıtları döner; veri büyüdükçe mobil/yavaş ağda payload şişer.
 - **Kanıt:** `app/routers/transactions.py`, `debts.py`, `accounts.py` list endpoint'leri (limit/offset yok)
 - **Aksiyon:** `limit`/`offset` (veya cursor) + toplam sayı; makul default (örn. 50). Coach history zaten limit'li — onu standarda taşı.

@@ -1203,3 +1203,4 @@ Tur şu şikâyetle başladı: koç kalitesi düşük, düzeltmeler ölçülemiy
 | #414 | **PARA KURALLARI (MasterCheckpoint) DENETİM TÜRETİMİNİN DIŞINDA KALIYORDU (DATA-034)** | Numeric sütun yok → kural eklendi; gevşetme/silme izi. | `app/denetim.py`, `tests/test_denetim_izi_kapisi.py` | 8/8 | ✅ |
 | #415 | **PAYLAŞILAN KOÇ MOTORUNUN İZOLASYONU ÖLÇÜLDÜ VE KİLİTLENDİ (SEC-026)** | Motor durumsuz (2 alan); A→B ardışık sohbette B'nin promptu/geçmişi A'yı taşımaz; motor çağrıda durum edinmez. | `tests/test_koc_motoru_yalitim_kapisi.py` | 2 test | ✅ |
 | #416 | **FİYAT TAZELİĞİ EŞİĞİ DUVAR SAATİNE BAĞLI, SINIR SINANAMIYORDU (TEST-019)** | `now` enjekte; tam-24-saat sınırı deterministik. | `app/fund_tracker.py`, `tests/test_fund_tracker.py` | 8/8 | ✅ |
+| #417 | **FLAKY POLİTİKASI YAZILI VE KİLİTLİ (TEST-035)** | CI filtresi yerine fail-closed ağ kapısı (daha güçlü); tekrar-deneme yasak; ratchet. | `tests/test_flaky_politikasi_kapisi.py` | 4 test | ✅ |

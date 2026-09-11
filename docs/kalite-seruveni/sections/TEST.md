@@ -210,7 +210,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [TEST-035] Flaky-test önleme politikası/marker yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: markerlar var ama CI filtresiz
+- **Durum:** ✅ KAPANDI — **BUG #417 (12 Eyl 2026):** CI `-m` filtresi bilerek yok — daha güçlüsü var: BUG #307 ağ kapısı süiti fail-closed içeride tutar, yalnız `@pytest.mark.network` açar (2 dosya); filtre "unutulan işareti" sessizce koştururdu, kapı kırmızı yapar. `pytest-rerunfailures` yok ve olmayacak: bir gece iki takvim-fikstürü kırıldı (#387, #407), doğru cevap tekrar denemek değil saati sabitlemekti (#416). Kapı `tests/test_flaky_politikasi_kapisi.py`: markerlar tanımlı, ağ kapısı var, network işaretli dosya ≤ 4, tekrar-deneme eklentisi yok, CI filtresiz.
 - **Kanıt:** `test_coach.py` (canlı API), `test_fund_tracker.py:26` (utcnow)
 - **Aksiyon:** `@pytest.mark.llm/network/slow`; CI default `-m "not llm and not network"`; sadece dış-bağımlı testlerde `pytest-rerunfailures`; birim testlerde retry YASAK.
 - **Etki:** Orta · **Efor:** S

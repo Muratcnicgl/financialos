@@ -108,7 +108,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [FE-018] DebtStrategy slider yalnız mouse/touch-up'ta fetch — klavye erişilemez
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: onKeyUp eklendi ama aria-label/debounce yok (DebtStrategy.jsx:366)
+- **Durum:** ✅ KAPANDI — **BUG #392 + #403 (11 Eyl 2026):** `aria-label`/`aria-valuetext`/label bağı #392'de; kalan debounce: `onKeyUp` her ok tuşunda istek atıyordu (tuş basılı → saniyede onlarca `compare`), fare/dokunma bırakışta tek istek. Klavye taahhüdü 300 ms sessizlikten sonra tek istek; zamanlayıcı ref'te, unmount'ta temizlenir. Kapı `slider-klavye-debounce.test.jsx` (RTL + sahte zamanlayıcı: 5 tuş → 1 istek; fare bırakışı bekletmez); mutasyonla doğrulandı.
 - **Kanıt:** `DebtStrategy.jsx:164-174`
 - **Aksiyon:** Debounce'lu `useEffect([extraMonthly])`; `aria-label`.
 - **Etki:** Orta · **Efor:** S

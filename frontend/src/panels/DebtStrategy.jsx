@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { debtStrategyApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
@@ -279,6 +279,15 @@ export default function DebtStrategy() {
   }, [data]);
 
   const handleExtraCommit = () => fetchData(extraMonthly);
+  // BUG #403 (FE-018): klavyede her ok tuşu bir keyup üretir; basılı tutunca saniyede
+  // onlarca istek giderdi. Klavye taahhüdü 300 ms sessizlikten sonra tek istek (fare/dokunma
+  // zaten bırakışta tek istek). Zamanlayıcı ref'te: her render'da sıfırlanmasın.
+  const klavyeZamanlayici = useRef(null);
+  const handleExtraKeyUp = () => {
+    clearTimeout(klavyeZamanlayici.current);
+    klavyeZamanlayici.current = setTimeout(handleExtraCommit, 300);
+  };
+  useEffect(() => () => clearTimeout(klavyeZamanlayici.current), []);
 
   if (loading) {
     return (
@@ -370,7 +379,7 @@ export default function DebtStrategy() {
           onChange={(e) => setExtraMonthly(Number(e.target.value))}
           onMouseUp={handleExtraCommit}
           onTouchEnd={handleExtraCommit}
-          onKeyUp={handleExtraCommit}
+          onKeyUp={handleExtraKeyUp}
           className="w-full accent-brand-500"
         />
         <div className="flex justify-between text-xs text-zinc-500 mt-1">

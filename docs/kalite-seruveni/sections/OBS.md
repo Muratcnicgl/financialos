@@ -88,7 +88,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [OBS-014] `ApiCallLog`/`ReasoningTrace`/`CoachMemory` sınırsız büyür — retention/rotation yok
-- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü, **üç tablodan yalnız BİRİ** korunuyor: `scheduler.nightly_trace_cleanup_job` (04:00 İstanbul) `ReasoningTrace`'in 90 günden eski satırlarını siler ve **silinen satır sayısını çalışma kaydına düşer** (BUG #240 — KVKK'da verilen 90 gün sözü ancak SAYIYLA doğrulanır, log okumak kanıt değildir). AÇIK KALAN, ölçülerek daraltıldı: `ApiCallLog` ve `CoachMemory` için saklama işi YOK — ikisi de sınırsız büyümeye devam ediyor. Sıradaki iş bu iki tablodur, tamamı değil.
+- **Durum:** ✅ KAPANDI — **BUG #383 (11 Eyl 2026), DATA-032 ile aynı iş:** gece işi `SAKLAMA_KURALLARI`ndan okur — `reasoning_traces`/`api_call_log`/`scheduler_runs` 90 gün, `revoked_tokens` süresi dolan; tablo başına silinen sayı çalışma kaydına yazılır (BUG #240 ilkesi). `CoachMemory` bilerek dışarıda: koç sohbet geçmişi, günlük kaydı değil — ürün/KVKK kararı; ölçülen büyüme ~1 satır/gün. Kapı `tests/test_saklama_kapisi.py`.
 - **Kanıt:** `app/models.py:450-489`; scheduler'da trace cleanup var ama ApiCallLog için yok
 - **Aksiyon:** N günden eski kayıt retention job (mevcut nightly cleanup'a ekle); aggregate tablo. (DATA-032)
 - **Etki:** Düşük · **Efor:** M

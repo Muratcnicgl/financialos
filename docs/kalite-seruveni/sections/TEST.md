@@ -1,7 +1,7 @@
 # Test & QA (kod: TEST)
 
 ### [TEST-001] Kök `test_*.py` scriptleri gerçek DB'yi `drop_all` ediyor — veri kaybı riski
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: kok test_*.py guard'siz drop_all
+- **Durum:** ✅ KAPANDI — BUG #381 (11 Eyl 2026): üç betiğe `drop_all`dan ÖNCE koruma eklendi (`engine.url` bellek-içi değilse ve `ALLOW_DESTRUCTIVE_TEST=1` yoksa `SystemExit`). Ölçüldü: canlı DB ile koşum REDDEDİLDİ, `DATABASE_URL=sqlite:///:memory:` ile geçti. Kapı `tests/test_yikici_kok_betik_kapisi.py` kökteki her `test_*.py`yi tarar (mutasyonla doğrulandı). Betikleri pytest'e taşıma ayrı iş; veri kaybı riski kapandı.
 - **Sorun:** `test_coach/action_executor/simulation.py` başlangıçta `drop_all(bind=engine)`; engine production `data/financialos.db`'ye bağlı. Elle çalıştırılırsa canlı veri silinir.
 - **Kanıt:** `test_coach.py:16-17`, `test_action_executor.py:17-18`, `test_simulation.py:24-26`, `app/database.py:16`
 - **Aksiyon:** pytest'e taşırken `sqlite:///:memory:`; geçiş bitene kadar guard `assert "memory" in str(engine.url) or os.getenv("ALLOW_DESTRUCTIVE_TEST")`.

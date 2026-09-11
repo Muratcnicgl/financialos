@@ -77,3 +77,49 @@ def test_env_hic_commit_edilmemis():
     cikti = subprocess.run(["git", "log", "--all", "--oneline", "--", ".env", ".env.prod"],
                            cwd=KOK, capture_output=True, text=True).stdout.strip()
     assert cikti == "", f".env geçmişte commit edilmiş: {cikti[:200]}"
+
+
+# ── BUG #384 / DEVOPS-019: İNDEKS MODU + PRE-COMMIT BAĞI ─────────────────────
+# Ölçülen (11 Eyl 2026): tarama yalnız CI'da koşuyordu — push'tan SONRA. O anda anahtar
+# zaten uzak depoda ve geçmiştedir. Commit anında soran yoktu (BUG #364/#380 deseni).
+
+def _gecici_depo(tmp_path):
+    import subprocess
+    kos = lambda *a: subprocess.run(["git", *a], cwd=tmp_path, check=True,  # noqa: E731,S603,S607
+                                    capture_output=True, text=True)
+    kos("init", "-q")
+    kos("config", "user.email", "t@t")
+    kos("config", "user.name", "t")
+    return kos
+
+
+def test_staged_modu_indeksi_okur_calisma_agacini_degil(tmp_path):
+    """İndekste olan yakalanır; yalnız diskte olan yakalanmaz; diskten silinip indekste
+    kalan yine yakalanır — commit'e giren içerik indekstir, dosya değil."""
+    kos = _gecici_depo(tmp_path)
+    anahtar = "AIzaSyA" + "b" * 30   # secret-ornek: uydurma
+    # 1) stage'lenmiş anahtar → bulunur
+    (tmp_path / "a.txt").write_text(f"KEY={anahtar}\n", encoding="utf-8")
+    kos("add", "a.txt")
+    bulgular = tarama.tara_staged(kok=tmp_path)
+    assert bulgular == ["a.txt:1: Google/Gemini"], bulgular
+    # 2) diskte anahtar silindi ama indekste duruyor → HÂLÂ bulunur
+    (tmp_path / "a.txt").write_text("KEY=yok\n", encoding="utf-8")
+    assert tarama.tara_staged(kok=tmp_path) == ["a.txt:1: Google/Gemini"]
+    # 3) indeks temizlendi, anahtar yalnız diskte → bulunmaz
+    kos("add", "a.txt")
+    (tmp_path / "b.txt").write_text(f"KEY={anahtar}\n", encoding="utf-8")
+    assert tarama.tara_staged(kok=tmp_path) == []
+    # 4) işaretli örnek affedilir
+    (tmp_path / "c.txt").write_text(f"# secret-ornek: uydurma\nKEY={anahtar}\n", encoding="utf-8")
+    kos("add", "c.txt")
+    assert tarama.tara_staged(kok=tmp_path) == []
+
+
+def test_staged_modu_pre_commit_kapisina_bagli():
+    """Hook `--staged` ile çağırır ve kırmızıda commit'i ENGELLER (uyarı değil, kapı)."""
+    hook = (KOK / ".githooks" / "pre-commit").read_text(encoding="utf-8")
+    i = hook.find("scripts.sir_taramasi --staged")
+    assert i > 0, "pre-commit sir taramasını çağırmıyor"
+    assert "exit 1" in hook[i:i + 400], "sir taraması kırmızısı commit'i engellemiyor"
+    assert "|| true" not in hook[i:hook.find("\n", i)], "kapı '|| true' ile uyarıya indirilmiş"

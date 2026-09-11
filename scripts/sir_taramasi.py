@@ -14,6 +14,7 @@ Bu script o kanıtı üretir; CI haftalık koşar.
 KULLANIM
 --------
     python -m scripts.sir_taramasi              # çalışma ağacı (izlenen dosyalar)
+    python -m scripts.sir_taramasi --staged     # yalnız İNDEKSTEKİ içerik (pre-commit, <1 sn)
     python -m scripts.sir_taramasi --gecmis     # TÜM git geçmişi (yavaş, CI/haftalık)
 
 Çıkış kodu: 0 temiz · 2 bulgu var (CI'yı kırar).
@@ -58,6 +59,12 @@ MUAFIYET_ISARETI = "secret-ornek:"
 ATLA = ("node_modules/", "venv/", "dist/", ".git/", "__pycache__/", "playwright-report/")
 
 
+def _git(*args: str, kok: Path = KOK) -> bytes:
+    """Tek `git` çağrı noktası: ham stdout. (Her yeni `subprocess.run` ruff'ta bir S607 daha —
+    tavanı yükseltmek yerine ihtiyacı kaldır.)"""
+    return subprocess.run(["git", *args], cwd=kok, capture_output=True).stdout  # noqa: S603,S607
+
+
 def izlenen_dosyalar() -> list[str]:
     """Depoda İZLENEN tüm yollar (üretilen/dış içerik hariç — bkz. `ATLA`).
 
@@ -66,7 +73,7 @@ def izlenen_dosyalar() -> list[str]:
     ruff'ta bir `S607` daha üretiyor ve tavanı yükseltiyordu; `olu_kod_kapisi.izlenen_py`
     ile aynı desen (o `.py`, bu HEPSİ).
     """
-    cikti = subprocess.run(["git", "ls-files"], cwd=KOK, capture_output=True, text=True).stdout
+    cikti = _git("ls-files").decode("utf-8", "ignore")
     return [s for s in cikti.splitlines() if s and not s.startswith(ATLA)]
 
 
@@ -93,6 +100,20 @@ def _baseline() -> set[str]:
     return kabul
 
 
+def _metni_tara(rel: str, metin: str) -> list[str]:
+    """Bir dosyanın metnini satır satır desenlere koşar; `rel:satır: desen` listesi."""
+    bulgular: list[str] = []
+    satirlar = metin.splitlines()
+    for i, satir in enumerate(satirlar, 1):
+        if _satir_muaf(satir, satirlar[i - 2] if i >= 2 else ""):
+            continue
+        for ad, desen in DESENLER:
+            if desen.search(satir):
+                bulgular.append(f"{rel}:{i}: {ad}")
+                break
+    return bulgular
+
+
 def tara_calisma_agaci() -> list[str]:
     bulgular: list[str] = []
     for rel in izlenen_dosyalar():
@@ -101,14 +122,29 @@ def tara_calisma_agaci() -> list[str]:
             metin = yol.read_text(encoding="utf-8", errors="ignore")
         except (OSError, IsADirectoryError):
             continue
-        satirlar = metin.splitlines()
-        for i, satir in enumerate(satirlar, 1):
-            if _satir_muaf(satir, satirlar[i - 2] if i >= 2 else ""):
-                continue
-            for ad, desen in DESENLER:
-                if desen.search(satir):
-                    bulgular.append(f"{rel}:{i}: {ad}")
-                    break
+        bulgular.extend(_metni_tara(rel, metin))
+    return bulgular
+
+
+def tara_staged(kok: Path = KOK) -> list[str]:
+    """
+    Yalnız İNDEKSTEKİ (staged) içeriği tarar — pre-commit kapısı (BUG #384 / DEVOPS-019).
+
+    Ölçülen boşluk (11 Eyl 2026): tarama CI'da her push'ta koşuyordu; ama CI push'tan
+    SONRA konuşur ve o anda anahtar zaten uzak depoda, geçmişte, silinemez haldedir
+    (`--gecmis` modunun varlık sebebi tam da budur). Commit anında soran yoktu — BUG #364
+    ve #380 ile aynı boşluk: kapı vardı, kimse ona sormuyordu. Çalışma ağacı değil indeks
+    okunur (`git show :yol`): stage'lenmemiş bir düzenleme commit'e girmez, taranmamalı;
+    stage'lenmiş ama diskte geri alınmış içerik ise girer, taranmalı. Tam ağaç 2,6 sn
+    ölçüldü; indeks tipik commit'te birkaç dosya — bedel yok denecek kadar az.
+    """
+    adlar = _git("diff", "--cached", "--name-only", "--diff-filter=ACM",
+                 kok=kok).decode("utf-8", "ignore").splitlines()
+    bulgular: list[str] = []
+    for rel in adlar:
+        if not rel or rel.startswith(ATLA):
+            continue
+        bulgular.extend(_metni_tara(rel, _git("show", f":{rel}", kok=kok).decode("utf-8", "ignore")))
     return bulgular
 
 
@@ -121,8 +157,7 @@ def tara_gecmis() -> list[str]:
     stdout'a akıtır. Kapının koşulmayacak kadar yavaş olması, kapının olmaması demektir.
     """
     bulgular: list[str] = []
-    liste = subprocess.run(["git", "rev-list", "--objects", "--all"],
-                           cwd=KOK, capture_output=True, text=True).stdout.splitlines()
+    liste = _git("rev-list", "--objects", "--all").decode("utf-8", "ignore").splitlines()
     hedefler: list[tuple[str, str]] = []
     for satir in liste:
         parcalar = satir.split(" ", 1)
@@ -174,10 +209,16 @@ def tara_gecmis() -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Repo/gecmis sir taramasi (SEC-018)")
     ap.add_argument("--gecmis", action="store_true", help="tum git gecmisini tara (yavas)")
+    ap.add_argument("--staged", action="store_true",
+                    help="yalniz indeksteki (staged) icerigi tara (pre-commit)")
     args = ap.parse_args(argv)
 
-    bulgular = tara_gecmis() if args.gecmis else tara_calisma_agaci()
-    kapsam = "git gecmisi (tum bloblar)" if args.gecmis else "calisma agaci (izlenen dosyalar)"
+    if args.gecmis:
+        bulgular, kapsam = tara_gecmis(), "git gecmisi (tum bloblar)"
+    elif args.staged:
+        bulgular, kapsam = tara_staged(), "indeks (staged icerik)"
+    else:
+        bulgular, kapsam = tara_calisma_agaci(), "calisma agaci (izlenen dosyalar)"
 
     if bulgular:
         print(f"KIRMIZI: {len(bulgular)} olasi sir izi ({kapsam}):")

@@ -12,7 +12,7 @@
     "E9": 0,
     "F": 201,
     "B": 31,
-    "S": 62
+    "S": 60
   },
   "notlar": [
     "TOPLAM 296. Aile bazında tutuluyor, tek bir toplam olarak değil: tek toplam takas yapmaya izin verirdi — 5 kullanılmayan import temizlenip 5 yeni güvenlik bulgusu eklendiğinde sayı aynı kalır ve kapı susardı. Aile bazında S ailesinin artışı kendi başına kapıyı kırar.",
@@ -26,6 +26,7 @@
     "E ailesinden yalnız E9 seçildi. E711/E712'nin 22 bulgusunun TAMAMI yanlış alarm: `PersonalDebt.due_date != None` bir SQLAlchemy filtre ifadesidir ve `IS NOT NULL` üretir; `is not None` yazmak sorguyu bozar.",
     "DTZ ailesi (212 bulgu) dışarıda: projede DB datetime alanları BİLİNÇLİ olarak timezone-naive UTC (PROJE.md). Kural burada projenin yazılı kararına karşı çıkıyor.",
     "Biçimlendirme (ruff format) ve I001/UP aileleri dışarıda: sinyal yok, 403 dosyalık diff var. Toplu biçimlendirme gerçek değişikliği gizler — seen-backend bunu kendi baseline notunda yazılı olarak yasaklamış.",
-    "B 32 -> 31 ve F 203 -> 202 (2 Eyl 2026): CI kirmizi dondu ve iki gerileme cikti. (a) F541 x2 — yeni yazilan koc baglam blogunda placeholder'siz f-string; `f` oneki kaldirildi. (b) B023 — `siz_hitabi_onar` icindeki `_degistir` kapanisi dongu degiskenini baglamiyordu. BUGUN ZARARSIZDI (kapanis ayni iterasyonda hemen cagriliyor) ama desen bir tuzak: fonksiyon bir gun donguden cikarsa hepsi SON degeri gorur ve hata sessiz olur. Tavani yukseltmek yerine varsayilan argumanla baglandi — bir ratchet kapisina dogru cevap cogu zaman tavani yukseltmek degil, ihtiyaci ortadan kaldirmaktir."
+    "B 32 -> 31 ve F 203 -> 202 (2 Eyl 2026): CI kirmizi dondu ve iki gerileme cikti. (a) F541 x2 — yeni yazilan koc baglam blogunda placeholder'siz f-string; `f` oneki kaldirildi. (b) B023 — `siz_hitabi_onar` icindeki `_degistir` kapanisi dongu degiskenini baglamiyordu. BUGUN ZARARSIZDI (kapanis ayni iterasyonda hemen cagriliyor) ama desen bir tuzak: fonksiyon bir gun donguden cikarsa hepsi SON degeri gorur ve hata sessiz olur. Tavani yukseltmek yerine varsayilan argumanla baglandi — bir ratchet kapisina dogru cevap cogu zaman tavani yukseltmek degil, ihtiyaci ortadan kaldirmaktir.",
+    "S 62 -> 60 (BUG #384, 11 Eyl 2026): `scripts/sir_taramasi.py` indeks tarama modu (`--staged`) iki yeni `git` cagrisi getirecekti (+3 S). Tavani yukseltmek yerine dosyadaki BES `subprocess.run([\"git\", ...])` noktasi tek `_git()` yardimcisina indirildi; bir noqa, bes cagri. Ayni desenin dorduncu tekrari (#310, #311) — bu kez sayi dustu."
   ]
 }

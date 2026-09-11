@@ -62,6 +62,22 @@ if ! echo "$staged" | grep -qE '^(app/|tests/|scripts/|alembic/).*\.py$'    && e
   echo "[pre-commit] ✅ kapı testleri yeşil."
 fi
 
+# ── SIR TARAMASI — İNDEKS (BUG #384 / DEVOPS-019) ─────────────────────────────
+# `scripts/sir_taramasi` CI'da her push'ta koşuyordu; ama CI push'tan SONRA konuşur ve o
+# anda anahtar zaten uzak depoda ve geçmiştedir — geçmiş silinmez (`--gecmis` modunun
+# varlık sebebi). BUG #364/#380 ile aynı boşluk: kapı vardı, commit anında kimse
+# sormuyordu. Yalnız indeks taranır (`git show :yol`), ağa çıkmaz, deterministik → gerçek
+# KAPI (uyarı değil). Ölçülen bedel: tam ağaç 2,6 sn, indeks bunun küçük bir kesri.
+# Fixture'daki uydurma anahtar `# secret-ornek:` işaretiyle muaf tutulur (sessiz değil).
+py="./venv/Scripts/python.exe"
+[ -x "$py" ] || py="python"
+if ! "$py" -m scripts.sir_taramasi --staged; then
+  echo "[pre-commit] ❌ SIR TARAMASI KIRMIZI — commit engellendi."
+  echo "[pre-commit]    Gerçek anahtarsa: iptal et/rotasyona sok, dosyadan çıkar."
+  echo "[pre-commit]    Uydurma örnekse: satıra (ya da bir üstüne) '# secret-ornek:' işareti koy."
+  exit 1
+fi
+
 # Frontend değişti mi?
 if echo "$staged" | grep -qE '^frontend/src/.*\.(js|jsx)$'; then
   if [ -d frontend/node_modules/vitest ]; then

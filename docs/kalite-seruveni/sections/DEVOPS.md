@@ -112,7 +112,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DEVOPS-019] Git hijyen: `.env` diskte, runtime `data/` — sızma/temizlik denetimi
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: .env git-history temiz ama otomatik gitleaks yok
+- **Durum:** ✅ KAPANDI — **BUG #384 (11 Eyl 2026):** `.env` geçmişte yok (SEC-018 ölçümü duruyor); eksik olan "otomatik" yarısıydı ve gitleaks değil, var olan `scripts/sir_taramasi`nin commit anında koşmasıydı — CI push'tan SONRA konuşur, o anda anahtar zaten uzakta ve geçmiştedir. `--staged` modu yalnız indeksi tarar (`git show :yol`), pre-commit'te gerçek kapı (`exit 1`, `|| true` yok). Hook bizzat sınandı: uydurma anahtarlı dosya stage'lenip commit denendi → engellendi. Kapı testleri geçici depoda dört durumu ölçer. Yan kazanım: dosyadaki beş `git` çağrısı tek yardımcıya indi, ruff S tavanı 62→60.
 - **Kanıt:** `.gitignore` (data/ hariç tutulmuş — iyi); `.env` geçmiş commit kontrolü (SEC-018)
 - **Aksiyon:** `git log --all -- .env` doğrula; gitleaks pre-commit; `.gitignore` düzenli denetim.
 - **Etki:** Düşük · **Efor:** S

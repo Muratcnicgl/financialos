@@ -12,7 +12,7 @@
  * (`.ad` → `.name`) kapıyı kırmadı — `PayloadOzeti` yalnız add_transaction DIŞI türlerde
  * çizilir (BUG #266), yani test yanlış dalı ölçüyordu. Şimdi `update_account_balance`
  * ile doğru dal ölçülüyor ve ölçüm yalnız özet tablosuna (`<dl>`) bakıyor: sayfanın başka
- * yerinde "Enpara" geçmesi kapıyı geçirmez.
+ * yerinde "Kumbara" geçmesi kapıyı geçirmez.
  */
 import { render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
@@ -24,7 +24,7 @@ vi.mock('../src/api.js', async (orig) => {
 
 import PendingActions from './components/PendingActions.jsx';
 
-const KOKPIT_HESAPLAR = [{ id: 3, ad: 'Enpara', tip: 'cash', bakiye: 4276 }];
+const KOKPIT_HESAPLAR = [{ id: 3, ad: 'Kumbara', tip: 'cash', bakiye: 4276 }];
 const EYLEM = {
   id: 1, action_type: 'update_account_balance', status: 'pending', summary: 'Bakiye düzelt',
   payload: JSON.stringify({ account_id: 3, new_balance: 5000 }),
@@ -42,7 +42,7 @@ function ozetTablosu(accounts) {
 describe('PendingActions hesap adı (FE-026)', () => {
   it('kokpit biçimli hesapla özet tablosu hesabın ADINI yazar, #id değil', () => {
     const metin = ozetTablosu(KOKPIT_HESAPLAR);
-    expect(metin).toMatch(/Enpara/);
+    expect(metin).toMatch(/Kumbara/);
     expect(metin).not.toMatch(/#3(?!\d)/);
   });
 

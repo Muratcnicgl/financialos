@@ -42,6 +42,32 @@ def _kod_head() -> Optional[str]:
         return None
 
 
+def head_damgala(engine) -> Optional[str]:
+    """`create_all` ile kurulmuş bir şemayı alembic head'iyle damgalar (BUG #391 / DATA-005).
+
+    `create_all` tabloları kurar ama `alembic_version`'ı yazmaz; sonraki `upgrade head`
+    ya "table already exists" der ya da belirsizliğe düşer (ADR-013). Şemayı create_all
+    ile kuran tek meşru yol `scripts/setup_data` (demo/test verisi) — o yol da bittiğinde
+    burayı çağırır ki DB, alembic'in gözünde "güncel" olsun. Döner: damgalanan revizyon,
+    head okunamazsa None (damga yapılmaz; sessiz yanlış damga, damgasızlıktan kötüdür).
+    """
+    head = _kod_head()
+    if head is None:
+        return None
+    from pathlib import Path
+    from alembic.config import Config
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    kok = Path(__file__).resolve().parent.parent
+    cfg = Config(str(kok / "alembic.ini"))
+    cfg.set_main_option("script_location", str(kok / "alembic"))
+    script = ScriptDirectory.from_config(cfg)
+    with engine.begin() as baglanti:
+        MigrationContext.configure(baglanti).stamp(script, "head")
+    return head
+
+
 def _db_surumu(engine) -> Optional[str]:
     """DB'deki uygulanmış revizyon; `alembic_version` tablosu yoksa None."""
     from sqlalchemy import inspect, text

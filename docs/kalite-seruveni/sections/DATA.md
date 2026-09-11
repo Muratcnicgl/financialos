@@ -28,7 +28,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DATA-005] `setup_data.py` `drop_all` alembic'i baypas ediyor — schema çelişkisi
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: main create_all kaldırıldı ama setup_data drop_all+create_all, alembic stamp yok (setup_data.py:50)
+- **Durum:** ✅ KAPANDI — **BUG #391 (11 Eyl 2026):** `init_db` BUG #311 ile silinmişti, `main` create_all yapmıyor; kalan tek create_all yolu `scripts/setup_data` (demo verisi, onaylı yıkıcı) ve o yol damgasızdı — `baslat.ps1` her açılışta göç ölçer, damgasız DB'de `upgrade head` "table already exists" derdi. `schema_guard.head_damgala(engine)` create_all şemasını head ile damgalar; `setup_data` create_all'dan hemen sonra çağırır. Kapı `tests/test_setup_data_damgasi_kapisi.py`: damga → `_db_surumu == _kod_head`, `validate_schema_version` "guncel", idempotent; kaynak sırası (create_all → damga → veri). Mutasyonla doğrulandı. İki baseline migration notu ADR-013a'da.
 - **Sorun:** main.py "alembic upgrade head" der ama setup_data drop/create yapar, `database.py init_db` hâlâ create_all; create_all sonrası `alembic_version` stamp'lenmiyor → sonraki upgrade çakışır.
 - **Kanıt:** `scripts/setup_data.py:36-37`; `app/database.py:50-57`; `app/main.py:113`
 - **Aksiyon:** setup_data sonunda `alembic stamp head`; init_db'yi test-dışı yollardan kaldır; tek doğruluk kaynağı alembic.

@@ -74,7 +74,11 @@ def main():
     print("DB sifirlaniyor (drop_all + create_all)...")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    print("  -> Tum tablolar yeniden olusturuldu (11 tablo).\n")
+    # BUG #391 (DATA-005): create_all `alembic_version`'ı yazmaz; damgalanmazsa sonraki
+    # `alembic upgrade head` (baslat.ps1 her açılışta ölçer) "table already exists" der.
+    from app.schema_guard import head_damgala
+    _rev = head_damgala(engine)
+    print(f"  -> Tum tablolar yeniden olusturuldu; alembic damgasi: {_rev or 'YOK (head okunamadi)'}\n")
 
     db = SessionLocal()
     try:

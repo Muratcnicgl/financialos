@@ -1,4 +1,5 @@
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { useId, useState } from 'react';
+import { TrendingUp, TrendingDown, HelpCircle } from 'lucide-react';
 import { formatSayi, paraEtiketi } from '../lib/money.js';
 
 /**
@@ -26,7 +27,12 @@ export default function MetricCard({
   // geçmediği için para birimi FİİLEN buraya çivilenmişti. Artık tek kaynaktan gelir.
   suffix = ` ${paraEtiketi()}`,
   loading = false,
+  // BUG #423 (UX-021): kavram açıklaması — "?" düğmesiyle açılır (dokunmatikte tap), ekran
+  // okuyucuya aria-expanded/aria-controls ile bağlı. Verilmezse düğme çizilmez.
+  aciklama,
 }) {
+  const aciklamaId = useId();
+  const [aciklamaAcik, setAciklamaAcik] = useState(false);
   const variants = {
     neutral: {
       iconBg:   'bg-zinc-100 dark:bg-zinc-800',
@@ -69,6 +75,14 @@ export default function MetricCard({
           <h3 className="text-xs sm:text-sm font-medium text-zinc-600 dark:text-zinc-400 truncate">
             {title}
           </h3>
+          {aciklama && (
+            <button type="button" onClick={() => setAciklamaAcik((a) => !a)}
+                    aria-expanded={aciklamaAcik} aria-controls={aciklamaId}
+                    aria-label={`${title}: açıklama`}
+                    className="btn btn-ghost btn-icon !p-1 flex-shrink-0 text-zinc-500 dark:text-zinc-400">
+              <HelpCircle className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
         {isEmanet && (
           <span className="chip chip-warn text-[10px] flex-shrink-0">
@@ -97,6 +111,11 @@ export default function MetricCard({
         )}
       </div>
 
+      {aciklama && aciklamaAcik && (
+        <p id={aciklamaId} role="note" className="text-xs text-zinc-700 dark:text-zinc-300 mt-2 rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1.5">
+          {aciklama}
+        </p>
+      )}
       {subtitle && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 truncate">
           {subtitle}

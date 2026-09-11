@@ -280,11 +280,16 @@ export default function Cockpit({ setActiveTab }) {
     { anahtar: 'net', goster: true,
       alan: { title: netAyrimVar ? 'Görülen Net Değer' : 'Net Değer', value: data.net_deger,
               icon: Scale, variant: data.net_deger >= 0 ? 'positive' : 'negative',
-              subtitle: netAyrimVar ? 'Alacaksız (operasyonel)' : 'Varlıklar eksi borçlar' } },
+              subtitle: netAyrimVar ? 'Alacaksız (operasyonel)' : 'Varlıklar eksi borçlar',
+              // BUG #423 (UX-021): ayrım yalnız detaylı görünümde çizilir; açıklama da orada
+              aciklama: netAyrimVar
+                ? 'Görülen = bugün cüzdanında ve hesaplarında fiilen olan. Sana borçlu olanların ödeyeceği para buna dahil değil.'
+                : undefined } },
     { anahtar: 'nettam', goster: netAyrimVar,
       alan: { title: 'Tam Net Değer', value: netDegerTam, icon: Telescope,
               variant: netDegerTam >= 0 ? 'positive' : 'negative',
-              subtitle: `${netTamDetay} dahil` } },
+              subtitle: `${netTamDetay} dahil`,
+              aciklama: 'Tam = Görülen + sana borçlu olanların ödeyeceği para (alacaklar). Tahsil edilene kadar harcanabilir sayma.' } },
   ].filter((x) => x.goster);
 
   const tumKartlar = [...operasyonel, ...stratejik];

@@ -136,7 +136,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-021] "Görülen" vs "Tam Net Değer" ayrımı açıklamasız
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: subtitle statik ama ? popover yok. **9 Eyl 2026:** sade görünümde bu ayrım kullanıcıya **hiç gösterilmiyor** (tek bir "Net Değer" kartı, alt yazısı "Varlıklar eksi borçlar") — yani finansa yeni olan kişi açıklanmamış bir jargonla karşılaşmıyor. Detaylı görünümde ayrım **duruyor ve hâlâ popover'sız**; madde o yüzden kapanmadı.
+- **Durum:** ✅ KAPANDI — **BUG #423 (12 Eyl 2026):** sade görünümde ayrım zaten yok (tek "Net Değer"); detaylı görünümde `MetricCard` isteğe bağlı `aciklama` aldı — başlığın yanında "?" düğmesi (`aria-expanded`/`aria-controls`, dokunmatikte tap), açıklama kartın içinde `role="note"` olarak açılır. Görülen: "bugün cüzdanında ve hesaplarında fiilen olan; sana borçlu olanların ödeyeceği para dahil değil"; Tam: "Görülen + alacaklar; tahsil edilene kadar harcanabilir sayma". Kapı `metric-card-aciklama.test.jsx` (RTL + kaynak bağı).
 - **Kanıt:** `Cockpit.jsx:186-203`
 - **Aksiyon:** Tıklanınca "?" popover: "Görülen = cüzdanında olan. Tam = sözleşmeli alacaklar dahil." (mobilde tap-to-open)
 - **Etki:** Orta · **Efor:** S

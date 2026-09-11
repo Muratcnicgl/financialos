@@ -2043,14 +2043,29 @@ class OpenRouterProvider(LLMProvider):
     # usage=0); zincirin ikinci halkası bu yüzden aylarca ölüydü.
     # AYNI SINIF İKİNCİ KEZ: `CerebrasProvider` yorumunda kayıtlı — Cerebras 27 May 2026'da
     # bir modeli deprecate etmiş ve o da ancak canlı eval koşumunda yakalanmıştı.
-    # Yeni varsayılan ÖLÇÜLEREK seçildi (1 Eyl 2026, ücretsiz modeller taranarak):
-    #   · katalogda MEVCUT · `:free` · tool-calling destekli · 1M bağlam
-    #   · gerçek sistem promptu + gerçek tool ile tek çağrı: 1,9 sn, propose_action ÜRETTİ
-    #   · tam eval iki kez koşuldu, İKİSİ DE GEÇERLİ: %88,6 ve %82,9 (model sözleşmesi)
-    #     — mevcut varsayılan zincirin K0 ölçümü %71,4'tü ve koşum GEÇERSİZDİ.
-    # Elenenler: nemotron-3-ultra (tool çağırmadı, İngilizce sızdırdı), inkling (403),
-    # glm-5.2 (429), nemotron-3-super (bozuk yanıt biçimi).
-    DEFAULT_MODEL = "minimax/minimax-m3:free"
+    # ÜÇÜNCÜ KEZ (BUG #369, 11 Eyl 2026): `minimax/minimax-m3:free` de katalogdan kalktı.
+    # Ölçüldü: `/api/v1/models` içinde YOK, çağrı **404** ve OpenRouter cevabın içinde
+    # doğrusunu bile söylüyordu ("use this slug instead: minimax/minimax-m3" — yani
+    # yalnız ücretsiz sürüm düştü, tam da BUG #315'teki gibi). Bedeli ölçülebilir:
+    # `data/eval_runs.jsonl` 10 Eylül koşumunda BEŞ sağlayıcı da `gecerli: false,
+    # pass_rate: 0.0` yazdı, çünkü o tarihte geçerli TEK altın halka buydu.
+    # Bu çürüme artık sessiz olamaz: `scripts/model_canliligi.py` (pre-commit'te
+    # `--sessiz`) etkin model adını sağlayıcının canlı kataloğuyla karşılaştırır.
+    #
+    # Yeni varsayılan, 1 Eyl'deki yordamın AYNISIYLA seçildi — elle değil, ÖLÇÜLEREK:
+    #   1. Katalog tarandı: 437 modelin 19'u `:free` + tool destekli.
+    #   2. Aşama A — 19 aday, GERÇEK koç promptu ve GERÇEK altın senaryo (G1) ile tek
+    #      çağrı: 6'sı ölü çağrı, 1'i 236 sn (etkileşimli koç için kabul edilemez),
+    #      `sante` İngilizce sızdırdı ("...teyit ettir **before** hareket et" — 1 Eyl'de
+    #      nemotron-3-ultra'nın elenme gerekçesinin aynısı), `north-mini-code` hiç rakam
+    #      üretmedi. Kalan iki finalist tam evale alındı.
+    #   3. Aşama B — TAM ALTIN EVAL, ikisi de GEÇERLİ koşum:
+    #        nex-agi/nex-n2.5-mini:free ....... %84,0  (kullanıcıya giden çıktı %88,0)
+    #        inclusionai/ling-3.0-flash-fin:free  %68,0
+    #      Kazanan G1'in tuzağını da yakaladı (`tuzak_yok=+`): kokpitteki rakamların
+    #      kapatma bedeli DEĞİL kalan taksit toplamı olduğunu söyledi. %84,0, düşen
+    #      varsayılanın 1 Eyl'deki bandındadır (%88,6 / %82,9).
+    DEFAULT_MODEL = "nex-agi/nex-n2.5-mini:free"
     NAME = "OpenRouter"
 
     def __init__(self, api_key: str, model: Optional[str] = None):

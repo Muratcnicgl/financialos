@@ -750,8 +750,11 @@ export function formatPercent(value, { showSign = true } = {}) {
 }
 
 /** ISO tarihi Turkce olarak: "2026-05-11" -> "11 May" */
-const TURKISH_MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
-                              'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+// BUG #398 (A11Y-015): ay adları elle diziden değil `Intl.DateTimeFormat('tr-TR')`ten —
+// para zaten Intl ile biçimleniyordu (formatTL), tarih tek istisnaydı. Çıktı birebir aynı
+// ("11 May", "3 Ağu 2026"); kapı `tarih-bicimi.test.js` 12 ayı ve yıl varyantını kilitler.
+const TARIH_KISA = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
+const TARIH_YILLI = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
 export function formatDate(isoStr, { withYear = false } = {}) {
   if (!isoStr) return '—';
   // Date-only ("YYYY-MM-DD") string'i LOCAL parse et: 'new Date("2026-05-11")' UTC gece-yarısı
@@ -761,9 +764,7 @@ export function formatDate(isoStr, { withYear = false } = {}) {
   const local = isoStr.length === 10 && !isoStr.includes('T') ? isoStr + 'T00:00:00' : isoStr;
   const d = new Date(local);
   if (isNaN(d.getTime())) return isoStr;
-  const day = d.getDate();
-  const month = TURKISH_MONTHS_SHORT[d.getMonth()];
-  return withYear ? `${day} ${month} ${d.getFullYear()}` : `${day} ${month}`;
+  return (withYear ? TARIH_YILLI : TARIH_KISA).format(d);
 }
 
 /** Pozitif/negatif degere class doner — UI rengi icin */

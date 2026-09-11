@@ -83,3 +83,12 @@ def test_freshness_summary(db):
     _inv(db, user_id=1, last_price_update=datetime.utcnow())
     summary = get_freshness_summary(db, 1)
     assert isinstance(summary, dict)
+
+
+def test_is_price_stale_siniri_deterministik():
+    """BUG #416 (TEST-019): eşik TAM 24 saat — bir saniye altı taze, üstü bayat; `now` enjekte."""
+    now = datetime(2026, 9, 12, 12, 0, 0)
+    assert is_price_stale(now - timedelta(hours=24), now=now) is False          # tam sınırda taze
+    assert is_price_stale(now - timedelta(hours=24, seconds=1), now=now) is True
+    assert is_price_stale(now - timedelta(hours=1), threshold_hours=1, now=now) is False
+    assert get_price_age_text(now - timedelta(days=1), now=now) in ("dün", "1 gün önce")

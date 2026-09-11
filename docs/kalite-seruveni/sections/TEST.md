@@ -114,7 +114,7 @@
 - **Etki:** Yüksek · **Efor:** S · **Not:** TEST-001 riskini de azaltır.
 
 ### [TEST-019] `fund_tracker` utcnow'a bağlı testler flaky potansiyeli
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: is_price_stale esik enjekte ama ic utcnow
+- **Durum:** ✅ KAPANDI — **BUG #416 (12 Eyl 2026):** `is_price_stale` ve `get_price_age_text` `now` enjekte alır (varsayılan UTC şimdi); sınır tam 24 saat deterministik sınanır (`test_is_price_stale_siniri_deterministik`). Aynı gece iki takvim-fikstürü kırıldı (#387, #407) — ders bu maddeyle kayıtlı: gerçek saati okuyan her test ya saati enjekte eder ya günü sabitler.
 - **Kanıt:** `test_fund_tracker.py:26-30`
 - **Aksiyon:** `is_price_stale`'e enjekte edilebilir `now`; freezegun/monkeypatch; sınır (24h) deterministik.
 - **Etki:** Düşük · **Efor:** S

@@ -48,18 +48,22 @@ PRICE_FRESHNESS_HOURS = 24
 PRICE_ALERT_HOURS = 72
 
 
-def is_price_stale(last_update: Optional[datetime], threshold_hours: int = PRICE_FRESHNESS_HOURS) -> bool:
+def is_price_stale(last_update: Optional[datetime], threshold_hours: int = PRICE_FRESHNESS_HOURS,
+                   now: Optional[datetime] = None) -> bool:
     """
     Fiyat eski mi? 24 saatten eski ise True döner.
     None olan (hiç girilmemiş) fiyatlar da 'eski' sayılır.
+
+    BUG #416 (TEST-019): `now` enjekte edilebilir — sınır (tam 24 saat) deterministik
+    sınanır; verilmezse UTC şimdi. Piyasa takvimi değil duvar saati: fiyatın "yaşı".
     """
     if last_update is None:
         return True
-    age = datetime.utcnow() - last_update
+    age = (now or datetime.utcnow()) - last_update
     return age > timedelta(hours=threshold_hours)
 
 
-def get_price_age_text(last_update: Optional[datetime]) -> str:
+def get_price_age_text(last_update: Optional[datetime], now: Optional[datetime] = None) -> str:
     """
     Fiyat ne kadar eski? İnsan-okur formatı döner.
     Örn: 'az önce', '3 saat önce', 'dün', '3 gün önce', 'henüz girilmedi'
@@ -67,7 +71,7 @@ def get_price_age_text(last_update: Optional[datetime]) -> str:
     if last_update is None:
         return "henüz girilmedi"
 
-    age = datetime.utcnow() - last_update
+    age = (now or datetime.utcnow()) - last_update  # BUG #416: enjekte edilebilir
     seconds = age.total_seconds()
 
     if seconds < 60:

@@ -72,6 +72,6 @@ def test_tpm_saglayici_yaniltici_yuzde_vermez(db):
 
 
 def test_gemini_dogrudan_hala_calisir(db):
-    _log(db, "gemini", 1500)
+    _log(db, "gemini", GEMINI_DAILY_LIMIT)   # BUG #405: sabit 1500 bayattı, tavan ölçülen değer
     u = _build_usage_info(db, 1, "gemini")
     assert u.percentage == 100.0 and u.block is True

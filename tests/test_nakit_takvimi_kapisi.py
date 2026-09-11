@@ -220,9 +220,14 @@ def test_alacak_giris_olarak_girer():
 
 # ---- 6) KOÇ BAĞLAMI: hesap doğru ama taşınmıyorsa boşuna ----------------------
 
-def test_takvim_kocun_baglamina_giriyor():
+def test_takvim_kocun_baglamina_giriyor(monkeypatch):
+    import app.coach as coach_mod
     from app.coach import _build_context_message
     from scripts.coach_altin import altin_db
+    # BUG #407 (BUG #387 sınıfı): altın manzara 1 Eylül'e aittir ama bağlam "bugün"ü gerçek
+    # saatten alıyordu; 12 Eyl'de 11 Eyl taksiti pencereden düştü ve 15.078,25 toplamı
+    # (4.109,90 + 8.221,13 + 2.747,22) kendi kendine kırmızıya döndü. Gün manzaraya sabitlenir.
+    monkeypatch.setattr(coach_mod, "user_today_by_id", lambda db, uid: date(2026, 9, 1))
     db = altin_db()
     try:
         ctx, cockpit = _build_context_message(db, 1)

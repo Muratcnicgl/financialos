@@ -186,10 +186,25 @@ class ResetResponse(BaseModel):
 # YARDIMCILAR
 # ============================================================
 
-# BE-025: Sağlayıcı GÜNLÜK çağrı limitleri (ücretsiz kademe). Gemini günlük 1500 ist/gün.
+# BE-025: Sağlayıcı GÜNLÜK çağrı limitleri (ücretsiz kademe).
+# BUG #405 (OBS-025): "1500" bayattı ve rozeti ÖLDÜRMÜŞTÜ. Gemini ücretsiz kademe 10 Ağu
+# 2026'da canlı 429 gövdesiyle **20 istek/gün** ölçülmüş (app/coach.py başlığı) ama burası
+# 1500 kalmıştı → 20 çağrı = %1,3, "%80 uyarısı" ve "%100 blok" matematiksel olarak
+# erişilemezdi. Üstelik üretim sağlayıcısı (LLM_PROVIDER=openrouter, 50/gün ölçüldü, 03:00
+# TR'de sıfırlanır) sözlükte hiç yoktu → rozet canlıda hep %0 gösteriyordu. Sayılar hesap
+# kademesine aittir: env ile ezilir, varsayılan ÖLÇÜLEN değerdir.
 # Groq/Cerebras TPM (dakika-başı token) limitli — GÜNLÜK limit yok → % anlamsız (None).
-GEMINI_DAILY_LIMIT = 1500
-PROVIDER_DAILY_LIMITS = {"gemini": GEMINI_DAILY_LIMIT}
+def _gunluk_limit(anahtar: str, olculen: int) -> int:
+    try:
+        return max(0, int(os.getenv(anahtar, str(olculen))))
+    except ValueError:
+        return olculen
+
+
+GEMINI_DAILY_LIMIT = _gunluk_limit("GEMINI_DAILY_LIMIT", 20)
+OPENROUTER_DAILY_LIMIT = _gunluk_limit("OPENROUTER_DAILY_LIMIT", 50)
+PROVIDER_DAILY_LIMITS = {k: v for k, v in
+                         (("gemini", GEMINI_DAILY_LIMIT), ("openrouter", OPENROUTER_DAILY_LIMIT)) if v}
 
 
 def _daily_constrained_provider(provider: str) -> str:

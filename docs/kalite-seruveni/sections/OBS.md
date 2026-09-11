@@ -152,7 +152,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [OBS-025] Maliyet/kullanım bütçe uyarısı yok (LLM harcama tavanı)
-- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü: **tavan var, UYARI yok.** `app/llm_quota.py` kullanıcı başına günlük çağrı tavanı (`kullanici_gunluk_tavan`), günlük sayım (`bugunku_cagri_sayisi`), sağlayıcı-paylaşımlı sayım (`paylasilan_cagri_sayisi`) ve çağrı başına `maliyet_usd` taşıyor; `tests/test_llm_maliyet_kapisi.py` bunu kilitliyor. Yani harcama ÖLÇÜLÜYOR ve kullanım BLOKLANIYOR. Eksik olan, bir eşiğe yaklaşıldığında HABER VEREN yol — ölü adam anahtarı kesintiyi haber veriyor, bütçeyi vermiyor.
+- **Durum:** ✅ KAPANDI — **BUG #405 (12 Eyl 2026):** 5 Eyl teşhisi "tavan var, uyarı yok" eksikti — uyarı VARDI (`/api/coach/usage` warn ≥%80, App rozeti kırmızı), TAVAN YANLIŞTI: `PROVIDER_DAILY_LIMITS={"gemini": 1500}`, oysa Gemini ücretsiz kademe 10 Ağu'da 20/gün ölçülmüştü (coach.py başlığı) → %80 erişilemez; üretim sağlayıcısı OpenRouter (50/gün) sözlükte yoktu → rozet canlıda hep %0. Limitler artık ölçülen varsayılanla env'den (`GEMINI_DAILY_LIMIT=20`, `OPENROUTER_DAILY_LIMIT=50`, `.env.example`de). USD bütçesi bilerek yok: aylık tahmini maliyet ölçüldü **$0,016** (ücretsiz kademeler) — bütçe birimi para değil çağrı. Kapı `tests/test_kota_esigi_kapisi.py`: varsayılanlar, coach.py ölçümü ile router tutarlılığı, 40/50 → warn, 50/50 → block, env ezmesi; mutasyonla doğrulandı.
 - **Kanıt:** Gemini günlük limit kontrolü var ama toplam maliyet tavanı yok
 - **Aksiyon:** Aylık LLM maliyet bütçesi + %80/%100 eşik uyarısı (OBS-005 verisiyle).
 - **Etki:** Düşük · **Efor:** S

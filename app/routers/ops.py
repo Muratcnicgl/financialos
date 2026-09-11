@@ -17,6 +17,7 @@ gelir: planlı ama koşmamış iş `hic_calismadi`, bayat kalmış iş `gecikti`
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -26,7 +27,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.models import User, SchedulerRun
+from app.models import User, SchedulerRun, ApiCallLog, ApiCallStatus
 from app.serializers import UtcDateTime
 
 router = APIRouter(prefix="/api/ops", tags=["ops"])
@@ -95,3 +96,75 @@ def scheduler_durumu(db: Session = Depends(get_db),
     return SchedulerDurumu(isler=isler,
                            hic_calisma_yok=not kayitli,
                            sorunlu_isler=sorunlu)
+
+
+# ── LLM SAĞLAYICI SAĞLIĞI (BUG #404 · OBS-007 + OBS-016) ─────────────────────────
+# Veri `api_call_log`'da zaten vardı (sağlayıcı, durum, süre); bakan yüzey yoktu (L61).
+# Süre BUG #404'e kadar yalnız ilk halkada ölçülüyordu — 311 satırın 279'u "0 ms"ydi;
+# artık her istek kendi süresini taşır, bilinmeyen NULL'dur ve yüzdeliklere GİRMEZ.
+
+class SaglayiciSagligi(BaseModel):
+    provider: str
+    cagri: int
+    basarili: int
+    basarisiz: int
+    hiz_sinirli: int
+    basari_orani: Optional[float] = None    # cagri 0 ise None (bilinmeyen sıfır değil)
+    olculen_sure: int                       # süresi bilinen istek sayısı
+    p50_ms: Optional[int] = None
+    p95_ms: Optional[int] = None
+    p99_ms: Optional[int] = None
+
+
+class LlmSagligi(BaseModel):
+    gun: int
+    saglayicilar: list[SaglayiciSagligi]
+
+
+def yuzdelik(degerler: list[int], p: float) -> Optional[int]:
+    """En yakın-sıra yüzdeliği (nearest-rank). Boş listede None."""
+    if not degerler:
+        return None
+    sirali = sorted(degerler)
+    k = max(1, math.ceil(p / 100 * len(sirali)))
+    return int(sirali[min(k, len(sirali)) - 1])
+
+
+def saglayici_sagligi(db: Session, gun: int = 7) -> list[SaglayiciSagligi]:
+    esik = datetime.utcnow() - timedelta(days=gun)
+    # scope-exempt: operatör toplamı — kullanıcılar ARASI sağlayıcı sağlığı ölçülür; yalnız
+    # sağlayıcı/durum/süre okunur, satır içeriği ve kullanıcı kimliği dışarı çıkmaz.
+    satirlar = (db.query(ApiCallLog.provider, ApiCallLog.status, ApiCallLog.duration_ms)  # scope-exempt: operatör toplamı, PII yok
+                .filter(ApiCallLog.called_at >= esik).all())
+    kova: dict[str, dict] = {}
+    for provider, status, sure in satirlar:
+        k = kova.setdefault(provider, {"cagri": 0, "basarili": 0, "basarisiz": 0, "hiz_sinirli": 0, "sureler": []})
+        k["cagri"] += 1
+        if status == ApiCallStatus.success:
+            k["basarili"] += 1
+        elif status == ApiCallStatus.rate_limited:
+            k["hiz_sinirli"] += 1
+        else:
+            k["basarisiz"] += 1
+        if sure is not None:
+            k["sureler"].append(int(sure))
+    cikti = []
+    for provider in sorted(kova):
+        k = kova[provider]
+        cikti.append(SaglayiciSagligi(
+            provider=provider, cagri=k["cagri"], basarili=k["basarili"], basarisiz=k["basarisiz"],
+            hiz_sinirli=k["hiz_sinirli"],
+            basari_orani=round(k["basarili"] / k["cagri"], 3) if k["cagri"] else None,
+            olculen_sure=len(k["sureler"]),
+            p50_ms=yuzdelik(k["sureler"], 50), p95_ms=yuzdelik(k["sureler"], 95), p99_ms=yuzdelik(k["sureler"], 99),
+        ))
+    return cikti
+
+
+@router.get("/llm", response_model=LlmSagligi)
+def llm_sagligi(gun: int = 7, db: Session = Depends(get_db),
+                user: User = Depends(get_current_user)) -> LlmSagligi:
+    """Son N günde sağlayıcı başına çağrı/başarı/hız-sınırı sayıları ve gecikme yüzdelikleri."""
+    gun = max(1, min(gun, 90))
+    return LlmSagligi(gun=gun, saglayicilar=saglayici_sagligi(db, gun))
+

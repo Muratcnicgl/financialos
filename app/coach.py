@@ -1609,15 +1609,19 @@ class LLMProvider(ABC):
         def _kota_sayan_raw_chat(self, *args, **kwargs):
             ad = getattr(type(self), "NAME", type(self).__name__)
             model = getattr(self, "model", None)
+            # BUG #404: süre BURADA ölçülür — isteğin kendisi; uç toplamı değil.
+            t0 = time.monotonic()
             try:
                 cevap = ham(self, *args, **kwargs)
             except BaseException:
-                _kota.cagri_kaydet(ad, model=model)   # istek ağa çıktı, cevabı yok
+                _kota.cagri_kaydet(ad, model=model,
+                                   sure_ms=int((time.monotonic() - t0) * 1000))   # istek ağa çıktı, cevabı yok
                 raise
             _kota.cagri_kaydet(
                 ad,
                 model=getattr(cevap, "model_name", None) or model,
                 usage=getattr(cevap, "usage", None),
+                sure_ms=int((time.monotonic() - t0) * 1000),
             )
             return cevap
 

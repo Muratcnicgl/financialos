@@ -45,7 +45,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [OBS-007] Provider başarısızlık/fallback görünürlüğü zayıf
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: fallback_count loglu ama metrik yok
+- **Durum:** ✅ KAPANDI — **BUG #404 (11 Eyl 2026):** `api_call_log` sağlayıcı+durum zaten taşıyordu (BUG #234/#274 her gerçek isteği yazar); eksik olan bakan yüzeydi. `GET /api/ops/llm`: sağlayıcı başına `cagri/basarili/basarisiz/hiz_sinirli/basari_orani` + gecikme yüzdelikleri, son N gün. Fallback derinliği ayrı sayaç değil: zincirin her halkası kendi satırını yazdığı için "gemini 4 çağrı / openrouter 3" oranı derinliği verir. MALFORMED oranı LLM-016'nın konusu. Kapı `tests/test_llm_gecikme_kapisi.py`.
 - **Sorun/Fırsat:** Hangi provider ne sıklıkla düşüyor, MALFORMED oranı ne — panoya dökülmüyor.
 - **Kanıt:** `app/coach.py:1157-1166` (quota→skip); `ApiCallLog.provider`
 - **Aksiyon:** Provider bazında success/fail/fallback-depth counter; MALFORMED_FUNCTION_CALL oranı metriği (LLM-016).
@@ -100,7 +100,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [OBS-016] LLM latency dağılımı (p50/p95/p99) izlenmiyor
-- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü: **veri VAR, analiz YOK.** Her LLM çağrısının süresi ölçülüp kaydediliyor (`app/routers/coach.py:450` `duration_ms` hesaplanır, `llm_quota.tamamla(...)` ile satıra yazılır). Eksik olan toplama yüzeyi: p50/p95/p99 hesaplayan bir rapor ya da uç yok. Yani bu madde "ölçmüyoruz" değil, **"ölçtüğümüze bakmıyoruz"** (L61'in bir başka yüzü). `scripts/perf_smoke.py` HTTP katmanı için aynı işi yapıyor; LLM tarafı için karşılığı yazılmalı.
+- **Durum:** ✅ KAPANDI — **BUG #404 (11 Eyl 2026):** 5 Eyl'deki "veri VAR" iddiası yarı doğruydu: canlı defterde 311 satırın **279'u `duration_ms=0`** — süre yalnız uçta, uçtan uca ölçülüp rezervasyon satırına yazılıyordu; zincirin 2., 3. halkaları ve yansıma çağrılarının tamamı "0 ms" görünüyordu (L45: bilinmeyen sıfır değildir). Süre artık kota sarmalında (`_kota_sayan_raw_chat`) isteğin kendisi için ölçülür, `Cagri.sure_ms` → satıra; bilinmeyen NULL. Yüzey: `GET /api/ops/llm?gun=7` sağlayıcı başına çağrı/başarı/hata/hız-sınırı + p50/p95/p99 (en yakın-sıra; NULL yüzdeliğe girmez). Kapı `tests/test_llm_gecikme_kapisi.py`. Prometheus histogram bilerek yok: tek operatör, uç yeter (OBS-004 ayrı).
 - **Kanıt:** `ApiCallLog.duration_ms` var ama percentile analizi yok
 - **Aksiyon:** Prometheus histogram (OBS-004) veya periyodik agregasyon; provider+çağrı-tipi kırılımı.
 - **Etki:** Düşük · **Efor:** S

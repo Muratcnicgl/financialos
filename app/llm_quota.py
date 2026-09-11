@@ -131,6 +131,7 @@ class Cagri:
     model: Optional[str] = None
     tokens_in: Optional[int] = None
     tokens_out: Optional[int] = None
+    sure_ms: Optional[int] = None   # BUG #404: isteğin KENDİ süresi; ölçülmediyse None (0 değil)
 
     def maliyet_usd(self) -> Optional[Decimal]:
         return llm_cost.maliyet_usd(self.saglayici, self.model, self.tokens_in, self.tokens_out)
@@ -155,7 +156,8 @@ def cagri_olcumu() -> Iterator[List[Cagri]]:
 
 
 def cagri_kaydet(provider: str, model: Optional[str] = None,
-                 usage: Optional[Dict[str, Optional[int]]] = None) -> None:
+                 usage: Optional[Dict[str, Optional[int]]] = None,
+                 sure_ms: Optional[int] = None) -> None:
     """Bir gerçek sağlayıcı isteğini ölçüme ekler (kapsam yoksa sessiz no-op).
 
     `usage` sağlayıcının döndürdüğü `{"input_tokens": .., "output_tokens": ..}` sözlüğüdür;
@@ -173,6 +175,7 @@ def cagri_kaydet(provider: str, model: Optional[str] = None,
         model=model,
         tokens_in=u.get("input_tokens"),
         tokens_out=u.get("output_tokens"),
+        sure_ms=sure_ms,
     ))
 
 
@@ -192,6 +195,10 @@ def _satiri_doldur(satir: ApiCallLog, cagri: Cagri, amac: Optional[str]) -> None
     satir.tokens_in = cagri.tokens_in
     satir.tokens_out = cagri.tokens_out
     satir.est_cost_usd = cagri.maliyet_usd()
+    # BUG #404: süre isteğin kendisinindir, uçtan uca toplamın değil. Ölçüldü (11 Eyl 2026,
+    # canlı defter): 311 satırın 279'unda duration_ms=0 — zincirin 2., 3. halkaları ve
+    # yansıma çağrılarının tamamı "0 ms" görünüyordu; bilinmeyen sıfır değildir (L45).
+    satir.duration_ms = cagri.sure_ms
     if amac:
         satir.amac = amac
 
@@ -221,7 +228,7 @@ def ek_cagrilari_uzlastir(db: Session, user_id: int, olcum: List[Cagri],
         for cagri in olcum[ilk:]:
             satir = ApiCallLog(user_id=user_id, provider=cagri.saglayici,
                                model=cagri.model or "?", status=ApiCallStatus.success,
-                               tool_calls_count=0, duration_ms=0, amac=amac)
+                               tool_calls_count=0, duration_ms=None, amac=amac)
             _satiri_doldur(satir, cagri, amac)
             db.add(satir)
             yazilan += 1
@@ -250,7 +257,7 @@ def rezerve_et(db: Session, user_id: int, provider: str, model: str,
     log = ApiCallLog(
         user_id=user_id, provider=(provider or "?").lower(), model=model,
         status=ApiCallStatus.failed,   # çağrı bitince success'e çevrilir (çöken istek de sayılır)
-        tool_calls_count=0, duration_ms=0, amac=amac,
+        tool_calls_count=0, duration_ms=None, amac=amac,   # BUG #404: süre bilinmiyor, 0 değil
     )
     db.add(log)
     db.commit()
@@ -287,15 +294,20 @@ def iptal_et(db: Session, log: Optional[ApiCallLog]) -> None:
 
 
 def tamamla(db: Session, log: Optional[ApiCallLog], provider: Optional[str] = None,
-            success: bool = True, duration_ms: int = 0, tool_calls_count: int = 0,
+            success: bool = True, duration_ms: Optional[int] = None, tool_calls_count: int = 0,
             error_message: Optional[str] = None) -> None:
-    """Rezerve edilen satırı çağrı sonucuyla günceller (BUG #212)."""
+    """Rezerve edilen satırı çağrı sonucuyla günceller (BUG #212).
+
+    `duration_ms` verilmezse NULL kalır (BUG #404: bilinmeyen sıfır değildir); uzlaştırma
+    isteğin kendi süresini sonradan yazar.
+    """
     if log is None:
         return
     try:
         log.provider = (provider or log.provider or "?").lower()
         log.status = ApiCallStatus.success if success else ApiCallStatus.failed
-        log.duration_ms = duration_ms
+        if duration_ms is not None:
+            log.duration_ms = duration_ms
         log.tool_calls_count = tool_calls_count
         # SEC-009: ham sağlayıcı hatası 300 karakterle sınırlı (KVKK export'una girer).
         # BUG #258 fix: KISALTMAK MASKELEMEK DEĞİLDİR. Sağlayıcı istisnaları çoğu zaman

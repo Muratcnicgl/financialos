@@ -2161,6 +2161,27 @@
     }
   },
   {
+    "yol": "/api/ops/llm",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [
+      {
+        "ad": "gun",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "LlmSagligi",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
     "yol": "/api/ops/scheduler",
     "metot": "GET",
     "kimlik": "korumali",

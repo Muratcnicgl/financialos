@@ -755,7 +755,7 @@ function IncomeFormModal({ income, onClose, onSave }) {
         <div>
           <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
           <input
-            type="text"
+            type="text" inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="input font-numeric !text-base !font-semibold"
@@ -859,7 +859,7 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
         </div>
         <div>
           <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
-          <input type="text" value={amount} onChange={e => setAmount(e.target.value)}
+          <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)}
             className="input font-numeric !text-base !font-semibold" placeholder="149" />
         </div>
         <div>
@@ -989,7 +989,7 @@ function DebtFormModal({ debt, onClose, onSave }) {
         <div>
           <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
           <input
-            type="text"
+            type="text" inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="input font-numeric !text-base !font-semibold"

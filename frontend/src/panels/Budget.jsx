@@ -139,7 +139,7 @@ export default function Budget() {
         </div>
         <div className="w-32">
           <label className="text-xs text-zinc-500 dark:text-zinc-400">Aylık bütçe ({paraEtiketi()})</label>
-          <input type="number" min="1" step="1" className="input w-full" placeholder="2000"
+          <input type="text" inputMode="decimal" className="input w-full" placeholder="2000"
                  value={form.monthly_amount} onChange={(e) => setForm({ ...form, monthly_amount: e.target.value })} />
         </div>
         <button type="submit" disabled={saving} className="btn btn-primary flex items-center gap-1">

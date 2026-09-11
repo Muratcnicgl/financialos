@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart, AlertTriangle } from 'lucide-react';
-import { debtStrategyApi } from '../api.js';
+import { debtStrategyApi, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import { formatPara, paraEtiketi } from '../lib/money.js';
 
@@ -184,7 +184,7 @@ function OpportunityCost({ hasDebt }) {
   const [busy, setBusy] = useState(false);
 
   const run = async () => {
-    const a = Number(amount);
+    const a = parseTRNumber(amount);   // BUG #422: 1.234,56 kabul
     if (!(a > 0)) { toast.error('Geçerli bir tutar gir.'); return; }
     try {
       setBusy(true);
@@ -216,7 +216,7 @@ function OpportunityCost({ hasDebt }) {
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-xs text-zinc-500 dark:text-zinc-400">
           Harcama tutarı ({paraEtiketi()})
-          <input type="number" step="100" min="0" value={amount}
+          <input type="text" inputMode="decimal" value={amount}   /* BUG #422: para girdisi */
             onChange={(e) => setAmount(e.target.value)}
             className="block mt-1 w-40 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100" />
         </label>

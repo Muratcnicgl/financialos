@@ -116,7 +116,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
       ...(form.transaction_date ? { transaction_date: form.transaction_date } : {}),
     };
     if (!form.transaction_date) delete newPayload.transaction_date;
-    const summary = `${form.transaction_type === 'expense' ? 'Gider' : 'Gelir'}: ${formatPara(Number(form.amount))} — ${form.category}`;
+    const summary = `${form.transaction_type === 'expense' ? 'Gider' : 'Gelir'}: ${formatPara(parseTRNumber(form.amount))} — ${form.category}`;
     try {
       const updated = await actionsApi.edit(actionId, newPayload, summary);
       setEditing(false);
@@ -141,7 +141,8 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
       <div className="mt-2 space-y-1.5 text-[11px]">
         <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
           <label className="text-zinc-500">Tutar ({paraEtiketi()})</label>
-          <input type="number" step="0.01" value={form.amount}
+          {/* BUG #422 (UX-016): para girdisi text+decimal — number tipi 1.234,56 kabul etmez, tekerlek değeri oynatır */}
+          <input type="text" inputMode="decimal" value={form.amount}
             onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
             className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
           />

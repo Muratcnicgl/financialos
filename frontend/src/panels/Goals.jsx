@@ -512,12 +512,11 @@ function GoalCreateWizard({ onClose }) {
               <div>
                 <label className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">Hedef Tutar ({paraEtiketi()}) *</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={form.target_amount}
                   onChange={(e) => setForm({ ...form, target_amount: e.target.value })}
                   placeholder="50000"
-                  min="1"
-                  step="0.01"
                   className="input w-full"
                   required
                 />

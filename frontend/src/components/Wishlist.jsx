@@ -74,7 +74,7 @@ export default function Wishlist() {
           className="flex-1 min-w-[140px] rounded-md bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
         />
         <input
-          type="number" step="0.01" min="0" placeholder="Tutar" value={form.amount}
+          type="text" inputMode="decimal" placeholder="Tutar" value={form.amount}   /* BUG #422: para girdisi */
           onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
           className="w-28 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
         />

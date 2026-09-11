@@ -478,7 +478,7 @@ function AccountFormModal({ account, onClose, onSave }) {
             Bakiye {type === 'credit_card' || type === 'loan' ? '(borç)' : ''}
           </label>
           <input
-            type="text"
+            type="text" inputMode="decimal"
             value={balance}
             onChange={(e) => setBalance(e.target.value)}
             className="input font-numeric"
@@ -556,7 +556,7 @@ function AccountFormModal({ account, onClose, onSave }) {
               </div>
               <div>
                 <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Güncel fiyat</label>
-                <input type="text" value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} className="input font-numeric" placeholder="5223" />
+                <input type="text" inputMode="decimal" value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} className="input font-numeric" placeholder="5223" />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -615,7 +615,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
       </a>
       <form onSubmit={handleSubmit}>
         <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Yeni fiyat ({paraEtiketi()})</label>
-        <input type="text" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="input font-numeric" placeholder="5223.81" autoFocus />
+        <input type="text" inputMode="decimal" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="input font-numeric" placeholder="5223.81" autoFocus />
         {err && <p className="text-xs text-negative-600 dark:text-negative-400 mt-2">{err}</p>}
         <div className="flex gap-2 mt-4">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">

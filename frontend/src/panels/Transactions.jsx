@@ -572,7 +572,7 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
         <div>
           <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
           <input
-            type="text"
+            type="text" inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="input font-numeric !text-base !font-semibold"

@@ -1227,7 +1227,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
             Yeni fiyat ({paraEtiketi()})
           </label>
           <input
-            type="text"
+            type="text" inputMode="decimal"
             value={newPrice}
             onChange={(e) => setNewPrice(e.target.value)}
             className="input"

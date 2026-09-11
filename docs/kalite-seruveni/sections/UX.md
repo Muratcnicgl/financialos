@@ -100,7 +100,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [UX-016] Tutar inputları numeric klavye ipucu vermiyor (`type="text"`)
-- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü maddeyi kısmen çürütüyor: iddia *"tutar inputları `type=\"text\"`"* diyor, oysa **7 dosya `type="number"` kullanıyor** (mobilde sayısal klavye AÇILIR) ve iki yerde açık `inputMode` var (`Cashflow.jsx` `numeric`, `RedLines.jsx` `text`+`decimal`). Kalan gerçek iş: `type="number"` Türkçe binlik/ondalık yazımıyla kötü çalışır (tekerlek değeri değiştirir, `1.234,56` kabul etmez); doğru hedef `type="text" inputMode="decimal"`e geçmektir — yani mesele "klavye ipucu yok" değil, **yanlış ipucu**.
+- **Durum:** ✅ KAPANDI — **BUG #422 (12 Eyl 2026):** 5 Eyl teşhisi ("ipucu yok değil, YANLIŞ") uygulandı ve kapsam ölçümle büyüdü: kaynak taramasında tutar taşıyan 14 girdiden 5'i `type="number"` (bekleyen aksiyon, istek listesi, hedef tutarı, fırsat maliyeti, zarf bütçesi), 8'i `text` ama `inputMode`süz. Hepsi `type="text" inputMode="decimal"`; `Number()` ile ayrıştıran iki yer `parseTRNumber`a geçti (1.234,56 kabul). Gün/vade/oran girdileri tam sayı, number kaldı. Kapı `para-girdisi-klavye.test.jsx` kaynaktan türetir (tutar taşıyan girdi number olamaz, decimal ipucu zorunlu).
 - **Kanıt:** `Transactions.jsx:576`, `IncomeDebt.jsx:681`, `Accounts.jsx:443`
 - **Aksiyon:** Para→`inputMode="decimal"`, gün→`inputMode="numeric"`; ₺ prefix. Virgül parse korunur.
 - **Etki:** Orta · **Efor:** S

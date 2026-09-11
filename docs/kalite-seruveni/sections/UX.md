@@ -142,7 +142,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [UX-022] Emanet "dokunulmazlığı" görsel olarak zayıf
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: emanet chip var ama commitment metni/link yok
+- **Durum:** ✅ KAPANDI — **BUG #424 (12 Eyl 2026):** Emanet kartı `aciklama` ile taahhüt metnini taşır ("Kendine söz: bu paraya dokunma. Emanet hesaplar sana ait değil…; koç bu hesaplardan harcama önermez, önerilirse yürütücü reddeder" — MC1 gerçeğinin kullanıcı diline çevrilmişi) ve `aciklamaBaglanti` ile Kırmızı Çizgiler sekmesine götürür (`setActiveTab('redlines')`). Kapı `metric-card-aciklama.test.jsx` (bağlantı eylemi + kaynak bağı).
 - **Kanıt:** `Cockpit.jsx:164-171`; `Accounts.jsx:219-223`
 - **Aksiyon:** "🔒 Kendine söz: bu hesaba dokunma" + bağlı kırmızı çizgiye link (commitment device).
 - **Etki:** Düşük · **Efor:** S

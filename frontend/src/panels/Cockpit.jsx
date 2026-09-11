@@ -269,7 +269,11 @@ export default function Cockpit({ setActiveTab }) {
   const stratejik = [
     { anahtar: 'emanet', goster: data.emanet_kasa > 0,
       alan: { title: 'Emanet', value: data.emanet_kasa, variant: 'warn', icon: Lock,
-              isEmanet: true, subtitle: 'Net değere dahil değil' } },
+              isEmanet: true, subtitle: 'Net değere dahil değil',
+              // BUG #424 (UX-022): taahhüt cihazı — dokunulmazlık kullanıcının KENDİ sözüdür,
+              // koç ve yürütücü onu kural olarak uygular (MC1); bağlantı kuralın sayfasına.
+              aciklama: 'Kendine söz: bu paraya dokunma. Emanet hesaplar sana ait değil (aile, kira depozitosu, birinin sende duran parası); koç bu hesaplardan harcama önermez, önerilirse yürütücü reddeder.',
+              aciklamaBaglanti: setActiveTab ? { metin: 'Kırmızı çizgilerde gör →', onClick: () => setActiveTab('redlines') } : undefined } },
     { anahtar: 'gelir', goster: data.beklenen_gelir > 0,
       alan: { title: 'Beklenen Gelir', value: data.beklenen_gelir, variant: 'positive',
               icon: Banknote, subtitle: 'Bu ay sonuna kadar' } },

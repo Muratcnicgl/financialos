@@ -7,7 +7,7 @@
  * açıklamayı kartın içinde açar. Kilitlenen: düğme yalnız açıklama varken; açılış/kapanış;
  * Cockpit'te iki net değer kartı açıklama taşır ve alacak sözcüğünü söyler.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -37,5 +37,24 @@ describe('UX-021 — MetricCard açıklaması', () => {
     expect(aciklamalar.length).toBeGreaterThanOrEqual(2);
     expect(aciklamalar.join(' ')).toMatch(/alacak/i);
     expect(aciklamalar.join(' ')).toMatch(/Görülen/);
+  });
+});
+
+describe('UX-022 — emanet taahhüt bağlantısı (BUG #424)', () => {
+  it('açıklamanın içindeki bağlantı tıklanınca verilen eylemi çağırır', () => {
+    const git = vi.fn();
+    render(<MetricCard title="Emanet" value={5} isEmanet aciklama="Kendine söz: bu paraya dokunma."
+                       aciklamaBaglanti={{ metin: 'Kırmızı çizgilerde gör →', onClick: git }} />);
+    fireEvent.click(screen.getByRole('button', { name: /Emanet: açıklama/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Kırmızı çizgilerde gör/ }));
+    expect(git).toHaveBeenCalledTimes(1);
+  });
+
+  it('Cockpit emanet kartı sözü ve kırmızı çizgi bağlantısını taşır (kaynak bağı)', () => {
+    const src = readFileSync(join(__dirname, 'panels', 'Cockpit.jsx'), 'utf-8');
+    const i = src.indexOf("anahtar: 'emanet'");
+    const blok = src.slice(i, i + 900);
+    expect(blok).toMatch(/Kendine söz/);
+    expect(blok).toMatch(/setActiveTab\('redlines'\)/);
   });
 });

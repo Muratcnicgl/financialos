@@ -30,6 +30,8 @@ export default function MetricCard({
   // BUG #423 (UX-021): kavram açıklaması — "?" düğmesiyle açılır (dokunmatikte tap), ekran
   // okuyucuya aria-expanded/aria-controls ile bağlı. Verilmezse düğme çizilmez.
   aciklama,
+  // BUG #424 (UX-022): açıklamanın altında isteğe bağlı eylem bağlantısı ({ metin, onClick })
+  aciklamaBaglanti,
 }) {
   const aciklamaId = useId();
   const [aciklamaAcik, setAciklamaAcik] = useState(false);
@@ -114,6 +116,14 @@ export default function MetricCard({
       {aciklama && aciklamaAcik && (
         <p id={aciklamaId} role="note" className="text-xs text-zinc-700 dark:text-zinc-300 mt-2 rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1.5">
           {aciklama}
+          {aciklamaBaglanti && (
+            <>
+              {' '}
+              <button type="button" onClick={aciklamaBaglanti.onClick} className="underline font-medium">
+                {aciklamaBaglanti.metin}
+              </button>
+            </>
+          )}
         </p>
       )}
       {subtitle && (

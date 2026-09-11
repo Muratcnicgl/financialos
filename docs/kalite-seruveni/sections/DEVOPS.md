@@ -28,7 +28,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DEVOPS-005] Bağımlılıklar pin/lock değil — tekrarlanabilir build yok
-- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü: `requirements.txt` **24/27 satır** tam sürümle sabit ve `frontend/package-lock.json` var; yani ürün bağımlılıkları tekrarlanabilir. AÇIK KALAN: `requirements-dev.txt` yalnız **1/5** pinli (`ruff==0.16.4` — o da bilinçli, tavan bir araç sürümüne aittir); `pytest>=8.0`, `pytest-cov>=5.0`, `httpx>=0.27`, `hypothesis>=6.100` alt sınırla duruyor. Yani bir gün süit, kod değişmeden başka bir pytest sürümüyle koşabilir.
+- **Durum:** ✅ KAPANDI — **BUG #390 (11 Eyl 2026):** 5 Eyl'deki "24/27" ölçümünden sonra güvenlik tabanı `>=` ile eklenmiş ve gevşek satır **9'a** çıkmıştı — madde ölçen kapı olmadığı için gerilemişti. `requirements.txt` ve `requirements-dev.txt` artık tamamen `==` (kurulu venv sürümleri; pip çözümü doğrulandı). Kapı `tests/test_bagimlilik_sabitleme_kapisi.py` dosyadan türetir. Hash'li lock (`pip-tools`/`uv`) BİLEREK yok: tek makine + CI, `pip-audit` her push'ta; ihtiyaç ölçülmeden ikinci bir araç ve akış eklemek L79 sınıfı. Yükseltme bilinçli: pip-audit kırmızısı ya da ölçülmüş ihtiyaç; satır değişir, `git blame` sebebi gösterir.
 - **Kanıt:** `requirements.txt` bazı `>=` (anthropic>=0.79.0 vb.); lock dosyası yok
 - **Aksiyon:** `pip-tools`/`uv` ile `requirements.lock` (hash'li); `requirements.in` kaynak. (SEC-021)
 - **Etki:** Orta · **Efor:** S

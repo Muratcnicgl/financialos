@@ -41,6 +41,27 @@ if echo "$staged" | grep -qE '^(app/|tests/|scripts/|alembic/).*\.py$'; then
   fi
 fi
 
+# ── BELGE / ARAYÜZ İÇERİĞİNİ ÖLÇEN KAPILAR (BUG #380) ─────────────────────────
+# Yukarıdaki blok yalnız `.py` değişince pytest koşar. Ama kapıların bir kısmı DOCS ve
+# FRONTEND içeriğini ölçer: kişisel-veri sayacı (`test_depo_kisisel_veri_kapisi`), üretilen
+# indeks güncelliği (`test_backlog_tutarliligi_kapisi`), kayıt-kararları başlıkları, KVKK
+# beyanları… Ölçüldü (11 Eyl 2026): iki docs/frontend-only commit yerelde "yeşil" geçti,
+# CI'da kırmızı döndü — biri fikstürde gerçek banka adı (sayaç 92→93), biri commit'e
+# eklenmemiş üretilmiş indeks. Yani kapı VARDI ama commit anında kimse ona sormuyordu
+# (BUG #364'ün docs yüzü). Depo konvansiyonu kapıları `*_kapisi.py` diye adlandırır;
+# altküme 91 dosya / ~2,5 dk (tam süit ~9 dk) — docs commit'i için kabul edilebilir bedel.
+# `.py` değiştiyse tam süit zaten koştu, tekrar koşulmaz.
+if ! echo "$staged" | grep -qE '^(app/|tests/|scripts/|alembic/).*\.py$'    && echo "$staged" | grep -qE '^(docs/|frontend/|\.githooks/)|\.md$'; then
+  echo "[pre-commit] Belge/arayüz değişikliği — kapı testleri (tests/*_kapisi.py) çalışıyor…"
+  py="./venv/Scripts/python.exe"
+  [ -x "$py" ] || py="python"
+  if ! "$py" -m pytest tests/*_kapisi.py -q -x --tb=short -p no:cacheprovider; then
+    echo "[pre-commit] ❌ KAPI TESTLERİ KIRMIZI — commit engellendi."
+    exit 1
+  fi
+  echo "[pre-commit] ✅ kapı testleri yeşil."
+fi
+
 # Frontend değişti mi?
 if echo "$staged" | grep -qE '^frontend/src/.*\.(js|jsx)$'; then
   if [ -d frontend/node_modules/vitest ]; then

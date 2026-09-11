@@ -67,7 +67,7 @@ ve cevabı operatörden aldı. Uygulama tek başınayken bu soruyu cevaplayamıy
 
 ---
 
-## Operatör notları (bu oturumdan, geri bildirim DEĞİL)
+## Operatör notları (bu turdan, geri bildirim DEĞİL)
 
 - Davetli **demo/örnek veri** akışını kendiliğinden buldu ve kullandı.
 - Murat kendi hesabında dolu veri olduğu için **boş-durum görünümünü kontrol edemiyordu**;

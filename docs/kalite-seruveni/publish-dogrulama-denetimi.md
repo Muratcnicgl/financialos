@@ -4,7 +4,7 @@
 **Yöntem:** her boyut bağımsız bir denetçi tarafından SALT-OKUR tarandı (kod okuma + kendi geçici probları + canlı DB salt-okur sorguları); ardından **her bulgu ayrı bir çelişme (adversarial) ajanına** verildi ve çürütülmeye çalışıldı. Aşağıdakiler çelişme turundan SAĞ ÇIKAN bulgulardır.
 **Sonuç:** 40 bulgu onaylandı, 1 çürütüldü.
 
-> ⚠️ Denetim, bu oturumdaki BUG #217/#220 düzeltmelerinden ÖNCEKİ ağaçta koştu. Test-kalitesi boyutundaki 4 bulgu o düzeltmelerin bağımsız doğrulamasıdır; durumu tabloda işaretlendi.
+> ⚠️ Denetim, bu turdaki BUG #217/#220 düzeltmelerinden ÖNCEKİ ağaçta koştu. Test-kalitesi boyutundaki 4 bulgu o düzeltmelerin bağımsız doğrulamasıdır; durumu tabloda işaretlendi.
 
 ## Özet — şiddete göre
 
@@ -19,7 +19,7 @@
 
 ### D01 · [kritik] Koç-onaylı işlem workspace_id=NULL yazılıyor → kullanıcının KENDİ işlem listesinden/raporundan kayboluyor (bakiye değişiyor)
 
-- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:615` · **Durum:** 🟡 BUG #221 ile kapatıldığı GÖRÜNÜYOR (`_yazma_workspace_id`, `app/action_executor.py`) — ancak bu oturumda AYRICA doğrulanmadı; sıradaki oturum koşturarak teyit etsin (R3)
+- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:615` · **Durum:** 🟡 BUG #221 ile kapatıldığı GÖRÜNÜYOR (`_yazma_workspace_id`, `app/action_executor.py`) — ancak bu turda AYRICA doğrulanmadı; sıradaki oturum koşturarak teyit etsin (R3)
 - **Neden yayın engeli / etki:** Kayıt ZORUNLU olarak workspace'e bağlı okunuyor (app/routers/transactions.py:260 scope_filter). Production'da her kullanıcının personal workspace'i var (app/routers/auth.py:180 ensure_personal_workspace + app/workspace_deps.py:88 production fail-fast), yani bu yol HER kullanıcıda AÇIK. Kullanıcı koça 'X TL harcadım' der, onaylar, bakiyesi düşer ama işlem hiçbir listede/raporda/bütçede görünmez → para 'buharlaştı' algısı, yanlış kategori bütçesi, yanlış reel_butce, hatalı harcama analizi. Ürünün amiral özelliği (koç ile kayıt) sessizce kayıt kaybediyor; finansal uygulamada bu doğrudan güven ve kullanıcı kaybıdır.
 
 <details><summary>Kanıt</summary>
@@ -91,7 +91,7 @@ ZARAR / YAYIN ENGELI: Urunun amiral akisi (koca "X TL harcadim" de -> onayla)
 
 ### D02 · [yuksek] Koç-onaylı Master Checkpoint (kırmızı çizgi) workspace_id=NULL → panelde de koç bağlamında da yok
 
-- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:936` · **Durum:** 🟡 BUG #221/#223 ailesiyle kapatıldığı GÖRÜNÜYOR — bu oturumda AYRICA doğrulanmadı; koşturarak teyit edilmeli (R3)
+- **Boyut:** izolasyon · **Yer:** `app/action_executor.py:936` · **Durum:** 🟡 BUG #221/#223 ailesiyle kapatıldığı GÖRÜNÜYOR — bu turda AYRICA doğrulanmadı; koşturarak teyit edilmeli (R3)
 - **Neden yayın engeli / etki:** Kullanıcı koça 'nakit tabanım 5000 TL' gibi bir kırmızı çizgi söyler, koç kaydeder, kullanıcı 'kaydedildi' geri bildirimi alır — ama çizgi ne Kırmızı Çizgiler panelinde görünür, ne koçun sistem bağlamına girer, ne de kural motorunun okuduğu kümededir. Ürünün en temel güvenlik vaadi (Master Checkpoint enforcement) koç üzerinden yaratılan çizgiler için fiilen çalışmaz; kullanıcı korunduğunu sanırken korunmaz. Bu para kaybına yol açan sessiz bir yanlış-güven durumudur.
 
 <details><summary>Kanıt</summary>

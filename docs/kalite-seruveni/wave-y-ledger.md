@@ -18,7 +18,7 @@
 | Canlı sağlık | health 200 · ready 200 | `curl` |
 | Canlı göç sürümü | `c3d4e5f8a1b2` | sqlite |
 | Kullanıcı | 6 | sqlite |
-| MCP defteri | **281 satır** (4 Eyl raporunda 255'ti) | `wc -l` |
+| dış defter | **281 satır** (4 Eyl raporunda 255'ti) | `wc -l` |
 | Süit | 3.504 passed · 18 skipped | `pytest -q` |
 | Coverage | %94,02 (CI'da ≥93 kilitli) | `pytest --cov` |
 
@@ -258,7 +258,7 @@ yönde: orada yokluğu, burada varlığı kırıyor.) `tests/test_erisilebilirli
 olasılığı ev bilgisayarının kapanma olasılığından kat kat düşüktür, ve yerel kayda dayanan
 erişilebilirlik raporu o servisten **bağımsız ikinci bir gözdür**.
 
-### ⛔ KALAN TEK ADIM — MURAT'TA (hesap açma asistanda yasak)
+### ⛔ KALAN TEK ADIM — MURAT'TA (hesap açma yalnız hesap sahibince)
 
 Ücretsiz bir ölü-adam-anahtarı servisinde (Healthchecks.io / Better Stack / UptimeRobot
 heartbeat) bir kontrol oluştur:
@@ -311,7 +311,7 @@ makinenin kapalı olmasıysa · 3. Kurucu dışında **düzenli kullanan 2 kulla
 > **Cloudflare Registrar'dan (`domains.cloudflare.com`) bir alan adı al.** ~10,44 $/yıl,
 > maliyetine, yenilemede zam yok, WHOIS gizliliği ücretsiz. Adı sen seç. Aldıktan sonra
 > **alan adını söylemen yeterli** — gerisi (cloudflared, tünel, TLS, deploy, kapı 9-12)
-> asistanda.
+> betiklerle.
 
 Bu, bu fazın **tek zorunlu masrafıdır**.
 ## Y3 — YAYIN + KAPI 9-12 ▸ BEKLİYOR
@@ -350,20 +350,20 @@ inşasının yan ürünüydü. İki akış farklı kaynaklardan besleniyor ve 41
   her seferinde geçersiz olurdu.
 * `FEAT-033` 🟡 kalır — MoM trend var, kategori kaymaları yok; durum doğru.
 
-### MCP defteri: **KAPATILDI** (boşaltılmadı — kapatıldı)
+### dış defter: **KAPATILDI** (boşaltılmadı — kapatıldı)
 
 | Ölçüm | Değer |
 |---|---|
 | 7 Ağu 2026 | flush 19 gündür hiç koşulmamış, **186 satır** |
 | 4 Eyl 2026 | **300 satır**, flush hâlâ hiç koşulmamış |
-| MCP'nin statüsü | 7 Ağu'da resmen **tarihsel arşiv** ilan edilmiş |
+| bellek grafiğinin statüsü | 7 Ağu'da resmen **tarihsel arşiv** ilan edilmiş |
 
 Yani `post-commit` yakalaması, **hiç koşulmayacak bir flush için** çalışıyordu. Böyle bir
 defter zararsız değildir: her bakan *"300 satır bekleyen iş var"* sanır.
 **Sahte yükümlülük, borçtan daha kötüdür — çünkü ödenmez ve unutulmaz.**
 
 Yapılan: `post-commit` yakalaması durduruldu (gerekçe dosyanın içinde), obsolete
-`scripts/mcp_sync_report.py` **silindi** (BUG #311: ölü kod zararsız değildir), ona atıf
+`scripts/defter_senkron_raporu.py` **silindi** (BUG #311: ölü kod zararsız değildir), ona atıf
 yapan `canli-smoke-testleri.md` ve `PROJE.md` düzeltildi — yoksa belge denetimi kırmızı
 verirdi (ölü yönlendirme). Belge denetimi + ölü kod kapısı **geçiyor**.
 ## ✅ Y6 — ADR BORCU KAPANDI (4 Eylül 2026)
@@ -379,7 +379,7 @@ verirdi (ölü yönlendirme). Belge denetimi + ölü kod kapısı **geçiyor**.
 
 | ADR | Karar | Neden ADR'ye girmesi gerekiyordu |
 |---|---|---|
-| **057** | Barındırma: A (kendi makine + Cloudflare Tunnel + satın alınmış alan adı) | 24 gündür açık olan tek insan-kapısı |
+| **057** | Barındırma: A (kendi makine + Cloudflare Tunnel + satın alınmış alan adı) | 24 gündür açık olan tek onay noktası |
 | **058** | Yedi kalite kapısı ve tavanların anlamı | *Tavan bir HEDEF değil, bir BORÇ DONDURUCUDUR.* Aile bazında tutulur (tek toplam takasa izin verirdi), araç sürümü sabittir, ve **reddedince doğru cevap tavanı yükseltmek değildir** — ölçülen sicil: sekiz reddediş, sekizinde de haklı |
 | **059** | SQLite'ta `alembic check` **kalıcı kırmızıdır** | Belgelenmiş bir sapma, o sapmayı ölçen tek aracı okunamaz kılmıştı; ölçüm `test_fk_sapmasi_kapisi.py`'ye taşındı. **İki yanlış teşhis de kayda geçti** — mutasyon yalnız testi değil TEŞHİSİ de sınar |
 | **060** | Depo private kalır + üretilmiş vitrin; kapı imajı değil **depoyu** tarar | Kapı yanlış yüzeyi koruyordu (862 dosyanın 186'sı). Vitrin **allowlist** ile üretilir: denylist yalnız düşünüleni yakalar, sızıntı düşünülmeyenden gelir |
@@ -434,7 +434,7 @@ Koruma **var**; gereksiz kod eklenmedi.
 
 ### ⛔ Kalan tek insan adımı
 
-GitHub'da **boş bir public depo** aç (adını sen seç). Gerisi asistanda: vitrin üretilir,
+GitHub'da **boş bir public depo** aç (adını sen seç). Gerisi betiklerle: vitrin üretilir,
 kapıdan geçirilir, push edilir. Çıktı asıl depoda **izlenmez** (`vitrin/` gitignore'da) —
 üretilmiş bir dosyayı commit etmek, elle yazılmış vitrin hastalığının arka kapısıdır.
 
@@ -623,11 +623,11 @@ kuruldu, yani henüz tetiklenmiş sayılmaz — ama yön belli.)*
 | Canlı SHA = `main` HEAD (drift 0) | ✅ | `TAMAM: canli damga e4bc5471b0f0 = hedef e4bc5471b0f0` · deploy 17 sn · funnel 200 |
 | Dışarıdan izleme + gerçek alarm, mutasyonla | ✅ | iki halka ayrı ayrı (yukarıda) |
 | B0 kararı yazılı, ADR'de | ✅ | ADR-057 |
-| Backlog ölçülerek güncellendi, MCP defteri | ✅ | 165/250/81 · defter kapatıldı |
+| Backlog ölçülerek güncellendi, dış defter | ✅ | 165/250/81 · defter kapatıldı |
 | En az 5 yeni ADR | ✅ | 057-061 |
 | Depo görünürlük kararı + kapı kapsamı CI'da | ✅ | ADR-060 · `sir_taramasi` `ci.yml:152` · kişisel veri kapısı süitte |
 | Tam süit yeşil, coverage ≥%93, kapılar | ✅ | **3.525 passed · 18 skipped · 0 failed** (7:37) · %94 · kapı 296 · ölü kod 0 |
-| Kendi alan adı üzerinden HTTPS, B4 | ⛔ | **alan adı alınmadı** — insan-kapısı |
+| Kendi alan adı üzerinden HTTPS, B4 | ⛔ | **alan adı alınmadı** — onay noktası |
 | Kapı 9-12 kanıtla → 15/15 | ⛔ | B4'e bağlı |
 | En az 3 davetliden gerçek cevap | ⛔ | Y3 sonrası |
 
@@ -649,7 +649,7 @@ teşhis ettiği hatanın kendisi olurdu — **kanıtsız ✅**.
 | Coverage | %94,02 | %94 (CI'da ≥93 kilitli) | — |
 | Kalite kapısı | 296 | **296** | tavan korundu |
 | ADR | 56 belge sanılıyordu | **58 karar / 60 belge** (sayım düzeltildi) | +5 karar |
-| MCP defteri | **281 satır ve büyüyor** | **kapatıldı** | borç bitti |
+| dış defter | **281 satır ve büyüyor** | **kapatıldı** | borç bitti |
 | Backlog | 164/251/81 | 165/250/81 | +1 (kanıtla) |
 | Dış izleme | **yok** | **ölü adam anahtarı, canlı kanıtlı** | Y2 |
 | BUG tavanı | #338 | **#344** | +6 |

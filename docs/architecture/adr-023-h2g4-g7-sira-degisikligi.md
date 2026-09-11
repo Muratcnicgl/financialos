@@ -2,7 +2,7 @@
 
 **Tarih:** 16 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-001, ADR-024, ADR-025
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Plan v3 sırası H2G4'te Anomaly+Pattern+Recurring Detection istiyordu. Ama `transaction`=0 (sistem henüz kullanılmıyor) → anomaly detector boş çalışır, canlı test edilemez, sıfır somut değer.
@@ -24,4 +24,4 @@ Sıra değişikliği: H2G4 → **Debt Strategy Engine** (eski G7), H2G5 → **Go
 30+ gün transaction birikince H2G7 (anomaly+recurring) Wave-2 H4 polish'ine eklenir veya Wave-3'e taşınır.
 
 ## Kaynak
-MCP `adr_log` [16 Mayıs 2026], transaction count=0 keşfi.
+karar günlüğü (`adr_log`) [16 Mayıs 2026], transaction count=0 keşfi.

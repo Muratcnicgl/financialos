@@ -8,7 +8,7 @@ buldu. Bunlarin dordu "bayat sayi" (kolay), ucu ise **yazili olmayan karar**:
 
   * milestone/tag disiplini 18 Tem'de birakildi ama hicbir yerde yazmiyordu → bir sonraki
     oturum bunu sessiz curume sanardi (YANILGI-7),
-  * MCP memory 19 gundur donmustu ve hala "tek gercek kaynak" gibi aniliyordu (YANILGI-1),
+  * bellek grafiği 19 gundur donmustu ve hala "tek gercek kaynak" gibi aniliyordu (YANILGI-1),
   * bug envanteri uc ayri yere dagilmisti, hangisinin resmi oldugu belirsizdi (YANILGI-5).
 
 Kararlari dosyaya yazmak yetmez: **belge iddiasi kanit degildir (L17).** Yazilan cumle
@@ -32,11 +32,11 @@ BEKLENEN: list[tuple[str, str, str]] = [
      "YANILGI-2: aktif hat Wave-8 degil publish yolu"),
     ("PROJE.md", "Milestone/tag disiplini 18 Tem 2026'da BIRAKILDI",
      "YANILGI-7: metodoloji degisimi yazili olmali"),
-    ("PROJE.md", "MCP MEMORY STATÜSÜ",
-     "YANILGI-1: MCP tek gercek kaynak degil, tarihsel arsiv"),
+    ("PROJE.md", "BELLEK GRAFİĞİ STATÜSÜ",
+     "YANILGI-1: bellek grafigi tek gercek kaynak degil, tarihsel arsiv"),
     ("docs/kalite-seruveni/masterprompt-publish.md", "MİLESTONE/TAG DİSİPLİNİ BIRAKILDI",
      "YANILGI-7 masterprompt tarafi"),
-    ("docs/kalite-seruveni/masterprompt-publish.md", "MCP MEMORY = TARİHSEL ARŞİV",
+    ("docs/kalite-seruveni/masterprompt-publish.md", "BELLEK GRAFİĞİ = TARİHSEL ARŞİV",
      "YANILGI-1 masterprompt tarafi"),
     ("docs/kalite-seruveni/masterprompt-publish.md", "TEK BUG ENVANTERİ",
      "YANILGI-5 masterprompt tarafi"),
@@ -91,16 +91,16 @@ def test_eski_bayat_iddialar_geri_gelmedi() -> None:
 
 
 
-def test_mcp_defteri_KAPALI_kalir() -> None:
+def test_dis_defter_KAPALI_kalir() -> None:
     """
-    MCP SYNC DEFTERI 4 EYLUL 2026'DA KAPATILDI (Wave-Y / Y5) — bu test o karari korur.
+    DIS DEFTER 4 EYLUL 2026'DA KAPATILDI (Wave-Y / Y5) — bu test o karari korur.
 
-    ONCEKI HALI (tarihsel): burada `scripts/mcp_sync_report.py`'nin esik davranisi
+    ONCEKI HALI (tarihsel): burada `scripts/defter_senkron_raporu.py`'nin esik davranisi
     olculuyordu (BUG #255: her durumda 0 donuyordu, birikme sessizdi). O kapinin KONUSU
     artik yok:
 
       * 7 Agu 2026 — flush 19 gundur hic kosulmamis, defterde 186 satir birikmisti;
-        ayni gun MCP resmen TARIHSEL ARSIV ilan edildi.
+        ayni gun bellek grafiği resmen TARIHSEL ARSIV ilan edildi.
       * 4 Eyl 2026 — defter 300 satira cikmisti, flush hala hic kosulmamisti.
 
     Yani `post-commit` yakalamasi **hic kosulmayacak bir flush icin** calisiyordu. Boyle
@@ -111,12 +111,12 @@ def test_mcp_defteri_KAPALI_kalir() -> None:
     Bu test o yuzden yerine gecti: yakalama sessizce geri acilirsa burada dusar. Bilincli
     olarak geri acilacaksa bu testin GEREKCESIYLE guncellenmesi gerekir.
     """
-    assert not (KOK / "scripts" / "mcp_sync_report.py").exists(), (
-        "scripts/mcp_sync_report.py geri gelmis — MCP defteri kapatilmisti (Wave-Y/Y5). "
+    assert not (KOK / "scripts" / "defter_senkron_raporu.py").exists(), (
+        "scripts/defter_senkron_raporu.py geri gelmis — dış defter kapatilmisti (Wave-Y/Y5). "
         "Bilincli bir karar ise bu testi gerekcesiyle guncelle."
     )
     hook = (KOK / ".githooks" / "post-commit").read_text(encoding="utf-8")
-    assert ".mcp-sync-pending.log" not in hook or "printf" not in hook, (
+    assert ".smoke-kayit.log" not in hook or "printf" not in hook, (
         ".githooks/post-commit yeniden defter YAKALIYOR — kapatilmis bir defteri doldurmak, "
         "kimsenin okumayacagi bir borc uretir (Wave-Y/Y5 karari)."
     )

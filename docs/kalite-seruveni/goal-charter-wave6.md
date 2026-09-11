@@ -14,12 +14,12 @@
 
 ## DEĞİŞMEZ KURALLAR
 Wave-2/3/4/5 charter'ları tam metin geçerli. KURAL 1/3/12, K10, D1, R3, W1-W8, ADR-001, ADR-013,
-OTONOM KARAR + SELF-CORRECTION. Her milestone: **canlı-doğrulama-gate → tag → push → MCP → milestone-log.**
-Charter Revize açık (ürün-DNA hariç) = tag `charter-revise-w6-<N>` + MCP. Tıkanıklıkta OTONOM KARAR.
-Web asistana "ne yapayım" YASAK.
+OTONOM KARAR + ÖZ-DÜZELTME. Her milestone: **canlı-doğrulama-gate → tag → push → milestone-log.**
+Charter Revize açık (ürün-DNA hariç) = tag `charter-revise-w6-<N>`. Tıkanıklıkta OTONOM KARAR.
+Karar noktasında dışarıya "ne yapayım" sorulmaz.
 
-> ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden önce TÜM agent'lar bitmiş + tam süit tek seferde koşulmuş olacak
-> (Wave-5'te erken-TAMAM hatası oldu, self-correction ile düzeldi — bu sefer baştan doğru).
+> ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden önce TÜM iş kalemleri bitmiş + tam süit tek seferde koşulmuş olacak
+> (Wave-5'te erken-TAMAM hatası oldu, öz-düzeltme ile düzeldi — bu sefer baştan doğru).
 
 ---
 
@@ -95,7 +95,7 @@ Web asistana "ne yapayım" YASAK.
 
 ### M91 — kapanış + Wave-7 iskeleti
 - **Çıktı:** `tam-proje-durum-raporu` güncelle (fark bölümü). PROJE.md güncelle. Wave-7 için Murat'a NET
-  ürün-DNA soruları (kripto/VPS/Postgres/mobil — hâlâ bekleyenler). MCP: GOAL TAMAM W6 + W1 rotasyonu
+  ürün-DNA soruları (kripto/VPS/Postgres/mobil — hâlâ bekleyenler). Bellek grafiği: GOAL TAMAM W6 + W1 rotasyonu
   (Working State observation sayısı kural sınırında mı).
 - **Gate:** canlı-doğrulama-gate → tag `milestone-91-wave6-kapanis`.
 

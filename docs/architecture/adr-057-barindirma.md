@@ -1,7 +1,7 @@
 # ADR-057 — Kapalı beta barındırma kararı (B0)
 
 **Durum:** KABUL EDİLDİ · **Tarih:** 4 Eylül 2026 · **Hat:** Wave-Y / Y0
-**Karar veren:** ölçüt uygulandı (Wave-Y §0.6: *"Murat'a sorma. Karar gerekiyorsa seç,
+**Karar veren:** ölçüt uygulandı (Wave-Y §0.6: *"Ölçülebilen sorulmaz. Karar gerekiyorsa seç,
 uygula, sonucu bildir"*). Murat **veto** hakkını saklı tutar.
 
 > **Bu ADR bir yöntem değişikliği de kaydeder.** `masterprompt-kapali-beta.md` §5 şöyle
@@ -32,7 +32,7 @@ bağlı olduğu için kapalı beta bitirilemedi.
 
 | Seçenek | Bedel (bugün) | Kalıcı URL | 7/24 | Kurulum |
 |---|---|---|---|---|
-| **A — kendi makine + Cloudflare Tunnel + alan adı** | alan adı ~**10,44 $/yıl** (Cloudflare Registrar, maliyetine; ≈29 TL/ay) | ✅ | ❌ | En hızlı — `cloudflared` kurulumu asistanda |
+| **A — kendi makine + Cloudflare Tunnel + alan adı** | alan adı ~**10,44 $/yıl** (Cloudflare Registrar, maliyetine; ≈29 TL/ay) | ✅ | ❌ | En hızlı — `cloudflared` kurulumu betikle |
 | **B — Hetzner CX22 + alan adı** | **€3,79/ay** (≈€45/yıl) + alan adı | ✅ | ✅ | Orta; `deploy.sh` Docker yolu hazır |
 | **C — Oracle Always Free + alan adı** | alan adı | ✅ | ✅ | **Kapasite kuyruğu — süresi belirsiz**, ölçülmedi (Murat'ın beyanı) |
 | **D — ücretsiz alan adı (eu.org) + A** | **0** | ✅ | ❌ | **Elle onay: günler–haftalar** |
@@ -87,7 +87,7 @@ Murat'a **seçenek listesi gitmez**; tek talimat gider:
 > Adı sen seç (ör. `financialos.app` yerine daha ucuz bir uzantı da olur — fiyat satın
 > alma ekranında görünür). Aldıktan sonra alan adını söylemen yeterli.
 
-Gerisi asistanda: `cloudflared` kurulumu, tünelin alan adına bağlanması, TLS, `deploy.sh`/
+Gerisi bu ADR'nin adımlarıyla: `cloudflared` kurulumu, tünelin alan adına bağlanması, TLS, `deploy.sh`/
 `live_gate.py` yeni ortamda koşumu, kapı 9-12'nin kanıtlanması (Y3).
 
 **Bu harcama bu fazın tek zorunlu masrafıdır** ve ADR-057 ile gerekçesi yazılıdır.

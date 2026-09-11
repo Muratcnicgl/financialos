@@ -2,7 +2,7 @@
 
 **Tarih:** 30 Nisan 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-004 (fallback sırası), ADR-028 (SUPERSEDED), ADR-034 (revize)
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`. 2 aydır yalnız MCP'deydi (ADR envanteri boşluğu; materyalizasyon M74'te tamamlandı).
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`). 2 aydır yalnız bellek grafiğindeydi (ADR envanteri boşluğu; materyalizasyon M74'te tamamlandı).
 
 ## Bağlam
 Tek bir LLM sağlayıcısına kilitlenmek, ücretsiz katman (free tier) kota/limitleri altında koçu kırılgan yapar. Bir sağlayıcı 429/quota dolduğunda sistem durmamalı.
@@ -20,4 +20,4 @@ Free tier limitleri için fallback şart. Adapter deseni yeni sağlayıcı eklem
 Tek sağlayıcı (ör. ücretli Anthropic) tek başına yeterli/güvenilir olursa zincir sadeleşebilir.
 
 ## Kaynak
-MCP `adr_log` [30 Nisan 2026]. Uygulama: `app/coach.py` (LLMProvider + FallbackProvider).
+karar günlüğü (`adr_log`) [30 Nisan 2026]. Uygulama: `app/coach.py` (LLMProvider + FallbackProvider).

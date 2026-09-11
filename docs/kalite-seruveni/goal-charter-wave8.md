@@ -7,23 +7,23 @@
 ---
 
 ## ÜRÜN-DNA (Murat, 18 Tem 2026) — TARTIŞMA YOK
-- Wave-8 = **DEPLOY + PWA.** Otonom sona kadar sür.
+- Wave-8 = **DEPLOY + PWA.** Sona kadar sür.
 - **PARA EN SONA:** Blok A (deploy altyapısı) hedef-agnostik, **PARASIZ.** Sunucu için ÖNCE Oracle Cloud Free Tier
-  (kalıcı ücretsiz VM), OLMAZSA Hetzner ~€4/ay. Parayı Murat verecek — **sunucu adımına gelince DUR ve Murat'a sor**
-  (bu tek insan-kapısı).
+  (kalıcı ücretsiz VM), OLMAZSA Hetzner ~€4/ay. Parayı Murat verecek — **sunucu adımına gelince DUR; ürün sahibinin onayı gerekir**
+  (bu tek onay noktası).
 - **MOBİL = PWA.** Native/App Store/Apple hesabı **KAPSAM DIŞI.** Kişisel 1-2 kullanıcılık app için App Store faydası
   (halka dağıtım) sıfır. Capacitor kapısı ileride için açık bırakılır ama BU WAVE'de kullanılmaz.
 - **Kripto KAPSAM DIŞI.**
 
 ## DEĞİŞMEZ KURALLAR
 Wave-2..7 charter'ları tam metin geçerli. KURAL 1/3/12, K10, D1, R3, W1-W8, ADR-001, **ADR-013 (create_all prod'da
-YASAK), ADR-013a**, OTONOM KARAR + SELF-CORRECTION. Her milestone: **canlı-gate → tag → push → MCP → milestone-log.**
+YASAK), ADR-013a**, OTONOM KARAR + ÖZ-DÜZELTME. Her milestone: **canlı-gate → tag → push → milestone-log.**
 Kullanıcı-görünür iş için **AYRICA KULLANIM-GATE** (gerçek veriyle uçtan uca; mock/curl yetmez). Charter Revize açık
-(ürün-DNA hariç) = tag `charter-revise-w8-<N>` + MCP.
+(ürün-DNA hariç) = tag `charter-revise-w8-<N>`.
 
-> ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden TÜM agent'lar bitmiş + tam süit tek seferde koşulmuş olacak.
+> ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden TÜM iş kalemleri bitmiş + tam süit tek seferde koşulmuş olacak.
 >
-> ⚠️ Web asistana "ne yapayım" YASAK — **TEK istisna: sunucu para adımı (Blok B).**
+> ⚠️ Karar noktasında dışarıya "ne yapayım" sorulmaz — **TEK istisna: sunucu para adımı (Blok B).**
 >
 > 🔒 **GÜVENLİK:** deploy = internete açılma. Bu wave'de her şey **production-güvenlik** gözüyle: secret sızıntısı,
 > açık port, debug mode, CORS, rate limit, HTTPS zorunlu.
@@ -61,12 +61,12 @@ Kullanıcı-görünür iş için **AYRICA KULLANIM-GATE** (gerçek veriyle uçta
 
 # BLOK B — CANLI DEPLOY (Murat'ın para/sunucu kararı — İNSAN KAPISI)
 
-**DUR.** Buraya gelince Murat'a sor: *"Blok A parasız bitti, deploy hedefe hazır. Sunucu için (1) Oracle Free Tier
+**DUR.** Buraya gelince ürün sahibi onayı alınır: *"Blok A parasız bitti, deploy hedefe hazır. Sunucu için (1) Oracle Free Tier
 deneyeyim mi (ücretsiz, kredi kartı doğrulama gerekir), yoksa (2) Hetzner €4/ay mı bağlayalım?"* Murat cevabını bekle.
 
 ### MB1 — Sunucu kurulumu + canlı deploy
 - **Çıktı:** Seçilen sunucuda runbook'u ÇALIŞTIR: OS hazırla, Docker kur, repo çek, `.env.prod` gerçek secret'larla doldur
-  (Murat sağlar — **secret'lar chat'e DÜŞMEZ**), compose up, Postgres migrate, HTTPS sertifika al.
+  (Murat sağlar — **secret'lar depoya/log'a DÜŞMEZ**), compose up, Postgres migrate, HTTPS sertifika al.
 - **GATE (KULLANIM-GATE canlı):** `https://<domain veya IP>` canlı, `/api/health` 200, login çalışıyor, gerçek bir işlem
   gir → cockpit güncellendi. · **Tag:** `milestone-97-canli-deploy`.
 
@@ -88,7 +88,7 @@ deneyeyim mi (ücretsiz, kredi kartı doğrulama gerekir), yoksa (2) Hetzner €
 ### MC2 — Mobil-uyum + KULLANIM-GATE
 - **Çıktı:** Responsive kontrol (cockpit + kritik paneller telefonda kullanılabilir), touch hedefleri, viewport. Capacitor
   notu: ADR'ye "ileride native istenirse Capacitor wrapper" yazılır ama uygulanmaz.
-- **GATE (KULLANIM-GATE):** gerçek mobil viewport (Chrome MCP device emulation) → login → işlem gir → cockpit → uçtan uca
+- **GATE (KULLANIM-GATE):** gerçek mobil viewport (Chrome device emulation) → login → işlem gir → cockpit → uçtan uca
   çalışıyor. · **Tag:** `milestone-100-mobil-uyum`.
 
 ---
@@ -96,7 +96,7 @@ deneyeyim mi (ücretsiz, kredi kartı doğrulama gerekir), yoksa (2) Hetzner €
 # BLOK D — KAPANIŞ
 - **Çıktı:** `tam-proje-durum-raporu` güncelle (deploy + PWA bölümü). `PROJE.md` güncelle (artık canlı). **ADR-deploy +
   ADR-pwa yaz.** Wave-9 iskeleti: post-deploy GERÇEK KULLANIM ile önceliklenecek UX/refactor borçları (273'ten kalanlar).
-- **MCP:** GOAL TAMAM W8 + W1 rotasyonu. Domain kararı Murat'a bırak (IP ile de canlı olur, domain opsiyonel ~yıllık ücret).
+- **Bellek grafiği:** GOAL TAMAM W8 + W1 rotasyonu. Domain kararı Murat'a bırak (IP ile de canlı olur, domain opsiyonel ~yıllık ücret).
 - **Tag:** `milestone-101-wave8-kapanis`.
 
 ---

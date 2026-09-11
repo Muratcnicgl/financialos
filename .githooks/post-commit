@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# M24 — MCP memory auto-sync: **DEFTER KAPATILDI (4 Eylül 2026, Wave-Y / Y5).**
+# M24 — bellek grafiği otomatik eşitleme: **DEFTER KAPATILDI (4 Eylül 2026, Wave-Y / Y5).**
 #
 # NEDEN KAPATILDI (ölçümle)
 # -------------------------
-# Bu hook, commit'leri `.mcp-sync-pending.log`'a YAKALIYORDU; ledger'ı MCP Working
+# Bu hook, commit'leri `.smoke-kayit.log`'a YAKALIYORDU; ledger'ı bellek grafiği Working
 # State'e AKTARAN adım ise elle koşuluyordu. Ölçümler:
 #   * 7 Ağu 2026: flush 19 gündür hiç koşulmamış, **186 satır** birikmişti.
-#   * Aynı gün MCP resmen **tarihsel arşiv** ilan edildi (güncel durumun kaynağı repo).
+#   * Aynı gün bellek grafiği resmen **tarihsel arşiv** ilan edildi (güncel durumun kaynağı repo).
 #   * 4 Eyl 2026: ledger **300 satıra** çıkmış, flush hâlâ hiç koşulmamış.
 #
 # Yani yakalama, **hiç koşulmayacak bir flush için** çalışıyordu. Böyle bir defter
@@ -14,7 +14,7 @@
 # borçtan daha kötüdür — çünkü ödenmez ve unutulmaz.** (L24'ün devamı: izleme çağrısı
 # işin gövdesine yazılmıştı; şimdi iş yok, çağrı da kaldırıldı.)
 #
-# Karar: yakalama durduruldu. `.mcp-sync-pending.log` izlenmiyor; tarihsel olarak
+# Karar: yakalama durduruldu. `.smoke-kayit.log` izlenmiyor; tarihsel olarak
 # diskte kalabilir, kimse ondan iş beklemiyor. Güncel durumun tek kaynağı repo'dur
 # (PROJE.md + `docs/kalite-seruveni/`).
 set -e

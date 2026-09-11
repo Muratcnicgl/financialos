@@ -1,7 +1,7 @@
 # WAVE-8 ARA RAPORU — DEPLOY + PWA (⚠️ KAPANIŞ DEĞİL — canlı-deploy bekliyor)
 
 **Durum:** 🟡 **DEVAM — "GOAL TAMAM WAVE-8" DENMEDİ.** Statik/parasız her şey bitti; canlı-deploy (Blok B) Murat'ın Oracle
-Free Tier VM'ini bekliyor (KURAL-3 insan-kapısı). Bu rapor Blok D'nin **statik "rapor" kalemidir**; final kapanış-raporu +
+Free Tier VM'ini bekliyor (KURAL-3 onay noktası). Bu rapor Blok D'nin **statik "rapor" kalemidir**; final kapanış-raporu +
 GOAL TAMAM kaydı ancak canlı-deploy doğrulanınca yazılacak (`milestone-101-wave8-kapanis`).
 **Tarih:** 18 Tem 2026 · **Rollback:** `pre-wave-8` (79e0b8c) · **Charter:** `goal-charter-wave8.md`
 
@@ -36,7 +36,7 @@ GOAL TAMAM kaydı ancak canlı-deploy doğrulanınca yazılacak (`milestone-101-
    canlı HTTPS + **KULLANIM-GATE** (login→gerçek işlem→cockpit) + **24s sonra fiyat cron canlı yazdı mı**.
 2. **MC1/MC2 canlı-gate'leri:** Lighthouse PWA skoru · "ana ekrana ekle" · offline app-shell · gerçek mobil viewport uçtan uca.
 3. **Blok D final:** bu raporu canlı-doğrulama bölümüyle tamamla · **GOAL TAMAM WAVE-8** · `milestone-101-wave8-kapanis` tag ·
-   MCP GOAL TAMAM W8 · W1 rotasyonu (Working State observation ~85+ şişti).
+   Bellek grafiği: GOAL TAMAM W8 · W1 rotasyonu (Working State observation ~85+ şişti).
 
 ## Güvenlik notu (deploy = internete açılma)
 Production-güvenlik gözüyle kapatıldı: secret imaja/git'e/chat'e girmez (fail-fast + .gitignore) · DB portu dışa kapalı ·

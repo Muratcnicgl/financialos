@@ -17,7 +17,7 @@ sudo usermod -aG docker $USER && newgrp docker        # docker'ı sudo'suz kulla
 # 2) Repo
 git clone https://github.com/Muratcnicgl/financialos.git && cd financialos
 
-# 3) Production secret'ları (GERÇEK değerler — git'e/chat'e DÜŞMEZ)
+# 3) Production secret'ları (GERÇEK değerler — git'e/log'a DÜŞMEZ)
 cp .env.prod.example .env.prod
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"   # SECRET_KEY üret
 nano .env.prod   # SECRET_KEY, POSTGRES_PASSWORD, DOMAIN, LLM key(ler) doldur — placeholder BIRAKMA (fail-fast reddeder)

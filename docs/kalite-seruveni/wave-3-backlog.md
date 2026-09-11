@@ -11,7 +11,7 @@ Charter M8'in 7 kaynağı (a-g) tarandı; her aday **R3 ile diskten doğrulandı
 - **(b)** Kalite Serüveni P0/P1 açık → `faz-3-durum.md`: **P1 27/27 KAPANDI**; P2 üst-yarı kapandı; kalan P2/P3 + `sections/` açık kümeleri.
 - **(c)** M4 cron production → ADR-035 (→ **M10**, big-package).
 - **(d)** Wave-2 charter "Wave-3'e ertelendi" → P2-1/12/13, T-17 güvenlik grubu, calibration, çift-hesap transfer.
-- **(e)** MCP Improvement Backlog → açık ONERI feature'ları + #030 precommit gate.
+- **(e)** bellek grafiği Improvement Backlog → açık ONERI feature'ları + #030 precommit gate.
 - **(f)** `dosya-denetimi/` (75 rapor) TODO/RISK/açık → frontend gövdesi (Group C/D) + backend (Group E) + `sections/` (SEC/DATA/RESIL/…).
 - **(g)** Coverage haritası (807 test %86) → `startup.py` %0, `dependencies.py` %47, `routers/expenses` %52, `goals` %58, `premortem` %61, `scheduler`/`fund_tracker` %62.
 

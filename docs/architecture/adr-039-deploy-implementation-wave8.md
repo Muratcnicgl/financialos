@@ -7,7 +7,7 @@ ADR-013 (Alembic tek şema kaynağı), BUG #157 (SECRET_KEY fail-fast)
 ## Bağlam
 ADR-035 (Wave-3) production deploy **stratejisini** (Docker-first + reverse proxy + cron-daemon) karara bağlamıştı ama
 kodda somut imaj/compose/nginx **yoktu**. Wave-8 ÜRÜN-DNA'sı (Murat, 18 Tem): "DEPLOY + PWA, PARA EN SONA — altyapı
-parasız/hedef-agnostik, sunucu adımı insan-kapısı". Kısıt: **docker CLI bu dev ortamında yok** → tüm GATE'ler statik
+parasız/hedef-agnostik, sunucu adımı onay noktası". Kısıt: **docker CLI bu dev ortamında yok** → tüm GATE'ler statik
 doğrulama (YAML parse, `sh -n`, config-yapı), canlı-deploy Murat'ın Oracle Free Tier VM'inde koşulacak.
 
 ## Karar

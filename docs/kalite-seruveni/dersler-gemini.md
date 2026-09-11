@@ -24,7 +24,7 @@
 
 **Kaynak:** İki Gemini kök sohbeti tam metin (get_page_text ile satır satır okundu). Amaç: kurucu vizyonun özü olan "tüm hatalardan ders çıkar" — her AI hatasını bugünkü mimariyle eşleştir, çözüldü mü / boşluk mu belirle.
 
-## Sohbet A — "Finansal Koç" (yerel LLM denemeleri)
+## Not A — "Finansal Koç" (yerel LLM denemeleri)
 
 | # | Tarihsel hata | Ders | Bugünkü durum |
 |---|---|---|---|
@@ -33,7 +33,7 @@
 | A3 | Qwen 2.5 aynı mantık hatasını tekrarladı | Model büyütmek mantığı düzeltmez; **kural/CoT gerekir** | ✅ V3_GOD_MODE prompt + Rules Engine. Ama prompt-tabanlı guardrail'lar kod seviyesine tam taşınmadı (LLM-023) |
 | A4 | Checkpoint sistemi ("YENİ CHECKPOINT:" tek cümle, asla unutma) | **Kalıcı hafıza** çekirdek | ✅ MasterCheckpoint + CoachInsight ile gelişmiş |
 
-## Sohbet B — "Finansal Stratejist" (vizyon/prompt iterasyonu) — EN ÖNEMLİ
+## Not B — "Finansal Stratejist" (vizyon/prompt iterasyonu) — EN ÖNEMLİ
 
 | # | Tarihsel hata | Ders (kullanıcının kendi sözleriyle) | Bugünkü durum |
 |---|---|---|---|
@@ -62,6 +62,6 @@
 8. **Kendi kodunu da ADVERSARIAL denetle.** Birim testler entegrasyon regresyonunu kaçırır: bu turda kendi #085 fix'im analiz raporunu bozuyordu (yalnız-birim testler kaçırdı, per-file ajan yakaladı); kendi #110 grounding-yanlış-pozitifimi ise öz-denetim ajanı yakaladı. **Ders: her büyük değişiklikten sonra bağımsız adversarial öz-denetim + entegrasyon/invariant testi.**
 9. **Katman-arası değişiklik katman-arası doğrulama ister.** tzinfo sweep (#092) backend datetime'ı `+00:00` yaptı; frontend parse'ı (`new Date`, `+ 'Z'` DEĞİL) bozmadığı TEYİT edildi — değiştiren, tükettiği tarafı da doğrulamalı.
 10. **Araştır → önceliklendir → en kaliteli yol.** Yapılabilir ≠ yapılmalı: structured output yapılabilirdi ama NL koç için yanlış; feature-creep yerine kurucu boşlukları (Borç Çığı, zikzak projeksiyon, aylık trend) kapatıldı.
-11. **Uzun-ömürlü dış API endpoint'ine kör güvenme — pytest yeşil ≠ canlı çalışıyor.** 14 Tem 2026: TCMB EVDS'yi ~Nisan 2026'da v2'den v3'e taşımış (`evds2.tcmb.gov.tr/service/evds/` → `evds3.tcmb.gov.tr/igmevdsms-dis`), biz M19'da fark etmedik; kod eski v2 URL'ini çağırıyordu, 405/SPA-HTML dönüyordu. Bulgu gecikti çünkü pytest **mock** kullanıyordu (URL fixture'da tanımlıydı, gerçek HTTP call yapılmadı) → süit yeşildi ama endpoint ölüydü. **Ders:** her dış API entegrasyonu için (a) canlı smoke test (gerçek endpoint'e curl, cevap format+status doğrula), (b) `canli-smoke-testleri.md` kaydı, (c) haftalık scheduler job (`weekly_smoke_test_job`) başarısızlıkta MCP'ye `SMOKE_FAIL:<api>` yazar. Aynı ders Wave-4 CANLI-DOGRULAMA-GATE kuralının doğuşu: her milestone bitiminde mock değil gerçek doğrulama.
+11. **Uzun-ömürlü dış API endpoint'ine kör güvenme — pytest yeşil ≠ canlı çalışıyor.** 14 Tem 2026: TCMB EVDS'yi ~Nisan 2026'da v2'den v3'e taşımış (`evds2.tcmb.gov.tr/service/evds/` → `evds3.tcmb.gov.tr/igmevdsms-dis`), biz M19'da fark etmedik; kod eski v2 URL'ini çağırıyordu, 405/SPA-HTML dönüyordu. Bulgu gecikti çünkü pytest **mock** kullanıyordu (URL fixture'da tanımlıydı, gerçek HTTP call yapılmadı) → süit yeşildi ama endpoint ölüydü. **Ders:** her dış API entegrasyonu için (a) canlı smoke test (gerçek endpoint'e curl, cevap format+status doğrula), (b) `canli-smoke-testleri.md` kaydı, (c) haftalık scheduler job (`weekly_smoke_test_job`) başarısızlıkta bellek grafiğine `SMOKE_FAIL:<api>` yazar. Aynı ders Wave-4 CANLI-DOGRULAMA-GATE kuralının doğuşu: her milestone bitiminde mock değil gerçek doğrulama.
 
 > Bu dersler, per-file kod denetiminin ve geliştirme adımlarının **filtresi**: her değişiklik bu meta-derslere hizmet etmeli. Kurucu boşlukların büyük kısmı 11 Tem 2026 turunda kapatıldı (süit 162→291).

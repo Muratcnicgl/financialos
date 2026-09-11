@@ -2,7 +2,7 @@
 
 **Tarih:** 9 Mayıs 2026 (11 May re-create) · **Durum:** Kabul edildi (vizyon) → ADR-031 ile uygulamaya bağlandı · **İlgili:** ADR-031
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Sadece TEFAS fonu, Türkiye kullanıcısının tipik portföyünün (BIST hisse + altın + döviz + crypto + gayrimenkul) yarısını görmez.
@@ -28,4 +28,4 @@ Wave-3'te multi-asset balance sheet (Kubera/Sharesight paterni). Türkiye-özgü
 **ADR-031 (Wave-3 M12, 13 Tem 2026)** schema kararını verdi: tek Account + `asset_type` kolonu (STI seçeneği A). Kripto Wave-4'e ertelendi.
 
 ## Kaynak
-MCP `adr_log` [9 Mayıs 2026, 11 May re-create]. Not: 11 May Working State temizliğinde silinip conversation_search ile geri kazanıldı.
+karar günlüğü (`adr_log`) [9 Mayıs 2026, 11 May re-create]. Not: 11 May Working State temizliğinde silinip conversation_search ile geri kazanıldı.

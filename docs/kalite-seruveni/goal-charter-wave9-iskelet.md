@@ -32,7 +32,7 @@ Gerçek kullanımda en sık dokunulan akışlar (işlem girişi, cockpit okuma, 
   koç yanıt gecikmesi algısı. **HER kullanıcı-görünür iş = KULLANIM-GATE** (gerçek cihazda uçtan uca, mock değil).
 
 ## BLOK C — KAPANIŞ
-Rapor + PROJE.md + Wave-10 iskelet + MCP GOAL TAMAM W9 + W1 rotasyonu.
+Rapor + PROJE.md + Wave-10 iskelet + Bellek grafiği: GOAL TAMAM W9 + W1 rotasyonu.
 
 ## KAPSAM DIŞI (Wave-9)
 - Kripto (kalıcı kapsam-dışı, Murat). Native/App Store (PWA yeterli, ADR-040). Yeni büyük mimari (Wave-9 = cila, genişleme değil).

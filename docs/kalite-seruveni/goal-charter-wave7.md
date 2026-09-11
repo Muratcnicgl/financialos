@@ -8,7 +8,7 @@
 
 ## ÜRÜN-DNA (Murat, 18 Tem 2026) — TARTIŞMA YOK
 - Wave-7 = **PostgreSQL** (dev SQLite / prod Postgres hibrit) + **SBN-001** + Postgres'in dokunduğu veri-katmanı
-  borçları. **LOKAL, para gerektirmez.** Otonom sona kadar sür.
+  borçları. **LOKAL, para gerektirmez.** Sona kadar sür.
 - **DEPLOY → Wave-8'e ertelendi** (VPS parası). **MOBİL → Wave-8'e ertelendi** (deploy'a bağlı, HTTPS'siz yarım
   kalır). Bu wave İKİSİNİ DE YAPMAZ.
 - **Kripto KAPSAM DIŞI** (Murat varlık sahibi değil).
@@ -18,11 +18,11 @@
 
 ## DEĞİŞMEZ KURALLAR
 Wave-2/3/4/5/6 charter'ları tam metin geçerli. KURAL 1/3/12, K10, D1, R3, W1-W8, ADR-001, **ADR-013 (Alembic tek
-doğruluk, create_all prod'da YASAK), ADR-013a**, OTONOM KARAR + SELF-CORRECTION. Her milestone: **canlı-gate → tag →
-push → MCP → milestone-log.** Charter Revize açık (ürün-DNA hariç) = tag `charter-revise-w7-<N>` + MCP. Tıkanıklıkta
-OTONOM KARAR. Web asistana "ne yapayım" YASAK.
+doğruluk, create_all prod'da YASAK), ADR-013a**, OTONOM KARAR + ÖZ-DÜZELTME. Her milestone: **canlı-gate → tag →
+push → milestone-log.** Charter Revize açık (ürün-DNA hariç) = tag `charter-revise-w7-<N>`. Tıkanıklıkta
+OTONOM KARAR. Karar noktasında dışarıya "ne yapayım" sorulmaz.
 
-> ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden TÜM agent'lar bitmiş + tam süit tek seferde koşulmuş olacak (Wave-5 erken-TAMAM hatası tekrarlanmasın).
+> ⚠️ **ERKEN-TAMAM YASAĞI:** "TAMAM" demeden TÜM iş kalemleri bitmiş + tam süit tek seferde koşulmuş olacak (Wave-5 erken-TAMAM hatası tekrarlanmasın).
 >
 > ⚠️ **KRİTİK CANLI-GATE:** Bu wave'de "SQLite yeşil" YETMEZ — her gate **Postgres'te de koşmalı.** Docker'da gerçek Postgres ayağa kaldırılacak.
 
@@ -111,7 +111,7 @@ sıfır gerçek çalışma.**
 - **Çıktı:** `tam-proje-durum-raporu` güncelle (Postgres + B4/B5 farkları + kapanan borç listesi). `PROJE.md` güncelle
   (hibrit DB). **ADR-Postgres yaz** (hibrit + RLS + dual-dialect Alembic). Wave-8 iskeleti: **DEPLOY + MOBİL birlikte**
   (VPS parası + Apple $99 + PWA-vs-RN kararı Murat'a bırakılacak — iskelette D1 ile PWA-vs-RN ön-analiz hazır olsun).
-- **MCP:** GOAL TAMAM W7 + W1 rotasyonu (Working State observation sayısını kontrol et).
+- **Bellek grafiği:** GOAL TAMAM W7 + W1 rotasyonu (Working State observation sayısını kontrol et).
 - **Tag:** `milestone-<son>-wave7-kapanis`.
 
 ---

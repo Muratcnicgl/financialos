@@ -165,12 +165,17 @@ def test_BAYAT_BASLIKLI_dosyada_da_onarim_OKUNUR(tmp_path, monkeypatch):
 
     Bu test o vakayı birebir kurar: BAYAT başlık + üç değerli satır.
     """
+    # BUG #387: zaman damgaları SABİT yazılmıştı (2026-09-04); `gun=7` penceresi 11 Eyl'de
+    # kapandı ve test kendi kendine kırmızıya döndü — vaka değil takvim değişmişti.
+    # Damgalar "şimdi"ye göre kurulur ki pencere hiç bayatlamasın.
+    t = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(hours=3)
+    z = lambda dk: (t + timedelta(minutes=dk)).strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
     csv_yolu = tmp_path / "erisilebilirlik.csv"
     csv_yolu.write_text(
         "zaman_utc,saglikli\n"                 # BAYAT başlık — üçüncü sütun YOK
-        "2026-09-04T12:10:00Z,1,0\n"
-        "2026-09-04T12:20:00Z,0,1\n"           # düşmüş VE onarılmış
-        "2026-09-04T12:30:00Z,1,0\n",
+        f"{z(0)},1,0\n"
+        f"{z(10)},0,1\n"           # düşmüş VE onarılmış
+        f"{z(20)},1,0\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(rapor, "KAYIT", csv_yolu)

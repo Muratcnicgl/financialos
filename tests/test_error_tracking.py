@@ -5,7 +5,7 @@ P5 (Wave-9) — BUG #195: beklenmedik hatalar SESSİZCE kaybolmasın.
 dosyasını sürekli izleyemez; kullanıcı "çalışmıyor" der, elde iz kalmaz.
 
 Karar (KURAL 12 / K10): Sentry gibi bir dış servis kullanıcının finansal verisini üçüncü
-tarafa taşır + yeni hesap/anahtar (insan-kapısı) gerektirir → hata izleme kendi DB'mizde.
+tarafa taşır + yeni hesap/anahtar (onay noktası) gerektirir → hata izleme kendi DB'mizde.
 Bu dosya sözleşmeyi kilitler: hata KAYDEDİLİR, tekrarlar GRUPLANIR, PII/sır SIZMAZ,
 kullanıcıya iç detay DÖNMEZ ve izleme mekanizması isteği ASLA düşürmez.
 """

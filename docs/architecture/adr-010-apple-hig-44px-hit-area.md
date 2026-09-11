@@ -13,7 +13,7 @@
 > kullanmayanı da yakalayan **ölçüm**dür → `frontend/e2e/tema-mobil.spec.js`. İki yazılı istisna
 > (cümle içi kontrol / label'a sarılı onay kutusu) ADR-047'de tanımlıdır.
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Dokunmatik hedef alanları Apple HIG'in önerdiği 44px'in altındaydı (BUG #052, #054) — mobilde tıklanması zor butonlar.
@@ -28,4 +28,4 @@ Global `.btn` class + `.btn-icon` (44×44px) — Apple HIG 44px hit area standar
 Global CSS class kalıcı; gelecekteki butonlar otomatik 44px alır.
 
 ## Kaynak
-MCP `adr_log` [8 Mayıs 2026]. Uygulama: `frontend/src/` global CSS.
+karar günlüğü (`adr_log`) [8 Mayıs 2026]. Uygulama: `frontend/src/` global CSS.

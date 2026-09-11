@@ -2,7 +2,7 @@
 
 **Tarih:** 16 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-019, ADR-024, Improvement #022
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Plan v3 "Bugün / 3 ay / 3 yıl" karar masası istiyordu. 3 yıl (1095 gün) projeksiyonu, TLY fiyatının 3 yıl sabit varsayılmasını gerektirir — TR enflasyon belirsizliğinde yanıltıcı.
@@ -23,4 +23,4 @@ Plan v3 "Bugün / 3 ay / 3 yıl" karar masası istiyordu. 3 yıl (1095 gün) pro
 Wave-3 multi-asset (ADR-019) + enflasyon-aware projeksiyon olunca T+1095 eklenir.
 
 ## Kaynak
-MCP `adr_log` [16 Mayıs 2026], Plan v3 H2G3.
+karar günlüğü (`adr_log`) [16 Mayıs 2026], Plan v3 H2G3.

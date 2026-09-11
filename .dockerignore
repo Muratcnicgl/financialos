@@ -34,7 +34,7 @@ scripts/eval_runner.py
 # öyle yapıldı, yedi kapı birden düştü; kapılar haklıydı).
 scripts/coach_altin.py
 scripts/apply_w3_039_is_system.py
-scripts/mcp_sync_report.py
+scripts/defter_senkron_raporu.py
 scripts/install-hooks.sh
 # (c) Test/prova araçları: şema yaratır/düşürür, prod imajında gereksiz yüzey.
 scripts/test_fresh_db_migration.py

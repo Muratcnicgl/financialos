@@ -6,7 +6,7 @@
 > olmadan başlamaz"* diyor. **Barındırma kararı 4 Eylül 2026'da verildi:**
 > `docs/architecture/adr-057-barindirma.md` (seçenek A — kendi makine + Cloudflare
 > Tunnel + satın alınmış alan adı). Deploy işi Wave-Y/Y3'te yürüyor ve **kod
-> tarafında engel yok**; kalan adımlar insan-kapısı olarak ayrıca kayıtlı
+> tarafında engel yok**; kalan adımlar onay noktası olarak ayrıca kayıtlı
 > (alan adı satın alma · `cloudflared` UAC onayı · vitrin deposu · ping yenileme).
 >
 > Yani bu belgeyi okuyup *"deploy kararı hâlâ bekliyor"* sonucuna varmak bugün

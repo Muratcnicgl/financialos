@@ -36,7 +36,7 @@ Bu nedenle klasik "bug / kenar durum / hardcoded yol / sessiz except / tekrar / 
 
 **Onem:** Orta - risk gercek ama bu dosyanin kapsami disinda, yanlis dosyaya atfedilmemeli.
 
-**Guven:** Orta - `scripts/setup_data.py` bu oturumda okunmadi, sadece proje dokumantasyonundaki beyana dayaniliyor.
+**Guven:** Orta - `scripts/setup_data.py` bu turda okunmadi, sadece proje dokumantasyonundaki beyana dayaniliyor.
 
 ## Sonuc
 

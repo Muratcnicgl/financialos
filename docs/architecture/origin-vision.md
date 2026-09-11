@@ -7,7 +7,7 @@
 
 ---
 
-## 1. Sohbet A — "Finansal Koç": Egemenlik (Sovereignty) doğuşu
+## 1. Not A — "Finansal Koç": Egemenlik (Sovereignty) doğuşu
 
 Proje bir **yerel, egemen (Sovereign) AI** olarak başladı:
 - `ollama run llama3.2` → sonra `qwen2.5` (4.7 GB) — **kendi bilgisayarında, internetsiz, kotasız** çalışan LLM.
@@ -18,9 +18,9 @@ Proje bir **yerel, egemen (Sovereign) AI** olarak başladı:
 - **Kritik öğrenme (mimarinin doğuşu):** Qwen 2.5 matematik/mantık halüsinasyonu yaptı ("%4.5'ten %5.0'a indirilmesi", kredi vs mevduat faizini karıştırdı). Gemini çözüm olarak **Chain-of-Thought + kesin mantık kuralları** (kredi faizi artışı = zarar; mevduat artışı = kâr; "karar vermeden önce rakamları karşılaştır") önerdi. → Bugünkü **"Rules Engine karar verir, LLM açıklar"** ilkesinin tohumu: *LLM'in matematiğine güvenme, deterministik kural motoru koy.*
 - Vizyon cümlesi: *"kusursuz ama başkasına ait bir beyin yerine, geliştirilebilir ve tamamen sana ait bir beyin."*
 
-## 2. Sohbet B — "Finansal Stratejist": Misyon ve çekirdek mekanikler doğuşu
+## 2. Not B — "Finansal Stratejist": Misyon ve çekirdek mekanikler doğuşu
 
-Bugünkü FinancialOS'in ÇEKİRDEK KAVRAMLARI bu sohbette, iteratif prompt mühendisliğiyle doğdu:
+Bugünkü FinancialOS'in ÇEKİRDEK KAVRAMLARI bu notlarda iteratif olarak doğdu:
 
 - **Günlük problem:** 220 TL ile ne kahve (~165-190) ne de yemek (~360-420) birlikte alınamıyor (2026 enflasyonu). → Bugünkü "günlük limit" baskısı.
 - **ZİKZAK STRATEJİSİ:** Sabit günlük limit yerine "Harcama Günleri" (yüksek) vs "Nöbet Günleri" (0-150). **Harcanmayan hak buharlaşmaz, birikir** ("Havuza eklenir", "Biriken Güç", "Devreden Bakiye"). → `calculate_carried_forward` / zikzak.
@@ -70,9 +70,9 @@ Kök sohbetlere göre "kusursuz" = **(a)** sıfır matematik/varsayım hatası, 
 
 30 Nisan – Haziran arası geliştirme notlarından çıkan, repo'da tam yer almayan sinyaller:
 
-- **Geliştirme süreci:** Wave-1 stabilizasyon → Wave-2 (H2G1 cashflow, H2G3 premortem, H2G4 debt strategy, H2G5 goal engine). Memory olarak bir **knowledge-graph MCP** kullanılmış (entity'ler: "FinancialOS Son Durum", "FinancialOS Vizyon", "Architecture Decisions", "Working State", "Master Roadmap"). *Not: bu oturumda bağlı `mcp__memory` grafiği BOŞ döndü — knowledge graph ya farklı bir sunucuda ya da sıfırlanmış; kullanıcı geçmişte "içerik kaybolmuş" (memory desync) sorunları yaşamış.*
+- **Geliştirme süreci:** Wave-1 stabilizasyon → Wave-2 (H2G1 cashflow, H2G3 premortem, H2G4 debt strategy, H2G5 goal engine). Proje belleği olarak bir bilgi grafiği kullanılmış (kayıtlar: "FinancialOS Son Durum", "FinancialOS Vizyon", "Architecture Decisions", "Working State", "Master Roadmap").
 - **İleri roadmap (repo'da eksik):**
-  - **Wave-3 multi-asset vizyonu:** kripto portföyü, hisse senetleri, canlı döviz/altın kurları çeken modüller (kök Sohbet A'da "yeni kasalar" fikriyle örtüşüyor). Bir sohbette "içerik kaybolmuş" notu var — bu vizyon hiçbir entity'de kalmamış.
+  - **Wave-3 multi-asset vizyonu:** kripto portföyü, hisse senetleri, canlı döviz/altın kurları çeken modüller (kök Not A'da "yeni kasalar" fikriyle örtüşüyor). Bir sohbette "içerik kaybolmuş" notu var — bu vizyon hiçbir entity'de kalmamış.
   - **Wave-7 monetizasyon:** yıllık ~$50K uluslararası SaaS geliri (~₺1.6M) senaryosu + vergi/stopaj modellemesi. Uzun vadeli ürünleşme hedefi.
 - **Doğrulama:** ADR-025 (goal engine 2 tip: debt_freedom + cash_target), ADR-001 iletişim kuralları, BUG #NNN konvansiyonu — hepsi repo/memory ile tutarlı.
 
@@ -82,12 +82,12 @@ Kök sohbetlere göre "kusursuz" = **(a)** sıfır matematik/varsayım hatası, 
 
 ## 6. Tam satır-satır okuma doğrulaması (10 Tem 2026)
 
-Her iki Gemini sohbeti **baştan sona, satır satır** yeniden okundu (kullanıcı talebi: "gerçekten her satırı"). Ham metinler `get_page_text` ile önceki oturumda alınıp bu oturumda temiz dosyalara çıkarıldı (Sohbet A: 43.865 karakter / "Finansal Koç" `5815590f7ab63710`; Sohbet B: 46.734 karakter / "Finansal Stratejist" `96f070d16e6498d1`). Satır-referanslı kanıtlarla doğrulanan kurucu bulgular:
+Her iki Gemini sohbeti **baştan sona, satır satır** yeniden okundu (kullanıcı talebi: "gerçekten her satırı"). Ham metinler `get_page_text` ile önceki oturumda alınıp bu turda temiz dosyalara çıkarıldı (Not A: 43.865 karakter / "Finansal Koç" `5815590f7ab63710`; Not B: 46.734 karakter / "Finansal Stratejist" `96f070d16e6498d1`). Satır-referanslı kanıtlarla doğrulanan kurucu bulgular:
 
-- **Zikzak (Sohbet B, satır 110-142):** 321→345 TL dinamik ortalama; "harcanmayan hak buharlaşmaz, yarına devreder" mekanizması **total/gün YENİDEN HESABIYLA** uygulandı — ayrı additive kova YOK. → **ADR-026'yı birebir doğrular** (additive `carried_forward` çift-sayım olurdu).
-- **Gölge Muhasebe (Sohbet B, satır 604-670):** "Sanal Zenginlik Tuzağı" — kart harcaması ödeme ~40 gün ertelense de bütçeden ANINDA düşülür; `KALAN BÜTÇE = Nakit + Beklenen − Kart Borcu`. → `apply_shadow_accounting` (rules_engine.py:128) ile **doğru implemente**, EKSİK DEĞİL.
-- **"Çift sayma (double counting) yapma" (Sohbet B, satır 231):** kurucu emrin açık ifadesi. → Bu oturumdaki **P0-7/#084 (simülasyon sınır çift-sayımı)** fix'i doğrudan bu mandata hizmet eder.
-- **"Varsayım Yok, Veri Var / uydurma rakam = büyük sorun" (Sohbet B, satır 808, 886-916):** kullanıcı gerçekleşmemiş tasarrufa güvenmeyi ("Likidite Tuzağı") reddetti; "Geleceği satın alma, anı yönet." → **KURAL SIFIR + grounding (LLM-003)** bunun kod enforcement'ı.
-- **Sovereign / Qwen halüsinasyonu (Sohbet A, satır 839-848):** Qwen "faiz %4.5→%5.0 indirilmesi" mantık hatası → **"Rules Engine karar verir, LLM açıklar"** ilkesinin doğuş anı. → Ollama (LLM-005) egemenliği geri getirir, grounding (LLM-003) o failure-mode'a karşı savunur. İki devrimsel adım birbirini tamamlar.
+- **Zikzak (Not B, satır 110-142):** 321→345 TL dinamik ortalama; "harcanmayan hak buharlaşmaz, yarına devreder" mekanizması **total/gün YENİDEN HESABIYLA** uygulandı — ayrı additive kova YOK. → **ADR-026'yı birebir doğrular** (additive `carried_forward` çift-sayım olurdu).
+- **Gölge Muhasebe (Not B, satır 604-670):** "Sanal Zenginlik Tuzağı" — kart harcaması ödeme ~40 gün ertelense de bütçeden ANINDA düşülür; `KALAN BÜTÇE = Nakit + Beklenen − Kart Borcu`. → `apply_shadow_accounting` (rules_engine.py:128) ile **doğru implemente**, EKSİK DEĞİL.
+- **"Çift sayma (double counting) yapma" (Not B, satır 231):** kurucu emrin açık ifadesi. → Bu oturumdaki **P0-7/#084 (simülasyon sınır çift-sayımı)** fix'i doğrudan bu mandata hizmet eder.
+- **"Varsayım Yok, Veri Var / uydurma rakam = büyük sorun" (Not B, satır 808, 886-916):** kullanıcı gerçekleşmemiş tasarrufa güvenmeyi ("Likidite Tuzağı") reddetti; "Geleceği satın alma, anı yönet." → **KURAL SIFIR + grounding (LLM-003)** bunun kod enforcement'ı.
+- **Sovereign / Qwen halüsinasyonu (Not A, satır 839-848):** Qwen "faiz %4.5→%5.0 indirilmesi" mantık hatası → **"Rules Engine karar verir, LLM açıklar"** ilkesinin doğuş anı. → Ollama (LLM-005) egemenliği geri getirir, grounding (LLM-003) o failure-mode'a karşı savunur. İki devrimsel adım birbirini tamamlar.
 
-**SONUÇ:** Tam okuma, bugünkü mimarinin kurucu vizyona **sadık** olduğunu KANITLADI. Kurucu kullanıcının en çok vurguladığı iki emir (çift-sayma-yasak, varsayım/uydurma-yasak) bu oturumda P0-7 ve grounding ile pekiştirildi; egemenlik (V2) Ollama ile geri getirildi. Kök vizyonda **gizli kalmış eksik bir çekirdek mekanik bulunamadı** — mevcut sistem zikzak+gölge muhasebe+dinamik limiti doğru taşıyor.
+**SONUÇ:** Tam okuma, bugünkü mimarinin kurucu vizyona **sadık** olduğunu KANITLADI. Kurucu kullanıcının en çok vurguladığı iki emir (çift-sayma-yasak, varsayım/uydurma-yasak) bu turda P0-7 ve grounding ile pekiştirildi; egemenlik (V2) Ollama ile geri getirildi. Kök vizyonda **gizli kalmış eksik bir çekirdek mekanik bulunamadı** — mevcut sistem zikzak+gölge muhasebe+dinamik limiti doğru taşıyor.

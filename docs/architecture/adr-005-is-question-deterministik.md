@@ -2,7 +2,7 @@
 
 **Tarih:** 3 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-001 (Rules Engine karar verir, LLM açıklar)
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Kullanıcının mesajı bir **soru/analiz talebi** mi yoksa **gerçekleşmiş bir eylem bildirimi** mi ayrımı KURAL SIFIR'ın temelidir (propose_action yalnız bildirimde çağrılır). Bu ayrımı LLM'e bırakmak sağlayıcıdan sağlayıcıya değişen davranış üretir.
@@ -17,4 +17,4 @@ Soru/bildirim ön-sınıflandırması **kod seviyesinde deterministik** yapılı
 Soru/bildirim ayrımı kod seviyesinde olunca sağlayıcı farkı kapatılır, KURAL SIFIR ihlali önlenir.
 
 ## Kaynak
-MCP `adr_log` [3 Mayıs 2026].
+karar günlüğü (`adr_log`) [3 Mayıs 2026].

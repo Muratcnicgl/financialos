@@ -31,7 +31,7 @@ Mimari soru: **Hedef ilerlemesi nasıl hesaplansın ve transaction'larla nasıl 
 
 ### Veri modeli
 
-Üç tablo, üçü de bu sohbette migration `fb38814500bf` + `f3dda4d3996d` ile yaratıldı:
+Üç tablo, üçü de bu turda migration `fb38814500bf` + `f3dda4d3996d` ile yaratıldı:
 
 1. **`goals`** — hedef tanımı (title, goal_type, target_amount, status, current_amount cache, progress_percent cache, projected_completion_date cache, baseline_amount, user_id).
 2. **`goal_allocations`** — her allocation bir kayıt. `+contribution` veya `-withdrawal`. `transaction_id` opsiyonel (link); olmazsa manuel allocation. `uq_goal_tx` constraint: bir transaction aynı hedefe en fazla bir kez bağlanabilir.

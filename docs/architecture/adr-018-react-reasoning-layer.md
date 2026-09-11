@@ -2,10 +2,10 @@
 
 **Tarih:** 10-11 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-006
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
-Koçun muhakeme adımlarını (ReAct trace) kullanıcıya göstermek için UX + veri retention kararları gerekti. Sektör 8+ kaynak tarandı (LangSmith, assistant-ui, asistan Extended Thinking, ChatGPT Thinking, Perplexity, Langfuse, LandingAI ADE, OWASP).
+Koçun muhakeme adımlarını (ReAct trace) kullanıcıya göstermek için UX + veri retention kararları gerekti. Sektör 8+ kaynak tarandı (LangSmith, assistant-ui, ChatGPT Thinking, Perplexity, Langfuse, LandingAI ADE, OWASP).
 
 ## Karar (8 alt karar)
 1. **Operation type renk:** 5 ayrı renk yerine tek muted ton + Lucide ikon + Türkçe etiket. Vurgu yalnız final_answer (indigo) ve step.error (kırmızı).
@@ -27,4 +27,4 @@ Sektör 8+ kaynak konsensüsü.
 Production'da farklı UX feedback veya storage koşulları değişirse.
 
 ## Kaynak
-MCP `adr_log` [10-11 Mayıs 2026], commit faf631d→9d03ce5.
+karar günlüğü (`adr_log`) [10-11 Mayıs 2026], commit faf631d→9d03ce5.

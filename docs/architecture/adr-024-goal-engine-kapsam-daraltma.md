@@ -2,7 +2,7 @@
 
 **Tarih:** 17 Mayıs 2026 · **Durum:** Kabul edildi (Murat onayladı) · **İlgili:** ADR-019, ADR-022, ADR-023, ADR-025
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Plan v3 4 hedef tipi istiyordu: debt_freedom + cash_target + net_worth + investment.
@@ -28,4 +28,4 @@ Yalnız **2 tip** uygulanır:
 Wave-3 multi-asset (ADR-019) + enflasyon-aware projeksiyon tamamlanınca net_worth + investment eklenir.
 
 ## Kaynak
-MCP `adr_log` [17 Mayıs 2026], Plan v3 H2G5. Not: ADR-025 (Goal Engine, 20 May) bu kararı allocation-based pattern ile uyguladı.
+karar günlüğü (`adr_log`) [17 Mayıs 2026], Plan v3 H2G5. Not: ADR-025 (Goal Engine, 20 May) bu kararı allocation-based pattern ile uyguladı.

@@ -2,7 +2,7 @@
 
 **Tarih:** 16 Mayıs 2026 (+ REV 1-3, FINAL) · **Durum:** Kabul edildi + KAPALI · **İlgili:** ADR-019, ADR-022, BUG #058
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log` (5 observation: ana karar + 3 revizyon + final).
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`) (5 observation: ana karar + 3 revizyon + final).
 
 ## Bağlam
 Kullanıcıya gelecek nakit akışını (running balance + crunch günleri + Sankey) göstermek. Sektör: PocketSmith (flag system), Monarch (Sankey + scenario), Quicken Simplifi, Buxfer (alert-driven), Cube 2026 raporu.
@@ -28,4 +28,4 @@ Kullanıcıya gelecek nakit akışını (running balance + crunch günleri + San
 6 hafta kullanım: horizon 90 üstü (PocketSmith plan-tabanlı); ML crunch threshold; cache (Redis/SQLite TTL).
 
 ## Kaynak
-MCP `adr_log` [16 Mayıs 2026], commit'ler 2acdae9 + bff14d3 + 38491d7.
+karar günlüğü (`adr_log`) [16 Mayıs 2026], commit'ler 2acdae9 + bff14d3 + 38491d7.

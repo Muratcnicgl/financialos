@@ -62,7 +62,7 @@ scratchpad/
 scratchpad_cov.txt
 scratchpad_uvicorn.log
 openapi.json
-.mcp-sync-pending.log
+.smoke-kayit.log
 
 # Wave-Y/Y2: olu adam anahtari ping adresi KIMLIK tasir — depoya girmez.
 # Yildiz SART: 6 Eyl 2026'da `izleme-url.txt.yedek` diye bir yedek olustu ve dar kural

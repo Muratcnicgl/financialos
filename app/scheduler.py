@@ -410,8 +410,8 @@ async def weekly_smoke_test_job() -> str:
 
     Ders 11: "pytest yeşil ≠ canlı çalışıyor" (M19 EVDS regression'ı mock-yeşilken ölüydü).
     Her dış API'ye (EVDS/SMTP/OAuth google+github) GERÇEK smoke atar; başarısızlıkları
-    `.mcp-sync-pending.log`'a `SMOKE_FAIL:<api>` olarak yakalar (scheduler MCP'ye doğrudan
-    yazamaz → M24 capture→flush; flush ayrı bir adımda `scripts/mcp_sync_report.py` ile yapılır). Akışı bozmaz.
+    `.smoke-kayit.log`'a `SMOKE_FAIL:<api>` olarak yakalar (scheduler bellek grafiğine doğrudan
+    yazamaz → M24 capture→flush; flush ayrı bir adımda `scripts/defter_senkron_raporu.py` ile yapılır). Akışı bozmaz.
     """
     from app.services.smoke_tests import run_all_smoke_tests, capture_smoke_failures
     logger.info("[smoke] haftalık smoke test başladı %s", datetime.utcnow().isoformat())

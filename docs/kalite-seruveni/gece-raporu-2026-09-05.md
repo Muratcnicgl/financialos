@@ -15,12 +15,12 @@ olmayan satır **KANIT YOK** yazar. Dün koşmuş bir ölçüm, bugünkü olgu d
 | **Y0** barındırma kararı | ✅ | ADR-057 (seçenek A), 4 Eyl |
 | **Y1** canlı sürüm drift'i | ✅ | `guncelle.ps1`: `canli damga 37e2107… = hedef`, bu sabah koşuldu |
 | **Y2** kesinti körlüğü | 🟡 **DÜZELTİLDİ ama ✅ DEĞİLDİ** | Karar dalı bu sabah TAZE doğrulandı (bozuk→0 ping, sağlam→1 ping). **AMA** onarım ölçümü üretimde ÖLÜYDÜ → BUG #359, bu sabah kapandı |
-| **Y3** yayın + kapı 9-12 | ⛔ | alan adı yok — insan-kapısı |
+| **Y3** yayın + kapı 9-12 | ⛔ | alan adı yok — onay noktası |
 | **Y4** gerçek kullanıcı sinyali | ⛔ | Y3'e bağlı; davetli mesajı hazır, gönderilmedi |
 | **Y5** defter senkronu | ✅ | 4 Eyl; gece 6 tur daha doğrulama yapıldı (21 madde düzeldi) |
 | **Y6** ADR borcu | ✅ | ADR 56 → **61** |
-| **Y7** vitrin | 🟡 | Üretim TAM ÖLÇÜMLÜ tamamlandı (`vitrin/README.md` + `olcumler.json`, 4 Eyl 23:59). Public depo **açılmadı** — insan-kapısı. Kapıda **vakumsal yeşil yolu var** (§4) |
-| **Y8** kapanış kapısı | 🟡 | 7/10 kapalı; 3'ü insan-kapısı (alan adı ×2, davetli mesajı) |
+| **Y7** vitrin | 🟡 | Üretim TAM ÖLÇÜMLÜ tamamlandı (`vitrin/README.md` + `olcumler.json`, 4 Eyl 23:59). Public depo **açılmadı** — onay noktası. Kapıda **vakumsal yeşil yolu var** (§4) |
+| **Y8** kapanış kapısı | 🟡 | 7/10 kapalı; 3'ü onay noktası (alan adı ×2, davetli mesajı) |
 
 **Wave-Y kapanmıyor ve kapanmamalı.** Kalan üç madde kod işi değil.
 
@@ -149,7 +149,7 @@ sayılıyor.
 
 **HAYIR.** Adres sohbete yapıştırıldığı için artık gizli değil; bilen biri sahte
 "sağlıklıyım" gönderip **alarmı susturabilir** (servisi düşüremez, veri okuyamaz).
-İnsan-kapısı: Healthchecks → Settings → regenerate. **~2 dakika.**
+Onay noktası: Healthchecks → Settings → regenerate. **~2 dakika.**
 
 ### 2.6 Y2'nin defterdeki durumu
 
@@ -160,7 +160,7 @@ bunu ancak veriye bakınca gördük. Bugün itibarıyla:
 - karar dalı ✅ (taze, iki yönde)
 - onarım ölçümü ✅ (BUG #359 sonrası, canlı veriyle doğrulandı)
 - ping'in **varışı** 🟡 (KANIT YOK — sır gerektiriyor)
-- ping URL yenileme ⛔ (insan-kapısı)
+- ping URL yenileme ⛔ (onay noktası)
 
 **Y2 = 🟡.** Kalan iki madde de Murat'ta.
 
@@ -174,7 +174,7 @@ bunu ancak veriye bakınca gördük. Bugün itibarıyla:
 | Çıktı nerede? | `vitrin/` — **gitignore'da** (`.gitignore:84`) | üretilen bayt depoya girmez, ayrı public depoya gider |
 | Kapı üretilen baytları mı tarıyor? | **Evet** | `test_vitrin_kapisi.py:75` → `VITRIN.rglob("*")`, `.md/.json/.html` |
 | Sonuç | **Temiz** | yasaklı desen tavanı SIFIR, ratchet yok |
-| Public depo açıldı / push edildi mi? | **HAYIR** | insan-kapısı — depo adı Murat'tan bekleniyor |
+| Public depo açıldı / push edildi mi? | **HAYIR** | onay noktası — depo adı Murat'tan bekleniyor |
 | Taslak koruması çalışıyor mu? | **KANIT YOK** | bu sabah ayrıca koşulmadı; süit içinde yeşil ama izole doğrulama yapılmadı |
 
 **Üreticiyi bu sabah yeniden koşmayı denedim, 6 dk 40 sn'de tamamlanmadı** (tam ölçüm modu
@@ -200,7 +200,7 @@ sınadı** ve iki yeni bulgu verdi:
 | **vitrin** | **EVET — vakumsal yeşil yolu VAR** | `vitrin/` yoksa **4 noktada `pytest.skip`**; artefakt üretilmemişse kapı sıfır iddia ile yeşil görünür |
 
 **Kayıt:** vitrin kapısının skip yolu **kapatılmadı**. Gerekçesi: kapatmak, yayın akışının
-nasıl kurulacağına karar vermeyi gerektirir (public depo henüz yok) ve bu insan-kapısı.
+nasıl kurulacağına karar vermeyi gerektirir (public depo henüz yok) ve bu onay noktası.
 **Ama bilinmesi gereken bir açık:** yayın anında kapının gerçekten taradığı doğrulanmalı,
 yoksa koruma tiyatro olur.
 
@@ -221,7 +221,7 @@ düşürüyordu.
 - **Kapının iki uyarısı okundu** (haftalardır duruyordu, kimse bakmamıştı):
   - `Server: uvicorn` dışarıya yayınlanıyordu → `--no-server-header` ile kapatıldı, ölçüldü.
   - Destek adresi **kişisel Gmail** ve `/api/meta` kimliksiz yayınlıyor → alan adına bağlı,
-    insan-kapısı olarak kaydedildi.
+    onay noktası olarak kaydedildi.
 - **Davetli mesajı** hazır (`y4-davetli-mesaji.md`, sürüm B), gönderilmedi.
 
 ---

@@ -434,7 +434,7 @@ verilir, beklenen çıktı yazılır, geri dönene kadar **başka fazlar paralel
 
 1. **§9.1 Sunucu provizyonu** — Oracle Free Tier hesabı/VM/SSH anahtarı. (P6)
 2. **§9.2 Alan adı** — domain kaydı + DNS A kaydı. (P6)
-3. **§9.3 Canlı sırlar** — `.env.prod` içeriği **sunucuda** oluşturulur; **chat'e düşmez**. (P6)
+3. **§9.3 Canlı sırlar** — `.env.prod` içeriği **sunucuda** oluşturulur; **depoya/log'a düşmez**. (P6)
 4. **§9.4 Canlı DB üzerinde yıkıcı işlem onayı** — silme/geri yükleme provası. (P5/P6)
 5. **§9.5 Üçüncü taraf hesapları** — LLM API anahtarı, SMTP, (varsa) hata izleme servisi kaydı. (P3/P5)
 6. **§9.6 Beta davetlileri** — gerçek insanlara davet göndermek. (P7)
@@ -484,12 +484,12 @@ Her faz kapanışında **10 dakikalık geriye-bakış** yapılır ve bu dosya g�
 >   `kafa_karistirdi` türü, hatadan bildirime tek tık, migration `e7f8a9b0c1d2`).
 >   Mutasyon 7/7.
 > **Taban: 3040 passed / 18 skipped + 183 vitest + `npm run build` yeşil.** Canlı DB
-> head **`e7f8a9b0c1d2`**. **Sıradaki: B4 (yayın) — B0 kararına bağlı, insan-kapısı.**
+> head **`e7f8a9b0c1d2`**. **Sıradaki: B4 (yayın) — B0 kararına bağlı, onay noktası.**
 
 > **📄 ARA DEVİR RAPORU (11 Ağu 2026):** 6 Ağustos'taki master devir belgesinden bu yana olan
 > **her değişim** tek dosyada toplandı — `docs/kalite-seruveni/ara-durum-raporu-2026-08-11.md`
 > (5.941 satır; 28 commit, 24 BUG, 10 ADR, 23 yeni ders, bu dönemde doğan 24 kaynak dosya +
-> 10 ADR **inline**). Yeni bir sohbete devir verilirken master rapor + bu ara rapor birlikte
+> 10 ADR **inline**). Yeni bir çalışma turuna devir verilirken master rapor + bu ara rapor birlikte
 > okunur. Manşet kanıt (bugün koşuldu): **2969 passed / 18 skipped** + **175 vitest** + 6 e2e,
 > canlı DB head `c5d6e7f8a9b0`, çalışma ağacı temiz.
 
@@ -819,7 +819,7 @@ Harcamanı kaydettim."` aksiyon yokken **hiçbir uyarı
 > - **Kalan açık iş:** ~~onboarding rehberi (P3)~~ → **7 Ağu'da kapandı (BUG #262)**;
 >   ~~kapasite sınırları (P5)~~ → **7 Ağu'da kapandı (BUG #263, P5.5)**;
 >   ~~açık tema / mobil yüzey~~ → **7 Ağu'da kapandı (BUG #265 / ADR-047)**;
->   H11 canlı SMTP (insan-kapısı), backlog'un **262** açık maddesi ve P6-P9 insan-kapısı.
+>   H11 canlı SMTP (onay noktası), backlog'un **262** açık maddesi ve P6-P9 onay noktası.
 >
 > **📌 AKSİYON PAYLOAD SÖZLEŞMESİ (BUG #266 / ADR-048, 7 Ağu 2026) — backlog LLM turu başladı.**
 > `app/action_executor.py`'nin kendi ilkesi "LLM'in prompt'una güvenilmez, kod seviyesinde
@@ -892,7 +892,7 @@ Harcamanı kaydettim."` aksiyon yokken **hiçbir uyarı
 > **📌 7 AĞUSTOS 2026 — DEVİR BELGESİ + ÜÇ YAZILI KARAR (önce bunları oku)**
 >
 > **(0) Tam devir belgesi:** `docs/kalite-seruveni/master-durum-raporu-2026-08-06.md` — 31.668 satır,
-> 215 dosya INLINE gömülü (46 ADR, 12 charter, 521 backlog maddesi, 76 denetim raporu, MCP graph'ın
+> 215 dosya INLINE gömülü (46 ADR, 12 charter, 521 backlog maddesi, 76 denetim raporu, bellek grafiğinin
 > tamamı, 565 commit'lik git log). Sıfırdan gelen bir oturum için tek dosya yeterlidir.
 >
 > **(1) MİLESTONE/TAG DİSİPLİNİ BIRAKILDI.** 98 tag'in tamamı ≤ 18 Tem 2026; 4-6 Ağustos'taki 103
@@ -900,12 +900,12 @@ Harcamanı kaydettim."` aksiyon yokken **hiçbir uyarı
 > değildir** — ama bugüne kadar hiçbir yerde yazılı değildi (master rapor YANILGI-7). İş artık
 > **P0-P9 fazı + D-bulgu kodu + BUG numarası** ile yürür; `milestone-log.md` tarihsel arşivdir.
 >
-> **(2) MCP MEMORY = TARİHSEL ARŞİV.** Graph 18 Tem 18:14'te dondu; `.mcp-sync-pending.log`'da 186
+> **(2) BELLEK GRAFİĞİ = TARİHSEL ARŞİV.** Graph 18 Tem 18:14'te dondu; `.smoke-kayit.log`'da 186
 > commit bekliyor (14 Tem → 6 Ağu). Capture (git hook) çalışıyor, FLUSH (elle) hiç koşulmadı — yani
-> izleme çağrısı işin gövdesine yazılmıştı (**L24**). **Karar:** MCP tek gerçek kaynak değildir;
-> güncel durum = repo + master rapor. 186 satırlık birikim özet olarak MCP'ye **yazılmadı** (ikinci
+> izleme çağrısı işin gövdesine yazılmıştı (**L24**). **Karar:** bellek grafiği tek gerçek kaynak değildir;
+> güncel durum = repo + master rapor. 186 satırlık birikim özet olarak bellek grafiğine **yazılmadı** (ikinci
 > bir gerçek kaynak üretmek borcu ödemez, çoğaltır). Ledger büyümesini gösteren araç:
-> `scripts/mcp_sync_report.py`.
+> `scripts/defter_senkron_raporu.py`.
 >
 > **(3) TEK BUG ENVANTERİ = `uygulanan-fixler.md`.** Repoda 235 benzersiz BUG numarası var, ledger'da
 > 114'ü (YANILGI-5). Geriye dönük toplama yapılmadı; bundan sonra her numara ledger'a yazılır.
@@ -964,7 +964,7 @@ bulguların hangisinin hâlâ geçerli olduğunu kanıtla gösterdi — D35 örn
 
 **Sıradaki:** **doğrulama denetiminin 40 bulgusunun TAMAMI kapandı** (D01-D40; D35 zaten
 BUG #220 ile kapanmıştı, rapordaki hüküm bloğu bayattı). Sıradaki iş artık denetim listesi
-değil, **P6/P7 insan-kapısı**: Oracle VM + domain + canlı sırlar → `scripts/deploy.sh` →
+değil, **P6/P7 onay noktası**: Oracle VM + domain + canlı sırlar → `scripts/deploy.sh` →
 `scripts/live_gate.py <url>` (bugün yerelde uçtan uca koşturuldu, dev config'te beklenen 6
 kapı düşüyor) → gerçek davetliler. Kod tarafında bilinen teknik engel YOK.
 
@@ -1065,7 +1065,7 @@ kapı düşüyor) → gerçek davetliler. Kod tarafında bilinen teknik engel YO
 
 ---
 
-#### 🎯 DOĞRULAMA DENETİMİNİN **TÜM YÜKSEK BULGULARI KAPANDI** (bu oturum, 9 commit)
+#### 🎯 DOĞRULAMA DENETİMİNİN **TÜM YÜKSEK BULGULARI KAPANDI** (bu tur, 9 commit)
 
 | Bug | Denetim | Konu (tek cümle) |
 |---|---|---|
@@ -1126,7 +1126,7 @@ Yedekler: `data/backups/2026-08-05-141912.db` ve `-142714.db`.
 **(b) DENETİM MALİYETİ — ölçüldü.** Denetim 49 paralel tarama turuyla koştu ve pahalıydı;
 pahalı kısım 41 çelişme turuydu. Kural: geniş paralel tarama yalnız açıkça istendiğinde,
 **tavan konarak** (en fazla 5 tur) ve çelişme turu yalnız kritik/yüksek bulgulara.
-Bu oturumun tamamı tek hatta koştu — 9 bulgu, 9 commit.
+Bu turun tamamı tek hatta koştu — 9 bulgu, 9 commit.
 
 ---
 
@@ -1162,7 +1162,7 @@ gerçek davetliler, gerçek trafik, duyuru. Canlı deploy olmadan P6/P7/P8/P9 ka
 teknik engeli kalmadı.
 
 
-Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ insan-kapısı bekliyor
+Durum: ⬜ başlamadı · 🟡 devam · ✅ kapı geçti (kanıtlı) · ⏸️ onay noktası bekliyor
 
 | Faz | Konu | Durum | Kanıt / Not |
 |---|---|---|---|
@@ -1187,7 +1187,7 @@ yayın-engeli değil). **H4'ün para birimi ayağı da KAPANDI (7 Ağu, BUG #256
 
 | Sürüm | Tarih | Değişiklik | Gerekçe |
 |---|---|---|---|
-| v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, paralel tarama protokolü, insan-kapısı listesi | Murat'ın publish goal direktifi |
+| v1.0 | 2026-08-04 | İlk yazım: 10 faz, 3 basamak, kapı/kanıt protokolü, paralel tarama protokolü, onay noktası listesi | Murat'ın publish goal direktifi |
 | v2.0 | 2026-08-05 | **§1.3 DERS-KURALLARI (L1-L10)** eklendi — 41 bug'dan çıkarılan, tekrar etmemesi gereken hata SINIFLARI. Faz kapıları KORUNDU, hiçbiri gevşetilmedi | Murat'ın 3. adımı: "masterprompt'u gerileme/duraksama yönü hariç, kaliteyi artırma amaçlı geliştir" |
 | v2.7 | 2026-08-06 | **§11.0: D24 kapandı (BUG #240, 14 kapı).** §1.3'e **L23** (bir şeyin YOKLUĞUNU raporlaması gereken yüzey, envanterini o şeyin ÇIKTISINDAN türetemez — boş liste "her şey yolunda" gibi okunur; yan tuzak: envanter beyandan gelince eski tüketici hep-yeşile döner) ve **L24** (izleme çağrısı işin GÖVDESİNE yazılıyorsa unutulur — kaydı planlama noktasına bağla, sözleşmeyi iş listesini gezerek assert et, dışarıda koşan kardeş işleri de kapsa) eklendi. Runbook cron-sağlığı bölümü yeni alanlarla güncellendi. Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin D24'ü: 5 cron işinden 3'ü kayıt tutmuyordu, KVKK 90-gün saklama işi dahil sessizce ölebilirdi. Sınıf taraması prod yedeğinde aynı defekti buldu ve fix'in canlı kapıda yarattığı hep-yeşil tuzağını kapattı |
 | v2.6 | 2026-08-06 | **§11.0: D23 kapandı (BUG #239, 18 backend + 4 vitest kapı).** §1.3'e **L21** (sinyal hesaplanıyor olabilir ama karar veren katmana hiç ulaşmayabilir — sinyali karar sözleşmesine koy) ve **L22** (etiket eşiği ile alarm eşiği ayrı olmalı; tek eşik ya gürültü ya sessizlik üretir) eklendi. Ayrıca önceki oturumun §11.0'da İLAN ETTİĞİ ama tabloya hiç yazmadığı **L19/L20** materyalize edildi (aynı sınıf: ilan ≠ materyalize, L17). Kapı EKLENDİ, hiçbiri gevşetilmedi (§10) | Denetimin D23'ü: koç bayat fiyattan "%30 kârdasın" diyordu; tazelik verisi vardı ama yalnız HTTP katmanındaydı. Sınıf taraması Hesaplar panelinin fiyatı koşulsuz "Güncel fiyat" diye etiketlediğini buldu — çelişme turunun "başka yüzeyde sinyal var" telafisini kısmen çürüttü |

@@ -19,7 +19,7 @@ Hiçbiri ulaşılamazsa `pytest.skip` (ana SQLite süiti bloklanmaz).
 
 YERELDE POSTGRES'İ AYAĞA KALDIRMA — ÖLÇÜLMÜŞ TARİF (11 Eyl 2026)
 -----------------------------------------------------------------
-Yukarıdaki "bu oturumda arka planda koşuyor" cümlesi BİR OTURUMA aitti; o oturum
+Yukarıdaki "bu turda arka planda koşuyor" cümlesi BİR TURA aitti; o tur
 kapandığında tarif de kayboldu ve `pgserver` bu makinede kurulu bile değildi. Sonuç:
 dual-dialect kapıları AYLARDIR yalnız CI'da koşuyordu — yani yerelde kırmızıyı
 göremediğin, CI'da ise logunu okumak için yetki gerektiren bir kör nokta.

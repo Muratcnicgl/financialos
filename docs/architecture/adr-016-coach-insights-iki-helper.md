@@ -2,7 +2,7 @@
 
 **Tarih:** 10 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-006, ADR-017
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Coach insight extractor'ları iki farklı doğaya sahip: olay-tetikli (anlık) ve periyodik (günlük tarama). Tek helper her ikisini de temiz karşılayamıyor.
@@ -23,4 +23,4 @@ mc_reference_frequency'de dominant_mc testi `_save_or_update_insight` ile fail o
 Sonraki extractor'larda 3. bir desen ortaya çıkarsa 3. helper veya factory pattern.
 
 ## Kaynak
-MCP `adr_log` [10 Mayıs 2026], commit 90bd628.
+karar günlüğü (`adr_log`) [10 Mayıs 2026], commit 90bd628.

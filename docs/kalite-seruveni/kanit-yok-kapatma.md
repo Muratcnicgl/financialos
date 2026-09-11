@@ -34,7 +34,7 @@ M78 o boşlukları güncel diskten topladı. Rapor (tarihsel snapshot) DEĞİŞT
 | 803/1041 | `docker-compose config` koşturulmadı | **M80** işi (Docker Compose lokalde ayağa). |
 | 426/451 | yfinance / BIST canlı test | Dış-API + bu env'de Yahoo blok (ADR-031 R3: graceful None). Kapsam dışı (Wave-5 KAPSAM DIŞI: kripto/multi-asset genişletme). |
 | 916 | OAuth Google Console test-mode | Google Console'a erişilemez (dış panel); `odeme-bekleyen-kararlar.md` #3 test-mode teyit ediyor. Elle-görev (KURAL 3 istisnası). |
-| 694/697 | disk açık-bug listesi / yeniden-açılan bug | Bug arşivi MCP `Bug Archive`'da (disk değil); yapısal, M79+ değil Wave-6 bug-hijyeni. |
+| 694/697 | disk açık-bug listesi / yeniden-açılan bug | Bug arşivi bellek grafiği `Bug Archive`'da (disk değil); yapısal, M79+ değil Wave-6 bug-hijyeni. |
 
 ## M87 (Wave-6) — kalan KANIT YOK + doküman-kod çelişkileri kapatıldı
 
@@ -42,7 +42,7 @@ M78 o boşlukları güncel diskten topladı. Rapor (tarihsel snapshot) DEĞİŞT
 | Rapor satırı | Konu | M87 durumu |
 |---|---|---|
 | 803/1041 | `docker-compose config` koşturulmadı | ✅ **M80** kapattı — statik doğrulandı + prod-güvenlik fix (canlı-koşamama: docker CLI yok, belgelendi). |
-| 694/697 | disk açık-bug listesi MCP'de (disk değil) | ✅ **M74 çürüttü** — MCP bu terminalde ERİŞİLEBİLİR (Bug Archive + adr_log okundu); "disk-yok" artık boşluk değil, MCP kanonik kayıt. |
+| 694/697 | disk açık-bug listesi bellek grafiğinde (disk değil) | ✅ **M74 çürüttü** — bellek grafiği bu terminalde ERİŞİLEBİLİR (Bug Archive + adr_log okundu); "disk-yok" artık boşluk değil, bellek grafiği kanonik kayıt. |
 | 426/451 | yfinance/BIST canlı test | ⏸️ KAPSAM DIŞI (dış-API + Yahoo blok, ADR-031). |
 | 916 | OAuth Google Console test-mode | ⏸️ Dış-panel (elle-görev, KURAL 3). |
 

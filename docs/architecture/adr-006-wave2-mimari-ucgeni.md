@@ -2,7 +2,7 @@
 
 **Tarih:** 6 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-001, ADR-016, ADR-017, ADR-020
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Wave-1 koçu durumsuz (stateless) bir açıklayıcıydı — geçmiş sohbetten öğrenmiyordu. Kalıcı davranışsal hafıza gerekliydi.
@@ -21,4 +21,4 @@ Wave-1 koçu durumsuz (stateless) bir açıklayıcıydı — geçmiş sohbetten 
 ADR-001 ilkesi bozulmadan koça hafıza eklendi: matematik hâlâ deterministik, LLM hâlâ yalnız açıklıyor; öğrenme ayrı katmanda.
 
 ## Kaynak
-MCP `adr_log` [6 Mayıs 2026].
+karar günlüğü (`adr_log`) [6 Mayıs 2026].

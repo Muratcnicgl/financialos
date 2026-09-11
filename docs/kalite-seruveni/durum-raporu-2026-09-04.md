@@ -55,7 +55,7 @@ aslında **7 günlük yoğun iştir**; kalan 18 gün projeye hiç dokunulmadı.
 
 | Blok | Konu | Durum | Kanıt |
 |---|---|---|---|
-| **B0** | Barındırma kararı (insan-kapısı) | ⛔ **AÇIK** | `masterprompt-kapali-beta.md:110` → "Yapılacak". Karar notu hazır ve fiyat araştırması yapılmış; notta hiçbir yerde "seçildi / karar verildi" satırı yok |
+| **B0** | Barındırma kararı (onay noktası) | ⛔ **AÇIK** | `masterprompt-kapali-beta.md:110` → "Yapılacak". Karar notu hazır ve fiyat araştırması yapılmış; notta hiçbir yerde "seçildi / karar verildi" satırı yok |
 | **B1** | Davet kapısı kapsamı ölçülü + kilitli | ✅ KAPALI | BUG #279 |
 | **B2** | Geri bildirim teşhis edilebilir | ✅ KAPALI | BUG #281; canlı DB'de **2 geri bildirim kaydı** |
 | **B3** | Korelasyon kimliği + sürüm damgası | ✅ KAPALI | BUG #280, #294 |
@@ -296,7 +296,7 @@ Cevap ancak onlara sorularak öğrenilir (B2 geri bildirim yüzeyi diskte hazır
 
 | Madde | Durum | Kanıt |
 |---|---|---|
-| MCP'nin 186 satırlık flush'ı | ⛔ **YAPILMADI — ve büyüdü: 186 → 255 satır** | `wc -l .mcp-sync-pending.log` |
+| dış defterin 186 satırlık aktarımı | ⛔ **YAPILMADI — ve büyüdü: 186 → 255 satır** | `wc -l .smoke-kayit.log` |
 | "Milestone/tag bırakıldı, iş P0-P9 + BUG ile yürür" kararı yazıldı mı | ✅ **EVET**, `PROJE.md`'de yazılı | grep |
 | H11 canlı SMTP | ⛔ **AÇIK** (kapı 10) | — |
 
@@ -332,7 +332,7 @@ ağaç hash'i korunmuştu (`c9a718e7…`). Yani bu, deponun **ikinci** geçmiş 
 | 14 Ağu'dan bu yana kırılan ne var? | **Süitte hiçbir şey** — 3486 passed, 0 failed. |
 | ADR ihlali girdi mi? | **Hayır.** ADR-001 (rules engine karar verir, LLM açıklar) bu turda tersine **güçlendi**: stopaj (`app/vergi.py`), kötü hal (#333), nakit takvimi (#331) koçtan alınıp kural motoruna taşındı. |
 | Kapsam kayması? | **Hayır, ama hat değişti**: 2-4 Eylül'ün 28 commit'i publish yolunda değil, yeni açılan **Wave-K koç hattında**. Bilinçli ve belgeli, fakat yayına yaklaştırmadı. |
-| Bu turda girip aynı turda kapanan gerileme | **1 tane, asistanın bıraktığı:** BUG #338'in kapısı `git ls-files`'ı beşinci kez yeniden yazınca ruff `S` tavanı 63 → 64 kırıldı. Tavan **yükseltilmedi**; kopya kaldırılıp `scripts.sir_taramasi.izlenen_dosyalar` tek kaynağına bağlandı → 63/63. |
+| Bu turda girip aynı turda kapanan gerileme | **1 tane, bu turun bıraktığı:** BUG #338'in kapısı `git ls-files`'ı beşinci kez yeniden yazınca ruff `S` tavanı 63 → 64 kırıldı. Tavan **yükseltilmedi**; kopya kaldırılıp `scripts.sir_taramasi.izlenen_dosyalar` tek kaynağına bağlandı → 63/63. |
 | Uzun süredir sessiz duran | **`alembic check` (bkz. §3)** — en az bir aydır başarısız, hiçbir kapı ölçmüyordu. |
 
 ---
@@ -371,7 +371,7 @@ karardır. Kalite bu işin önünde değil, **arkasında** duruyor.
 
 ## SIRADAKİ ÜÇ İŞ (öncelik sırasıyla)
 
-1. **B0 barındırma kararı** — insan-kapısı, tek soru. Açıldığı anda B4 ve kapı 9-12
+1. **B0 barındırma kararı** — onay noktası, tek soru. Açıldığı anda B4 ve kapı 9-12
    arka arkaya kapanabilir. *(Kod tarafında engel yok.)*
 2. ~~`alembic check` bulgusu~~ **KAPANDI (bkz. §3 düzeltmesi).** Şemada defekt çıkmadı;
    eksik olan ÖLÇÜMDÜ ve `tests/test_fk_sapmasi_kapisi.py` ile kapatıldı (mutasyon 3/3).

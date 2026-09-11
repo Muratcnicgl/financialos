@@ -28,7 +28,7 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > **3304 passed, 18 skipped, 1 failed.** Tek kırmızı KOD DEĞİL, ORTAM:
 > `test_multi_asset::test_yfinance_client_bos_none` — Windows **Smart App Control** açık
 > (`VerifiedAndReputablePolicyState=1`) ve pandas'ın imzasız `timestamps...pyd` dosyasını
-> engelliyor. Aynı ilke `_greenlet...pyd` ve `computer-control-mcp.exe`'yi de kesiyor
+> engelliyor. Aynı ilke `_greenlet...pyd` ve imzasız bir üçüncü-parti `.exe`'yi de kesiyor
 > (CodeIntegrity Id 3033/3077, 20 Ağu-2 Eyl arası 36 olay). SAC tek yönlüdür — kapatılırsa
 > Windows yeniden kurulmadan geri açılamaz; karar kullanıcınındır, otomasyon değiştirmez.
 > **GÜNCEL (2 Eyl, ikinci tur): 3349 passed, 18 skipped, 0 failed.** Smart App Control
@@ -86,11 +86,11 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > anahtarı**: makine ping atar, ping kesilirse alarm çalar — *sessizlik, her şeyin yolunda
 > olduğunun değil ALARMIN KENDİSİDİR*; iki halka da canlı kanıtlandı) · Y0 **B0 kararı
 > 24 gün sonra kapandı** (ADR-057: kendi makine + Cloudflare Tunnel + satın alınmış alan
-> adı; B'ye geçiş tetikleyicileri şimdiden yazılı) · Y5 defter senkronu (MCP defteri
+> adı; B'ye geçiş tetikleyicileri şimdiden yazılı) · Y5 defter senkronu (dış defter
 > **kapatıldı** — hiç koşulmayacak bir flush için yakalama yapıyordu) · Y6 **beş yeni ADR (057-061)** — *ölçülen toplam: 58 benzersiz karar / 60 belge; gün içinde yazılan "61" indeks dosyasını da sayıyordu* ·
 > Y7 vitrin üreticisi (allowlist) + kapısı.
 >
-> **BEKLEYEN (üçü de insan-kapısı):** alan adı satın alma (Y3'ün tamamı buna bağlı) ·
+> **BEKLEYEN (üçü de onay noktası):** alan adı satın alma (Y3'ün tamamı buna bağlı) ·
 > vitrin için boş public depo · davetlilerden geri bildirim (Y4).
 >
 > **BU TURUN YENİ DEFEKTLERİ:** `#339` güncelleme adımı yoktu · `#340` düzeltme veriye
@@ -144,7 +144,7 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
 > üstelik o etiketi koça prompt'un kendisi veriyor (`coach.py:966`) ve yine kendisi
 > yasaklıyor (`:327`), arayüz de kullanıcıya öğretiyor (`Cockpit.jsx:312`). Ölçüm:
 > üslup düşüşlerinin **%71'i IC_JARGON**, onun da **%85'i "reel bütçe"**. Kararı ürün
-> dili yargısı olduğu için **Murat'a bırakıldı** (§8 insan-kapısı).
+> dili yargısı olduğu için **Murat'a bırakıldı** (§8 onay noktası).
 >
 > **K3'ÜN KALAN YARISI SINIFLANDIRILDI — GERÇEK UYDURMA YOK (3 Eyl 2026).** `grounded`
 > düşüşlerinin 13'ü de tek tek okundu: **4 türev sayı** (koçun meşru senaryo aritmetiği:
@@ -227,11 +227,11 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
   conftest `DATABASE_URL`'i geçici dosyaya sabitler; kanıt = tam koşum öncesi/sonrası canlı
   DB parmak izi bit-bit aynı). e2e için `scripts/e2e_izole.py` (ayrı port + ayrı DB — canlı
   beta :8000'de koştuğu için şart). Eski baseline: 3040 passed, 18 skipped (`.\venv\Scripts\python.exe -m pytest tests/ -q`; skip'lerin 8'i Postgres
-  gerektiriyor — **CI'da postgres servisiyle GERÇEKTEN koşar**, BUG #238; yerelde `scripts/pg_gate_run.py`) + 175 vitest (frontend) + **6 e2e** (Playwright: M69 kullanım döngüsü + BUG #241 kapanış kanıtı [kimliksizdi, BUG #265'te düzeltildi] + **BUG #265 iki-tema/390px yüzey kapısı**). TOTAL coverage **%94** (27 Ağu 2026, BUG #311 sonrası: 11.360 satır / 698 kapsanmayan = %93,86; aynı gün BUG #308 ölçümü 11.395/728 = %93,61'di — fark ölü kodun silinmesi, önceki "%93 · 9985 satır" ise 6 Ağu'da elle alınmış tek seferlik bir sayıydı ve bayatlamıştı — artık **her CI koşumunda ölçülüyor ve `--cov-fail-under=93` ile korunuyor**, BUG #308). Flaky yok (M90). Mutasyon-testi örneği (M88). **Dual-dialect (Wave-7):** SQLite + PostgreSQL gate'leri (`tests/pg_gate.py` + RLS/Numeric/net-worth/NULL-ordering testleri; postgres yoksa skip). Deterministik (in-memory, FakeProvider) + property-based fuzzing (hypothesis) + `tests/security/` + `tests/auth/` + `tests/test_workspace_*` (M40-M43) + component testleri (M64, @testing-library/react + jsdom). Commit-öncesi test kapısı + MCP-sync (`.githooks/pre-commit` W3-058 + `post-commit` M24).
+  gerektiriyor — **CI'da postgres servisiyle GERÇEKTEN koşar**, BUG #238; yerelde `scripts/pg_gate_run.py`) + 175 vitest (frontend) + **6 e2e** (Playwright: M69 kullanım döngüsü + BUG #241 kapanış kanıtı [kimliksizdi, BUG #265'te düzeltildi] + **BUG #265 iki-tema/390px yüzey kapısı**). TOTAL coverage **%94** (27 Ağu 2026, BUG #311 sonrası: 11.360 satır / 698 kapsanmayan = %93,86; aynı gün BUG #308 ölçümü 11.395/728 = %93,61'di — fark ölü kodun silinmesi, önceki "%93 · 9985 satır" ise 6 Ağu'da elle alınmış tek seferlik bir sayıydı ve bayatlamıştı — artık **her CI koşumunda ölçülüyor ve `--cov-fail-under=93` ile korunuyor**, BUG #308). Flaky yok (M90). Mutasyon-testi örneği (M88). **Dual-dialect (Wave-7):** SQLite + PostgreSQL gate'leri (`tests/pg_gate.py` + RLS/Numeric/net-worth/NULL-ordering testleri; postgres yoksa skip). Deterministik (in-memory, FakeProvider) + property-based fuzzing (hypothesis) + `tests/security/` + `tests/auth/` + `tests/test_workspace_*` (M40-M43) + component testleri (M64, @testing-library/react + jsdom). Commit-öncesi test kapısı + bellek grafiği-sync (`.githooks/pre-commit` W3-058 + `post-commit` M24).
 - **Branch:** `main` (= origin senkron). **Para artık Decimal** — `Numeric(19,4)` canlı DB'de (ADR-030, M5); iç aritmetik Decimal, public sınır `floatify`→float (B1). Canlı DB head **`c3d4e5f8a1b2`** (4 Eyl 2026, ölçüldü) — *önceki kayıt `e7f8a9b0c1d2` diyordu ve **üç göç geride kalmıştı**; bu satır 11 Ağustos'ta doğruydu* (BUG #281, 11 Ağu — `feedback`'e teşhis alanları; önceki
   `d6e7f8a9b0c1` BUG #280 `error_logs.last_istek_id`, ondan önce `c5d6e7f8a9b0` BUG #274, 10 Ağu — `api_call_log`'a `est_cost_usd` + `amac`; canlı defterde 213 satır göç etti: 191 yansıma + 22 koç, hepsi `amac` aldı; önceki `b4c5d6e7f8a9` BUG #264'tü).
 - **AKTİF HAT: PUBLISH YOLU (P0-P9) — "Wave" DEĞİL.** Tek doğruluk kaynağı `docs/kalite-seruveni/masterprompt-publish.md`
-  **§11.0** ("kaldığımız yer"). Kod tarafında bilinen teknik engel yok; P6-P9 **insan-kapısı** (Oracle VM + domain + canlı
+  **§11.0** ("kaldığımız yer"). Kod tarafında bilinen teknik engel yok; P6-P9 **onay noktası** (Oracle VM + domain + canlı
   sırlar). **H4 ve H9 KAPANDI (7 Ağu 2026):** para birimi görüntüleme tek kaynağa indi (BUG #256/ADR-044) ve prompt
   enjeksiyonuna yapı savunması eklendi (BUG #257/ADR-045). **P3.3 onboarding rehberi de KAPANDI (BUG #262,
   7 Ağu):** kart ilk hesap eklenince kayboluyordu ve birincil düğmesi ölü `href="#accounts"` bağlantısıydı;
@@ -333,17 +333,17 @@ FinancialOS — kişisel finansal işletim sistemi. Tek-kullanıcı MVP (Murat �
   `frontend/src/lib/grafikRenkleri.js` (her değer iki temada da ≥3:1). **Yan bulgu:** BUG #241'in
   kapanış kanıtı e2e'si **kimliksiz** yazılmıştı → CI'nin `AUTH_ENABLED=true` ortamında 401 ile
   ölüyordu, eklendiği 6 Ağu'dan beri hiç yeşil olmamış; izole edildi (e2e 4→**6**). Kalan açık iş:
-  H4'ün dil/i18n ayağı (kapalı beta TR → yayın-engeli değil), H11 canlı SMTP (insan-kapısı) ve
+  H4'ün dil/i18n ayağı (kapalı beta TR → yayın-engeli değil), H11 canlı SMTP (onay noktası) ve
   backlog'un **262 açık maddesi**. Tam devir belgesi: **`docs/kalite-seruveni/master-durum-raporu-2026-08-06.md`** (31.668 satır, 215 dosya inline).
 - **METODOLOJİ KARARI (7 Ağu 2026 — yazılı hale getirildi):** **Milestone/tag disiplini 18 Tem 2026'da BIRAKILDI.** 98 tag'in
   tamamı ≤ 18 Tem; sonraki 103 commit tag'siz. İş artık **P0-P9 fazları + D-bulgu kodları (D01-D40) + BUG numaraları** ile
   yürür. `milestone-log.md` **tarihsel arşivdir**, güncel iş oraya yazılmaz. (Dipnot: `milestone-93` numarası iki ayrı işe
   verilmişti — `wave7-kapanis` + `prod-docker-imaj`; M44-M60/M97-M98/M101 hiç kullanılmadı, M97/M98 = canlı deploy.)
-- **MCP MEMORY STATÜSÜ (7 Ağu 2026 — karar):** MCP knowledge graph **tek gerçek kaynak DEĞİL**; statüsü *4 May – 18 Tem 2026
+- **BELLEK GRAFİĞİ STATÜSÜ (7 Ağu 2026 — karar):** bellek grafiği **tek gerçek kaynak DEĞİL**; statüsü *4 May – 18 Tem 2026
   tarihsel arşiv*. Güncel durumun kaynağı **repo + master durum raporu**. Gerekçe: `memory-auto-sync.md`'nin capture→flush
-  tasarımında FLUSH adımı elle koşuluyordu ve 19 gün hiç koşulmadı (`.mcp-sync-pending.log`'da 186 commit birikti) — yani
-  izleme çağrısı işin gövdesine yazılmıştı (**L24**). 186 satırlık birikim bilinçli olarak MCP'ye özet halinde YAZILMADI:
-  ikinci bir "gerçek kaynak" üretmek borcu ödemez, çoğaltır. **DEFTER 4 EYLÜL 2026'DA KAPATILDI (Wave-Y/Y5).** Ölçüm: flush hiç koşulmadı, ledger **300 satıra** çıktı. Yakalama, hiç koşulmayacak bir flush için çalışıyordu — **sahte yükümlülük borçtan kötüdür, çünkü ödenmez ve unutulmaz.** `post-commit` yakalaması ve `scripts/mcp_sync_report.py` kaldırıldı; güncel durumun tek kaynağı repo.
+  tasarımında FLUSH adımı elle koşuluyordu ve 19 gün hiç koşulmadı (`.smoke-kayit.log`'da 186 commit birikti) — yani
+  izleme çağrısı işin gövdesine yazılmıştı (**L24**). 186 satırlık birikim bilinçli olarak bellek grafiğine özet halinde YAZILMADI:
+  ikinci bir "gerçek kaynak" üretmek borcu ödemez, çoğaltır. **DEFTER 4 EYLÜL 2026'DA KAPATILDI (Wave-Y/Y5).** Ölçüm: flush hiç koşulmadı, ledger **300 satıra** çıktı. Yakalama, hiç koşulmayacak bir flush için çalışıyordu — **sahte yükümlülük borçtan kötüdür, çünkü ödenmez ve unutulmaz.** `post-commit` yakalaması ve `scripts/defter_senkron_raporu.py` kaldırıldı; güncel durumun tek kaynağı repo.
 - **BUG ENVANTERİ (7 Ağu 2026 — karar):** `docs/kalite-seruveni/uygulanan-fixler.md` **tek resmî envanterdir**; her yeni BUG
   numarası oraya satır yazar. **Dürüst kayıt:** repoda 235 benzersiz BUG numarası geçiyor, ledger'da 114'ü var (kalanlar
   `milestone-log.md` + `masterprompt-publish.md` içinde dağınık). Geriye dönük toplama YAPILMADI — ayrı iş.
@@ -356,7 +356,7 @@ web/scheduler ayrımı → cron çift-tetiklenmez) + nginx/HTTPS (Let's Encrypt,
 (ADR-011 44px). **ADR-039** (deploy impl) + **ADR-040** (PWA, mobil=PWA native-değil) yazıldı. **BEKLEYEN (Murat Oracle Free
 Tier VM'i — KURAL-3 elle-görev):** Blok B (MB1-MB2 canlı-deploy + KULLANIM-GATE + 24s cron), MC1/MC2 canlı-gate'leri (HTTPS),
 Blok D final (Wave-9 iskelet post-deploy önceliklenir + **GOAL TAMAM W8** deploy doğrulanınca). Otonom sunucu/para YASAK,
-secret chat'e DÜŞMEZ. Rollback `pre-wave-8`. Charter `goal-charter-wave8.md`, durum `milestone-log.md`. **Önceki (arşiv):**
+secret depoya/log'a DÜŞMEZ. Rollback `pre-wave-8`. Charter `goal-charter-wave8.md`, durum `milestone-log.md`. **Önceki (arşiv):**
 - **Aktif goal (arşiv):** ✅ **WAVE-7 POSTGRESQL GEÇİŞİ + VERİ-KATMANI BORÇLARI (M49-M53 + M-hisse + M92) TAMAM.** **Hibrit DB
 (ADR-038):** dev SQLite / prod PostgreSQL — `app/database.py` dialect-aware (`make_url`), Alembic multi-dialect (M50: enum
 ALTER TYPE / boolean sa.false / render_as_batch SQLite-only / workspace-FK Postgres'te fiziksel), **Row-Level Security
@@ -371,7 +371,7 @@ tam-doğrulama — **521 madde + 74 rapor R3, iki bağımsız stale ölçümü: 
 kapatma + 3 doküman çelişkisi + coverage %90→%92 + **mutasyon-testi örneği** [test boşluğu bulundu+kapatıldı] + ADR index),
 D (M90-91 flaky-yok 3× + p95<20ms + kapanış). Çıktı: `goal-charter-wave6.md` + `milestone-log.md`. **Sonraki:** Wave-7
 (iskelet: `goal-charter-wave7-iskelet.md` — Murat'a ürün-DNA soruları kripto/VPS/PostgreSQL/mobil; SBN-001 canlı-bug). **Önceki:**
-- **Aktif goal (arşiv):** ✅ **WAVE-5 SAĞLAMLAŞTIRMA (M66-M81) TAMAM.** 16 milestone, 6 blok: A (kullanım döngüsü CI + BUG #161 kart-ödeme fix), B (workspace izolasyonu statik+runtime kilitlendi — 3 gerçek leak fix: goals/fund_price/subscriptions + goal_engine/debt_strategy + cron personal-scope), C (21 eksik ADR MCP'den materyalize — "MCP BOŞ" premisi R3 ile çürütüldü + ADR-001 LLM-istisna), D (521 backlog + 75 denetim raporuna DURUM/güncellik + **RULE %42 gerçek stale ölçüldü**), E (25 KANIT YOK kapatıldı + coverage %87→%90 + Docker statik-doğrulama + prod-güvenlik fix). **AUTH_ENABLED=true canlı** — tek user (id=1) = muraticgil@gmail.com + 6 gerçek hesap. **Önceki:** Wave-3/3-Tamamlama + Wave-4 Blok A-B (M36-M43) + W4-KURTARMA (M61-M65). Wave-4 kalanı (kripto/PostgreSQL/deploy) ÜRÜN-DNA ile ERTELENDİ. **Sonraki:** Wave-6 (iskelet: `docs/kalite-seruveni/goal-charter-wave6-iskelet.md` — RULE 12 açık madde, action_type tek-kaynak, backlog tam-doğrulama; Murat ÜRÜN-DNA kararı bekliyor). **Aile/Workspace:** ADR-036 + ADR-037. Tam durum: `tam-proje-durum-raporu.md` + `milestone-log.md`.
+- **Aktif goal (arşiv):** ✅ **WAVE-5 SAĞLAMLAŞTIRMA (M66-M81) TAMAM.** 16 milestone, 6 blok: A (kullanım döngüsü CI + BUG #161 kart-ödeme fix), B (workspace izolasyonu statik+runtime kilitlendi — 3 gerçek leak fix: goals/fund_price/subscriptions + goal_engine/debt_strategy + cron personal-scope), C (21 eksik ADR bellek grafiğinden materyalize — "bellek grafiği BOŞ" premisi R3 ile çürütüldü + ADR-001 LLM-istisna), D (521 backlog + 75 denetim raporuna DURUM/güncellik + **RULE %42 gerçek stale ölçüldü**), E (25 KANIT YOK kapatıldı + coverage %87→%90 + Docker statik-doğrulama + prod-güvenlik fix). **AUTH_ENABLED=true canlı** — tek user (id=1) = muraticgil@gmail.com + 6 gerçek hesap. **Önceki:** Wave-3/3-Tamamlama + Wave-4 Blok A-B (M36-M43) + W4-KURTARMA (M61-M65). Wave-4 kalanı (kripto/PostgreSQL/deploy) ÜRÜN-DNA ile ERTELENDİ. **Sonraki:** Wave-6 (iskelet: `docs/kalite-seruveni/goal-charter-wave6-iskelet.md` — RULE 12 açık madde, action_type tek-kaynak, backlog tam-doğrulama; Murat ÜRÜN-DNA kararı bekliyor). **Aile/Workspace:** ADR-036 + ADR-037. Tam durum: `tam-proje-durum-raporu.md` + `milestone-log.md`.
 - **Kalite Serüveni:** Faz 0 (denetim) tam · Faz 2 (P0 doğruluk) büyük oranda uygulandı · Faz 3+ açık (~472 madde). Kaynak: `docs/kalite-seruveni/`.
 - **🟢 KAPALI BETA CANLIDA (11 Ağu 2026):** `https://financialos.tail378d7a.ts.net`
   (Tailscale Funnel, **0 TL**, Murat'ın kendi Windows makinesinden; SQLite + uvicorn +
@@ -740,21 +740,19 @@ D (M90-91 flaky-yok 3× + p95<20ms + kapanış). Çıktı: `goal-charter-wave6.m
 
 ## Değişmez Kurallar (KURAL)
 
-Kaynak: MCP `Iletisim Kurallari` entity'si (**erişilebilir** — 6 Ağu 2026 R3 ile doğrulandı;
-eski "MCP BOŞ / KURAL_KOPYA_BEKLIYOR" notu ÖLÜ premisdi, kaldırıldı). Aşağısı diskteki tek kaynak:
+Bu liste diskteki tek kaynaktır (6 Ağu 2026 R3 ile doğrulandı; eski "kopya bekliyor" notu ölü
+premisdi, kaldırıldı):
 
-- **KURAL 1 — Dil/ton:** Türkçe, direkt, preamble yok, dalkavukluk yok ("Harika soru!" yasak).
-- **KURAL 2 — Format:** tek mesaj, tek soru, tek adım. "A mı B mi C mi" paketlemesi YASAK; sırayla ver.
-- **KURAL 3 — Delege etme:** otomasyonun yapabildiği hiçbir şeyi kullanıcıya yaptırma. "NASIL ANLAT"
-  yalnız gerçek elle-görevler için (kimlik doğrulama, GUI, canlı-DB destructive onay) — o zaman da tam
-  komut bloğu + beklenen çıktı + hata çözümü.
-- **KURAL 4 — Yasaklar:** "yorgunsundur, mola ver, yarın devam" YASAK; molayı kullanıcı söyler. Aşırı
-  koruyucu ton ve "iyi gidiyorsun" tarzı vasat takdirler YASAK.
-- **KURAL 5 — Gereksiz özet yok:** bağlamı hatırlatma, direkt sonuca git.
-- **KURAL 6 — Yeni sohbet:** önce durum oku, sonra "devam" — otomatik seçenek önerme.
-- **KURAL 7 — Geri bildirim:** hata denince savunmaya geçme; sebebi anla, düzelt, kalıcı not yaz.
-- **KURAL 8 — Zaman:** vakit var; küçük hızlı adım değil kapsamlı kaliteli iş. "Kapsamlı mı pratik mi"
-  diye SORMA.
+- **KURAL 1 — Dil/ton:** belgeler, raporlar ve mesajlar Türkçe, direkt, önsözsüz; övgü/dalkavukluk yok.
+- **KURAL 2 — Format:** bir rapor tek mesaj, tek soru, tek adım. "A mı B mi C mi" paketlemesi YASAK; sırayla.
+- **KURAL 3 — Delege etme:** betiğin/otomasyonun yapabildiği hiçbir şey elle yapılmaz. Elle-görev yalnız
+  gerçek elle-adımlar için (kimlik doğrulama, GUI, canlı-DB destructive onay) — o zaman da tam
+  komut bloğu + beklenen çıktı + hata çözümü yazılır.
+- **KURAL 4 — Yasaklar:** iş değerlendirmesinde "iyi gidiyor" tarzı vasat takdir YASAK; ölçüm konuşur.
+- **KURAL 5 — Gereksiz özet yok:** raporlar bağlamı tekrar etmez, direkt sonuca gider.
+- **KURAL 6 — Yeni çalışma turu:** önce durum okunur (PROJE.md + `DURUM-INDEX.md`), sonra devam edilir.
+- **KURAL 7 — Geri bildirim:** hata bildirilince savunma değil: sebep anlaşılır, düzeltilir, kalıcı not yazılır.
+- **KURAL 8 — Zaman:** küçük hızlı adım değil kapsamlı kaliteli iş. "Kapsamlı mı pratik mi" ikilemi yok.
 - **KURAL 9 — Komut formatı:** doğrulama adımı + tam komut + sonuç doğrulaması.
 - **KURAL 10 (K10) — "sen seç" = muhakeme et:** MUHAKEME + BENİ DÜŞÜN + GENELİ DÜŞÜN. Rastgele/yüzeysel
   seçim yasak. **Ölçek eşiği (6 Ağu 2026):** üç-boyut muhakemesi kullanıcının parasına/verisine dokunan

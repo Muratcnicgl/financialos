@@ -2,7 +2,7 @@
 
 **Tarih:** 10 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-016
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Bir insight "aktif" iken karşıt kanıt gelince "dormant"a indirilmeli. Ama bazı insight kümeleri sabit (MC1-8, OARS metrikleri), bazıları kullanıcıya bağlı dinamik (kategori adları).
@@ -23,4 +23,4 @@ Sonraki extractor'lar: action_rejection_pattern DİNAMİK (action_type'a göre),
 Dormant transition kriterleri (90 gün, counter_evidence threshold) değişirse.
 
 ## Kaynak
-MCP `adr_log` [10 Mayıs 2026], commit 305f975.
+karar günlüğü (`adr_log`) [10 Mayıs 2026], commit 305f975.

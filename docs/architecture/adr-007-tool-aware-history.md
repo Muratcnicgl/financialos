@@ -2,7 +2,7 @@
 
 **Tarih:** 6 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** BUG #036
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Sohbet geçmişinde araç çağrıları (propose_action) yeniden oynatılırken kayboluyordu (BUG #036) — LLM'e verilen geçmiş tutarsızdı.
@@ -17,4 +17,4 @@ Sohbet geçmişinde araç çağrıları (propose_action) yeniden oynatılırken 
 Yapısal fix tek doğru yol — placeholder yamaları geçmişi bozuyordu.
 
 ## Kaynak
-MCP `adr_log` [6 Mayıs 2026]. Uygulama: `app/models.py` (CoachMemory).
+karar günlüğü (`adr_log`) [6 Mayıs 2026]. Uygulama: `app/models.py` (CoachMemory).

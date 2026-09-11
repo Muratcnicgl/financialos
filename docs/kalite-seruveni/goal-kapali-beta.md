@@ -31,7 +31,7 @@ kaç geri bildirim**.
 **Yeni ders L52:** *delta raporda geçmemek, diskte olmamak değildir; envanter sorusu envantere
 sorulur.*
 
-**Bloklar:** B0 barındırma kararı (insan-kapısı) · B1 davet kapısının **kapsamı** · B2 geri
+**Bloklar:** B0 barındırma kararı (onay noktası) · B1 davet kapısının **kapsamı** · B2 geri
 bildirimin **teşhis alanları** · B3 **korelasyon kimliği** (+ damganın canlı ayağı) · B4 yayın
 (deploy/HTTPS/PWA/SMTP/**canlı yedek provası**) · B5 davetli paketi (karşılama + kurulum;
 KVKK/şartlar/silme var) · B6 haftalık beta ritmi (`beta_triage.py` üstüne).

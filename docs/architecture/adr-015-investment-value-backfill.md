@@ -2,7 +2,7 @@
 
 **Tarih:** 9 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-012, ADR-014, ADR-019
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Geçmiş net değer snapshot'ları için yatırım hesaplarının o tarihteki değeri gerekli, ama `Transaction` tablosu yatırım alım/satımını tutmuyor (tipler: income/expense/transfer) ve `Account.purchased_date` yok.
@@ -27,4 +27,4 @@ TLY `created_at=2026-05-06` — 1-5 May snapshot'ları `current_price` ile doldu
 Wave-3: `InvestmentTransaction` tablosu (lot history), `purchased_date` inception, multi-asset (ADR-019).
 
 ## Kaynak
-MCP `adr_log` [9 Mayıs 2026] + Research Log.
+karar günlüğü (`adr_log`) [9 Mayıs 2026] + Research Log.

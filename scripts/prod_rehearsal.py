@@ -1,7 +1,7 @@
 """
 PRODUCTION PROVASI (P6, Docker'sız) — canlı-öncesi son yazılım kapısı.
 
-Neden: P6 gerçek sunucu ister (KURAL-3 insan-kapısı) ama **prod modunun yazılım yolu**
+Neden: P6 gerçek sunucu ister (KURAL-3 onay noktası) ama **prod modunun yazılım yolu**
 sunucu olmadan da koşulabilir. Bu script, deploy'un yaptığı işin aynısını yerelde yapar:
 
     PostgreSQL (prod motoru) → `alembic upgrade head` → uygulamayı

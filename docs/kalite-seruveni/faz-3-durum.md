@@ -38,7 +38,7 @@
 - **P1-18** Alembic/create_all drift → **M1 genesis collapse** (ADR-013a, fresh-db test).
 - **P1-21** premortem ADR-001 yasaklı isim → **M2 Mustafa temizliği** (isimsiz form).
 
-### ✅ CLOSED (4 paralel audit agent R3 denetimi ile doğrulandı)
+### ✅ CLOSED (4 paralel R3 denetimi ile doğrulandı)
 - **P1-3** cockpit alacak yeniden-hesap → `cockpit.py:42` cockpit'ten alıyor, fallback (BUG #117).
 - **P1-6** fallback provider limit/istatistik → `coach.py:163` `_daily_constrained_provider` normalize (BE-025).
 - **P1-9** (create yolu) percent (0,100] → `schemas.py:346` GoalRuleCreate validator.

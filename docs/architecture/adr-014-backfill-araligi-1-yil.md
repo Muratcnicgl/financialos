@@ -2,7 +2,7 @@
 
 **Tarih:** 9 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-012, ADR-015
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 `PriceHistory` backfill'inin ne kadar geriye gideceği, getiri metriklerinin (TWR/MWR/IRR) anlamlılığını belirler.
@@ -22,4 +22,4 @@
 Sharesight tarzı çok-dönemli rapor (1/3/5 yıl karşılaştırma) eklenirse `--start` geriye taşınır.
 
 ## Kaynak
-MCP `adr_log` [9 Mayıs 2026] + Research Log.
+karar günlüğü (`adr_log`) [9 Mayıs 2026] + Research Log.

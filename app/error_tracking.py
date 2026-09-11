@@ -7,7 +7,7 @@ hiçbir iz olmaz → hata sessizce yaşar. Masterprompt P5: "uygulama hatası se
 kaybolmasın".
 
 Karar (K10 / KURAL 12): Sentry gibi bir dış servis **kullanıcının finansal verisini
-üçüncü tarafa taşır** ve yeni bir hesap/anahtar (insan-kapısı) gerektirir. Bunun yerine
+üçüncü tarafa taşır** ve yeni bir hesap/anahtar (onay noktası) gerektirir. Bunun yerine
 hata kayıtları KENDİ veritabanımızda tutulur:
   - Aynı hata tekrar ederse yeni satır açılmaz; `parmak_izi` ile sayaç artar
     (log şişmesi yok, "kaç kullanıcıyı kaç kez etkiledi" ölçülebilir).

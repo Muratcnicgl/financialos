@@ -2,7 +2,7 @@
 
 **Tarih:** 6 Temmuz 2026
 **Durum:** Kabul edildi
-**Bağlam:** Kalite serüveni RULE-023 + kök vizyon (Sohbet B "Finansal Stratejist", 5-6 Şubat 2026). `rules_engine.py:731` `carried_forward = 0.0` hardcode; "geliştirilecek" notu naif additive açılışı ima ediyordu.
+**Bağlam:** Kalite serüveni RULE-023 + kök vizyon (Not B "Finansal Stratejist", 5-6 Şubat 2026). `rules_engine.py:731` `carried_forward = 0.0` hardcode; "geliştirilecek" notu naif additive açılışı ima ediyordu.
 
 ## Karar
 

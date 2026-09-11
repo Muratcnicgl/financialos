@@ -4,8 +4,8 @@ M37 (Wave-4) — Dış API canlı smoke test framework.
 Ders 11 (dersler-gemini.md): "pytest yeşil ≠ canlı çalışıyor". M19 EVDS regression'ı
 mock test yeşilken endpoint ölüydü (EVDS v2→v3 taşınmış, kod fark etmedi). Bu modül her
 dış API için GERÇEK (mock-suz) bir smoke kontrolü yapar; haftalık scheduler job (pazartesi
-05:00) çalıştırır ve başarısızlıkları `.mcp-sync-pending.log` ledger'ına `SMOKE_FAIL:<api>`
-satırı olarak YAKALAR (M24 capture→flush deseni — scheduler MCP'ye doğrudan yazamaz; flush
+05:00) çalıştırır ve başarısızlıkları `.smoke-kayit.log` ledger'ına `SMOKE_FAIL:<api>`
+satırı olarak YAKALAR (M24 capture→flush deseni — scheduler bellek grafiğine doğrudan yazamaz; flush
 Code oturum başında flush eder).
 
 Her smoke fonksiyonu {"api","ok","detail"} döner. Ağ/yapılandırma hatası ok=False + detail;
@@ -21,7 +21,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # capture→flush ledger'ı (M24 post-commit ile aynı dosya, gitignore'da)
-_LEDGER = Path(".mcp-sync-pending.log")
+_LEDGER = Path(".smoke-kayit.log")
 
 
 def smoke_evds() -> dict:

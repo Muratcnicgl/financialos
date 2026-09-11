@@ -1,7 +1,7 @@
 # ADR İndeksi (M89, Wave-6 — 18 Tem 2026)
 
 FinancialOS mimari kararlarının (ADR) tam envanteri. **39 dosya, ADR-001..037** (+013a addendum, +034-revize).
-Kaynak: `docs/architecture/adr-*.md`. Wave-5 M74'te 21 eksik ADR MCP'den materyalize edildi; bu index M89
+Kaynak: `docs/architecture/adr-*.md`. Wave-5 M74'te 21 eksik ADR bellek grafiğinden materyalize edildi; bu index M89
 tutarlılık turunda oluşturuldu ("ADR-index güncel mi" boşluğu kapandı).
 
 ## Durum lejantı

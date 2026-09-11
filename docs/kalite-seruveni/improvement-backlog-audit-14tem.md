@@ -1,6 +1,6 @@
 # Improvement Backlog Kapatma Turu (M29, 14 Tem 2026)
 
-MCP Improvement Backlog ~188 observation. R3 (M25 deseni): disk kanıtından (git commit +
+bellek grafiği Improvement Backlog ~188 observation. R3 (M25 deseni): disk kanıtından (git commit +
 fixler.md + kod) ONERI durumu çıkarıldı.
 
 ## ✅ KAPANDI (FEAT/milestone kanıtlı)

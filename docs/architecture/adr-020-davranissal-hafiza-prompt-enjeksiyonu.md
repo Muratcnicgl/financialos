@@ -2,7 +2,7 @@
 
 **Tarih:** 13 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** ADR-006, ADR-016
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 CoachInsight'lar LLM prompt'una nasıl enjekte edilecek? Tümünü koymak prompt'u şişirir ("lost-in-the-middle"), özetlemek severity'yi bozar.
@@ -29,4 +29,4 @@ CoachInsight'lar LLM prompt'una nasıl enjekte edilecek? Tümünü koymak prompt
 6 hafta gerçek kullanım sonrası: içerik özetleme katmanı / top-K dinamikleşme / dormant otobiyografi / user_invalidated mini-bölüm.
 
 ## Kaynak
-MCP `adr_log` [13 Mayıs 2026], commit 3d5f8cb.
+karar günlüğü (`adr_log`) [13 Mayıs 2026], commit 3d5f8cb.

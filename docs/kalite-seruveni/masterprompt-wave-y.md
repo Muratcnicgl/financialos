@@ -21,7 +21,7 @@ kullanılmadı.) BUG numaraları **#339**'dan, dersler **L68**'den devam eder.
 4. **Her yeni kapıya mutasyon testi.** Kapıyı kırması gereken en az 3 mutasyon yaz,
    hepsi kırmızı vermeli. Vermeyen kapı kapı değildir.
 5. **"Kimse görmedi" demeden önce belgeleyen dosyayı ara.** (L67)
-6. **Murat'a sorma.** Ölçebileceğin hiçbir şeyi sorma. Karar gerekiyorsa **seç, uygula,
+6. **Ölçülebilen hiçbir şey soru olarak dönmez.** Karar gerekiyorsa **seç, uygula,
    sonucu bildir** — Murat yalnızca veto eder. Tek istisna: para harcanması ve fiziksel
    telefon gereken adımlar (Y0-ödeme, Y3-PWA).
 7. **Wave-K DONDURULDU.** Koç hattına Wave-Y kapanana kadar tek commit atılmaz.
@@ -39,7 +39,7 @@ pytest tests/ -q --cov=app --cov-fail-under=93
 npm test -- --run
 curl -s <canlı>/api/meta              # canlı SHA ve yerel HEAD farkı
 curl -s -o /dev/null -w '%{http_code}' <canlı>/api/health
-wc -l .mcp-sync-pending.log
+wc -l .smoke-kayit.log
 ```
 
 Çıkan sayıları Wave-Y ledger'ının başına yaz. Bunlar Wave-Y'nin **başlangıç ölçümüdür**;
@@ -86,7 +86,7 @@ Y8'de aynı komutlar tekrar koşulup kıyaslanacak.
 ## /goal Y0 — B0 BARINDIRMA KARARI KAPANIR
 
 > **Neden burada:** Y1/Y2 bunu beklemez, ama Y3–Y5 bekler. 24 gündür açık.
-> **Murat'a soru olarak dönmeyecek.** Ölç, ölçütü uygula, seç, kur.
+> **Onay sorusuna dönüşmeyecek.** Ölç, ölçütü uygula, seç, kur.
 
 **Tanım (done):**
 1. Karar notundaki ölçütler dosyadan okunur (`masterprompt-kapali-beta.md`,
@@ -100,7 +100,7 @@ Y8'de aynı komutlar tekrar koşulup kıyaslanacak.
 6. **Murat'ın tek işi:** ödeme/alan adı satın alma adımı. Ona tek bir mesajda
    *ne alınacağı, nereden, ne kadar* verilir — seçenek listesi değil, **tek talimat**.
 
-**Yasak:** seçenekleri Murat'a sorup beklemeye almak. Bu maddenin 24 gün açık kalma sebebi budur.
+**Yasak:** seçenekleri onaya sunup beklemeye almak. Bu maddenin 24 gün açık kalma sebebi budur.
 
 ---
 
@@ -142,7 +142,7 @@ Y8'de aynı komutlar tekrar koşulup kıyaslanacak.
 **Tanım (done):**
 - **Backlog:** çıpadan bu yana kapanan 60 BUG backlog'a işlenir. 164/251/81 dağılımı
   ölçülerek güncellenir. Kapanmadıysa neden kapanmadığı yazılır — toplu ✅ atılmaz.
-- **MCP flush:** `.mcp-sync-pending.log` (255 satır ve büyüyor) boşaltılır, sıfırlanır.
+- **defter aktarımı:** `.smoke-kayit.log` (255 satır ve büyüyor) boşaltılır, sıfırlanır.
   Tekrar birikmemesi için ya otomatik akıtma kurulur ya da defter kapatılıp kararı yazılır.
 - **Belge bayatlığı (BUG #310 sınıfı):** `PROJE.md`, `PROJE.md`, `charter-kapali-beta.md`
   Wave-Y sonrası gerçekle uyumlu hâle getirilir; `scripts/belge_denetimi` yeşil kalır.
@@ -191,7 +191,7 @@ Wave-Y ancak şunların **hepsi** doğruyken kapanır:
 - [ ] Kendi alan adı üzerinden HTTPS, B4 kapalı
 - [ ] Kapı 9, 10, 11, 12 kanıtla kapalı → **15/15 yeşil**
 - [ ] En az 3 davetliden gerçek cevap alındı ve kayda geçti
-- [ ] Backlog ölçülerek güncellendi, MCP defteri sıfır
+- [ ] Backlog ölçülerek güncellendi, dış defter sıfır
 - [ ] En az 5 yeni ADR yazıldı
 - [ ] Depo görünürlük kararı yazılı, kapı kapsamı CI'da zorunlu
 - [ ] Tam süit yeşil, coverage ≥ %93, yedi kapı geçildi (§0.1 komutları yeniden koşuldu)

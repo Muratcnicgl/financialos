@@ -2,7 +2,7 @@
 
 **Tarih:** 6 Mayıs 2026 · **Durum:** Kabul edildi · **İlgili:** BUG #033, ADR-005
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Stokastik LLM davranışı yalnız prompt talimatıyla güvenilir biçimde sınırlanamıyor (BUG #033 gösterdi).
@@ -17,4 +17,4 @@ Stokastik LLM davranışı yalnız prompt talimatıyla güvenilir biçimde sın�
 Stokastik LLM davranışı için deterministik post-process katmanı sektör standardıdır (yalnız prompt'a güvenilmez, ADR-001 ruhu).
 
 ## Kaynak
-MCP `adr_log` [6 Mayıs 2026].
+karar günlüğü (`adr_log`) [6 Mayıs 2026].

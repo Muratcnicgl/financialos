@@ -2,7 +2,7 @@
 
 **Tarih:** 2 Mayıs 2026 · **Durum:** Kabul edildi
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Operasyonel karar ile stratejik karar farklı rakamlara bakar. Tek bir "net değer" sayısı bu iki bakışı bulanıklaştırır.
@@ -20,4 +20,4 @@ Operasyonel karar ile stratejik karar farklı rakamlara bakar. Tek bir "net değ
 Operasyonel vs stratejik karar farklı rakamlara bakar; realist koç bunu ayırır. Cockpit her ikisini de döner (`net_deger` görülen, `net_deger_tam` alacaklı).
 
 ## Kaynak
-MCP `adr_log` [2 Mayıs 2026]. Uygulama: `app/rules_engine.py` (generate_cockpit).
+karar günlüğü (`adr_log`) [2 Mayıs 2026]. Uygulama: `app/rules_engine.py` (generate_cockpit).

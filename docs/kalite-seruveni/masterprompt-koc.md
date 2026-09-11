@@ -308,7 +308,7 @@ seviyesinde bloklanır"* ilkesinin üsluba uygulanmamış hâlidir.
 **K2 SONRASI EVAL — KARŞILAŞTIRMA YAPILAMADI (dürüst kayıt):**
 Koşum sonucu 23/35 = %65,7, ama harness'in kendi bayrağıyla **GEÇERSİZ**: bu kez **2**
 senaryoda sağlayıcı hiç cevap veremedi (K0'da 1'di). %71,4 → %65,7 düşüşünü ölen ikinci
-senaryo açıklıyor, değişiklikler değil. **Sağlayıcı zinciri onarılmadan (K1 insan-kapısı)
+senaryo açıklıyor, değişiklikler değil. **Sağlayıcı zinciri onarılmadan (K1 onay noktası)
 bu metrik öncesi/sonrası ölçümü için KULLANILAMAZ.** K2'nin etkisi bu yüzden doğrudan
 canlı korpusta ölçüldü: 11 cevabın 5'i onarıldı, 0 yanlış pozitif.
 
@@ -419,8 +419,8 @@ gelmiş olabilir.
 | **OpenRouter** | `minimax/minimax-m3:free` | ✅ **Tek geçerli altın ölçüm** |
 | Groq | `openai/gpt-oss-120b` | Canlı, ama altın istek **12.954 token > 8.000 TPM** (`Request too large`) |
 | Gemini | `gemini-2.5-flash-lite` | 429 — ücretsiz kota |
-| Cerebras | `gpt-oss-120b` | 402 — ödeme gerekli (§8 insan-kapısı) |
-| Anthropic | `claude-opus-4-8` | 400 — kredi yok (§8 insan-kapısı) |
+| Cerebras | `gpt-oss-120b` | 402 — ödeme gerekli (§8 onay noktası) |
+| Anthropic | `claude-opus-4-8` | 400 — kredi yok (§8 onay noktası) |
 
 **K2'nin "isteği küçült" işi artık sayıyla gerekçeli:** Groq ölü değil, isteğimiz büyük.
 12.954 → 8.000'in altına inen bir istek, ücretsiz katmanda İKİNCİ bir geçerli sağlayıcı
@@ -619,7 +619,7 @@ tazelenir. Karar geldiği anda B4 ve kapı 9-12 arka arkaya kapanabilir; kod tar
 yok (`scripts/deploy.sh` ve `scripts/live_gate.py` diskte, hiç koşulmamış).
 
 **AYRICA AÇIK:** canlı sürüm yerel HEAD'den geride (bugünün düzeltmeleri kullanıcılarda
-değil) · backlog 60 BUG'dır güncellenmedi · `IC_JARGON`/"reel bütçe" §8 insan-kapısı ·
+değil) · backlog 60 BUG'dır güncellenmedi · `IC_JARGON`/"reel bütçe" §8 onay noktası ·
 prompt kırpma (taban medyan %88,6) · koç kötü hali kararına yansıtmıyor.
 
 ---
@@ -941,7 +941,7 @@ yönlendirmesi var). Depo-yerel git kimliği `Murat Icgil <muraticgil@gmail.com>
   (prompt şişmesi → token → zayıf model → yeni yasak → daha çok şişme) ölçüyle belgelendi.
   Altın senaryo seti (§4.2), aynı gün insan tarafından yapılan gerçek analizden türetildi.
 - **1 Eylül 2026 (aynı tur)** — K1'in kod ayağı kapandı: **BUG #313** (model adı sağlayıcıya
-  aittir, zincire değil). Defter kaydı `uygulanan-fixler.md`'de. Kalan K1 işi insan-kapısı.
+  aittir, zincire değil). Defter kaydı `uygulanan-fixler.md`'de. Kalan K1 işi onay noktası.
 - **1 Eylül 2026 (aynı tur)** — K2 birinci hamle: **prompt bütçesi kapısı** kuruldu
   (karakter ≤ 19.444, 🔴 ≤ 39, kazanım kilidi; mutasyon 3/3). Şişme artık sessiz değil.
   K2'nin ana bulgusu kaydedildi: üslup kuralları kodda VAR ama yalnız ölçülüyor, çalışma

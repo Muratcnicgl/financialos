@@ -15,7 +15,7 @@
 >
 > Belgenin gövdesi 18 Temmuz 2026 kaydı olarak aynen duruyor.
 
-Charter: her defect BUG #161+ numarası + MCP. Kapatma M68'de (kök neden + fix + test + tarayıcı tekrar-kanıt).
+Charter: her defect BUG #161+ numarası + bellek grafiği kaydı. Kapatma M68'de (kök neden + fix + test + tarayıcı tekrar-kanıt).
 
 ---
 
@@ -59,10 +59,10 @@ Charter: her defect BUG #161+ numarası + MCP. Kapatma M68'de (kök neden + fix 
   (chart panelleri). Kozmetik, düşük öncelik (16 May 2026'dan beri açık). UI etkilenmiyor, chart sonra doğru render.
 - **UI CREATE browser-kanıtı:** Accounts ("M67 Test Kasa" oluştu, 7 hesap) · Transactions (M66, "200 fatura") ·
   Coach (M66, tam döngü). Hepsi gerçek UI + gerçek veri.
-- **OTONOM KARAR M67 (kategori-b, ORTAM KISITI):** Chrome MCP extension bu ortamda kararsız (screenshot
+- **OTONOM KARAR M67 (kategori-b, ORTAM KISITI):** tarayıcı otomasyon eklentisi bu ortamda kararsız (screenshot
   timeout + mid-op disconnect + kaçan koordinat-tık, M66-M67 boyunca tekrarlı). Exhaustive 13-panel ×
   (create+update+delete) screenshot-tabanlı sweep güvenilir değil + devasa context. **Systematic CRUD sweep
-  M69 Playwright harness'ına devredildi** — charter M69 zaten bunu istiyor ve Playwright MCP-extension'dan
+  M69 Playwright harness'ına devredildi** — charter M69 zaten bunu istiyor ve Playwright eklentiden
   KARARLI (doğru araç). Kalite düşürme değil, araç değişimi.
 
 ---

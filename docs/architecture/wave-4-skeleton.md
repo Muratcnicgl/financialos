@@ -38,7 +38,7 @@
 ### 8. TR Open Banking / ÖHVPS (H2 2026)
 - BDDK Açık Bankacılık ile otomatik hesap/işlem senkron. Elle giriş biter. KVKK (ADR-033 ile bağlı).
 
-### 9. Vector+Graph Hibrit Memory (Mem0g — MCP Wave-3 Backlog item)
+### 9. Vector+Graph Hibrit Memory (Mem0g — Wave-3 Backlog maddesi)
 - SQLite tek-tablo → vector store (semantic) + graph store (entity relations). Multi-hop reasoning.
 
 ## Sonraki Adım

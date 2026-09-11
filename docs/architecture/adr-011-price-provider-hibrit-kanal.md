@@ -2,7 +2,7 @@
 
 **Tarih:** 8 Mayıs 2026 · **Durum:** Kabul edildi (ADR-029 ile güncellendi) · **İlgili:** ADR-012, ADR-029, ADR-031
 
-> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak MCP `adr_log`.
+> Materyalize: M74 (Wave-5, 18 Tem 2026) — kaynak karar günlüğü (`adr_log`).
 
 ## Bağlam
 Farklı varlık sınıfları (TEFAS fonu, BIST hisse, altın, döviz) farklı fiyat kaynakları gerektirir; tek sağlayıcı hepsini karşılamaz.
@@ -24,4 +24,4 @@ pytefas dakikada 6 istek rate-limit yönetimi içinde, type-hint'li, MIT lisans,
 TEFAS API kırılırsa veya yfinance BIST verisi gecikirse İş Yatırım kanalı önceliğe geçer. **ADR-029 (M4, 12 Tem 2026)** R3 ile bu stratejiyi güncelledi: pytefas birincil (kanıtlı), yfinance BIST kırık çıktı.
 
 ## Kaynak
-MCP `adr_log` [8 Mayıs 2026], güncelleme ADR-029.
+karar günlüğü (`adr_log`) [8 Mayıs 2026], güncelleme ADR-029.

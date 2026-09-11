@@ -5,7 +5,7 @@ yakalandı). Aynı R3 disiplini Bug Archive'a: her "KAPANDI" iddiası disk-kanı
 (commit / test / fixler.md / kod docstring) karşı doğrulandı.
 
 ## Yöntem (R3)
-MCP Bug Archive'ı tek tek okumak yerine **disk kanıt indeksi** çıkarıldı — daha güvenilir
+bellek grafiğindeki Bug Archive'ı tek tek okumak yerine **disk kanıt indeksi** çıkarıldı — daha güvenilir
 (R3: disk > memory). 4 kaynak taranıp `BUG #NNN` referansları çıkarıldı:
 - git commit mesajları (`git log`) → 98 bug
 - `docs/kalite-seruveni/uygulanan-fixler.md` → 57 bug

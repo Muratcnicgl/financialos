@@ -16,12 +16,22 @@ canli-dogrulama-gate manuel tetik: python -m app.services.smoke_tests
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# capture→flush ledger'ı (M24 post-commit ile aynı dosya, gitignore'da)
+# capture→flush ledger'ı (gitignore'da). BUG #388: yol ÇAĞRI ANINDA env'den çözülür —
+# eskiden modül sabiti fonksiyonun varsayılan argümanına bağlanıyordu ve test süiti
+# (lifespan telafisi haftalık smoke'u ağ kapalıyken koşturur) gerçek çalışma ağacındaki
+# deftere 366 satır "TESTTE AĞ ÇAĞRISI ENGELLENDİ" yazmıştı; `*.log` ignore'da olduğu
+# için kimse görmedi. Süit, ölçtüğü sistemin dosyalarına yazamaz (BUG #289/#349 sınıfı);
+# conftest `SMOKE_KAYIT_DOSYASI`nı test dizinine çevirir.
 _LEDGER = Path(".smoke-kayit.log")
+
+
+def defter_yolu() -> Path:
+    return Path(os.getenv("SMOKE_KAYIT_DOSYASI") or _LEDGER)
 
 
 def smoke_evds() -> dict:
@@ -85,15 +95,18 @@ def run_all_smoke_tests() -> list[dict]:
     ]
 
 
-def capture_smoke_failures(results: list[dict], ledger: Path = _LEDGER) -> int:
+def capture_smoke_failures(results: list[dict], ledger: Path | None = None) -> int:
     """Başarısız smoke'ları ledger'a SMOKE_FAIL satırı olarak yakala (M24 capture→flush).
 
     Döner: yakalanan başarısızlık sayısı. Ledger yazımı hata verirse akış bozulmaz.
+    `ledger` verilmezse yol çağrı anında `defter_yolu()` ile çözülür (BUG #388).
     """
     fails = [r for r in results if not r.get("ok")]
     if not fails:
         return 0
+    ledger = ledger or defter_yolu()
     try:
+        ledger.parent.mkdir(parents=True, exist_ok=True)
         with ledger.open("a", encoding="utf-8") as f:
             for r in fails:
                 # M24 formatı: <marker>|<iso-yok>|<mesaj> — flush raporu 3-parça bekler

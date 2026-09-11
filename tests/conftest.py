@@ -47,6 +47,10 @@ TEST_ENV_SABITLERI = {
     "LOG_DIR": "logs/test",
     "LOG_ROTATION_MAX_MB": "1",
     "LOG_ROTATION_BACKUP": "1",
+    # BUG #388: lifespan telafisi haftalık smoke'u ağ kapalıyken koşturur ve başarısızlığı
+    # deftere yazar — yol yönlendirilmezse çalışma ağacındaki GERÇEK defter dolar (366
+    # satır ölçüldü). Aynı ilke: süit ölçtüğü sistemin dosyalarına yazamaz.
+    "SMOKE_KAYIT_DOSYASI": "logs/test/smoke-kayit.log",
 }
 for _anahtar, _deger in TEST_ENV_SABITLERI.items():
     os.environ[_anahtar] = _deger

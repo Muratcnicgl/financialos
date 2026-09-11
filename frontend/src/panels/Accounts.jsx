@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Plus, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle,
-  X, ExternalLink, Clock,
+  ExternalLink, Clock,
 } from 'lucide-react';
 import { accountsApi, fundPriceApi, formatDate, signClass, parseTRNumber } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
+import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
@@ -667,31 +668,5 @@ function ConfirmDeleteModal({ account, onClose, onConfirm }) {
         <button type="button" onClick={onClose} className="btn btn-secondary">İptal</button>
       </div>
     </Modal>
-  );
-}
-
-// ============================================================
-// GENEL MODAL WRAPPER
-// ============================================================
-
-function Modal({ title, children, onClose }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-2 sm:p-4 animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="card p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">{title}</h3>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat" aria-label="Kapat">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
   );
 }

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  TrendingUp, TrendingDown, Plus, Pencil, Trash2, X,
+  TrendingUp, TrendingDown, Plus, Pencil, Trash2,
   Loader2, AlertTriangle, RefreshCw, CheckCircle, Clock,
   Calendar, ArrowDownToLine, ArrowUpToLine, Filter,
   Power, CreditCard, Receipt, Wallet, RotateCcw,
 } from 'lucide-react';
 import { incomesApi, expensesApi, debtsApi, accountsApi, formatDate, todayLocalISO, currentYearMonthLocal, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
+import Modal from '../components/Modal.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
 
@@ -1111,26 +1112,3 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }) {
 
 // ============================================================
 // MODAL WRAPPER
-// ============================================================
-
-function Modal({ title, children, onClose }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">{title}</h3>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat" aria-label="Kapat">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}

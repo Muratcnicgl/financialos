@@ -5,6 +5,7 @@ import {
   Flame, Target, BookOpen, Info,
 } from 'lucide-react';
 import { checkpointsApi, accountsApi, parseTRNumber } from '../api.js';  // H21: dayatılan kural formu
+import Modal from '../components/Modal.jsx';
 import { paraEtiketi } from '../lib/money.js';
 
 /**
@@ -446,7 +447,7 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
   };
 
   return (
-    <Modal title={isNew ? 'Yeni kural' : 'Kuralı düzenle'} onClose={onClose}>
+    <Modal genislik="lg" title={isNew ? 'Yeni kural' : 'Kuralı düzenle'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Tip secimi */}
         <div>
@@ -604,7 +605,7 @@ function ConfirmDeleteModal({ checkpoint, onClose, onConfirm }) {
   };
 
   return (
-    <Modal title="Kuralı sil" onClose={onClose}>
+    <Modal genislik="lg" title="Kuralı sil" onClose={onClose}>
       <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-negative-50 dark:bg-negative-950/30 border border-negative-200 dark:border-negative-800">
         <AlertTriangle className="w-5 h-5 text-negative-600 dark:text-negative-400 flex-shrink-0 mt-0.5" />
         <div className="text-sm">
@@ -630,26 +631,3 @@ function ConfirmDeleteModal({ checkpoint, onClose, onConfirm }) {
 
 // ============================================================
 // MODAL WRAPPER
-// ============================================================
-
-function Modal({ title, children, onClose }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">{title}</h3>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon !p-1.5" title="Kapat" aria-label="Kapat">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}

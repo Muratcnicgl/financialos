@@ -566,6 +566,21 @@ def execute_pending_action(db: Session, action_id: int, user_id: int) -> Dict:
             "kod": "zaten",   # BUG #402: router 409'a çevirir
         }
 
+    # BUG #413 (SEC-023 / RESIL-003): durum geçişi ATOMİK tek yön. Yukarıdaki kontrol
+    # oku-karar-yaz idi: iki eşzamanlı onay ikisi de "pending" görür, ikisi de işler
+    # (çift işlem — tam da idempotency maddesinin korktuğu). Tek bir koşullu UPDATE
+    # (`WHERE status='pending'`) satırı sahiplenir; kazanan bir, kaybeden "zaten" (409).
+    # SQLite'ta yazarlar serileşir, Postgres'te satır kilidi — iki lehçede de tek kazanan.
+    sahiplenildi = (
+        db.query(PendingAction)
+        .filter(PendingAction.id == pending.id, PendingAction.status == ActionStatus.pending)  # scope-exempt: yukarıda sahiplik doğrulandı
+        .update({PendingAction.status: ActionStatus.approved}, synchronize_session="fetch")
+    )
+    if not sahiplenildi:
+        db.rollback()
+        return {"success": False, "error": "Aksiyon eş zamanlı başka bir istekte işlendi.", "kod": "zaten"}
+    db.commit()
+
     try:
         payload = json.loads(pending.payload)
     except json.JSONDecodeError as e:

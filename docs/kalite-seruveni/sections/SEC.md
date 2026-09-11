@@ -136,7 +136,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [SEC-023] `actions/execute`'te idempotency/replay koruması yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: status!=pending replay bloklu ama Idempotency-Key yok (action_executor.py:364)
+- **Durum:** ✅ KAPANDI — **BUG #413 (12 Eyl 2026):** "status!=pending bloklu" yalnız ARDIŞIK tekrarı bloklar; oku-karar-yaz eşzamanlı iki onayda ikisini de işletirdi (çift harcama). Tek koşullu UPDATE (`WHERE status='pending'` → `approved`) satırı işleyiciden ÖNCE sahiplenir; kaybeden hiçbir şey işlemez ve `kod="zaten"` → 409 (BUG #402). SQLite'ta yazarlar serileşir, Postgres'te satır kilidi. Ayrı `Idempotency-Key` başlığı BİLEREK yok: aksiyonun kimliği (id) zaten anahtar, tekrar 409 döner; istemci-üretimli anahtar ikinci bir tekilleştirme katmanı olurdu. Bilinen dar pencere: sahiplenme ile sonuç arasında süreç çökerse satır `approved`da kalır (elle `pending`e döndürülür; gözlemlendi: 0). Kapı `tests/test_aksiyon_atomik_sahiplenme_kapisi.py` (işleyici koşarken ikinci onay 409 + tek işlem; kaybeden dokunmaz; düşen `failed`); mutasyonla doğrulandı.
 - **Kanıt:** `routers/actions.py`, `simulation.py:92`, `premortem.py:52`
 - **Aksiyon:** Status geçişini atomik tek-yön (pending→executed, tekrar 409); Idempotency-Key.
 - **Etki:** Orta · **Efor:** M

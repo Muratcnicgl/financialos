@@ -17,7 +17,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [RESIL-003] Idempotency/replay koruması yok — retry çift işlem
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: replay status bloklu ama 422 (409 değil), Idempotency yok
+- **Durum:** ✅ KAPANDI — **BUG #413 (12 Eyl 2026), SEC-023 ile aynı iş:** "status!=pending bloklu" yalnız ARDIŞIK tekrarı bloklar; oku-karar-yaz eşzamanlı iki onayda ikisini de işletirdi (çift harcama). Tek koşullu UPDATE (`WHERE status='pending'` → `approved`) satırı işleyiciden ÖNCE sahiplenir; kaybeden hiçbir şey işlemez ve `kod="zaten"` → 409 (BUG #402). SQLite'ta yazarlar serileşir, Postgres'te satır kilidi. Ayrı `Idempotency-Key` başlığı BİLEREK yok: aksiyonun kimliği (id) zaten anahtar, tekrar 409 döner; istemci-üretimli anahtar ikinci bir tekilleştirme katmanı olurdu. Bilinen dar pencere: sahiplenme ile sonuç arasında süreç çökerse satır `approved`da kalır (elle `pending`e döndürülür; gözlemlendi: 0). Kapı `tests/test_aksiyon_atomik_sahiplenme_kapisi.py` (işleyici koşarken ikinci onay 409 + tek işlem; kaybeden dokunmaz; düşen `failed`); mutasyonla doğrulandı.
 - **Kanıt:** `app/routers/actions.py` execute; `transactions.py` create
 - **Aksiyon:** Status geçişini atomik tek-yön (pending→executed, tekrar 409); Idempotency-Key. (SEC-023/API-007)
 - **Etki:** Orta · **Efor:** M
@@ -31,7 +31,7 @@
 - **Durum:** CoachEngine.chat STEP-C except'i (tüm sağlayıcı düştü) düzeltildi: ham hata (str(e)) artık KULLANICIYA SIZMAZ — loglanır (exc_info). Mesaj kurucu gücü vurguluyor: "yorumlayan AI yok ama kokpit/limit/bütçe/borç/alacak verileri motor tarafından hesaplanıyor, güncel ve doğru." cockpit_snapshot yine döner (deterministik veri korunur) + grounding şeması tutarlı. test_coach_behavior_contract.py: DeadProvider ile ham-hata-sızmaz + cockpit korunur + veri-yönlendirme testi. Router-seviyesi BE-009 handler'ı zaten ayrı katman (engine.chat tamamen patlarsa).
 
 ### [RESIL-005] Scheduler batch bir kullanıcı hatasında diğerlerini kirletebilir (tek session)
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: per-extractor izole ama tek paylaşılan session
+- **Durum:** ✅ KAPANDI — **BUG #400 (11 Eyl 2026), BE-029 ile aynı iş:** kullanıcı başına ayrı session + hata yalıtımı + "N kullanici, M hata" özeti. Kapı `tests/test_batch_kullanici_yalitimi_kapisi.py`.
 - **Kanıt:** `app/scheduler.py:148-152`
 - **Aksiyon:** User başına ayrı session scope + try/except + rollback; bir user'ın hatası batch'i durdurmasın. (BE-029)
 - **Etki:** Orta · **Efor:** S
@@ -56,7 +56,7 @@
 - **Durum:** KALICI-hata breaker'ı uygulandı: `_is_request_too_large` (413 / "request too large" / context limit — 429 geçici kotadan AYRI) veren sağlayıcı `FallbackProvider._oversized_providers`'a alınıp process boyunca atlanır (sabit-boyut prompt her çağrıda aynı 413'ü verir → beyhude round-trip + log gürültüsü biter). Groq free tier TPM 8000 < Türkçe prompt tipik tetik (memory: `reference_groq_tpm_limiti`). Tüm sağlayıcı oversized ise güvenli tarafta tam listeye döner. 4 test (test_fallback_provider.py). **Kalan (N-ardışık geçici hata → M-dk zaman-bazlı skip):** geçici kota için henüz yok; bu MVP'de düşük etki (fallback zaten geçici hatada sıradakine geçiyor).
 
 ### [RESIL-009] Retry backoff'ta jitter yok + maks sınır belirsiz
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: retry backoff var ama jitter/cap yok (coach.py:671)
+- **Durum:** ✅ KAPANDI — **BUG #269 (8 Ağu 2026) ile kapanmıştı, madde bayattı:** `app/provider_errors.bekleme_suresi` tam-jitter (`[0, min(tavan, taban·2^(n-1))]`), `BEKLEME_TAVANI=30`, deneme sayısı `_call_with_retry(max_attempts=3)`; kapı `tests/test_saglayici_hata_kapisi.py::test_bekleme_jitterli_ve_tavanli`. 12 Eyl ölçümüyle güncellendi.
 - **Kanıt:** `app/coach.py:489`
 - **Aksiyon:** Full jitter + max_delay + max_attempts. (LLM-011)
 - **Etki:** Düşük · **Efor:** S
@@ -81,7 +81,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [RESIL-013] Schema migration sırasında veri kaybı koruması yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: migration script auto-backup ama alembic pre-migration hook yok
+- **Durum:** ✅ KAPANDI — 12 Eyl 2026 ölçümü: göç öncesi yedek `baslat.ps1`de her açılışta (canlı dağıtım günlüğü: "goc bekliyor - once yedek, sonra alembic upgrade head" → `e6f7a8b9c0d1` bu akışla uygulandı); `setup_data` yıkıcı yolu BUG #381 korumasıyla; `alembic downgrade` her göçte yazılı (yeni göçler dahil). Downgrade'in otomatik testi (TEST-023) ayrı madde, burada değil.
 - **Kanıt:** Alembic var ama migration öncesi otomatik backup yok; `setup_data` drop_all
 - **Aksiyon:** Migration/setup öncesi otomatik backup (DATA-021); downgrade test (TEST-023).
 - **Etki:** Orta · **Efor:** S

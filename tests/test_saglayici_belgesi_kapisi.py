@@ -1,75 +1,53 @@
 """
-SAĞLAYICI BELGESİ KAPISI (DOCS-005 — 5 Eylül 2026).
+DEVOPS-015 / BUG #393 KAPISI — SAĞLAYICI LİSTESİ BELGELERDE SÜRÜKLENİYORDU.
 
-ÖLÇÜLEN ÇELİŞKİ
----------------
-Kod **sekiz** LLM sağlayıcısı taşıyor (`_SAGLAYICI_KURUCULARI`'nin yedi anahtarı + koşullu
-`ollama`). Belgeler ise başka şeyler söylüyordu:
+Ölçülen (11 Eyl 2026): `.env.example` ↔ kod iki yönde zaten kapılı (`test_env_adi_kapisi`:
+her örnek anahtar okunuyor, her okunan anahtar belgeli). Sürüklenen şey ANLATIMDI: README
+"four providers" diyordu, `.env.example` yorumu dört ad sayıyordu; kod 8 önek tanıyor ve
+zincir 6 halka. PROJE.md artık sağlayıcı listesi taşımıyor (grep: 0).
 
-* `docs/architecture.md` → *"üç implementation (`AnthropicProvider`, `GeminiProvider`,
-  `GroqProvider`)"*
-* `docs/dev-commands.md` → `LLM_PROVIDER=gemini | anthropic | groq | ollama | fallback`
-  (**dördü eksik**) — üstelik aynı belgenin birkaç satır altında `CEREBRAS_MODEL`,
-  `TOGETHER_MODEL`, `DEEPINFRA_MODEL` sayılıyordu, yani belge **kendi içinde** de çelişiyordu.
-
-Bu, `.env.example` tuzağının (BUG #317) kardeşidir: bir sağlayıcıyı belgede bulamayan
-operatör onu YOK sanar; K1 turunda "zincir tek bacaklı" diye kaydedilen gözlemin bir kısmı
-tam olarak bu görünmezlikten geliyordu.
-
-NE ZORLAR
----------
-Koddaki her sağlayıcı adı, iki belgede de geçmek zorunda. Yeni bir sağlayıcı eklenip
-belge unutulursa süit kırmızı verir — belge, koda BAĞLANIR; hatırlamaya değil (L79).
-
-MUTASYON 2/2 — belgeden bir saglayici adi sil -> ilgili belge testi kirmizi ·
-kayit sozlugunu bosalt -> kapsam tabani kirmizi (vakumsal yesil yasagi)
+Kilitlenen: README ve `.env.example`'daki `LLM_PROVIDER` anlatımı, `SAGLAYICI_ONEKLERI`
+(tek sağlayıcı adları) ve `_ZINCIR_SIRASI` (zincir sırası) ile aynı — kaynaktan türetilir.
 """
 from __future__ import annotations
 
-import sys
+import re
 from pathlib import Path
 
+import pytest
+
+from app.coach import SAGLAYICI_ONEKLERI, _ZINCIR_SIRASI
+
 KOK = Path(__file__).resolve().parent.parent
-if str(KOK) not in sys.path:
-    sys.path.insert(0, str(KOK))
-
-from app.coach import _SAGLAYICI_KURUCULARI  # noqa: E402
-
-#: `ollama` kayıt sözlüğünde DEĞİL — zincire yalnız `OLLAMA_ENABLED=1` ile eklenir
-#: (yerel/egemen yol, LLM-005). Belgede geçmesi yine de şart: operatörün göremediği
-#: bir seçenek, var olmayan bir seçenektir.
-KOSULLU = ("ollama",)
-
-BELGELER = (
-    KOK / "docs" / "architecture.md",
-    KOK / "docs" / "dev-commands.md",
-)
-
-#: Tarayıcı boşa düşerse kapı geçmez, BOZULUR. Bugün 7 kayıtlı sağlayıcı var.
-KAPSAM_TABANI = 5
+BELGELER = ("README.md", ".env.example")
 
 
-def _adlar() -> tuple[str, ...]:
-    return tuple(_SAGLAYICI_KURUCULARI) + KOSULLU
+def _llm_provider_paragrafi(metin: str) -> str:
+    """`LLM_PROVIDER` geçen satır ve etrafındaki 4'er satır."""
+    satirlar = metin.splitlines()
+    i = next((k for k, s in enumerate(satirlar) if "LLM_PROVIDER" in s and "fallback" in s), None)
+    assert i is not None, "LLM_PROVIDER=fallback anlatımı yok"
+    return "\n".join(satirlar[max(0, i - 4): i + 5])
 
 
-def test_KAPSAM_TABANI_kayit_bosalirsa_kapi_BOZULUR():
-    """Boş bir kayıt sözlüğü 'belgeler tutarlı' anlamına gelmez."""
-    assert len(_SAGLAYICI_KURUCULARI) >= KAPSAM_TABANI, (
-        f"KAPI BOZUK: yalnız {len(_SAGLAYICI_KURUCULARI)} sağlayıcı bulundu "
-        f"(taban {KAPSAM_TABANI}). Kayıt sözlüğü ya da import yolu değişmiş."
-    )
+@pytest.mark.parametrize("dosya", BELGELER)
+def test_tek_saglayici_adlari_kodla_ayni(dosya):
+    p = _llm_provider_paragrafi((KOK / dosya).read_text(encoding="utf-8"))
+    m = re.search(r"([a-z]+(?:\s*\|\s*[a-z]+){3,})", p)
+    assert m, f"{dosya}: 'a | b | c' biçiminde sağlayıcı listesi yok"
+    belgede = [x.strip() for x in m.group(1).split("|")]
+    assert belgede == [o.lower() for o in SAGLAYICI_ONEKLERI], (
+        f"{dosya}: belge {belgede} ≠ kod {[o.lower() for o in SAGLAYICI_ONEKLERI]}")
 
 
-def test_HER_saglayici_BELGELERDE_geciyor():
-    """Kod ile belge arasındaki tek doğruluk kaynağı KODDUR; belge ona uyar."""
-    eksik: dict[str, list[str]] = {}
-    for belge in BELGELER:
-        metin = belge.read_text(encoding="utf-8").lower()
-        yok = [ad for ad in _adlar() if ad not in metin]
-        if yok:
-            eksik[belge.relative_to(KOK).as_posix()] = yok
-    assert not eksik, (
-        "Kodda olan ama belgede geçmeyen sağlayıcılar var. Operatörün göremediği bir "
-        f"seçenek, var olmayan bir seçenektir (BUG #317'nin kardeşi):\n  {eksik}"
-    )
+@pytest.mark.parametrize("dosya", BELGELER)
+def test_zincir_sirasi_kodla_ayni(dosya):
+    p = _llm_provider_paragrafi((KOK / dosya).read_text(encoding="utf-8"))
+    m = re.search(r"([a-z]+(?:\s*(?:>|→)\s*[a-z]+){3,})", p)
+    assert m, f"{dosya}: 'a > b > c' / 'a → b → c' biçiminde zincir yok"
+    belgede = [x.strip() for x in re.split(r">|→", m.group(1))]
+    assert belgede == list(_ZINCIR_SIRASI), f"{dosya}: zincir {belgede} ≠ kod {list(_ZINCIR_SIRASI)}"
+
+
+def test_kapsam_tabani():
+    assert len(SAGLAYICI_ONEKLERI) >= 6 and len(_ZINCIR_SIRASI) >= 4, "listeler daraldı — kapı anlamını yitirmesin (L45)"

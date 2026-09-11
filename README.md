@@ -146,7 +146,7 @@ OPENROUTER_API_KEY=...
 LLM_PROVIDER=fallback
 ```
 
-Any one of the four providers is enough to run the system; the FallbackProvider skips unconfigured providers automatically.
+Any one configured provider is enough to run the system. `LLM_PROVIDER=fallback` walks the chain **gemini → openrouter → cerebras → together → deepinfra → groq** and skips unconfigured providers automatically; set it to a single name (gemini | anthropic | groq | cerebras | openrouter | together | deepinfra | ollama) to pin one. The lists above are checked against the code by `tests/test_saglayici_belgesi_kapisi.py`.
 
 ---
 

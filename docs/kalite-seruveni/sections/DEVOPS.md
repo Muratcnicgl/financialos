@@ -88,7 +88,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DEVOPS-015] `.env.example` güncelliği/sürüklenme riski
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: .env.example iç-tutarlı ama PROJE.md sürüklenme
+- **Durum:** ✅ KAPANDI — **BUG #393 (11 Eyl 2026):** `.env.example` ↔ kod iki yönde zaten kapılı (`test_env_adi_kapisi`: her örnek anahtar okunuyor, her okunan anahtar belgeli). Sürüklenen şey anlatımdı: README "four providers", `.env.example` yorumu dört ad; kod 8 önek + 6 halkalı zincir. PROJE.md sağlayıcı listesi taşımıyor (ölçüldü). İki belgenin `LLM_PROVIDER` anlatımı düzeltildi ve `tests/test_saglayici_belgesi_kapisi.py` `SAGLAYICI_ONEKLERI`/`_ZINCIR_SIRASI` ile karşılaştırır (mutasyon: README'de tek harf → kırmızı). `Settings` şemasından türetme yapılmadı: env okumaları `Settings`'te toplanmış değil (BE-012 açık); kapı şemayı değil kaynağı ölçer, sonuç aynı.
 - **Kanıt:** `.env.example` vs README (Groq/Cerebras/Gemini/OpenRouter) vs PROJE.md (gemini/anthropic/groq) — provider listesi tutarsız
 - **Aksiyon:** `.env.example`'ı `Settings` (BE-012) şemasından türet/senkronla; tek doğruluk kaynağı.
 - **Etki:** Düşük · **Efor:** S

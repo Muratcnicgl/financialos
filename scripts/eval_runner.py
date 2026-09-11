@@ -157,8 +157,20 @@ def hiz_sinirla(provider, bekle: float):
     Yani günde birkaç kez ölçüm yapılabilecek TEK sağlayıcı Groq'tur ve onun tavanı
     GÜNLÜK değil DAKİKALIKTIR. Koşucu istekleri arka arkaya atınca ikinci istek
     413/429 alır ve koşum "sağlayıcı cevap vermedi" diye GEÇERSİZ sayılır — oysa kota
-    değil, HIZ aşılmıştır. Ölçüldü: beklemesiz koşumda 8 senaryodan 3'ü ölü çağrı;
-    50 sn beklemeyle aynı senaryolar cevap verdi.
+    değil, HIZ aşılmıştır.
+
+    İKİ AYRI SEBEP, İKİSİ DE ÖLÇÜLDÜ (11 Eyl 2026, kanonik set, Groq gpt-oss-120b):
+      · PENCERE BİRİKİMİ — Groq'un 413'ündeki "Requested N" tek isteğin boyutu değil,
+        son ~60 sn'lik toplamdır (istekler ~5.400 token; 413 "8.009 / 8.201 / 8.261"
+        dedi, yani önceki istek hâlâ sayılıyordu). 50 sn bekleme yetmez: aynı setin
+        ölü çağrısı koşumdan koşuma 3↔5 arasında oynadı. 65 sn ile pencere boşalıyor.
+      · BOYUT — araçlı turlar (`propose_action` sunulan `gerceklesmis_*_action`) tam
+        prompt + şema ile tavanın hemen altında/üstünde gezer; 65 sn'de bile koşumdan
+        koşuma ÖLEN KÜME DEĞİŞİYOR (3→4, bir koşumda `kart_action` geçti, `yatirim_sorusu`
+        düştü). Yani Groq bu setle SINIRDA ve GÜRÜLTÜLÜDÜR — hangi senaryonun "boyuttan"
+        öldüğünü tek koşumdan söylemek fazla kesinliktir. Bekleme bunu çözmez; kalıcı
+        çözüm sabit prompt metnini küçültmektir (bkz. `_canonical_db` token dağılımı).
+        Aynı anda ikinci bir ölçüm koşturmak da bütçeyi paylaştırır — ölçüldü, karıştı.
 
     BEKLEME NEDEN BURADA, `app/coach.py`'de DEĞİL
     ----------------------------------------------
@@ -332,7 +344,8 @@ def main() -> None:
                                   "(1 Eyl 2026 gerçek manzarası; bkz. scripts/coach_altin.py)")
     ayristirici.add_argument("--bekle", type=float, default=0.0, metavar="SANIYE",
                              help="gercek saglayici istekleri arasi ASGARI bekleme. "
-                                  "Groq'un DAKIKALIK token tavani (8.000 TPM) icin ~50; "
+                                  "Groq'un DAKIKALIK token tavani (8.000 TPM) icin 65 — "
+                                  "pencere 60 sn, 50 ile tasma oluyor (olculdu); "
                                   "verilmezse hicbir sey degismez (bkz. hiz_sinirla)")
     args = ayristirici.parse_args()
 

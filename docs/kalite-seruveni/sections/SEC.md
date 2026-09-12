@@ -160,7 +160,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-027] Sağlık ucu/root sürüm/servis bilgisi ifşa
-- **Durum:** 🟡 KISMEN — 5 Eyl 2026 ölçümü (kapatılmadı, DARALTILDI): `/api/health` kimliksiz olarak `version`, `build` (commit SHA) ve `auth_enabled` yayınlıyor — ölçüldü. Bu bilgi bir saldırgana sürüm eşleştirme kolaylığı verir. AMA bilinçli bir kullanımı da var: dağıtım kapısı canlı damgayı okuyarak sürüm sürüklenmesini yakalıyor (`deploy/windows/guncelle.ps1`'in KULLANIM-GATE'i `/api/meta` üzerinden). Yani karar "ifşayı kaldır" değil, **hangi ucun ne yayınlayacağını ayırmak**: canlılık ucu (`/api/health`) yalnız `status` dönebilir, damga `/api/meta`'da kalabilir. Kök yol (`/`) SPA döndürüyor, sürüm sızdırmıyor (ölçüldü).
+- **Durum:** ✅ KAPANDI — BUG #436 (12 Eyl 2026): `/api/health` (ve SPA kapalıyken `/`) yalnız `{"status":"ok"}`; `build`/`surum` künye ucunda kaldı (`/api/meta`, dağıtım kapısı zaten onu okuyordu), `auth_enabled` → `/api/meta.kimlik_gerekli`. **Yan bulgu:** istemcideki giriş kapısı var olmayan `healthApi.get`i çağırıyordu → her açılışta TypeError → uygulama → ilk istek 401 → `fos:auth-expired` ile giriş; kapı fiilen hiç çalışmıyordu, düzeltildi. Kapılar: `tests/security/test_saglik_ucu_ifsa_kapisi.py`, `frontend/src/giris-kapisi.test.jsx`; damga testleri meta'ya taşındı.
 - **Kanıt:** `app/main.py:200-206`
 - **Aksiyon:** Genel health minimal (`{"status":"ok"}`); detay auth arkasına.
 - **Etki:** Düşük · **Efor:** S

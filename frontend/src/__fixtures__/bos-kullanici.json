@@ -961,12 +961,7 @@
   },
   "/api/goals": [],
   "/api/health": {
-    "auth_enabled": true,
-    "build": "0000000000000",
-    "service": "FinancialOS",
-    "status": "ok",
-    "timestamp": "2026-01-02T00:00:00+00:00",
-    "version": "0.2.0"
+    "status": "ok"
   },
   "/api/incomes": [],
   "/api/legal": {
@@ -1004,6 +999,7 @@
       "veri-isleyenler": "/api/legal/veri-isleyenler"
     },
     "kayit_modu": "open",
+    "kimlik_gerekli": true,
     "surum": "0.2.0",
     "urun": "FinancialOS"
   },

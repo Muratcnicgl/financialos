@@ -120,14 +120,17 @@ def test_git_bozuksa_cokmez(monkeypatch):
     assert surum.build_commit() == "f0e1d2c3b4a5"
 
 
-def test_saglik_ucu_damgayi_yayinlar():
-    """Uçtan uca: /api/health'in `build` alanı bu tek kaynaktan gelir."""
+def test_kunye_ucu_damgayi_yayinlar():
+    """Uçtan uca: /api/meta'nın `build` alanı bu tek kaynaktan gelir.
+
+    SEC-027 (BUG #436): damga eskiden /api/health'te de vardı; canlılık ucu artık yalnız
+    `status` döner, dağıtım kapısı (`guncelle.ps1`) zaten /api/meta'yı okuyordu."""
     from fastapi.testclient import TestClient
     from app.main import app
 
-    govde = TestClient(app).get("/api/health").json()
+    govde = TestClient(app).get("/api/meta").json()
     assert govde["build"] == surum.build_commit()
-    assert govde["version"] == surum.APP_VERSION
+    assert govde["surum"] == surum.APP_VERSION
 
 
 def test_damga_her_cagrida_git_calistirmaz(monkeypatch):

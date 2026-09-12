@@ -51,6 +51,6 @@ kalkmasını göremezdi.
 | `/api/checkpoints` | master checkpoint (is_system korumalı) | user |
 | `/api/goals` `/api/cashflow` `/api/reports` `/api/debt-strategy` | analiz | user |
 | `/api/prices/currency\|gold` | TCMB EVDS döviz/altın (M19) | public |
-| `/api/health` | sağlık + auth_enabled | public |
+| `/api/health` | canlılık — yalnız `{"status":"ok"}` (SEC-027: sürüm/SHA/kimlik bilgisi `/api/meta`'da) | public |
 
 Şema tek doğruluk kaynağı: `app/routers/*.py` → `api-sozlesmesi.json` (üretilmiş, izlenen).

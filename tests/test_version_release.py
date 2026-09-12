@@ -29,11 +29,12 @@ def test_surum_tek_kaynaktan_gelir():
     assert "_APP_VERSION" in src
 
 
-def test_saglik_ucu_surum_ve_build_doner():
+def test_kunye_ucu_surum_ve_build_doner():
+    # SEC-027 (BUG #436): sürüm/build künye ucunda; canlılık ucu yalnız `status`.
     c = TestClient(app)
-    body = c.get("/api/health").json()
-    assert body["version"] == APP_VERSION
-    assert "build" in body, "Sağlık ucunda build commit'i yok (deploy doğrulanamaz)"
+    body = c.get("/api/meta").json()
+    assert body["surum"] == APP_VERSION
+    assert "build" in body, "Künye ucunda build commit'i yok (deploy doğrulanamaz)"
 
 
 def test_build_commit_enjekte_edilebilir(monkeypatch):

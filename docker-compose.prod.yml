@@ -64,7 +64,8 @@ services:
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
       # P9 (BUG #200): calisan surumun kimligi. deploy.sh git SHA'yi buraya gecirir ->
-      # /api/health "version + build" doner; hata bildiriminde hangi kod kostugu KESIN.
+      # /api/meta "surum + build" doner (SEC-027: canlilik ucu yalniz status); hata
+      # bildiriminde hangi kod kostugu KESIN.
       BUILD_COMMIT: ${BUILD_COMMIT:-}
       # P5 (BUG #201) kapasite: havuz PROCESS BASINA. Toplam = WEB_CONCURRENCY x (pool+overflow).
       DB_POOL_SIZE: ${DB_POOL_SIZE:-5}

@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.auth import auth_enabled  # SEC-027 (BUG #436)
 from app.beta_access import registration_mode
 from app.dependencies import get_db
 from app.routers.legal import BELGELER as LEGAL_BELGELER
@@ -48,6 +49,10 @@ class UrunBilgisi(BaseModel):
     kayit_modu: str          # "invite_only" | "open" | "closed"
     davet_kodu_gerekli: bool
     hukuki: dict[str, str]
+    # SEC-027 (BUG #436): giriş kapısı buradan okur — eskiden `/api/health.auth_enabled`
+    # okuyordu ve istemci tarafındaki çağrı bozuk olduğu için (var olmayan `healthApi.get`)
+    # kapı fiilen hiç çalışmıyordu; giriş ekranına 401 dalgasıyla düşülüyordu.
+    kimlik_gerekli: bool
 
 
 class Durum(BaseModel):
@@ -67,6 +72,7 @@ def urun_bilgisi() -> UrunBilgisi:
         destek=destek_adresi(),
         kayit_modu=mod,
         davet_kodu_gerekli=(mod == "invite_only"),
+        kimlik_gerekli=auth_enabled(),
         # Slug'lar legal router'ın BELGELER sözlüğünden türetilir — elle yazılan bir
         # kopya zamanla kayar ve giriş ekranı 404'e link verir (testle kilitli).
         hukuki={slug: f"/api/legal/{slug}" for slug in LEGAL_BELGELER},

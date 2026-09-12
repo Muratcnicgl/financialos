@@ -17,13 +17,13 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 
 from app.database import SessionLocal
-from app.version import APP_VERSION as _APP_VERSION, build_commit as _build_commit  # P9
+from app.version import APP_VERSION as _APP_VERSION  # P9
 from app.models import NetWorthSnapshot, User
 
 # === Router'lar ===
@@ -402,17 +402,15 @@ app.include_router(feedback_router.router)     # FEAT-033: /api/feedback
 # ============================================================
 
 def _health_payload() -> dict:
-    from app.auth import auth_enabled
-    return {
-        "status": "ok",
-        "service": "FinancialOS",
-        # BUG #200 (P9): surum SABIT "0.1.0" idi -> canlida hangi kodun kostugu
-        # olculemiyordu (hata bildirimi, deploy dogrulamasi, geri alma sonrasi kontrol).
-        "version": _APP_VERSION,
-        "build": _build_commit(),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "auth_enabled": auth_enabled(),  # M11: frontend login gate'i buna bakar
-    }
+    """SEC-027 (BUG #436): canlılık ucu YALNIZ canlılık söyler.
+
+    Ölçülen (12 Eyl 2026): kimliksiz `/api/health` sürüm, commit SHA ve `auth_enabled`
+    yayınlıyordu — bir saldırgana sürüm eşleştirme kolaylığı. Bu bilgilerin meşru okuyucuları
+    başka uçtadır: dağıtım kapısı ve giriş ekranı `/api/meta`'yı okur (`build`, `surum`,
+    `kimlik_gerekli`). BUG #200'ün derdi ("canlıda hangi kod koşuyor ölçülsün") meta'da
+    karşılanmaya devam eder; burada tekrarlanması yalnız ifşaydı.
+    """
+    return {"status": "ok"}
 
 
 @app.get("/", tags=["health"])

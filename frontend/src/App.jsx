@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Sun, Moon, WifiOff, AlertTriangle, LogOut,
 } from 'lucide-react';
-import { healthApi, authApi, coachApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl,
+import { healthApi, metaApi, authApi, coachApi, consumeOAuthRedirect, getResetTokenFromUrl, getJoinTokenFromUrl,
   workspaceApi, getActiveWorkspaceId, setActiveWorkspaceId } from './api.js';
 import Login from './panels/Login.jsx';
 import Workspace, { WorkspaceJoin } from './panels/Workspace.jsx';
@@ -176,9 +176,12 @@ function AuthGate() {
     const oauth = await consumeOAuthRedirect();
     if (oauth.status === 'success') { setPhase('app'); return; }
     if (oauth.status === 'error') { setOauthError(oauth.error); setPhase('login'); return; }
+    // SEC-027 (BUG #436): kimlik-gerekli bilgisi `/api/meta`'dan. Eski satır var olmayan
+    // `healthApi.get`i çağırıyordu → her açılışta TypeError → catch → 'app' → ilk istek 401
+    // → 'fos:auth-expired' ile giriş ekranı. Yani kapı hiç çalışmıyor, yolu 401 dalgası açıyordu.
     try {
-      const h = await healthApi.get();
-      if (h?.auth_enabled && !authApi.isLoggedIn()) { setPhase('login'); return; }
+      const h = await metaApi.get();
+      if (h?.kimlik_gerekli && !authApi.isLoggedIn()) { setPhase('login'); return; }
     } catch { /* backend erişilemezse yine app'i göster (health banner uyarır) */ }
     setPhase('app');
   }, []);

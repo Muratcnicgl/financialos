@@ -431,6 +431,9 @@ export const reportsApi = {
   upcomingCashflow: (days = 30) =>
     request('/api/reports/upcoming-cashflow', { params: { days } }),
   // A3: aylık özet (gelir/gider/net + kategori + önceki-ay trend). Boş param = içinde bulunulan ay.
+  // BUG #428 (DVIZ-004/FEAT-023): son N ayın gelir/gider/net/tasarruf serisi
+  monthlySeries: ({ months = 6 } = {}) =>
+    request('/api/reports/monthly-series', { params: { months } }),
   monthlySummary: ({ year = null, month = null } = {}) =>
     request('/api/reports/monthly-summary', {
       params: {

@@ -193,7 +193,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-023] Tasarruf oranı metriği
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: savings_rate var ama cok-ayli seri yok
+- **Durum:** ✅ KAPANDI — **BUG #428 (12 Eyl 2026), DVIZ-004 ile aynı iş:** `savings_rate` zaten aylık özette vardı; çok-aylı seri (`monthly-series`) ve kokpitte ay başına oran + dönem ortalaması eklendi. Gelirsiz ayda oran bilinmez (None → "—"), 0 değil.
 - **Değer/Fırsat:** Aylık (gelir − gider) / gelir oranını gösterir ve önceki aylarla kıyaslar; "ne kadar biriktiriyorum" sorusunun net cevabı.
 - **Kaynak/İlham:** Savings rate (FIRE / kişisel finans temel metriği).
 - **Nasıl (mimari):** reports/rules_engine mevcut gelir-gider toplamlarından; NetWorthSnapshot benzeri aylık seri. Salt okuma.

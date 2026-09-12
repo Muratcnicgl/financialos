@@ -9,6 +9,7 @@ import {
 import { cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi, cashflowApi, reportsApi, formatPercent, formatDate, signClass, parseTRNumber } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
 import MonthlySummary from '../components/MonthlySummary.jsx';
+import AylikSeri from '../components/AylikSeri.jsx';
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -597,6 +598,8 @@ export default function Cockpit({ setActiveTab }) {
 
       {/* A3: Aylık özet — kurucu "durum raporu" */}
       {!basit && <MonthlySummary />}
+      {/* BUG #428 (DVIZ-004/FEAT-023): ay-be-ay seri — özetin zaman içindeki hali; sade görünümde yok */}
+      {!basit && <AylikSeri months={6} />}
 
       {/* SİNYALLER — üç tek-satırlık bilgi, ÜÇ AYRI KUTU değil.
           Ölçülen sorun: abonelik yükü, borçsuzluk tarihi ve faiz sızıntısı; her biri

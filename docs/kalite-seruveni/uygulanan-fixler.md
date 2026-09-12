@@ -1215,3 +1215,4 @@ Tur şu şikâyetle başladı: koç kalitesi düşük, düzeltmeler ölçülemiy
 | #425 | **KART DOLULUĞU KARTINA SOMUT MESAFE (UX-003)** | Bar/%/band zaten vardı (madde bayat); "limite X kaldı" eklendi. | `Cockpit.jsx`, test | RTL | ✅ |
 | #426 | **BEKLEYEN ALACAK ÖZETİ YALNIZ TOPLAMDI (UX-007)** | Adet · en eskisi · gecikmiş şerit bandı. Test fikstürü UTC yerine yerel gün (gece 00-03 TR'de 12≠13). | `IncomeDebt.jsx`, test | RTL; vitest 293; build | ✅ |
 | #427 | **UYARILAR KATLANMIYORDU — BİLDİRİM YORGUNLUĞU (UX-023)** | Kritik hep açık; kritik-dışı ilk 2 açık, gerisi "+N uyarı daha". | `Cockpit.jsx`, test | RTL; vitest 294 | ✅ |
+| #428 | **AY-BE-AY GELİR/GİDER/TASARRUF SERİSİ YOKTU (DVIZ-004, FEAT-023)** | Backend seri aylık özetle aynı kaynaktan; kokpitte `AylikSeri` kartı. **Sözleşme +1 uç (KAP-01 gerekçesi burada).** | `rules_engine.py`, `reports.py`, `AylikSeri.jsx`, `Cockpit.jsx`, 2 test dosyası | 2 pytest + 2 vitest; 1883 kapı testi | ✅ |

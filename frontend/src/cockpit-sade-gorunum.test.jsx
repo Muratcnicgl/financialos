@@ -83,6 +83,7 @@ vi.mock('./api.js', async () => {
     // sessiz bir fark koyar.
     reportsApi: {
       monthlySummary: vi.fn().mockRejectedValue(new Error('kapalı')),
+      monthlySeries: vi.fn().mockRejectedValue(new Error('kapalı')),   // BUG #428
       netWorthTrend: vi.fn().mockResolvedValue({ items: [] }),
     },
     onboardingApi: {

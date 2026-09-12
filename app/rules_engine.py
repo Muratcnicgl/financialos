@@ -1349,6 +1349,37 @@ _SUB_ANNUAL_GAP = (350, 381)      # ~yıllık
 _SUB_MAX_DISTINCT_AMOUNTS = 2     # sabit veya tek fiyat-artışı
 
 
+def generate_monthly_series(user_id: int, year: int, month: int, db: Session, ay_sayisi: int = 6) -> Dict:
+    """DVIZ-004 / FEAT-023 (BUG #428): son N takvim ayının gelir/gider/net/tasarruf serisi.
+
+    `_month_aggregates` tek kaynak (aylık özetle aynı sayılar — iki rapor birbirini tutar).
+    Seri eskiden yeniye sıralı; `savings_rate` gelir 0 ise None (bilinmeyen sıfır değil, L45).
+    Saf okuma; hesap katmanı burada, router yalnız delege eder (ADR-001).
+    """
+    ay_sayisi = max(1, min(int(ay_sayisi), 24))
+    seri = []
+    y, m = year, month
+    for _ in range(ay_sayisi):
+        bas = date(y, m, 1)
+        son = date(y + (m == 12), (m % 12) + 1, 1) - timedelta(days=1)
+        agg = _month_aggregates(db, user_id, bas, son)
+        seri.append({
+            "year": y, "month": m, "label": f"{_TR_AYLAR[m]} {y}",
+            "total_income": agg["total_income"], "total_expense": agg["total_expense"],
+            "net_change": agg["net_change"], "savings_rate": agg.get("savings_rate"),
+        })
+        m -= 1
+        if m == 0:
+            m, y = 12, y - 1
+    seri.reverse()
+    dolu = [s["savings_rate"] for s in seri if s["savings_rate"] is not None]
+    return {
+        "months": ay_sayisi,
+        "series": seri,
+        "avg_savings_rate": round(sum(dolu) / len(dolu), 1) if dolu else None,
+    }
+
+
 def _normalize_merchant(desc: str) -> str:
     """Açıklamayı grup anahtarına indirger. RecurringExpense tetikleyicisi '{ad} — {ay}'
     eklediğinden ' — ' sonrasını atarız (aynı aboneliğin ayları birleşsin).

@@ -50,7 +50,7 @@ Etki: orta · Efor: S
 ---
 
 ### [DVIZ-004] Aylık gelir/gider trendi yok (Wave-2 A3 aylık özet eksik)
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: monthly-summary kartı geldi ama çok-aylık bar yok
+- **Durum:** ✅ KAPANDI — **BUG #428 (12 Eyl 2026):** `GET /api/reports/monthly-series?months=N` (1..24) — `generate_monthly_series` aylık özetle AYNI `_month_aggregates` kaynağından N takvim ayını üretir (yıl geçişi, eskiden yeniye), her ay gelir/gider/net/tasarruf oranı (gelirsiz ay None), ortalama yalnız dolu aylardan. Kokpit detaylı görünümde `AylikSeri` kartı: gelir/gider çubukları + ay başına oran + ortalama; sade görünümde yok. Kapılar: `tests/test_aylik_seri_kapisi.py` (özetle birebir, yıl geçişi, None, uç sınırı) + `aylik-seri.test.jsx`. Sözleşme +1 uç.
 
 Sorun: `category-breakdown` yalnızca kayan pencere (30/90 gün) toplamı veriyor; ay-be-ay gelir vs gider trendi, önceki aya göre değişim yok. Wave-2 A3 hedefi "aylık özet rapor: gelir/gider/net değişim + kategori + önceki aya trend" karşılanmamış.
 

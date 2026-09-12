@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.user_prefs import user_today  # BUG #237 (D17): pencere/ay kullanıcının gününden ölçülür
 from app.rules_engine import (
-    generate_monthly_summary, calculate_networth_attribution, calculate_real_networth,
+    generate_monthly_summary, generate_monthly_series, calculate_networth_attribution, calculate_real_networth,
     workspace_scope,  # M43
 )
 from app.workspace_deps import active_workspace_id, scope_filter  # M43
@@ -330,3 +330,16 @@ def monthly_summary(
     m = month or today.month
     with workspace_scope(ws_id):  # M43
         return generate_monthly_summary(current_user.id, y, m, db)
+
+
+@router.get("/monthly-series")
+def monthly_series(
+    months: int = Query(default=6, ge=1, le=24),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),
+):
+    """Son N takvim ayının gelir/gider/net/tasarruf oranı serisi (aylık özetle aynı kaynak)."""
+    today = user_today(current_user)
+    with workspace_scope(ws_id):
+        return generate_monthly_series(current_user.id, today.year, today.month, db, ay_sayisi=months)

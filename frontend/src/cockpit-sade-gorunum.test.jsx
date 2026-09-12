@@ -272,3 +272,23 @@ describe('UX-023 — bildirim yorgunluğu: kritik açık, gerisi katlanır (BUG 
     expect(screen.queryByText('Uyarı üç')).toBeNull();
   });
 });
+
+describe('DVIZ-005 — kart altında dönem farkı (BUG #429)', () => {
+  it('donem_degisimi yokken hiçbir kartta fark satırı yok (sıfır uydurulmaz)', async () => {
+    await cizdir(BASIT, { ...COCKPIT, donem_degisimi: null });
+    expect(screen.queryAllByTestId('metric-degisim')).toHaveLength(0);
+  });
+
+  it('ay başı bazlı fark: nakit +, kart borcu − ve "ay başından beri"; etiket tarihi değilse tarih yazar', async () => {
+    const dd = { baz_tarih: '2026-09-01', gun: 11, ay_basi: true,
+                 nakit_kasa: 2000, kart_borcu: -500, kredi_borcu: 0, yatirim_deger: 100,
+                 net_deger: 2600, net_deger_tam: 2600 };
+    const { unmount } = await cizdir(BASIT, { ...COCKPIT, donem_degisimi: dd });
+    const satirlar = screen.getAllByTestId('metric-degisim').map((e) => e.textContent);
+    expect(satirlar.some((t) => t.includes('▲ +2.000,00') && t.includes('ay başından beri'))).toBe(true);
+    expect(satirlar.some((t) => t.includes('▼ −500,00'))).toBe(true);
+    unmount();
+    await cizdir(BASIT, { ...COCKPIT, donem_degisimi: { ...dd, ay_basi: false, baz_tarih: '2026-09-05' } });
+    expect(screen.getAllByTestId('metric-degisim').some((e) => /5 Eyl'den beri/.test(e.textContent))).toBe(true);
+  });
+});

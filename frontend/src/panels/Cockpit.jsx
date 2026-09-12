@@ -259,16 +259,27 @@ export default function Cockpit({ setActiveTab }) {
 
   const hesapTuru = (t) => (data.accounts || []).some((a) => a.account_type === t);
   const netAyrimVar = netDegerTam !== data.net_deger;
+  // BUG #429 (DVIZ-005): kart altına "ay başından beri" farkı. Baz yoksa (ilk gün) hiç
+  // çizilmez — sıfır fark uydurulmaz. Etiket bazın gerçek tarihini söyler.
+  const dd = data.donem_degisimi;
+  const degisim = (alan, azalmaIyi = false) => (dd && Number.isFinite(dd[alan])
+    ? { tutar: dd[alan], azalmaIyi,
+        etiket: dd.ay_basi ? 'ay başından beri' : `${formatDate(dd.baz_tarih)}'den beri` }
+    : undefined);
 
   const operasyonel = [
     { anahtar: 'nakit', goster: true,
-      alan: { title: 'Nakit', value: data.nakit_kasa, variant: 'positive', icon: Wallet } },
+      alan: { title: 'Nakit', value: data.nakit_kasa, variant: 'positive', icon: Wallet,
+              degisim: degisim('nakit_kasa') } },
     { anahtar: 'kart', goster: data.kart_borcu !== 0 || hesapTuru('credit_card'),
-      alan: { title: 'Kart Borcu', value: data.kart_borcu, variant: 'negative', icon: CreditCard } },
+      alan: { title: 'Kart Borcu', value: data.kart_borcu, variant: 'negative', icon: CreditCard,
+              degisim: degisim('kart_borcu', true) } },
     { anahtar: 'kredi', goster: data.kredi_borcu !== 0 || hesapTuru('loan'),
-      alan: { title: 'Kredi Borcu', value: data.kredi_borcu, variant: 'negative', icon: Building2 } },
+      alan: { title: 'Kredi Borcu', value: data.kredi_borcu, variant: 'negative', icon: Building2,
+              degisim: degisim('kredi_borcu', true) } },
     { anahtar: 'yatirim', goster: data.yatirim_deger !== 0 || hesapTuru('investment'),
-      alan: { title: 'Yatırım', value: data.yatirim_deger, variant: 'brand', icon: TrendingUp } },
+      alan: { title: 'Yatırım', value: data.yatirim_deger, variant: 'brand', icon: TrendingUp,
+              degisim: degisim('yatirim_deger') } },
   ].filter((x) => x.goster);
 
   const stratejik = [
@@ -290,6 +301,7 @@ export default function Cockpit({ setActiveTab }) {
       alan: { title: netAyrimVar ? 'Görülen Net Değer' : 'Net Değer', value: data.net_deger,
               icon: Scale, variant: data.net_deger >= 0 ? 'positive' : 'negative',
               subtitle: netAyrimVar ? 'Alacaksız (operasyonel)' : 'Varlıklar eksi borçlar',
+              degisim: degisim('net_deger'),
               // BUG #423 (UX-021): ayrım yalnız detaylı görünümde çizilir; açıklama da orada
               aciklama: netAyrimVar
                 ? 'Görülen = bugün cüzdanında ve hesaplarında fiilen olan. Sana borçlu olanların ödeyeceği para buna dahil değil.'
@@ -297,6 +309,7 @@ export default function Cockpit({ setActiveTab }) {
     { anahtar: 'nettam', goster: netAyrimVar,
       alan: { title: 'Tam Net Değer', value: netDegerTam, icon: Telescope,
               variant: netDegerTam >= 0 ? 'positive' : 'negative',
+              degisim: degisim('net_deger_tam'),
               subtitle: `${netTamDetay} dahil`,
               aciklama: 'Tam = Görülen + sana borçlu olanların ödeyeceği para (alacaklar). Tahsil edilene kadar harcanabilir sayma.' } },
   ].filter((x) => x.goster);
@@ -329,7 +342,7 @@ export default function Cockpit({ setActiveTab }) {
     { anahtar: 'net',
       alan: { title: 'Net Değer', value: data.net_deger, icon: Scale,
               variant: data.net_deger >= 0 ? 'positive' : 'negative',
-              subtitle: 'Varlıklar eksi borçlar' } },
+              subtitle: 'Varlıklar eksi borçlar', degisim: degisim('net_deger') } },
   ];
 
   // Sade görünümde GİZLENEN analiz bölümlerinin adları. Sayı ELLE yazılmıyor: yalnız

@@ -63,7 +63,7 @@ Etki: yüksek · Efor: M
 ---
 
 ### [DVIZ-005] Dönem karşılaştırma ve KPI delta yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: MonthlySummary delta var ama MetricCard delta yok
+- **Durum:** ✅ KAPANDI — BUG #429 (12 Eyl 2026): `/api/cockpit` → `donem_degisimi` (baz = ay başı snapshot'ı, 7 gün toleranslı; yoksa bugünden önceki en eski; bugünün snapshot'ı asla baz olmaz; baz yoksa `null`). `MetricCard` `degisim={tutar, etiket, azalmaIyi}` alır: ▲/▼ + işaret metinle, borç kartlarında azalma yeşil. Altı para kartı bağlı. Kapılar: `tests/test_donem_degisimi_kapisi.py`, `frontend/src/metric-card-degisim.test.jsx`, `cockpit-sade-gorunum.test.jsx`. Sparkline bilinçli yapılmadı: Raporlar'daki net değer eğrisi (`net-worth-trend`) aynı veridir, kartta ikinci kopya olmaz.
 
 Sorun: Cockpit metrik kartları yalnızca mutlak değer gösteriyor; önceki döneme göre yön/delta yok. Finans dashboard'larda KPI kutusunun önceki döneme göre artış/azalış (ok + yüzde) taşıması standart. Kullanıcı "kart borcu geçen aya göre düştü mü" sorusunu göremiyor.
 

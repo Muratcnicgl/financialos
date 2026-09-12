@@ -18,7 +18,7 @@ devam etmeli.
 """
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -34,6 +34,60 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cockpit", tags=["cockpit"])
+
+
+# BUG #429 (DVIZ-005): dönem karşılaştırma bazı için "ay başı" toleransı (gün).
+# Ay başında snapshot yoksa (gece işi kaçmış, kayıt ayın 1'inde başlamamış) 1'inden en çok bu
+# kadar önceki son snapshot "ay başı" sayılır; o da yoksa bugünden önceki EN ESKİ snapshot
+# baz olur ve etiket gerçek tarihi söyler. Baz yoksa alan None döner — sıfır değil (L45).
+AY_BASI_TOLERANSI_GUN = 7
+
+DEGISIM_ALANLARI = (
+    ("nakit_kasa", "cash"),
+    ("kart_borcu", "card_debt"),
+    ("kredi_borcu", "loan_debt"),
+    ("yatirim_deger", "investment_value"),
+    ("net_deger", "net_worth_seen"),
+    ("net_deger_tam", "net_worth_full"),
+)
+
+
+def _baz_snapshot(db: Session, user_id: int, workspace_id: Optional[int], today: date):
+    """Dönem karşılaştırmasının bazı: (snapshot, ay_basi_mi) — ay başı (toleranslı), yoksa en eski."""
+    ay_basi = today.replace(day=1)
+    q = db.query(NetWorthSnapshot)
+    q = q.filter(NetWorthSnapshot.workspace_id == workspace_id) if workspace_id is not None         else q.filter(NetWorthSnapshot.user_id == user_id)  # scope-exempt: snapshot legacy fallback (ws_id None branch)
+    # Bugün ayın 1'iyse bugünün (ilk istekte yazılan) snapshot'ı baz olmasın → hep `< today`.
+    q = q.filter(NetWorthSnapshot.snapshot_date < today)
+    ay_basi_baz = (q.filter(NetWorthSnapshot.snapshot_date <= ay_basi,
+                            NetWorthSnapshot.snapshot_date >= ay_basi - timedelta(days=AY_BASI_TOLERANSI_GUN))
+                   .order_by(NetWorthSnapshot.snapshot_date.desc()).first())
+    if ay_basi_baz is not None:
+        return ay_basi_baz, True
+    return q.order_by(NetWorthSnapshot.snapshot_date.asc()).first(), False
+
+
+def _donem_degisimi(db: Session, user_id: int, workspace_id: Optional[int],
+                    cockpit: dict, today: date) -> Optional[dict]:
+    """BUG #429 (DVIZ-005): kartların "ay başından beri" farkı.
+
+    Ölçülen (12 Eyl 2026): `NetWorthSnapshot` geçmişi günlerdir birikiyordu ama kokpit
+    kartları yalnız mutlak değer taşıyordu; "kart borcu geçen aya göre düştü mü" sorusunun
+    cevabı yalnız Raporlar'daki eğri üzerinden okunabiliyordu. Fark burada, bugünün canlı
+    değeri ile BUGÜNDEN ÖNCEKİ bir snapshot arasında hesaplanır (bugünün snapshot'ı henüz
+    yazılmamış ya da bayat olabilir; canlı değer her zaman `cockpit`).
+    """
+    baz, ay_basi_mi = _baz_snapshot(db, user_id, workspace_id, today)
+    if baz is None:
+        return None
+    farklar = {ck: round(float(cockpit.get(ck, cockpit["net_deger"])) - float(getattr(baz, sk)), 2)
+               for ck, sk in DEGISIM_ALANLARI}
+    return {
+        "baz_tarih": baz.snapshot_date.isoformat(),
+        "gun": (today - baz.snapshot_date).days,
+        "ay_basi": ay_basi_mi,
+        **farklar,
+    }
 
 
 def _ensure_today_snapshot(db: Session, user_id: int, cockpit: dict,
@@ -149,6 +203,13 @@ def get_cockpit(
             "never_set_count": 0,
             "items": [],
         }
+
+    # BUG #429 (DVIZ-005): dönem farkı, bugünün snapshot'ı YAZILMADAN önce (baz = önceki gün)
+    try:
+        cockpit["donem_degisimi"] = _donem_degisimi(db, user.id, ws_id, cockpit, today)
+    except Exception:
+        logger.warning("dönem değişimi hesaplanamadı (cockpit devam ediyor)", exc_info=True)
+        cockpit["donem_degisimi"] = None
 
     # B2: bugünkü snapshot'ı kaydet (idempotent)
     try:

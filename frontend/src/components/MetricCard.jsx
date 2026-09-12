@@ -12,6 +12,7 @@ import { formatSayi, paraEtiketi } from '../lib/money.js';
  *  - Opsiyonel ikon (Lucide)
  *  - Opsiyonel alt yazi (subtitle)
  *  - Opsiyonel trend (yukari/asagi ok)
+ *  - Opsiyonel donem farki (BUG #429): degisim = { tutar, etiket, azalmaIyi }
  *  - Opsiyonel emanet rozet (DOKUNULMAZ etiketi MC1 icin)
  */
 export default function MetricCard({
@@ -32,6 +33,10 @@ export default function MetricCard({
   aciklama,
   // BUG #424 (UX-022): açıklamanın altında isteğe bağlı eylem bağlantısı ({ metin, onClick })
   aciklamaBaglanti,
+  // BUG #429 (DVIZ-005): önceki döneme göre fark — { tutar, etiket, azalmaIyi }. Borç
+  // kartlarında azalma iyidir (azalmaIyi), varlık kartlarında artış. İşaret metinle taşınır
+  // (▲/▼ + '+'/'−'), renk yalnız pekiştirir (WCAG 1.4.1). Verilmezse satır çizilmez.
+  degisim,
 }) {
   const aciklamaId = useId();
   const [aciklamaAcik, setAciklamaAcik] = useState(false);
@@ -64,6 +69,13 @@ export default function MetricCard({
   };
 
   const v = variants[variant] || variants.neutral;
+  const fark = degisim && Number.isFinite(degisim.tutar) ? degisim.tutar : null;
+  const farkYok = fark !== null && Math.abs(fark) < 0.005;
+  const iyi = fark !== null && !farkYok && (degisim.azalmaIyi ? fark < 0 : fark > 0);
+  const farkRenk = farkYok ? 'text-zinc-500 dark:text-zinc-400'
+    : iyi ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400';
+  const farkOk = farkYok ? '=' : fark > 0 ? '▲' : '▼';
+  const farkMetni = fark === null ? '' : `${fark > 0 ? '+' : fark < 0 ? '−' : ''}${formatSayi(Math.abs(fark))}${suffix}`;
 
   return (
     <div className={`card p-4 sm:p-5 ${isEmanet ? 'border-warn-300 dark:border-warn-700/50' : ''} animate-fade-in`}>
@@ -112,6 +124,14 @@ export default function MetricCard({
           </>
         )}
       </div>
+
+      {!loading && fark !== null && (
+        <p data-testid="metric-degisim" className={`text-xs mt-1 ${farkRenk}`}>
+          <span aria-hidden="true">{farkOk} </span>
+          <span className="para">{farkMetni}</span>
+          {degisim.etiket && <span className="text-zinc-500 dark:text-zinc-400"> · {degisim.etiket}</span>}
+        </p>
+      )}
 
       {aciklama && aciklamaAcik && (
         <p id={aciklamaId} role="note" className="text-xs text-zinc-700 dark:text-zinc-300 mt-2 rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1.5">

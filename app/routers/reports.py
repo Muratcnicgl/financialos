@@ -329,7 +329,7 @@ def monthly_summary(
     y = year or today.year
     m = month or today.month
     with workspace_scope(ws_id):  # M43
-        return generate_monthly_summary(current_user.id, y, m, db)
+        return generate_monthly_summary(current_user.id, y, m, db, today=today)  # FEAT-033: kısmi ay bilgisi
 
 
 @router.get("/monthly-series")

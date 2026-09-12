@@ -1207,6 +1207,7 @@
     ]
   },
   "/api/reports/monthly-summary": {
+    "anlati": null,
     "current": {
       "expense_categories": [],
       "net_change": 0.0,
@@ -1215,6 +1216,7 @@
       "total_income": 0.0,
       "transaction_count": 0
     },
+    "kategori_kaymalari": [],
     "period": {
       "end": "2026-01-20",
       "label": "Eylül 2026",

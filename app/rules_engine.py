@@ -1303,8 +1303,11 @@ def _month_aggregates(db: Session, user_id: int, start: date, end: date) -> Dict
     }
 
 
-def generate_monthly_summary(user_id: int, year: int, month: int, db: Session) -> Dict:
-    """A3: takvim-ayı özeti (current + previous_period + trend). Saf okuma."""
+def generate_monthly_summary(user_id: int, year: int, month: int, db: Session,
+                             today: Optional[date] = None) -> Dict:
+    """A3: takvim-ayı özeti (current + previous_period + trend + kategori kaymaları). Saf okuma.
+
+    `today` verilirse ve dönemin içindeyse anlatı ayı KISMİ sayar (FEAT-033)."""
     cur_start, cur_end = _month_bounds(year, month)
     pm_y, pm_m = (year - 1, 12) if month == 1 else (year, month - 1)
     prev_start, prev_end = _month_bounds(pm_y, pm_m)
@@ -1315,6 +1318,7 @@ def generate_monthly_summary(user_id: int, year: int, month: int, db: Session) -
     def _pct_delta(c: float, p: float) -> Optional[float]:
         return round((c - p) / p * 100, 1) if p > 0 else None
 
+    kaymalar = kategori_kaymalari(cur["expense_categories"], prev["expense_categories"])
     return {
         "period": {
             "year": year, "month": month,
@@ -1331,7 +1335,78 @@ def generate_monthly_summary(user_id: int, year: int, month: int, db: Session) -
             "prev_total_expense": prev["total_expense"],
             "prev_net_change": prev["net_change"],
         },
+        # FEAT-033 (BUG #430): kategori kaymaları + deterministik anlatı
+        "kategori_kaymalari": kaymalar,
+        "anlati": ay_anlatisi(cur, prev, kaymalar, _TR_AYLAR[pm_m],
+                              kismi=(today is not None and cur_start <= today <= cur_end), today=today),
     }
+
+
+# FEAT-033 (BUG #430): kayma listesinde kaç kalem taşınır — arayüz "en çok değişen"i gösterir,
+# uzun kuyruk anlatmaz. Eşik altı (|fark| < 1) kaymalar gürültüdür, listeye girmez.
+KAYMA_LISTE_TAVANI = 5
+KAYMA_ESIGI = D("1")
+
+
+def kategori_kaymalari(cur_cats: List[Dict], prev_cats: List[Dict]) -> List[Dict]:
+    """FEAT-033 (BUG #430): iki ayın gider kategorileri arasındaki kaymalar, |fark|a göre.
+
+    Ölçülen (12 Eyl 2026): aylık özet gider TOPLAMININ yüzde trendini veriyordu ama "gider
+    neden arttı?" sorusu kategoriye inmiyordu; kullanıcı iki ayın listesini gözle karşılaştırmak
+    zorundaydı. Durum: `yeni` (geçen ay yok), `kayboldu` (bu ay yok), `artti`, `azaldi`.
+    `delta_pct` geçen ay 0 ise None (yeni kategoriye yüzde uydurulmaz, L45).
+    """
+    simdi = {c["category"]: D(c["total"]) for c in cur_cats}
+    once = {c["category"]: D(c["total"]) for c in prev_cats}
+    kaymalar = []
+    for ad in set(simdi) | set(once):
+        c, p = simdi.get(ad, ZERO), once.get(ad, ZERO)
+        fark = c - p
+        if abs(fark) < KAYMA_ESIGI:
+            continue
+        durum = "yeni" if p == ZERO else "kayboldu" if c == ZERO else "artti" if fark > 0 else "azaldi"
+        kaymalar.append({
+            "category": ad, "current": round(c, 2), "previous": round(p, 2),
+            "delta": round(fark, 2),
+            "delta_pct": round(fark / p * 100, 1) if p > 0 else None,
+            "durum": durum,
+        })
+    kaymalar.sort(key=lambda k: (-abs(k["delta"]), k["category"]))
+    return kaymalar[:KAYMA_LISTE_TAVANI]
+
+
+def ay_anlatisi(cur: Dict, prev: Dict, kaymalar: List[Dict], onceki_ay_adi: str,
+                *, kismi: bool = False, today: Optional[date] = None) -> Optional[str]:
+    """FEAT-033 (BUG #430): "bu ay geçen aya göre" tek paragraf, sayılardan türetilir (model yok).
+
+    Kısmi ay (bugün dönemin içindeyse) açıkça söylenir: tam bir ayı ayın ilk günleriyle
+    kıyaslayıp "gider düştü" demek yanıltır. İki ayda da gider yoksa None.
+    """
+    if cur["total_expense"] == ZERO and prev["total_expense"] == ZERO:
+        return None
+    parcalar: List[str] = []
+    if kismi and today is not None:
+        parcalar.append(f"Ayın ilk {today.day} günü ({onceki_ay_adi} tam ayıyla kıyas, kısmi)")
+    if prev["total_expense"] > ZERO and cur["total_expense"] > ZERO:
+        oran = (cur["total_expense"] - prev["total_expense"]) / prev["total_expense"] * 100
+        yon = "arttı" if oran > 0 else "azaldı" if oran < 0 else "değişmedi"
+        parcalar.append(f"gider {onceki_ay_adi} ayına göre %{abs(round(oran))} {yon}"
+                        if yon != "değişmedi" else f"gider {onceki_ay_adi} ayıyla aynı")
+    elif cur["total_expense"] > ZERO:
+        parcalar.append(f"{onceki_ay_adi} ayında gider kaydı yoktu")
+    else:
+        parcalar.append("bu ay henüz gider kaydı yok")
+    artan = next((k for k in kaymalar if k["durum"] == "artti"), None)
+    azalan = next((k for k in kaymalar if k["durum"] == "azaldi"), None)
+    yeni = [k["category"] for k in kaymalar if k["durum"] == "yeni"]
+    if artan:
+        parcalar.append(f"en çok artan {artan['category']} (+{_para(artan['delta'])})")
+    if azalan:
+        parcalar.append(f"en çok azalan {azalan['category']} (−{_para(abs(azalan['delta']))})")
+    if yeni:
+        parcalar.append("yeni: " + ", ".join(yeni))
+    metin = "; ".join(parcalar)
+    return metin[0].upper() + metin[1:] + "."
 
 
 # ============================================================

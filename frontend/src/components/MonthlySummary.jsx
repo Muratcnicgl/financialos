@@ -29,6 +29,7 @@ export default function MonthlySummary() {
   // İlk dört kalem + kalanların toplamı. Uzun kuyruk ("%1 · %1 · %0,4") listeyi
   // şişirir ve hiçbir karar değiştirmez; tek satırda toplanır.
   const tumKategoriler = current.expense_categories || [];
+  const kaymalar = data.kategori_kaymalari || [];
   const kategoriler = (() => {
     const ilk = tumKategoriler.slice(0, 4);
     const kalan = tumKategoriler.slice(4);
@@ -120,6 +121,30 @@ export default function MonthlySummary() {
                 </p>
               )}
             </div>
+          )}
+
+          {/* FEAT-033 (BUG #430): "geçen aya göre" anlatısı + en çok kayan kategoriler.
+              Sayılar backend'den; anlatı deterministik (model yok). Kayma yoksa satır yok. */}
+          {data.anlati && (
+            <p data-testid="ay-anlatisi" className="text-xs text-zinc-700 dark:text-zinc-300 mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              {data.anlati}
+            </p>
+          )}
+          {kaymalar.length > 0 && (
+            <ul data-testid="kategori-kaymalari" className="mt-1.5 space-y-0.5">
+              {kaymalar.map((k) => (
+                <li key={k.category} className="flex items-center gap-2 text-[11px]">
+                  <span className="text-zinc-600 dark:text-zinc-300 w-32 shrink-0 truncate" title={k.category}>{k.category}</span>
+                  <span className={`font-numeric ${k.delta > 0 ? 'text-negative-600 dark:text-negative-400' : 'text-positive-600 dark:text-positive-400'}`}>
+                    {k.delta > 0 ? '+' : '−'}{formatPara(Math.abs(k.delta))}
+                  </span>
+                  <span className="text-zinc-500">
+                    {k.durum === 'yeni' ? 'yeni' : k.durum === 'kayboldu' ? 'bu ay yok'
+                      : k.delta_pct !== null && k.delta_pct !== undefined ? `%${Math.abs(k.delta_pct).toFixed(0)}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </>
       )}

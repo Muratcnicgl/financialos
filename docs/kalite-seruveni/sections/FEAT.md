@@ -265,7 +265,7 @@ observability/FSD/KVKK/i18n) TEKRARLANMADI. Aşağıdakiler yeni yeteneklerdir.
 - **Etki:** Orta · **Efor:** M
 
 ### [FEAT-033] Ay-karşılaştırma otomatik anlatı (MoM)
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: MoM trend var ama kategori kaymalari yok
+- **Durum:** ✅ KAPANDI — BUG #430 (12 Eyl 2026): `monthly-summary` → `kategori_kaymalari` (|fark| desc, tavan 5, eşik 1; durum yeni/kayboldu/artti/azaldi; geçen ay 0 ise `delta_pct` None) + `anlati` (deterministik, sayılardan; bugün dönemin içindeyse "Ayın ilk N günü … kısmi" der; iki ayda gider yoksa None). Koç değil kural üretir — ucuz, tekrarlanabilir, halüsinasyonsuz. `MonthlySummary.jsx` anlatı + kayma listesi. Kapılar: `tests/test_kategori_kaymasi_kapisi.py`, `frontend/src/aylik-ozet-anlati.test.jsx`.
 - **Değer/Fırsat:** "Bu ay geçen aya göre" gelir/gider/net değişim ve kategori kaymalarını otomatik anlatı olarak üretir; salt grafiğin ötesinde yorum.
 - **Kaynak/İlham:** Copilot aylık "recap"; Monarch monthly review.
 - **Nasıl (mimari):** rules_engine iki ay karşılaştırması hesaplar (sayılar), coach açıklar. Aylık rapor (A3) planlı olsa da bu, ay-üstü karşılaştırma yorumu olarak ayrı katman.

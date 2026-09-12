@@ -22,7 +22,7 @@
 > (adlandırılmış eşik) · RULE-033 (`ROUND_HALF_UP`). Bunların **dördü** bu belgenin
 > "HÂLÂ AÇIK" listesinde duruyor.
 >
-> **Kalan 🟡 (4):** RULE-007 · RULE-012 · RULE-029 · RULE-030.
+> **Kalan 🟡 (4):** RULE-007 · RULE-012 · RULE-029 · RULE-030. *(12 Eyl 2026: RULE-029 BUG #237, RULE-030 BUG #432 ile kapandı → kalan 2: RULE-007 · RULE-012.)*
 >
 > **İRONİ KAYDA GEÇSİN:** bu belgenin son bölümü *"bir madde düzeltildiğinde Durum satırını
 > güncelle, böylece backlog bir daha sessizce bayatlamaz"* diye bitiyor. Önlem **tuttu** —

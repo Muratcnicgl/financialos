@@ -10,7 +10,7 @@ from app.database import Base, engine, SessionLocal
 # ── TEST-001 / BUG #381: YIKICI KORUMA — bu betik `drop_all` çağırır ─────────────
 # `engine`, `.env`'deki DATABASE_URL'e (varsayılan `data/financialos.db`, yani CANLI
 # beta verisi) bağlıdır. pytest bu dosyayı toplamaz (`testpaths=["tests"]`), ama
-# `python test_*.py` ya da IDE'de "dosyayı çalıştır" tek adımda gerçek hesapları ve
+# `python -m scripts.smoke.<ad>` ya da IDE'de "dosyayı çalıştır" tek adımda gerçek hesapları ve
 # işlemleri SİLERDİ. Ölçüldü (11 Eyl 2026): üç betikte guard yoktu, backlog 60+ gündür
 # "kısmen" diyordu. Koruma: yalnız bellek-içi DB'de ya da açıkça istenirse koşar.
 import os as _os

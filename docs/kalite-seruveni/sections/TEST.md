@@ -192,7 +192,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [TEST-032] Test isimlendirmesi karışık: kök script vs tests/ pytest aynı ad
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: kok test_*.py tasinmadi
+- **Durum:** ✅ KAPANDI — BUG #431 (12 Eyl 2026): beş kök `test_*.py` `scripts/smoke/<ad>.py` oldu (`test_` öneki düştü; `python -m scripts.smoke.<ad>`). Kökte `test_*.py` kalmaması ve `drop_all` koruması `tests/test_yikici_kok_betik_kapisi.py` ile kilitli; `dev-commands.md` ve kişisel-veri baseline yolları güncellendi.
 - **Kanıt:** kök `test_simulation.py` vs `tests/test_simulation_endpoint.py`; `test_action_executor.py:17` import-time yan etki
 - **Aksiyon:** Kök scriptleri `scripts/smoke/`'a taşı veya sil; kısa vade `testpaths=["tests"]`.
 - **Etki:** Orta · **Efor:** S

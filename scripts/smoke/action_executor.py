@@ -4,13 +4,12 @@ Gercek DB ile (gecici) propose -> execute akisini test eder.
 KRITIK TEST: MC1 emanet hesap satisi REDDEDILMELI.
 """
 
-from datetime import date
 from app.database import Base, engine, SessionLocal
 
 # ── TEST-001 / BUG #381: YIKICI KORUMA — bu betik `drop_all` çağırır ─────────────
 # `engine`, `.env`'deki DATABASE_URL'e (varsayılan `data/financialos.db`, yani CANLI
 # beta verisi) bağlıdır. pytest bu dosyayı toplamaz (`testpaths=["tests"]`), ama
-# `python test_*.py` ya da IDE'de "dosyayı çalıştır" tek adımda gerçek hesapları ve
+# `python -m scripts.smoke.<ad>` ya da IDE'de "dosyayı çalıştır" tek adımda gerçek hesapları ve
 # işlemleri SİLERDİ. Ölçüldü (11 Eyl 2026): üç betikte guard yoktu, backlog 60+ gündür
 # "kısmen" diyordu. Koruma: yalnız bellek-içi DB'de ya da açıkça istenirse koşar.
 import os as _os
@@ -21,7 +20,7 @@ if "memory" not in str(engine.url) and _os.getenv("ALLOW_DESTRUCTIVE_TEST") != "
         "ALLOW_DESTRUCTIVE_TEST=1."
     )
 from app.models import (
-    User, Account, AccountType, MasterCheckpoint, CheckpointType,
+    User, Account, AccountType,
 )
 from app.action_executor import (
     propose_action, execute_pending_action, reject_pending_action,
@@ -76,7 +75,7 @@ db.commit()
 for a in (tly_kisisel, tly_emanet, enpara):
     db.refresh(a)
 
-print(f"\nHazirlik tamam:")
+print("\nHazirlik tamam:")
 print(f"  Murat ID: {murat.id}")
 print(f"  TLY Kisisel ID: {tly_kisisel.id} (lot={tly_kisisel.lot_count}, balance={tly_kisisel.balance})")
 print(f"  TLY EMANET  ID: {tly_emanet.id}  (lot={tly_emanet.lot_count}, balance={tly_emanet.balance}, is_emanet={tly_emanet.is_emanet})")
@@ -135,7 +134,7 @@ print(f"  Pending olusturuldu: id={pending2.id}, status={pending2.status.value}"
 result2 = execute_pending_action(db, pending2.id, murat.id)
 print(f"\n  Sonuc: success={result2['success']}")
 if result2["success"]:
-    print(f"  ⚠️  KRITIK HATA: Emanet hesap satildi! MC1 BOZUK!")
+    print("  ⚠️  KRITIK HATA: Emanet hesap satildi! MC1 BOZUK!")
 else:
     print(f"  ✓ Beklendigi gibi REDDEDILDI: {result2.get('error')}")
 

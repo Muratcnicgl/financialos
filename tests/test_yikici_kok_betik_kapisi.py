@@ -8,16 +8,21 @@ işlem) — bağlı. pytest bu dosyaları toplamıyor (`testpaths=["tests"]`), a
 `python test_coach.py` ya da IDE'de "dosyayı çalıştır" tek adımda her şeyi silerdi.
 Backlog bunu 60+ gündür "kısmen" diye taşıyordu; guard yoktu.
 
-Kilitlenen: kökte `drop_all` çağıran her betik, İLK `drop_all`dan ÖNCE
-`ALLOW_DESTRUCTIVE_TEST` korumasını taşır. Liste elle yazılmaz; kökteki `test_*.py`
-dosyaları taranır (L79). Kapının kendisi de sınanır: koruma silinmiş sentetik bir
-kaynak KIRMIZI vermeli.
+Kilitlenen: `drop_all` çağıran her duman betiği, İLK `drop_all`dan ÖNCE
+`ALLOW_DESTRUCTIVE_TEST` korumasını taşır. Liste elle yazılmaz; `scripts/smoke/*.py`
+taranır (L79). Kapının kendisi de sınanır: koruma silinmiş sentetik bir kaynak KIRMIZI
+vermeli.
+
+TEST-032 / BUG #431 (12 Eyl 2026): betikler kökten `scripts/smoke/`ya taşındı — kökteki
+`test_simulation.py` ile `tests/test_simulation_endpoint.py` aynı adı taşıyor, IDE'ler
+kök betikleri test sanıp topluyordu. Kökte `test_*.py` kalmaması da burada kilitli.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
 KOK = Path(__file__).resolve().parent.parent
+SMOKE = KOK / "scripts" / "smoke"
 KORUMA = "ALLOW_DESTRUCTIVE_TEST"
 
 
@@ -30,12 +35,23 @@ def _korumasiz_drop_all(kaynak: str) -> bool:
 
 
 def _kok_betikler() -> list[Path]:
-    return sorted(p for p in KOK.glob("test_*.py") if p.is_file())
+    return sorted(p for p in SMOKE.glob("*.py") if p.is_file() and p.name != "__init__.py")
 
 
-def test_kokteki_drop_all_cagiran_her_betik_KORUNUR():
+def test_kokte_test_betigi_KALMADI():
+    """TEST-032: kök `test_*.py` = IDE'nin test sandığı, pytest'in toplamadığı betik. Sıfır olmalı."""
+    kalan = sorted(p.name for p in KOK.glob("test_*.py"))
+    assert kalan == [], f"kökte test_*.py var: {kalan} — duman betiğiyse scripts/smoke/ altına taşı"
+
+
+def test_smoke_betikleri_modul_olarak_kosulabilir():
+    """`python -m scripts.smoke.<ad>` çalışsın diye paket işaretli olmalı."""
+    assert (SMOKE / "__init__.py").exists()
+
+
+def test_drop_all_cagiran_her_duman_betigi_KORUNUR():
     betikler = _kok_betikler()
-    assert betikler, "kökte test_*.py yok — kapı boş kümede yeşil olmasın (L45)"
+    assert betikler, "scripts/smoke boş — kapı boş kümede yeşil olmasın (L45)"
     korumasiz = [p.name for p in betikler
                  if _korumasiz_drop_all(p.read_text(encoding="utf-8", errors="replace"))]
     assert korumasiz == [], (

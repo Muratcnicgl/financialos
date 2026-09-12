@@ -46,7 +46,7 @@ reel = apply_shadow_accounting(
     card_debt=11822.66,
 )
 print(f"   Nakit + Beklenen - Kart Borcu = {reel:,.2f} TL")
-print(f"   (4.812 + 8.458 - 11.822,66 = 1.447,34 olmali)")
+print("   (4.812 + 8.458 - 11.822,66 = 1.447,34 olmali)")
 
 # Test 4: Günlük limit
 print("\n[4] Gunluk limit:")

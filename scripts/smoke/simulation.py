@@ -7,8 +7,8 @@ Senaryo motoru testi.
 3. "Hicbir sey yapmazsam (baseline)" -> 30 gun sonra durum (Efe'den 10.250 TL gelsin,
    maas gelsin, 2 kredi taksiti dussun)
 
-Gercek DB bozulmaz. Test sonunda DB'yi sifirlamiyoruz cunku zaten
-read-only. Murat'in test_coach.py ile olusturdugu DB uzerinden calisabilir.
+DIKKAT: baslangicta drop_all + ornek veri kurar (BUG #381 korumasi asagida);
+`scripts.smoke.coach` ile ayni ornek veriyi kullanir. Kosum: python -m scripts.smoke.simulation
 """
 
 from datetime import date
@@ -17,7 +17,7 @@ from app.database import Base, engine, SessionLocal
 # ── TEST-001 / BUG #381: YIKICI KORUMA — bu betik `drop_all` çağırır ─────────────
 # `engine`, `.env`'deki DATABASE_URL'e (varsayılan `data/financialos.db`, yani CANLI
 # beta verisi) bağlıdır. pytest bu dosyayı toplamaz (`testpaths=["tests"]`), ama
-# `python test_*.py` ya da IDE'de "dosyayı çalıştır" tek adımda gerçek hesapları ve
+# `python -m scripts.smoke.<ad>` ya da IDE'de "dosyayı çalıştır" tek adımda gerçek hesapları ve
 # işlemleri SİLERDİ. Ölçüldü (11 Eyl 2026): üç betikte guard yoktu, backlog 60+ gündür
 # "kısmen" diyordu. Koruma: yalnız bellek-içi DB'de ya da açıkça istenirse koşar.
 import os as _os
@@ -29,7 +29,7 @@ if "memory" not in str(engine.url) and _os.getenv("ALLOW_DESTRUCTIVE_TEST") != "
     )
 from app.models import (
     User, Account, AccountType, RecurringIncome,
-    PersonalDebt, DebtDirection, MasterCheckpoint, CheckpointType,
+    PersonalDebt, DebtDirection,
 )
 from app.simulation_engine import simulate_action
 

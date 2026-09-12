@@ -28,14 +28,14 @@ npm run build                          # üretim build'i frontend/dist
 
 **GÜNCEL (M87, Wave-6):** Aşağıdaki eski not artık YANLIŞ. `tests/` olgun bir **pytest** süiti (5 Eyl 2026'da **3.560 test**,
 in-memory SQLite + FakeProvider + hypothesis + Playwright e2e). Ana komut: `.\venv\Scripts\python.exe -m pytest tests/ -q`.
-Kök `test_*.py` scriptleri tarihsel/manuel araçlardır (pytest `testpaths=["tests"]` ile toplanmaz). Aşağısı o eski manuel scriptlerin tarihsel notudur:
+Elle koşulan duman betikleri `scripts/smoke/` altındadır (TEST-032: kökteki `test_*.py` adları `tests/` ile çakışıyor ve IDE'ler onları test sanıyordu; pytest toplamaz). Modül olarak koşulur:
 
 ```powershell
-python test_coach.py                   # gerçek LLM çağrısı, .env'deki API key gerekli
-python test_rules.py
-python test_simulation.py
-python test_action_executor.py
-python test_fund_tracker.py
+python -m scripts.smoke.coach            # gerçek LLM çağrısı, .env'deki API key gerekli
+python -m scripts.smoke.rules
+python -m scripts.smoke.simulation       # drop_all çağırır → canlı DB'de reddeder (ALLOW_DESTRUCTIVE_TEST=1 ile bilinçli)
+python -m scripts.smoke.action_executor  # drop_all çağırır (aynı koruma)
+python -m scripts.smoke.fund_tracker
 ```
 
 Tek bir test fonksiyonu çalıştırma kavramı yok — her dosya `__main__` gibi başından sonuna akar. Bir senaryoyu izole etmek için ilgili dosyayı düzenleyip alt bölümleri yorumlamak gerekir.

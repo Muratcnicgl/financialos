@@ -38,5 +38,9 @@ scripts/defter_senkron_raporu.py
 scripts/install-hooks.sh
 # (c) Test/prova araçları: şema yaratır/düşürür, prod imajında gereksiz yüzey.
 scripts/test_fresh_db_migration.py
+# Elle koşulan duman betikleri (TEST-032 / BUG #431): kökteyken imaj dışıydılar (COPY
+# yalnız app/ scripts/ vb.); scripts/ altına taşınınca iki kapı birden yakaladı — kurucu
+# adı/banka adı (KVKK) ve üçünde `drop_all`. Prod'da işlevleri yok.
+scripts/smoke/
 scripts/pg_gate_run.py
 scripts/prod_rehearsal.py

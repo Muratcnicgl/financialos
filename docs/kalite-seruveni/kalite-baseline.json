@@ -10,7 +10,7 @@
   "olcum_komutu": "ruff check . --no-cache --output-format concise  (aileye göre sayım)",
   "tavan": {
     "E9": 0,
-    "F": 198,
+    "F": 190,
     "B": 31,
     "S": 60
   },
@@ -27,6 +27,7 @@
     "DTZ ailesi (212 bulgu) dışarıda: projede DB datetime alanları BİLİNÇLİ olarak timezone-naive UTC (PROJE.md). Kural burada projenin yazılı kararına karşı çıkıyor.",
     "Biçimlendirme (ruff format) ve I001/UP aileleri dışarıda: sinyal yok, 403 dosyalık diff var. Toplu biçimlendirme gerçek değişikliği gizler — seen-backend bunu kendi baseline notunda yazılı olarak yasaklamış.",
     "B 32 -> 31 ve F 203 -> 202 (2 Eyl 2026): CI kirmizi dondu ve iki gerileme cikti. (a) F541 x2 — yeni yazilan koc baglam blogunda placeholder'siz f-string; `f` oneki kaldirildi. (b) B023 — `siz_hitabi_onar` icindeki `_degistir` kapanisi dongu degiskenini baglamiyordu. BUGUN ZARARSIZDI (kapanis ayni iterasyonda hemen cagriliyor) ama desen bir tuzak: fonksiyon bir gun donguden cikarsa hepsi SON degeri gorur ve hata sessiz olur. Tavani yukseltmek yerine varsayilan argumanla baglandi — bir ratchet kapisina dogru cevap cogu zaman tavani yukseltmek degil, ihtiyaci ortadan kaldirmaktir.",
-    "S 62 -> 60 (BUG #384, 11 Eyl 2026): `scripts/sir_taramasi.py` indeks tarama modu (`--staged`) iki yeni `git` cagrisi getirecekti (+3 S). Tavani yukseltmek yerine dosyadaki BES `subprocess.run([\"git\", ...])` noktasi tek `_git()` yardimcisina indirildi; bir noqa, bes cagri. Ayni desenin dorduncu tekrari (#310, #311) — bu kez sayi dustu."
+    "S 62 -> 60 (BUG #384, 11 Eyl 2026): `scripts/sir_taramasi.py` indeks tarama modu (`--staged`) iki yeni `git` cagrisi getirecekti (+3 S). Tavani yukseltmek yerine dosyadaki BES `subprocess.run([\"git\", ...])` noktasi tek `_git()` yardimcisina indirildi; bir noqa, bes cagri. Ayni desenin dorduncu tekrari (#310, #311) — bu kez sayi dustu.",
+    "F 198 -> 190 (BUG #431 / TEST-032, 12 Eyl 2026): kök `test_*.py` duman betikleri `scripts/smoke/` altına taşınırken 5 kullanılmayan import + 3 yer-tutucusuz f-string temizlendi (ruff --fix, davranış değişmedi). Kazanım kilidi."
   ]
 }

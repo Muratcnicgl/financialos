@@ -178,7 +178,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-030] Coach yanıtı tam finansal snapshot'ı geniş döndürüyor
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: coach cockpit_snapshot döndürüyor, alan daraltma yok (coach.py:371)
+- **Durum:** ✅ KAPANDI — BUG #435 (12 Eyl 2026): daraltma API sınırında (`routers/coach.py::_snapshot_daralt`): yanıt yalnız `accounts[].{id,ad,tip}` taşır — istemcinin okuduğu tek şey (PendingActions hesap adı çevirisi). Bakiyeler, uyarılar, alacak karşı tarafları ve `_coach_extra_numbers` gibi iç alanlar artık sohbet yanıtında yok; tam kokpit `/api/cockpit`'te. Motorun kendi dict'i (eval, grounding, RESIL-004 sözleşmesi) değişmedi. "Varsayılanı kapat" yerine daraltma seçildi: alan adı ve tipi korunduğu için sözleşme imzası aynı, istemci kırılmaz. Kapı: `tests/test_koc_snapshot_daraltma_kapisi.py`.
 - **Kanıt:** `routers/coach.py:73-78`
 - **Aksiyon:** Snapshot varsayılanı kapat (frontend zaten `/api/cockpit` çağırıyor); alanları daralt. (OWASP API3)
 - **Etki:** Düşük · **Efor:** S

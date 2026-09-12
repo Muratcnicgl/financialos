@@ -97,6 +97,21 @@ class UsageInfo(BaseModel):
     user_daily_limit: int = 0
 
 
+# SEC-030 (BUG #435): sohbet yanıtındaki kokpit kopyası istemcinin OKUDUĞU kadar daralır.
+# Ölçülen (12 Eyl 2026): motor dict'i olduğu gibi gidiyordu — tüm bakiyeler, uyarılar, alacak
+# karşı tarafları ve `_coach_extra_numbers` gibi iç alanlar; istemci yalnız `accounts[].id/ad`
+# okuyordu (PendingActions hesap adı çevirisi). Motorun kendi dict'i (eval, grounding) değişmez;
+# daraltma API sınırında yapılır.
+SNAPSHOT_HESAP_ALANLARI = ("id", "ad", "tip")
+
+
+def _snapshot_daralt(snapshot: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not snapshot:
+        return None
+    hesaplar = snapshot.get("accounts") or []
+    return {"accounts": [{k: h.get(k) for k in SNAPSHOT_HESAP_ALANLARI} for h in hesaplar]}
+
+
 class ChatResponse(BaseModel):
     reply: str
     proposed_actions: List[ProposedActionOut]
@@ -396,8 +411,9 @@ def chat(
     Cevap:
     - reply: Koc'un metin cevabi (rapor veya kisa bilgi)
     - proposed_actions: Koc bir aksiyon onerdiyse (sattim/odedim/aldim) burada gelir
-    - cockpit_snapshot: O an alinan cockpit snapshot'i (frontend zaten yine /api/cockpit
-      cagirsa da bunun anlik kopyasi audit icin kullanisli)
+    - cockpit_snapshot: DARALTILMIS anlik kopya (SEC-030 / BUG #435): yalniz hesap
+      kimlikleri (id/ad/tip). Istemci onu aksiyon ozetinde hesap adi cevirisi icin okur;
+      tam kokpit /api/cockpit'tedir, sohbet yanitinda ikinci kez yayinlanmaz (OWASP API3).
     - usage: Gunluk Gemini limit kullanim orani (rate limit uyarisi icin)
     """
     engine = _get_engine()
@@ -500,7 +516,7 @@ def chat(
         proposed_actions=[
             ProposedActionOut(**pa) for pa in (result.get("proposed_actions") or [])
         ],
-        cockpit_snapshot=result.get("cockpit_snapshot"),
+        cockpit_snapshot=_snapshot_daralt(result.get("cockpit_snapshot")),
         usage=post_usage,
         coach_memory_id=result.get("coach_memory_id"),
         llm_kullanilamadi=bool(result.get("llm_kullanilamadi", False)),

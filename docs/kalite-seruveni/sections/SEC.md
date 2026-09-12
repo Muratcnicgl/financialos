@@ -210,7 +210,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [SEC-034] Dış LLM'e tam finansal bağlam gidiyor — KVKK yurt dışı aktarım
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: Ollama offline var ama default dış LLM'e tam cockpit
+- **Durum:** ⛔ YAPILMAYACAK (maskeleme) · ✅ KAPANDI (KVKK m.9 değerlendirmesi) — 13 Eyl 2026 ölçümü: `docs/legal/kvkk-consent-v4.md` §4 aktarımı **açık rızayla** ve **tam listeyle** beyan ediyor (hesap adları, ham işlem açıklaması, **karşı tarafın adı**, sohbet geçmişi); üçüncü-kişi verisinin sorumluluğunu ve takma ad/baş harf seçeneğini kullanıcıya söylüyor; koçu kullanmama ve **Ollama ile hiç dışarı çıkmama** yolları var (m.9 açık rıza istisnası + m.11 hakları). Kalan "karşı taraf adını maskele" bilinçli olarak yapılmadı: koçun asıl işlerinden biri "Ali borcunu ödedi mi / kimden tahsil edeyim" (`en_riskli` → "X'den Y tahsil et"); ad maskelenince öneri kullanıcı için okunmaz olur, kural motoru zaten adı gösteriyor. Bağlam boyutu ayrıca BUG #435 ile daraltıldı (sohbet YANITI). Fikir değişirse tek nokta: `coach.py:938/1210` `_guvenli(kim)`.
 - **Kanıt:** `app/coach.py:1083-1086`; tüm sağlayıcılara cockpit
 - **Aksiyon:** KVKK m.9 değerlendir; gönderilen bağlamı minimize et; karşı taraf isimlerini (alacaklar — hassas) anonimleştir/maskele.
 - **Etki:** Orta · **Efor:** M

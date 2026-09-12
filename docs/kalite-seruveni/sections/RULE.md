@@ -48,7 +48,7 @@
 - **Not:** `round(2.675,2)` → 2.67 (beklenen 2.68). [Real Python — Rounding]
 
 ### [RULE-007] "FIFO lot" aslında yok — tek `cost_per_lot` = ağırlıklı ortalama
-- **Durum:** 🟡 ERTELENDİ (M83 R3) — FIFO lot InvestmentTransaction gerektirir (ADR-019 multi-asset Wave-3). Ağırlıklı-ortalama ADR-015'te belgeli simplifikasyon. Kapsam-dışı iç-sağlamlaştırma.
+- **Durum:** ✅ KAPANDI ("netleştir" dalı) — BUG #437 (13 Eyl 2026): ürün kodunda FIFO iddiası yoktu (ölçüldü: 0 eşleşme) ama etiket esası söylemiyordu. Görünüm+form etiketi "Ort. maliyet/lot", form ipucu "ağırlıklı ortalama … (lot bazlı FIFO değil)" (`aria-describedby`), `simulate_partial_sale` docstring'i tahmin olduğunu ve aracı kurumun FIFO uyguladığını söyler. Gerçek lot defteri ADR-019 Wave-3 (ayrı madde açılır). Kapı: `frontend/src/maliyet-esasi-etiketi.test.jsx` (ürün kodunda FIFO yalnız "değil" bağlamında).
 - **Sorun:** `simulate_partial_sale` ve model tek `cost_per_lot` tutar; farklı fiyatlı lotlar tek ortalamaya çökertilir. FIFO değil weighted-average. K/Z ve stopaj matrahı FIFO'dan farklı.
 - **Kanıt:** `app/rules_engine.py:257-298`; `app/models.py:171` `cost_per_lot = Column(Float)`
 - **Aksiyon:** Gerçek lot bazlı maliyet gerekiyorsa "lot ledger" tablosu; aksi halde "ağırlıklı ortalama maliyet" olarak netleştir, yanıltıcı "FIFO" iddiasını kaldır.

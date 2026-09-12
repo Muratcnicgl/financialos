@@ -403,6 +403,10 @@ def simulate_partial_sale(
 
     Örnek: 4 lot × 4.929,56 TL = 19.718,24 TL satış tutarı (gerçek kullanım verisi).
 
+    RULE-007 (BUG #437): `cost_per_lot` AĞIRLIKLI ORTALAMA maliyettir (ADR-015); lot defteri
+    yok, FIFO uygulanmaz. Farklı fiyattan alınmış lotlarda gerçek stopaj matrahı (aracı kurum
+    FIFO uygular) buradan sapar — bu bir TAHMİNDİR; arayüz etiketi de bunu söyler.
+
     Returns:
         satis_tutari, kalan_lot, kalan_deger, satis_maliyeti, brut_kar, stopaj, net_kar
     """

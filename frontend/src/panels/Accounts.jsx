@@ -350,7 +350,9 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
           )}
           {a.cost_per_lot != null && (
             <div className="flex justify-between">
-              <span>Maliyet/lot</span>
+              {/* RULE-007 (BUG #437): tek maliyet = AĞIRLIKLI ORTALAMA; lot defteri yok.
+                  Etiket bunu söyler ki kâr/stopaj tahmini lot bazlı sanılmasın. */}
+              <span>Ort. maliyet/lot</span>
               <span className="font-numeric">{formatPara(a.cost_per_lot)}</span>
             </div>
           )}
@@ -554,8 +556,12 @@ function AccountFormModal({ account, onClose, onSave }) {
                 <input type="text" value={lotCount} onChange={(e) => setLotCount(e.target.value)} className="input font-numeric" placeholder="6" />
               </div>
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Maliyet/lot</label>
-                <input type="text" value={costPerLot} onChange={(e) => setCostPerLot(e.target.value)} className="input font-numeric" placeholder="4125" />
+                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ort. maliyet/lot</label>
+                <input type="text" value={costPerLot} onChange={(e) => setCostPerLot(e.target.value)} className="input font-numeric" placeholder="4125"
+                       aria-describedby="maliyet-ipucu" />
+                <p id="maliyet-ipucu" className="text-[11px] text-zinc-500 mt-1">
+                  Farklı fiyattan alımların ağırlıklı ortalaması. Kâr ve stopaj tahmini bu ortalamayla hesaplanır (lot bazlı FIFO değil).
+                </p>
               </div>
               <div>
                 <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Güncel fiyat</label>

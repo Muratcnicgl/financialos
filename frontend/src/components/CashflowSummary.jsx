@@ -3,7 +3,11 @@ import { formatDate } from '../api.js';
 import { formatPara, formatSayi } from '../lib/money.js';
 
 export default function CashflowSummary({ summary }) {
-  const { lowest_balance, lowest_date, total_receivable, total_payable, net_flow, crunch_count, opening_balance } = summary;
+  const { lowest_balance, lowest_date, total_receivable, total_payable, net_flow, crunch_count, opening_balance,
+          kalan_kart_limiti } = summary;
+  // RULE-030 (BUG #432): projeksiyon yalnız nakit hesapları izler; kart limiti bakiyeye
+  // eklenmez ama kullanıcı "nakit biterse kart var mı" sorusunu görebilmeli — borç olduğu söylenerek.
+  const kartTamponuVar = Number.isFinite(kalan_kart_limiti);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -15,6 +19,9 @@ export default function CashflowSummary({ summary }) {
         </div>
         <p className="font-numeric font-bold text-lg text-zinc-900 dark:text-zinc-50">
           {formatPara(opening_balance)}
+        </p>
+        <p data-testid="kapsam-notu" className="text-xs text-zinc-500 mt-0.5">
+          Yalnız nakit hesaplar{kartTamponuVar ? ` · kalan kart limiti ${formatPara(kalan_kart_limiti)} (borç, dahil değil)` : ''}
         </p>
       </div>
 
@@ -61,7 +68,9 @@ export default function CashflowSummary({ summary }) {
           {crunch_count}
         </p>
         <p className="text-xs text-zinc-500 mt-0.5">
-          {crunch_count === 0 ? 'Eşik aşılmıyor' : 'Bakiye eşik altında'}
+          {crunch_count === 0 ? 'Nakit eşik altına inmiyor'
+            : kartTamponuVar && kalan_kart_limiti > 0 ? 'Nakit eşik altında · kart köprü olabilir (borçlanarak)'
+            : 'Nakit eşik altında'}
         </p>
       </div>
     </div>

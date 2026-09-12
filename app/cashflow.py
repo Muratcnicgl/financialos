@@ -299,6 +299,10 @@ def generate_forecast(
     if account_id is not None:
         cash_q = cash_q.filter(Account.id == account_id)
     opening_balance = sum((D(acc.balance) for acc in cash_q.all()), ZERO)  # ADR-030: Decimal (float/Decimal dayanıklı)
+    # RULE-030 (BUG #432): projeksiyon YALNIZ nakit hesapları izler; kart döngüsü modelde yok.
+    # "Kriz yok" hükmü nakit üzerindendir. Kalan kart limiti ayrıca raporlanır ki arayüz kapsamı
+    # söyleyebilsin ("nakit biterse kart köprü olabilir — ama bu borçtur"); bakiyeye EKLENMEZ.
+    kalan_kart_limiti = _kalan_kart_limiti(db, user_id) if account_id is None else None
 
     # --- Olayları topla ---
     all_events: list[ForecastEvent] = []
@@ -392,6 +396,25 @@ def generate_forecast(
             "crunch_count": len(crunch_dates),
             "crunch_dates": crunch_dates,
             "opening_balance": round(opening_balance, 2),
+            # RULE-030 (BUG #432): kapsam beyanı + kart tamponu (borç; bakiyeye dahil DEĞİL)
+            "kapsam": "nakit",
+            "kalan_kart_limiti": kalan_kart_limiti,
         },
         "sankey": _build_sankey(all_events),
     }
+
+
+def _kalan_kart_limiti(db: Session, user_id: int) -> Optional[float]:
+    """RULE-030 (BUG #432): kredi kartlarının kullanılabilir limiti (Σ max(0, limit − borç)).
+
+    Limiti tanımlı kart yoksa None — sıfır "limit yok" demek değildir (L45). Kart bakiyesi
+    BORÇ olarak pozitif tutulur (`kart_kullanim` ile aynı okuma); limiti aşan kart 0 katkı verir.
+    """
+    kartlar = db.query(Account).filter(
+        _scope(Account, user_id),
+        Account.account_type == AccountType.credit_card,
+    ).all()
+    limitli = [k for k in kartlar if k.credit_limit is not None and D(k.credit_limit) > ZERO]
+    if not limitli:
+        return None
+    return round(sum((max(ZERO, D(k.credit_limit) - D(k.balance or 0)) for k in limitli), ZERO), 2)

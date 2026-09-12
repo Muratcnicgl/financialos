@@ -565,6 +565,8 @@
     "summary": {
       "crunch_count": 0,
       "crunch_dates": [],
+      "kalan_kart_limiti": null,
+      "kapsam": "nakit",
       "lowest_balance": 0.0,
       "lowest_date": "2026-01-02",
       "net_flow": 0.0,

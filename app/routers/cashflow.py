@@ -74,6 +74,9 @@ class ForecastSummary(BaseModel):
     crunch_count: int
     crunch_dates: List[str]
     opening_balance: float
+    # RULE-030 (BUG #432): projeksiyon yalnız nakit; kart tamponu ayrı (borç, bakiyeye dahil değil)
+    kapsam: str = "nakit"
+    kalan_kart_limiti: Optional[float] = None
 
 
 class ForecastResponse(BaseModel):

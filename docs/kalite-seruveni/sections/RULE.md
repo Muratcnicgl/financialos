@@ -212,7 +212,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [RULE-030] Forecast `closing_balance` yalnızca nakit — "kriz" tespiti borç/kartı yok sayıyor
-- **Durum:** 🟡 KISMEN — M76 kod-doğrulaması: kredi taksitleri dahil (BUG #058) ama kredi KARTI döngüsü kapsam dışı (cashflow.py:290)
+- **Durum:** ✅ KAPANDI — BUG #432 (12 Eyl 2026): kart döngüsünü modele katmak yerine kapsam AÇIKÇA beyan edildi: `summary.kapsam="nakit"` + `summary.kalan_kart_limiti` (Σ max(0, limit−borç); limitli kart yoksa `null`). Arayüz "Yalnız nakit hesaplar · kalan kart limiti X (borç, dahil değil)" der; sıkışma varken "kart köprü olabilir (borçlanarak)". Kart limiti bakiyeye EKLENMEZ — borçtur. Kapılar: `tests/test_tahmin_kapsami_kapisi.py`, `frontend/src/tahmin-kapsami.test.jsx`.
 - **Sorun:** `opening_balance` yalnız cash; crunch sadece nakit üzerinden. Kart %99.8 doluyken nakit pozitifse "kriz yok" der.
 - **Kanıt:** `app/cashflow.py:261-267, 333`
 - **Aksiyon:** Kapsamı UI'da netleştir; "kullanılabilir likidite = nakit + kalan kart limiti" metriği.

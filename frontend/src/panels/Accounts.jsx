@@ -73,7 +73,10 @@ export default function Accounts() {
       await accountsApi.delete(id);
       setConfirmingDelete(null);
       handleRefresh();
-    } catch (e) { toast.error(`Hesap silinemedi: ${e.message}`); }
+    } catch (e) {
+      toast.error(`Hesap silinemedi: ${e.message}`);
+      throw e;   // UX-030 (BUG #434): pencere de sebebi (409: "N işlem ve M düzenli gider bağlı") göstersin
+    }
   };
 
   // ============================================================
@@ -655,8 +658,12 @@ function ConfirmDeleteModal({ account, onClose, onConfirm }) {
           <p className="font-semibold text-negative-700 dark:text-negative-300 mb-1">
             {account.name}
           </p>
+          {/* UX-030 (BUG #434): eski metin bağlı işlemlerin de gideceğini söylüyordu — yanlıştı.
+              Sunucu bağlı işlem/düzenli gider varsa silmeyi REDDEDER (409, sayılarıyla);
+              hiçbir işlem sessizce gitmez. Metin sunucunun gerçek davranışını söyler. */}
           <p className="text-zinc-700 dark:text-zinc-300">
-            Bu hesap ve bağlı işlemler silinecek. Bu işlem geri alınamaz.
+            Hesap silinir; bu işlem geri alınamaz. Bağlı işlem ya da düzenli gider varsa
+            silinmez — sunucu kaç kayıt bağlı olduğunu söyler; önce onları taşı ya da sil.
           </p>
         </div>
       </div>

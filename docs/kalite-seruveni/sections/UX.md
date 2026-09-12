@@ -190,7 +190,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-030] Hesap silme uyarısı sayı vermiyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: silme uyarısı bağlı işlem sayısı vermiyor
+- **Durum:** ✅ KAPANDI — BUG #434 (12 Eyl 2026): maddenin öncülü ölçümle çürüdü — sunucu bağlı işlem/düzenli gider varsa silmeyi zaten REDDEDİYOR (409, "N işlem ve M düzenli gider bağlı"); kaskad yok. Yanlış olan arayüz metniydi ("bağlı işlemler silinecek" — olmayan bir kaskadla korkutup 409 alıyordu). Metin sunucunun davranışını söyler; üst bileşen hatayı pencereye de düşürür. Kapılar: `tests/test_hesap_silme_reddi_kapisi.py`, `frontend/src/hesap-silme-metni.test.jsx`.
 - **Kanıt:** `Accounts.jsx:608`
 - **Aksiyon:** "Bu hesaba bağlı 47 işlem de silinecek" (bilinçli karar).
 - **Etki:** Düşük · **Efor:** S

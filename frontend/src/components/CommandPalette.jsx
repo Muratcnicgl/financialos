@@ -89,7 +89,7 @@ export default function CommandPalette({ onClose, setActiveTab, basit = false, o
             onKeyDown={handleKeyDown}
             placeholder="Komut ara..."
             aria-label="Komut ara"
-            className="flex-1 bg-transparent outline-none text-sm placeholder-zinc-400 min-h-0"
+            className="flex-1 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded text-sm placeholder-zinc-400 min-h-0"
           />
           <button type="button" onClick={onClose} aria-label="Kapat" className="btn btn-ghost btn-icon !p-1 text-zinc-500 dark:text-zinc-400">
             <X className="w-3.5 h-3.5" />

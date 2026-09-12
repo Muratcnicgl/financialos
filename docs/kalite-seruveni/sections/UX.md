@@ -252,10 +252,12 @@
 ### [UX-040] Erişilebilirlik: dokunma hedefi, kontrast, klavye odağı zayıf
 - **Durum:** 🟡 KISMEN (BUG #265 / ADR-047, 7 Ağu 2026) — **dokunma hedefi ve kontrast KAPANDI ve
   ölçülüyor**: 390px'te her panel × her tema render edilir, hedef ≥44px (iki yazılı istisna) ve
-  metin kontrastı ≥3:1 (`frontend/e2e/tema-mobil.spec.js`, mutasyon 3/3). **Açık kalan iki ayak,
-  dürüst kayıt:** (a) eşik 3:1 — WCAG AA'nın *büyük metin* sınırı; gövde metni için 4.5 hedefi
-  ayrı iştir (bugünkü tabanda ikincil metinlerin bir kısmı 3–4.5 aralığında), (b) renk-only durum
-  göstergeleri ve `focus-visible` halkaları hâlâ ölçülmüyor.
+  metin kontrastı ≥3:1 (`frontend/e2e/tema-mobil.spec.js`, mutasyon 3/3). **Renk-only** BUG #397
+  (A11Y-004 kapısı) ile, **odak halkası** BUG #433 (12 Eyl 2026) ile kapandı: `.btn`/`.sekme`
+  `focus-visible:ring-2` (fareyle tıklayan halkayla kalmaz), `.input` `focus:ring-2`; JSX'te
+  `outline-none` yalnız `tabIndex={-1}` diyalog kabında ya da ring varyantıyla — komut paleti
+  girdisi görünür odaksızdı, düzeltildi (`a11y-odak-halkasi.test.jsx`). **Açık kalan tek ayak:**
+  kontrast eşiği 3:1 — WCAG AA gövde metni için 4.5 hedefi ayrı iştir (A11Y-005).
 - **Kanıt:** `Transactions.jsx:482-487` (`!p-1`), `Cockpit.jsx:391` (`text-[9px]`), renk-only işaretler
 - **Aksiyon:** Min 44px, min 11px metin, durum göstergelerine ikon+renk, `focus-visible` halkaları.
 - **Etki:** Orta · **Efor:** M

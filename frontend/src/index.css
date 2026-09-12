@@ -105,10 +105,14 @@
 
   /* Sekme çubuğu — alt-çizgi yerine hap (pill). Alt çizgi 13 sekmede bir "cetvel"
      görüntüsü veriyordu; hap, aktif sekmeyi yatay kaydırmada da tek bakışta bulur. */
+  /* UX-040 (BUG #433): odak halkası `focus-visible` — klavyeyle gelen görür, fareyle
+     tıklayan tıkladıktan sonra halkayla kalmaz (tarayıcı sezgisi). Girdilerde (.input)
+     `focus` kalır: metin kutusuna fareyle de girilse halka beklenir. Ölçen kapı:
+     a11y-odak-halkasi.test.jsx. */
   .sekme {
     @apply inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-xl
            text-sm font-medium whitespace-nowrap transition-colors duration-150
-           focus:outline-none focus:ring-2 focus:ring-brand-500;
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500;
   }
   .sekme-aktif {
     @apply bg-brand-600 text-white;
@@ -188,7 +192,7 @@
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl
            font-medium text-sm transition-colors duration-150
-           focus:outline-none focus:ring-2 focus:ring-offset-2
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
            active:translate-y-px
            disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0
            min-h-[44px];

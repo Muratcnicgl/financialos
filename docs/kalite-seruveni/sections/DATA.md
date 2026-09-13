@@ -124,7 +124,7 @@
 - **Durum:** POST /api/transactions artık HER create'te (yalnız quick-text değil) varsayılan hesaba düşer (kart-gideri→kart, aksi→nakit); yine de account_id çözülemezse **400** ("yetim"/bakiyesiz işlem oluşmaz). Eskiden nakit hesabı olmayan kullanıcının hesapsız işlemi sessizce bakiyeye dokunmadan yazılıyordu. Model nullable korunur (goal-rule eşleşmesi + iç akışlar için) — enforcement API katmanında. 3 test (hesapsız→400, otomatik-atama→201+bakiye düşer, geçersiz→404). Not: model-seviyesi CHECK/Alembic migrasyon gerektirir (proje create_all, ertelendi).
 
 ### [DATA-019] `CoachInsight.status` nullable=True ama default var — üç-değerli mantık kirliliği
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: CoachInsight.status nullable=True + default active (models.py:526)
+- **Durum:** ✅ KAPANDI — BUG #445 (13 Eyl 2026): NOT NULL'a çevirmek SQLite'ta tablo yeniden kurulumu ister (bilinçli kaçınıldı); kural ORM `before_flush`'ta (`app/butunluk.py`): var olan satırda NULL yasak, değer kümesi `active | invalidated | dormant | user_invalidated` (dördüncüsü belgeli, yazıcısı yok), yeni nesnede None = sütun varsayılanı. Canlı: 39/39 dolu (active 14, dormant 25). Kapı: `tests/test_butunluk_kurallari_kapisi.py`.
 - **Kanıt:** `app/models.py:432`
 - **Aksiyon:** `nullable=False, server_default="active"`, NULL'ları backfill.
 - **Etki:** Düşük · **Efor:** S

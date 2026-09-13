@@ -77,3 +77,22 @@ def test_dedup_anahtari_bicimi(s, ym, gecer):
 def test_kanca_uygulamada_bagli():
     src = (__import__("pathlib").Path(__file__).resolve().parents[1] / "app" / "main.py").read_text(encoding="utf-8")
     assert "from app import butunluk" in src
+
+
+def test_icgoru_durumu_ucuncu_deger_olamaz(s):
+    """DATA-019: sütun nullable ama NULL bir durum değildir; yeni nesnede None = varsayılan."""
+    from app.models import CoachInsight
+    i = CoachInsight(user_id=1, insight_type="pattern", title="t", content="c")
+    s.add(i); s.commit()
+    assert i.status == "active", "INSERT'te sütun varsayılanı yazılmalı"
+    i.status = None
+    with pytest.raises(butunluk.ButunlukHatasi, match="NULL üçüncü durum değildir"):
+        s.commit()
+    s.rollback()
+    i = s.query(CoachInsight).one()
+    i.status = "bilinmeyen"
+    with pytest.raises(butunluk.ButunlukHatasi):
+        s.commit()
+    s.rollback()
+    i = s.query(CoachInsight).one()
+    i.status = "dormant"; s.commit()

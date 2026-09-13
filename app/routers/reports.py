@@ -32,7 +32,7 @@ from app.workspace_deps import active_workspace_id, scope_filter  # M43
 from app.models import (
     Transaction, TransactionType, User, NetWorthSnapshot,
     Account, AccountType, PersonalDebt, DebtDirection,
-    RecurringIncome, RecurringExpense,
+    RecurringIncome, RecurringExpense, PriceHistory, PriceSource,
 )
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -162,6 +162,50 @@ def net_worth_trend(
         for r in rows
     ]
     return {"items": items, "days": days}
+
+
+# Kaynak önceliği (models.PriceSource docstring'i ile aynı): manual > tefas > yfinance > isyatirim.
+# Aynı günde birden fazla kaynak varsa en öncelikli olan tek satır çizilir.
+_KAYNAK_SIRASI = {PriceSource.MANUAL: 1, PriceSource.TEFAS: 2, PriceSource.YFINANCE: 3,
+                  PriceSource.ISYATIRIM: 4, PriceSource.EVDS: 5}
+
+
+@router.get("/fund-history")
+def fund_history(
+    account_id: int,
+    days: int = Query(default=90, ge=7, le=730),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),
+):
+    """DVIZ-007 (BUG #460): bir yatırım hesabının fon fiyat GEÇMİŞİ (`price_history`) — günde tek
+    fiyat (kaynak önceliğiyle), `cost_per_lot` referansıyla. `price_history` kullanıcıya bağlı
+    değildir (piyasa verisi); okuma HESAP SAHİPLİĞİ üzerinden yetkilenir: hesap kullanıcının
+    kapsamında ve `fund_code` taşıyor olmalı."""
+    acc = (db.query(Account)
+           .filter(Account.id == account_id, scope_filter(Account, current_user.id, ws_id))
+           .first())
+    if acc is None or not acc.fund_code:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Fon kodu olan yatırım hesabı bulunamadı.")
+    today = user_today(current_user)
+    since = today - timedelta(days=days)
+    rows = (db.query(PriceHistory)
+            .filter(PriceHistory.fund_code == acc.fund_code, PriceHistory.price_date >= since)  # scope-exempt: piyasa verisi; yetki hesap sahipliğiyle (yukarıda)
+            .order_by(PriceHistory.price_date.asc())
+            .all())
+    gunluk: dict = {}
+    for r in rows:
+        onceki = gunluk.get(r.price_date)
+        if onceki is None or _KAYNAK_SIRASI.get(r.source, 9) < _KAYNAK_SIRASI.get(onceki.source, 9):
+            gunluk[r.price_date] = r
+    items = [{"date": d.isoformat(), "price": round(float(r.close_price), 4), "source": r.source.value}
+             for d, r in sorted(gunluk.items())]
+    return {
+        "account_id": acc.id, "fund_code": acc.fund_code, "days": days,
+        "cost_per_lot": round(float(acc.cost_per_lot), 4) if acc.cost_per_lot is not None else None,
+        "items": items,
+    }
 
 
 @router.get("/net-worth-attribution")

@@ -89,7 +89,7 @@ Etki: orta · Efor: S
 ---
 
 ### [DVIZ-007] Fon performans grafiği yok, PriceHistory tablosu kullanılmıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: fund-history endpoint/grafiği yok
+- **Durum:** ✅ KAPANDI — BUG #460 (13 Eyl 2026): `GET /api/reports/fund-history?account_id&days` — `price_history` piyasa verisidir (user_id yok), yetki HESAP SAHİPLİĞİ ile (başka kullanıcının hesabı / fon kodsuz hesap 404); günde tek fiyat, kaynak önceliği manual > tefas > yfinance > isyatirim > evds; `cost_per_lot` referansı. Raporlar'da "Fon Fiyat Geçmişi" (fon seçici, 30/90/365 g, maliyet kesikli çizgi, `role="img"` özeti "fiyat maliyetin üstünde/altında"); fon hesabı yoksa bölüm doğmaz; geçmiş < 2 gün ise bunu söyler (canlıda TP2 2 gün — gece işi biriktirir). Sözleşme +1 uç (KAP-01 gerekçesi ledger'da). Kapılar: `tests/test_fon_gecmisi_kapisi.py`, `grafik-renk-tek-kaynak.test.jsx` (DVIZ-007 bloğu).
 
 Sorun: `PriceHistory` tablosu fon/hisse fiyat geçmişini "tek doğruluk kaynağı" olarak saklıyor ama hiçbir endpoint veya grafik bu geçmişi okumuyor. Cockpit yalnızca anlık K/Z snapshot'ı gösteriyor; fon fiyatının zaman içindeki seyri (maliyet çizgisiyle birlikte) görselleştirilmiyor.
 

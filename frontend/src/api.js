@@ -427,6 +427,8 @@ export const reportsApi = {
   netWorthTrend: (days = 30) =>
     request('/api/reports/net-worth-trend', { params: { days } }),
   netWorthAttribution: () => request('/api/reports/net-worth-attribution'),   // FEAT-021
+  fundHistory: (accountId, days = 90) =>                                      // DVIZ-007 (BUG #460)
+    request('/api/reports/fund-history', { params: { account_id: accountId, days } }),
   realNetWorth: () => request('/api/reports/real-net-worth'),                 // FEAT-024
   upcomingCashflow: (days = 30) =>
     request('/api/reports/upcoming-cashflow', { params: { days } }),

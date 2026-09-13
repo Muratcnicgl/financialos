@@ -81,3 +81,19 @@ describe('DVIZ-009 — borç eritme projeksiyonu (BUG #459)', () => {
     expect(ds).toMatch(/<BorcErimeGrafigi debts=\{data\.debts\} snowball=\{data\.snowball\} avalanche=\{data\.avalanche\}/);
   });
 });
+
+describe('DVIZ-007 — fon fiyat geçmişi (BUG #460)', () => {
+  it('özet: değişim yüzdesi ve maliyet ilişkisi; api ve panel bağlı', async () => {
+    const { fonOzeti } = await import('./components/FonFiyatGecmisi.jsx');
+    const o = fonOzeti('TP2', [{ price: 5.0 }, { price: 5.5 }], 5.2);
+    expect(o).toMatch(/TP2 fiyat geçmişi, 2 gün/);
+    expect(o).toMatch(/\(%10\.0\)/);
+    expect(o).toMatch(/fiyat maliyetin üstünde/);
+    expect(fonOzeti('TP2', [{ price: 5.0 }, { price: 4.0 }], 5.2)).toMatch(/altında/);
+    expect(fonOzeti('TP2', [], null)).toMatch(/veri yok/);
+    const api = readFileSync(join(KOK, 'api.js'), 'utf-8');
+    expect(api).toMatch(/fundHistory: \(accountId, days = 90\)/);
+    const rep = readFileSync(join(KOK, 'panels', 'Reports.jsx'), 'utf-8');
+    expect(rep).toMatch(/<FonFiyatGecmisi \/>/);
+  });
+});

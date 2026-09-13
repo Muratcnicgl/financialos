@@ -15,6 +15,7 @@ import EmptyState from '../components/EmptyState.jsx';
 import { formatPara, kisaSayi } from '../lib/money.js';
 import { kategoriOzeti, netDegerOzeti } from '../lib/grafikOzeti.js';
 import NetDegerBilesenleri from '../components/NetDegerBilesenleri.jsx';
+import FonFiyatGecmisi from '../components/FonFiyatGecmisi.jsx';
 // BUG #265: renkler burada hex olarak yaziliydi ve TEK temaya gore secilmisti
 // (`#4f46e5` koyu kartta 2.82 → cizgi ve lejant metni varsayilan temada okunmuyordu).
 import { KATEGORIK, KATEGORIK_TAVAN, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK, lejantMetni } from '../lib/grafikRenkleri.js';
@@ -269,6 +270,9 @@ export default function Reports() {
           </div>
         </div>
       )}
+
+      {/* DVIZ-007 (BUG #460): fon fiyat geçmişi — fon hesabı yoksa bölüm doğmaz */}
+      <FonFiyatGecmisi />
 
       {/* ===== B2: NET DEĞER TRENDİ ===== */}
       <div className="space-y-3 pt-2">

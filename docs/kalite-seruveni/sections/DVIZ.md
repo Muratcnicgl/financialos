@@ -24,7 +24,7 @@ Etki: orta · Efor: S (yarım saat, tek panel)
 ---
 
 ### [DVIZ-002] Grafik renk paleti renk körlüğü güvenli değil, kırmızı-yeşil bitişik
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: COLORS renk-körü güvenli değil
+- **Durum:** ✅ KAPANDI — BUG #456 (13 Eyl 2026): **ölçüldü** (Machado 2009 protan/deutan simülasyonu, CIE76 ΔE): eski 10'lu palette orange-600 ↔ amber-600 deutan ΔE **2,1**, indigo ↔ purple protan **3,2** (ayırt edilemez). Yeni 6'lı palet iki temada ≥ 3:1 kalan 19 aday arasından en küçük ikili ΔE'yi en büyük yapan küme (normal 19,9 / protan 18,6 / deutan 17,2). Donut en fazla 6 dilim + "Diğer (N)"; yatay çubuk tek renk (uzunluk+etiket bilgiyi taşır; renk döngüsü 7. kategoriye 1.'nin rengini veriyordu). Kapı: `frontend/src/renk-koru-palet.test.jsx` (aynı simülasyon JS'te; ΔE ≥ 12 her görüşte; iki tema kontrastı; mutasyonla — eski çift geri konunca kırmızı).
 
 Sorun: `COLORS` dizisi 10 renk içeriyor ve hem donut hem yatay barda sırayla kullanılıyor. 2. renk yeşil (#16a34a) ile 7. renk kırmızı (#e11d48) protanopi/deuteranopi altında ayırt edilemez; ayrıca 10 kategori tek pastada 5-6 renk sınırını aşar. Araştırma: kategorik kodlamada doğrulanmış paletten (Wong/Okabe-Ito) maks 6 renk önerilir.
 

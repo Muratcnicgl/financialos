@@ -16,7 +16,7 @@ import { formatPara, kisaSayi } from '../lib/money.js';
 import { kategoriOzeti, netDegerOzeti } from '../lib/grafikOzeti.js';
 // BUG #265: renkler burada hex olarak yaziliydi ve TEK temaya gore secilmisti
 // (`#4f46e5` koyu kartta 2.82 → cizgi ve lejant metni varsayilan temada okunmuyordu).
-import { KATEGORIK, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK, lejantMetni } from '../lib/grafikRenkleri.js';
+import { KATEGORIK, KATEGORIK_TAVAN, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK, lejantMetni } from '../lib/grafikRenkleri.js';
 
 const COLORS = KATEGORIK;
 
@@ -90,6 +90,15 @@ export default function Reports() {
 
   const items = data?.items || [];
   const grandTotal = data?.grand_total || 0;
+  // DVIZ-002 (BUG #456): palet 6 renk; fazlası tek "Diğer" dilimi (renk döngüsü iki kategoriye
+  // aynı rengi verirdi). Yatay çubuk tüm kalemleri listeler (etiketli, renk taşıyıcı değil).
+  const dilimler = items.length > KATEGORIK_TAVAN
+    ? [...items.slice(0, KATEGORIK_TAVAN - 1), {
+        category: `Diğer (${items.length - KATEGORIK_TAVAN + 1})`,
+        total: items.slice(KATEGORIK_TAVAN - 1).reduce((t, k) => t + Number(k.total || 0), 0),
+        count: items.slice(KATEGORIK_TAVAN - 1).reduce((t, k) => t + Number(k.count || 0), 0),
+      }]
+    : items;
   const barHeight = Math.max(220, items.length * 38 + 48);
 
   // B2: Net Değer Trend
@@ -201,7 +210,7 @@ export default function Reports() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={items}
+                    data={dilimler}
                     cx="50%"
                     cy="45%"
                     innerRadius={65}
@@ -210,7 +219,7 @@ export default function Reports() {
                     nameKey="category"
                     paddingAngle={2}
                   >
-                    {items.map((_, i) => (
+                    {dilimler.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
@@ -240,8 +249,10 @@ export default function Reports() {
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                    {/* DVIZ-002 (BUG #456): çubukta renk bilgi taşımaz (uzunluk + etiket taşır);
+                        6 renk döngüsü 7. kategoriye 1.'nin rengini verirdi → tek renk */}
                     {items.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      <Cell key={i} fill={COLORS[0]} />
                     ))}
                     <LabelList
                       dataKey="total"

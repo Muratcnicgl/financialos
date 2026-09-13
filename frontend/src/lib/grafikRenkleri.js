@@ -16,19 +16,25 @@ import { createElement } from 'react';
  * Yeni renk eklerken orani hesapla; "guzel duruyor" gerekce degildir.
  */
 
-/** Kategorik seri paleti (pasta/bar) — 10 ayirt edilebilir hue, hepsi iki temada >= 3:1. */
+/**
+ * Kategorik seri paleti (pasta/bar) — DVIZ-002 (BUG #456): RENK KÖRÜ GÜVENLİ, 6 renk.
+ *
+ * Ölçüldü (13 Eyl 2026, Machado 2009 protan/deutan simülasyonu + CIE76 ΔE): eski 10'luk
+ * palette orange-600 ↔ amber-600 deutan altında ΔE 2,1 (ayırt edilemez), indigo ↔ purple
+ * protan altında 3,2. Bu 6'lı, iki temada ≥ 3:1 kalan 19 aday arasından en küçük ikili
+ * ΔE'yi (normal/protan/deutan) EN BÜYÜK yapan küme: 19,9 / 18,6 / 17,2 — hepsi "belirgin
+ * fark" (ΔE > 10). Kategori 6'yı aşarsa kalanı "Diğer" olarak toplanır (Reports).
+ * Ölçen kapı: `frontend/src/renk-koru-palet.test.jsx` (aynı simülasyonu JS'te koşar).
+ */
 export const KATEGORIK = [
-  '#6366f1', // indigo-500   beyaz 4.47 / koyu 3.97
-  '#059669', // emerald-600  3.77 / 4.70
-  '#ea580c', // orange-600   3.56 / 4.98
-  '#0891b2', // cyan-600     3.68 / 4.81
-  '#a855f7', // purple-500   3.96 / 4.48
-  '#d97706', // amber-600    3.19 / 5.56
-  '#f43f5e', // rose-500     3.67 / 4.83
-  '#0d9488', // teal-600     3.74 / 4.73
-  '#8b5cf6', // violet-500   4.23 / 4.18
-  '#ec4899', // pink-500     3.53 / 5.02
+  '#0072B2', // Okabe-Ito mavi      beyaz 5.19 / koyu 3.42
+  '#D55E00', // Okabe-Ito turuncu   3.87 / 4.58
+  '#059669', // emerald-600         3.77 / 4.70
+  '#6366f1', // indigo-500          4.47 / 3.97
+  '#0891b2', // cyan-600            3.68 / 4.81
+  '#0d9488', // teal-600            3.74 / 4.73
 ];
+export const KATEGORIK_TAVAN = KATEGORIK.length;   // bundan fazlası "Diğer"'de toplanır
 
 /** Anlamli seriler — sayfa metniyle ayni anlam yuku (bkz. ADR-044 tek-kaynak ilkesi). */
 export const SERI = {

@@ -68,6 +68,17 @@
   }
 }
 
+/* A11Y-016 (BUG #450): hareket azaltma tercihi — animasyon/geçişler tek kareye iner
+   (WCAG 2.3.3). Tailwind `animate-*`, kartların fade-in'i ve toast kayması dahil. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer utilities {
   /* A11Y-005 (BUG #441): koyu temada ikincil metin. `text-zinc-500` koyu zeminde 3,67–4,12
      verir (WCAG AA gövde metni 4,5). 313 kullanımın 192'si `dark:text-zinc-400` eşiyle

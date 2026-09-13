@@ -39,6 +39,10 @@ function useTheme() {
     if (typeof window === 'undefined') return 'dark';
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
+    // A11Y-016 (BUG #450): ilk değer işletim sistemi tercihi; kullanıcı seçince o kazanır.
+    try {
+      if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light';
+    } catch { /* eski tarayıcı / test ortamı */ }
     return 'dark';
   });
 

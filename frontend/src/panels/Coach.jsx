@@ -490,8 +490,11 @@ function CoachInner({ onActionResolved }) {
       )}
 
       {/* ===== MESAJ LISTESI ===== */}
+      {/* A11Y-020 (BUG #450): sohbet bir canlı bölge — yeni koç mesajı ekran okuyucuya duyurulur
+          (role=log: eklemeler nazikçe okunur, odak taşınmaz). "Yanıt geliyor" da aynı bölgede. */}
       <div
         ref={scrollRef}
+        role="log" aria-live="polite" aria-relevant="additions" aria-label="Koç sohbeti"
         className="flex-1 overflow-y-auto card p-4 space-y-4 [@media(max-height:500px)]:min-h-[8rem]"
       >
         {!historyLoaded ? (
@@ -677,7 +680,8 @@ function Message({ message, onActionResolved }) {
 
 function CoachTypingIndicator() {
   return (
-    <div className="flex gap-3 animate-fade-in">
+    <div className="flex gap-3 animate-fade-in" role="status" aria-label="Koç yanıt yazıyor">
+      <span className="sr-only">Koç yanıt yazıyor…</span>
       <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
         <Sparkles className="w-4 h-4 text-brand-600 dark:text-brand-400" />
       </div>

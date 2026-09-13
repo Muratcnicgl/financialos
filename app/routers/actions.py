@@ -301,6 +301,31 @@ def get_pending_actions(
     return actions
 
 
+@router.get("/gecmis", response_model=List[PendingActionOut])
+def get_karar_gecmisi(
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    ws_id: Optional[int] = Depends(active_workspace_id),
+):
+    """UX-027 (BUG #471): karara bağlanmış son aksiyonlar (onaylandı/reddedildi/başarısız) —
+    reddedilenin gerekçesi `error_message`'ta. Kaynak `pending_actions`'ın kendisi (ayrı defter
+    değil; `audit_log` da aynı geçişi tutar, BUG #443). `/history` UYGULANAN aksiyonların
+    defteridir (ActionHistory, önce/sonra bakiye); bu uç KARARLARI listeler — red orada yoktur.
+    Aktif workspace kapsamı."""
+    from app.workspace_deps import scope_filter
+    return (
+        db.query(PendingAction)
+        .filter(
+            scope_filter(PendingAction, current_user.id, ws_id),
+            PendingAction.status != ActionStatus.pending,
+        )
+        .order_by(PendingAction.resolved_at.desc().nullslast(), PendingAction.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
 @router.post("/{action_id}/approve")
 def approve_action(
     action_id: int,

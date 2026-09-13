@@ -185,6 +185,35 @@
     }
   },
   {
+    "yol": "/api/actions/gecmis",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "limit",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "integer"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "dizi[PendingActionOut]",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
     "yol": "/api/actions/history",
     "metot": "GET",
     "kimlik": "korumali",

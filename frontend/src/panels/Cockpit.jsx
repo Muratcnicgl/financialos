@@ -13,6 +13,7 @@ import AylikSeri from '../components/AylikSeri.jsx';
 import AyTemposu from '../components/AyTemposu.jsx';   // UX-028 (BUG #466)
 import { kalanCumlesi } from '../lib/bugunKalan.js';   // UX-004 (BUG #467)
 import SatirIciFiyat from '../components/SatirIciFiyat.jsx';   // UX-032 (BUG #470)
+import KararGecmisi from '../components/KararGecmisi.jsx';   // UX-027 (BUG #471)
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -200,8 +201,10 @@ export default function Cockpit({ setActiveTab }) {
     load();
   };
 
+  const [kararSayaci, setKararSayaci] = useState(0);   // UX-027 (BUG #471): karar geçmişi yenileme tetiği
   const handleActionResolved = async () => {
     setRefreshing(true);
+    setKararSayaci((n) => n + 1);
     await load();
   };
 
@@ -544,6 +547,8 @@ export default function Cockpit({ setActiveTab }) {
           <PendingActions actions={pendingActions} onResolved={handleActionResolved} accounts={data?.accounts} />
         </div>
       )}
+      {/* UX-027 (BUG #471): karar geçmişi — reddedilen/onaylanan/başarısız, gerekçesiyle; katlı, detaylı görünümde */}
+      {!basit && <KararGecmisi yenilemeSayaci={kararSayaci} />}
 
       {/* GÖSTERGELER — listeden çizilir; boş/tekrar eden kart hiç doğmaz.
           Grup başlığı da bedava değil: toplam dört karta kadar TEK satır çizilir ve

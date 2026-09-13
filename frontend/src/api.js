@@ -401,6 +401,7 @@ export const coachApi = {
 
 export const actionsApi = {
   pending: () => request('/api/actions/pending'),
+  gecmis:  (limit = 20) => request('/api/actions/gecmis', { params: { limit } }),   // UX-027 (BUG #471)
   approve: (id) => request(`/api/actions/${id}/approve`, { method: 'POST' }),
   reject:  (id, reason = null) => request(`/api/actions/${id}/reject`, {
     method: 'POST',

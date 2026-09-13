@@ -72,7 +72,8 @@ vi.mock('./api.js', async () => {
   return {
     ...gercek,
     cockpitApi: { get: vi.fn() },
-    actionsApi: { pending: vi.fn(), approve: vi.fn(), reject: vi.fn(), edit: vi.fn() },
+    actionsApi: { pending: vi.fn(), approve: vi.fn(), reject: vi.fn(), edit: vi.fn(),
+                  gecmis: vi.fn().mockResolvedValue([]) },   // UX-027 (BUG #471)
     incomesApi: { triggerDue: vi.fn() },
     expensesApi: { triggerDue: vi.fn() },
     cashflowApi: { getForecast: vi.fn() },
@@ -313,5 +314,26 @@ describe('UX-036 — vade satırları panele gider (BUG #465)', () => {
     const tahsilat = await screen.findByRole('button', { name: /Ali: Gelir & Borç panelinde aç/ });
     fireEvent.click(tahsilat);
     expect(git).toHaveBeenCalledWith('incomedebt');
+  });
+});
+
+describe('UX-027 — karar geçmişi (BUG #471)', () => {
+  it('detaylı görünümde katlı gelir; açınca red gerekçesi ve onay etiketi görünür; sade görünümde yok', async () => {
+    const { actionsApi: a } = await import('./api.js');
+    a.gecmis.mockResolvedValue([
+      { id: 1, summary: 'Markete 250 TL', status: 'rejected', error_message: 'yanlış hesap', resolved_at: '2026-09-13T10:00:00+00:00', created_at: '2026-09-13T09:00:00+00:00' },
+      { id: 2, summary: 'Maaş geldi', status: 'executed', error_message: null, resolved_at: '2026-09-12T10:00:00+00:00', created_at: '2026-09-12T09:00:00+00:00' },
+    ]);
+    const { unmount } = await cizdir(DETAYLI);
+    const baslik = await screen.findByRole('button', { name: /Karar geçmişi/ });
+    expect(baslik).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(baslik);
+    const liste = await screen.findByTestId('karar-gecmisi');
+    expect(liste).toHaveTextContent('Gerekçe: yanlış hesap');
+    expect(liste).toHaveTextContent('Reddedildi');
+    expect(liste).toHaveTextContent('Onaylandı');
+    unmount();
+    await cizdir(BASIT);
+    expect(screen.queryByRole('button', { name: /Karar geçmişi/ })).toBeNull();
   });
 });

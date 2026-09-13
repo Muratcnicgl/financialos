@@ -1,5 +1,6 @@
 {
   "/api/accounts": [],
+  "/api/actions/gecmis": [],
   "/api/actions/history": [],
   "/api/actions/pending": [],
   "/api/auth/me": {

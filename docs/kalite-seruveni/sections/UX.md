@@ -172,7 +172,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-027] Reddedilen/geçmiş aksiyonların izi görünmüyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: reddedilen aksiyon izi yok
+- **Durum:** ✅ KAPANDI — BUG #471 (13 Eyl 2026): canlıda 22 red + 10 onay + 1 başarısız görünmüyordu. `GET /api/actions/gecmis?limit` (pending olmayanlar, son karar önce, red gerekçesi `error_message`, workspace kapsamı — kaynak `pending_actions`; DecisionJournal premortem'e özeldir, ayrı defter açılmadı); kokpitte "Karar geçmişi" katlı bölümü (detaylı görünüm; karar verilince yenilenir). Sözleşme +1 uç (KAP-01 gerekçesi ledger'da). Kapılar: `tests/test_karar_gecmisi_kapisi.py`, `cockpit-sade-gorunum.test.jsx` (UX-027 bloğu).
 - **Kanıt:** `Coach.jsx:handleActionResolved` filtreliyor
 - **Aksiyon:** "Karar Günlüğü" mini görünümü (DecisionJournal endpoint'i gerekir).
 - **Etki:** Düşük · **Efor:** M

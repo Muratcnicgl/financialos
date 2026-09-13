@@ -208,7 +208,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [UX-033] Coach input tek satır algısı — uzun istekler zor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: textarea auto-grow + / komut menüsü yok
+- **Durum:** ✅ KAPANDI (auto-grow) · ⛔ ("/" menüsü) — BUG #469 (13 Eyl 2026): girdi 2 satırdan başlar, yazdıkça 6 satıra kadar büyür, ötesi kaydırır, gönderince küçülür (`otoBuyut`). "/" hızlı komut menüsü bilinçli yok: hızlı komutlar boş sohbette öneri çipleri olarak zaten var, ikinci bir giriş yolu tutarsızlık üretir. Kapı: `frontend/src/koc-girdi-buyume.test.jsx`.
 - **Kanıt:** `Coach.jsx:472-481`
 - **Aksiyon:** Auto-grow textarea (2→6) + "/" hızlı komut menüsü.
 - **Etki:** Düşük · **Efor:** S

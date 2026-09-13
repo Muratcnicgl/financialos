@@ -9,6 +9,17 @@ import Modal from '../components/Modal.jsx';
 
 // UX-014 / BUG #354: sıfırlamada SİLİNENLER — `reset_history`nin üç tablosuyla birebir;
 // `tests/test_koc_sifirlama_onayi_kapisi.py` bu listeyi okur.
+// UX-033 (BUG #469): girdi 2 satırdan başlar, yazdıkça 6 satıra kadar büyür; ötesi kaydırır.
+// "/" komut menüsü yapılmadı: hızlı komutlar zaten boş sohbette öneri çipleri olarak var.
+export const OTO_BUYUT_AZAMI_SATIR = 6;
+export function otoBuyut(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  const satirPx = parseFloat(getComputedStyle(el).lineHeight) || 24;
+  const azami = satirPx * OTO_BUYUT_AZAMI_SATIR + 16;
+  el.style.height = `${Math.min(el.scrollHeight, azami)}px`;
+}
+
 const SIFIRLAMA_UYARI = 'Bu işlem geri alınamaz. Silinecekler:';
 const SIFIRLAMA_SILINECEKLER = [
   'tüm sohbet geçmişin',
@@ -231,6 +242,7 @@ function CoachInner({ onActionResolved }) {
     const userMsg = { role: 'user', text, ts: new Date(), actions: [] };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';   // UX-033: gönderince küçül
     setSending(true);
     setError(null);
 
@@ -578,10 +590,11 @@ function CoachInner({ onActionResolved }) {
         <textarea
           ref={textareaRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => { setInput(e.target.value); otoBuyut(e.target); }}
           onKeyDown={handleKeyDown}
           placeholder="Bir şey sor veya bir aksiyon bildir... (Enter: gönder · Shift+Enter: satır)"
           rows={2}
+          style={{ maxHeight: `${OTO_BUYUT_AZAMI_SATIR * 1.5 + 1}rem` }}
           disabled={sending || usageBlock}
           className="input resize-none font-sans [@media(max-height:500px)]:max-h-16"
         />

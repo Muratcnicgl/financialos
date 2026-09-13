@@ -232,7 +232,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-037] Filtre durumları oturumlar arası hatırlanmıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: filtreler oturumlar arası hatırlanmıyor
+- **Durum:** ✅ KAPANDI — BUG #462 (13 Eyl 2026): `lib/kaliciDurum.js::useKaliciDurum` (localStorage `fos_filtre_*`; bozuk/kapalı depolamada varsayılan, fırlatmaz); İşlemler tür/kategori/hesap, Gelir-Borç yön/ödeme, Kırmızı Çizgiler tip/aktif (7 filtre). Tarih aralığı BİLEREK hatırlanmaz ("bugüne göre" anlam taşır). Test kurulumu her testte localStorage'ı temizler (ilk koşumda 4 test birbirinin filtresini gördü). Kapı: `frontend/src/filtre-kalici.test.jsx`.
 - **Kanıt:** `Transactions.jsx:42-47`, `IncomeDebt.jsx:45-47`, `RedLines.jsx:63-64`
 - **Aksiyon:** Filtre tercihlerini localStorage'da tut.
 - **Etki:** Düşük · **Efor:** S

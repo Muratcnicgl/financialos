@@ -9,6 +9,7 @@ import { incomesApi, expensesApi, debtsApi, accountsApi, formatDate, todayLocalI
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { useKaliciDurum } from '../lib/kaliciDurum.js';   // UX-037 (BUG #462)
 import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
 
 const CURRENT_YEAR_MONTH = currentYearMonthLocal(); // "2026-05" — LOCAL (gece vardiyası TZ güvenliği)
@@ -47,8 +48,8 @@ export default function IncomeDebt() {
   const [confirmDelete, setConfirmDelete] = useState(null);  // {kind: 'income'|'expense'|'debt', item}
 
   // Filtre — borç/alacak listesi
-  const [filterDirection, setFilterDirection] = useState('all');
-  const [filterPaid, setFilterPaid] = useState('pending');
+  const [filterDirection, setFilterDirection] = useKaliciDurum('gelirborc-yon', 'all');   // UX-037 (BUG #462)
+  const [filterPaid, setFilterPaid] = useKaliciDurum('gelirborc-odeme', 'pending');
 
   const load = useCallback(async () => {
     try {

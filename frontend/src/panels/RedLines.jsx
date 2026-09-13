@@ -7,6 +7,7 @@ import {
 import { checkpointsApi, accountsApi, parseTRNumber } from '../api.js';  // H21: dayatılan kural formu
 import Modal from '../components/Modal.jsx';
 import { paraEtiketi } from '../lib/money.js';
+import { useKaliciDurum } from '../lib/kaliciDurum.js';   // UX-037 (BUG #462)
 
 /**
  * RedLines paneli — Master Checkpoint yonetimi.
@@ -67,8 +68,8 @@ export default function RedLines() {
   const [editing, setEditing] = useState(null);  // null | 'new' | mc obj
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const [filterType, setFilterType] = useState('all');
-  const [filterActive, setFilterActive] = useState('active');  // active | inactive | all
+  const [filterType, setFilterType] = useKaliciDurum('kirmizi-tip', 'all');   // UX-037 (BUG #462)
+  const [filterActive, setFilterActive] = useKaliciDurum('kirmizi-aktif', 'active');  // active | inactive | all
 
   const load = useCallback(async () => {
     try {

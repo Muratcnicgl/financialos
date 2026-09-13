@@ -8,6 +8,7 @@ import { transactionsApi, accountsApi, formatDate, signClass, todayLocalISO, par
 import EmptyState from '../components/EmptyState.jsx';
 import Modal from '../components/Modal.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { useKaliciDurum } from '../lib/kaliciDurum.js';   // UX-037 (BUG #462)
 import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
 
 /**
@@ -38,9 +39,11 @@ export default function Transactions() {
 
   // Filtreler
   const [searchText, setSearchText] = useState('');
-  const [filterType, setFilterType] = useState('all');  // all | income | expense | transfer
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterAccount, setFilterAccount] = useState('all');
+  // UX-037 (BUG #462): tür/kategori/hesap filtreleri oturumlar arası hatırlanır; tarih aralığı
+  // BİLEREK hatırlanmaz ("bugüne göre" anlam taşır — dünkü aralık bugün yanlış olur).
+  const [filterType, setFilterType] = useKaliciDurum('islem-tur', 'all');  // all | income | expense | transfer
+  const [filterCategory, setFilterCategory] = useKaliciDurum('islem-kategori', 'all');
+  const [filterAccount, setFilterAccount] = useKaliciDurum('islem-hesap', 'all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 

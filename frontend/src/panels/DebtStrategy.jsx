@@ -3,6 +3,7 @@ import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, 
 import { debtStrategyApi, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import { formatPara, paraEtiketi } from '../lib/money.js';
+import BorcErimeGrafigi from '../components/BorcErimeGrafigi.jsx';
 
 // BUG #256 (H4): burada `style:'currency', currency:'TRY'` ile YEREL bir biçimlendirici
 // vardı — api.js'in `formatTL`'inden farklı davranıyordu (null → "₺0" vs "—", 0 ondalık vs 2).
@@ -408,6 +409,9 @@ export default function DebtStrategy() {
           debtsById={debtsById}
         />
       </div>
+
+      {/* DVIZ-009 (BUG #459): eritme projeksiyonu — iki stratejinin kalan bakiye eğrisi */}
+      <BorcErimeGrafigi debts={data.debts} snowball={data.snowball} avalanche={data.avalanche} />
 
       {/* Karşılaştırma */}
       {data.comparison && (

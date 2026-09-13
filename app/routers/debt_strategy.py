@@ -54,6 +54,7 @@ class StrategyOut(BaseModel):
     total_paid: float
     payoff_date: Optional[str] = None
     debt_payoff_months: dict
+    kalan_seri: list[float] = []   # DVIZ-009 (BUG #459): ay sonu toplam kalan bakiye
 
 
 class ComparisonOut(BaseModel):

@@ -65,3 +65,19 @@ describe('DVIZ-012 — net değer bileşenleri (BUG #458)', () => {
     expect(rep).toMatch(/<NetDegerBilesenleri items=\{trendItems\}/);
   });
 });
+
+describe('DVIZ-009 — borç eritme projeksiyonu (BUG #459)', () => {
+  it('seri 0. ayda başlangıç toplamı, sonra backend serisi; özet ayları söyler; panelde bağlı', async () => {
+    const { erimeSerisi, erimeOzeti } = await import('./components/BorcErimeGrafigi.jsx');
+    const sb = { kalan_seri: [750, 500, 250, 0], months_to_freedom: 4 };
+    const av = { kalan_seri: [700, 400, 100, 0], months_to_freedom: 4 };
+    const rows = erimeSerisi(1000, sb, av);
+    expect(rows[0]).toEqual({ ay: 0, snowball: 1000, avalanche: 1000 });
+    expect(rows[4]).toEqual({ ay: 4, snowball: 0, avalanche: 0 });
+    expect(rows).toHaveLength(5);
+    expect(erimeOzeti(rows, sb, av)).toMatch(/kartopu 4 ayda, çığ 4 ayda/);
+    expect(erimeSerisi(0, null, null)).toEqual([]);
+    const ds = readFileSync(join(KOK, 'panels', 'DebtStrategy.jsx'), 'utf-8');
+    expect(ds).toMatch(/<BorcErimeGrafigi debts=\{data\.debts\} snowball=\{data\.snowball\} avalanche=\{data\.avalanche\}/);
+  });
+});

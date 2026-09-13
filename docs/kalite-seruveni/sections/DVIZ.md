@@ -115,7 +115,7 @@ Etki: yüksek · Efor: M
 ---
 
 ### [DVIZ-009] Borç eritme (payoff) projeksiyon grafiği yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: payoff projeksiyon grafiği yok
+- **Durum:** ✅ KAPANDI — BUG #459 (13 Eyl 2026): `StrategyOut.kalan_seri` (ay sonu toplam kalan; ay-ay borç kırılımı bilerek dışarı çıkmaz — 5 borç × 600 ay şişirir); `components/BorcErimeGrafigi.jsx` iki stratejinin eğrisini çizer, 0. ay = bugünkü toplam, sıfırlanma ayı `ReferenceDot`; `role="img"` özeti ayları söyler. Görselleştirme; öneri metni StrategyCard'da. Kapılar: `tests/test_borc_erime_serisi_kapisi.py` (uzunluk = ay sayısı, son 0, azalan; uç), `grafik-renk-tek-kaynak.test.jsx` (seri + bağ).
 
 Sorun: DebtStrategy paneli strateji karşılaştırması sunuyor ama hiçbir grafik içermiyor (recharts import yok). 5 krediyi zaman içinde eritme projeksiyonu (kalan bakiye düşüş çizgisi) görsel olarak yok — kullanıcı hangi stratejinin borcu ne zaman sıfırladığını göremiyor.
 

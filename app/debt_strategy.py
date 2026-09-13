@@ -620,7 +620,7 @@ def calculate_min_payment_trap(
 
 
 def _result_to_dict(r: StrategyResult) -> dict:
-    """StrategyResult -> JSON-serializeable dict (schedule haric)."""
+    """StrategyResult -> JSON-serializeable dict (ay-ay ayrıntı hariç; toplam seri dahil)."""
     return {
         'strategy': r.strategy,
         'order': r.order,
@@ -629,4 +629,8 @@ def _result_to_dict(r: StrategyResult) -> dict:
         'total_paid': r.total_paid,
         'payoff_date': r.payoff_date.isoformat() if r.payoff_date else None,
         'debt_payoff_months': r.debt_payoff_months,
+        # DVIZ-009 (BUG #459): eritme eğrisi — ay sonu TOPLAM kalan bakiye (indeks = ay; 0. eleman
+        # başlangıç). Ay-ay borç kırılımı (schedule) yine dışarı çıkmaz: 5 borç × 600 ay şişirir,
+        # arayüz yalnız toplamı çizer.
+        'kalan_seri': [round(sum(m.debt_balances.values()), 2) for m in r.schedule],
     }

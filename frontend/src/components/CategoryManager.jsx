@@ -208,7 +208,7 @@ export default function CategoryManager({ onDegisti }) {
             Silmek için işlemlerin taşınacağı kategoriyi seç:
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <select className="input flex-1 min-w-[140px]" value={hedef}
+            <select aria-label="Hedef kategori" className="input flex-1 min-w-[140px]" value={hedef}
                     onChange={(e) => setHedef(e.target.value)}>
               <option value="">Hedef kategori...</option>
               {kategoriler.filter((k) => k.id !== silinecek.id && !k.sistem).map((k) => (

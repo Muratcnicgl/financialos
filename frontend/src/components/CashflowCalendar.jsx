@@ -55,14 +55,14 @@ export default function CashflowCalendar({ days }) {
           Takvim Görünümü
         </h3>
         <div className="flex items-center gap-1">
-          <button type="button" onClick={prevMonth} className="btn btn-ghost btn-icon !p-1">
-            <ChevronLeft className="w-4 h-4" />
+          <button type="button" onClick={prevMonth} className="btn btn-ghost btn-icon !p-1" aria-label="Önceki ay">
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 min-w-[110px] text-center">
             {TR_MONTHS[viewMonth]} {viewYear}
           </span>
-          <button type="button" onClick={nextMonth} className="btn btn-ghost btn-icon !p-1">
-            <ChevronRight className="w-4 h-4" />
+          <button type="button" onClick={nextMonth} className="btn btn-ghost btn-icon !p-1" aria-label="Sonraki ay">
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>

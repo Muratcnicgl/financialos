@@ -117,8 +117,9 @@ export default function Workspace() {
             }`}
           >
             {w.name}
-            {w.is_personal && <span className="ml-1 text-xs opacity-70">(kişisel)</span>}
-            <span className="ml-2 text-xs opacity-60">{ROLE_TR[w.role]}</span>
+            {/* BUG #452 (axe): opacity-70/60 metni 4.5:1 altına düşürüyordu → tam opak, küçük yazı */}
+            {w.is_personal && <span className="ml-1 text-xs">(kişisel)</span>}
+            <span className="ml-2 text-xs">{ROLE_TR[w.role]}</span>
           </button>
         ))}
       </div>
@@ -167,7 +168,7 @@ export default function Workspace() {
                 placeholder="Davet edilecek e-posta"
                 className="input flex-1 min-w-[180px] text-sm"
               />
-              <select
+              <select aria-label="Davet rolü"
                 value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}
                 className="input w-auto text-sm"
               >

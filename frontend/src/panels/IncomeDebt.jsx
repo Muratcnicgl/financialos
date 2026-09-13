@@ -431,7 +431,7 @@ export default function IncomeDebt() {
           {/* Filtreler */}
           <div className="card p-2 mb-3">
             <div className="grid grid-cols-2 gap-2">
-              <select
+              <select aria-label="Yön filtresi"
                 value={filterDirection}
                 onChange={(e) => setFilterDirection(e.target.value)}
                 className="input !text-xs !py-1.5"
@@ -440,7 +440,7 @@ export default function IncomeDebt() {
                 <option value="receivable">Alacak (bana gelecek)</option>
                 <option value="payable">Borç (ben vereceğim)</option>
               </select>
-              <select
+              <select aria-label="Ödeme durumu filtresi"
                 value={filterPaid}
                 onChange={(e) => setFilterPaid(e.target.value)}
                 className="input !text-xs !py-1.5"

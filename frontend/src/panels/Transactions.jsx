@@ -276,19 +276,19 @@ export default function Transactions() {
               placeholder="Açıklama, kategori, not..." className="input !pl-8 !text-xs" />
           </div>
           {/* Tip */}
-          <select value={filterType} onChange={e => setFilterType(e.target.value)} className="input !text-xs">
+          <select aria-label="Tür filtresi" value={filterType} onChange={e => setFilterType(e.target.value)} className="input !text-xs">
             <option value="all">Tüm tipler</option>
             <option value="income">Gelir</option>
             <option value="expense">Gider</option>
             <option value="transfer">Transfer</option>
           </select>
           {/* Kategori */}
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="input !text-xs">
+          <select aria-label="Kategori filtresi" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="input !text-xs">
             <option value="all">Tüm kategoriler</option>
             {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           {/* Hesap */}
-          <select value={filterAccount} onChange={e => setFilterAccount(e.target.value)} className="input !text-xs">
+          <select aria-label="Hesap filtresi" value={filterAccount} onChange={e => setFilterAccount(e.target.value)} className="input !text-xs">
             <option value="all">Tüm hesaplar</option>
             {accounts.map(a => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>

@@ -814,7 +814,7 @@
       "beklenen_gelir": 0.0,
       "bu_ayki_taksit": 0,
       "daily_limit": 0.0,
-      "days_remaining": 19,
+      "days_remaining": 18,
       "kart_borcu": 0.0,
       "nakit": 0.0,
       "reel_butce": 0.0
@@ -823,7 +823,7 @@
     "category_patterns": [],
     "daily_limit": 0.0,
     "date": "2026-01-02",
-    "days_remaining": 19,
+    "days_remaining": 18,
     "donem_degisimi": null,
     "emanet_kasa": 0.0,
     "faiz_sizintisi": {
@@ -884,7 +884,7 @@
       "karta_yazilacak_toplam": 0.0,
       "toplam_cikis": 0.0,
       "toplam_giris": 0.0,
-      "ufuk": "2026-01-20",
+      "ufuk": "2026-01-19",
       "yatirimda_bekleyen": 0.0,
       "yatirimda_bekleyen_kalemler": []
     },
@@ -913,8 +913,8 @@
     },
     "son_islemler": [],
     "sonraki_eylem": null,
-    "statu": "Ay sonuna 19 gün, günlük limit 0 TL. Sıkı dönem.",
-    "tarih_turkce": "12 Eylül 2026 Cumartesi",
+    "statu": "Ay sonuna 18 gün, günlük limit 0 TL. Sıkı dönem.",
+    "tarih_turkce": "13 Eylül 2026 Pazar",
     "today_target": 0.0,
     "upcoming_payments": [],
     "upcoming_receivables": [],
@@ -1048,6 +1048,19 @@
     "tamamlanan": 0,
     "tamamlandi": false,
     "toplam": 4
+  },
+  "/api/ops/koc-kalite": {
+    "cevap": 0,
+    "cikti_token": 0,
+    "girdi_token": 0,
+    "grounding_ihlal": 0,
+    "grounding_zayif": 0,
+    "gun": 7,
+    "llm_cagri": 0,
+    "llm_hata": 0,
+    "p50_gecikme_ms": null,
+    "p95_gecikme_ms": null,
+    "retry": 0
   },
   "/api/ops/llm": {
     "gun": 7,
@@ -1216,7 +1229,7 @@
     },
     "kategori_kaymalari": [],
     "period": {
-      "end": "2026-01-20",
+      "end": "2026-01-19",
       "label": "Eylül 2026",
       "month": 9,
       "start": "2026-01-01",

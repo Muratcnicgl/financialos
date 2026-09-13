@@ -361,7 +361,7 @@ Harcamanı kaydettim."`
 - **Etki:** Düşük · **Efor:** S
 
 ### [LLM-039] reasoning_traces var ama LLM-kalite metrikleri toplanmıyor
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: trace var ama grounding_ok/ozet yok
+- **Durum:** ✅ KAPANDI — BUG #439 (13 Eyl 2026): sinyaller izde ZATEN vardı (BUG #325/#273 FINAL_ANSWER gözlemine `grounding_ok/zayif`, `inference` "grounding_violation:"; retry'lar 'Retry:' niyetli LLM_CALL adımları; `error`, `latency_ms`, token sütunları) — eksik olan toplayan uçtu. `GET /api/ops/koc-kalite?gun=7`: cevap, grounding_ihlal, grounding_zayif, retry, llm_hata, llm_cagri, p50/p95 gecikme, token toplamları. Göç yok; operatör toplamı, PII yok; sözleşme +1 uç (KAP-01 gerekçesi ledger'da). `format_valid`/`tool_schema_error` ayrı sütun olarak eklenmedi: bugün bu iki durum `error` sütununa düşüyor ve sayımda `llm_hata` olarak görünüyor. Kapı: `tests/test_koc_kalite_ozeti_kapisi.py`.
 - **Kanıt:** `reasoning_trace.py:57-67`; `routers/coach.py:104-110`
 - **Aksiyon:** Trace'e `grounding_ok`, `retry_count`, `format_valid`, `tool_schema_error`; haftalık özet endpoint'i. (SQLite üstünde küçük agregasyon)
 - **Etki:** Orta · **Efor:** M

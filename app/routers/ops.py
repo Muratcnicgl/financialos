@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
 from app.rate_limit import rate_limit
-from app.models import User, SchedulerRun, ApiCallLog, ApiCallStatus
+from app.models import User, SchedulerRun, ApiCallLog, ApiCallStatus, ReasoningTrace, OperationName
 from app.serializers import UtcDateTime
 
 router = APIRouter(prefix="/api/ops", tags=["ops"])
@@ -198,3 +198,68 @@ def istemci_hatasi_bildir(govde: IstemciHatasi, request: Request,
     kid = kaydet_istemci(db, tip=govde.tip, mesaj=govde.mesaj, yol=govde.yol, yigin=govde.yigin,
                          user_id=user.id, istek_id=istek_id())
     return IstemciHatasiCevap(kayit_id=kid)
+
+
+# ── KOÇ KALİTE ÖZETİ (BUG #439 · LLM-039) ────────────────────────────────────────
+# `reasoning_traces` günlerdir birikiyordu ama kalite sorularının cevabı yoktu: "grounding
+# ihlali ne sıklıkta, retry kaç kez, hata oranı, gecikme". Sinyaller İZDE ZATEN VAR (BUG #325
+# ve #273 FINAL_ANSWER gözlemine yazdı; retry'lar ayrı LLM_CALL adımı; hata sütunu) — eksik
+# olan onları toplayan uçtu. Göç yok: mevcut sütunlardan küçük bir agregasyon (SQLite'ta da
+# ucuz). Operatör toplamıdır, PII taşımaz; kimlik zorunlu.
+
+class KocKalitesi(BaseModel):
+    gun: int
+    cevap: int                       # FINAL_ANSWER adımı sayısı
+    grounding_ihlal: int             # inference 'grounding_violation:' ile başlayan cevaplar
+    grounding_zayif: int             # gözlemde grounding_zayif>0 olan cevaplar
+    retry: int                       # 'Retry:' niyetli LLM_CALL adımları
+    llm_hata: int                    # error dolu LLM_CALL adımları
+    llm_cagri: int
+    p50_gecikme_ms: Optional[int] = None
+    p95_gecikme_ms: Optional[int] = None
+    girdi_token: int = 0
+    cikti_token: int = 0
+
+
+_ZAYIF_DESEN = "grounding_zayif="
+
+
+def _zayif_sayisi(gozlem: Optional[str]) -> int:
+    """FINAL_ANSWER gözlemindeki `grounding_zayif=N` sayısı; alan yoksa 0 (eski izler)."""
+    if not gozlem or _ZAYIF_DESEN not in gozlem:
+        return 0
+    kuyruk = gozlem.split(_ZAYIF_DESEN, 1)[1]
+    rakamlar = ""
+    for ch in kuyruk:
+        if not ch.isdigit():
+            break
+        rakamlar += ch
+    return int(rakamlar) if rakamlar else 0
+
+
+def koc_kalitesi(db: Session, gun: int) -> KocKalitesi:
+    esik = datetime.utcnow() - timedelta(days=gun)  # tz-exempt: created_at server_default UTC
+    q = db.query(ReasoningTrace).filter(ReasoningTrace.created_at >= esik)  # scope-exempt: operatör toplamı, PII yok
+    finaller = q.filter(ReasoningTrace.operation_name == OperationName.FINAL_ANSWER).all()
+    llmler = q.filter(ReasoningTrace.operation_name == OperationName.LLM_CALL).all()
+    sureler = sorted(t.latency_ms for t in llmler if t.latency_ms is not None)
+    return KocKalitesi(
+        gun=gun,
+        cevap=len(finaller),
+        grounding_ihlal=sum(1 for t in finaller if (t.inference or "").startswith("grounding_violation:")),
+        grounding_zayif=sum(1 for t in finaller if _zayif_sayisi(t.observation) > 0),
+        retry=sum(1 for t in llmler if (t.intent or "").startswith("Retry:")),
+        llm_hata=sum(1 for t in llmler if t.error),
+        llm_cagri=len(llmler),
+        p50_gecikme_ms=yuzdelik(sureler, 50), p95_gecikme_ms=yuzdelik(sureler, 95),
+        girdi_token=sum(t.usage_input_tokens or 0 for t in llmler),
+        cikti_token=sum(t.usage_output_tokens or 0 for t in llmler),
+    )
+
+
+@router.get("/koc-kalite", response_model=KocKalitesi)
+def koc_kalite(gun: int = 7, db: Session = Depends(get_db),
+               user: User = Depends(get_current_user)) -> KocKalitesi:
+    """Son N günün koç kalite özeti: grounding ihlali/zayıf beraat, retry, hata, gecikme, token."""
+    gun = max(1, min(gun, 90))
+    return koc_kalitesi(db, gun)

@@ -128,7 +128,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-010] Bakiye trend grafiği sıkışmayı yalnızca noktayla gösteriyor, alan/eşik bandı yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Area dolgu/ReferenceArea bandı yok
+- **Durum:** ✅ KAPANDI — BUG #455 (13 Eyl 2026): eşik altı bölge `ReferenceArea` ile gölgeli ([en düşük bakiye, eşik]; bakiye eşiğin altına inmiyorsa band çizilmez — sahte tehlike yok), `crunchThreshold` Cashflow'dan grafiğe geçer ve > 0 ise etiketli eşik çizgisi; kırmızı noktalar kalır. Kapı: `frontend/src/bakiye-esik-bandi.test.jsx` (`esikBandi` saf fonksiyon + kaynak bağı; mutasyonla).
 
 Sorun: Nakit akışı bakiye trendinde negatif/eşik altı bölge yalnızca kırmızı ReferenceDot ile işaretleniyor; sıfır altına inen alan gölgelenmiyor, crunch eşiği bir bant olarak gösterilmiyor. Bakiyenin ne kadar süre eşik altında kaldığı görsel olarak zayıf okunuyor.
 

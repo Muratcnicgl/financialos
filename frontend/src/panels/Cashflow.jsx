@@ -163,7 +163,7 @@ export default function Cashflow() {
           <CashflowSummary summary={data.summary} />
 
           {/* Bakiye trend grafiği */}
-          <BalanceTrend days={data.days} today={data.start_date} />
+          <BalanceTrend days={data.days} today={data.start_date} crunchThreshold={crunchThreshold} />
 
           {/* Alt satır: Takvim + Sankey */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -1,6 +1,6 @@
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ReferenceLine, ReferenceDot, ResponsiveContainer,
+  ReferenceLine, ReferenceDot, ReferenceArea, ResponsiveContainer,
 } from 'recharts';
 import { formatDate } from '../api.js';
 import { formatPara, kisaSayi } from '../lib/money.js';
@@ -36,7 +36,20 @@ function CustomTooltip({ active, payload }) {
   );
 }
 
-export default function BalanceTrend({ days, today }) {
+/**
+ * DVIZ-010 (BUG #455): sıkışma BANDI — bakiyenin eşiğin (varsayılan 0) altına indiği bölge
+ * gölgelenir; eşik > 0 ise ayrıca eşik çizgisi. Bakiye hiç eşik altına inmiyorsa band yok
+ * (sahte tehlike çizilmez). Saf fonksiyon: kapı doğrudan sınar.
+ */
+export function esikBandi(chartData, esik = 0) {
+  const b = (chartData || []).map((d) => Number(d.balance)).filter((v) => Number.isFinite(v));
+  if (!b.length) return null;
+  const enAz = Math.min(...b);
+  if (enAz >= esik) return null;
+  return { y1: enAz, y2: esik };
+}
+
+export default function BalanceTrend({ days, today, crunchThreshold = 0 }) {
   const chartData = days.map(d => ({
     date: d.date,
     balance: d.closing_balance,
@@ -46,6 +59,7 @@ export default function BalanceTrend({ days, today }) {
   }));
 
   const crunchDays = chartData.filter(d => d.crunch);
+  const band = esikBandi(chartData, crunchThreshold);
 
   // X ekseni: sadece her 7. günü etiketle
   const xTicks = chartData
@@ -84,6 +98,14 @@ export default function BalanceTrend({ days, today }) {
             strokeWidth={1.5}
           />
           <ReferenceLine y={0} stroke={SERI.negatif} strokeOpacity={0.3} strokeWidth={1} />
+          {/* DVIZ-010 (BUG #455): eşik altı bölge gölgeli; eşik > 0 ise çizgi de */}
+          {band && (
+            <ReferenceArea y1={band.y1} y2={band.y2} fill={SERI.negatif} fillOpacity={0.08} stroke="none" ifOverflow="extendDomain" />
+          )}
+          {crunchThreshold > 0 && (
+            <ReferenceLine y={crunchThreshold} stroke={SERI.negatif} strokeDasharray="2 4" strokeOpacity={0.6}
+                           label={{ value: `eşik ${kisaSayi(crunchThreshold)}`, position: 'insideTopRight', fontSize: 10, fill: 'currentColor', opacity: 0.7 }} />
+          )}
           <Line
             type="monotone"
             dataKey="balance"

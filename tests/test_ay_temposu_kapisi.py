@@ -45,3 +45,16 @@ def test_kokpit_anahtari_tasir(db_session, test_user):
     acc = Account(user_id=test_user.id, name="N", account_type=AccountType.cash, balance=0); db_session.add(acc); db_session.commit()
     c = generate_cockpit(test_user.id, date(2026, 9, 13), db_session)
     assert set(c["ay_temposu"]) >= {"gun", "ay_gunu", "ilerleme_pct", "harcanan", "projeksiyon", "referans", "durum"}
+
+
+def test_bugun_harcanan_ve_kalan(db_session, test_user):
+    """UX-004 (BUG #467): bugünkü harcama ve limitten kalan; aşım negatif (klemp yok — zikzak bağı)."""
+    acc = Account(user_id=test_user.id, name="N", account_type=AccountType.cash, balance=30000); db_session.add(acc); db_session.commit()
+    _gider(db_session, test_user.id, acc.id, date(2026, 9, 13), 250)
+    _gider(db_session, test_user.id, acc.id, date(2026, 9, 12), 999)   # dün — sayılmaz
+    db_session.commit()
+    c = generate_cockpit(test_user.id, date(2026, 9, 13), db_session)
+    assert c["bugun_harcanan"] == 250
+    assert c["bugun_kalan"] == round(c["daily_limit"] - 250, 2)
+    _gider(db_session, test_user.id, acc.id, date(2026, 9, 13), 100000); db_session.commit()
+    assert generate_cockpit(test_user.id, date(2026, 9, 13), db_session)["bugun_kalan"] < 0

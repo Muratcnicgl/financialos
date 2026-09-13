@@ -11,6 +11,7 @@ import MetricCard from '../components/MetricCard.jsx';
 import MonthlySummary from '../components/MonthlySummary.jsx';
 import AylikSeri from '../components/AylikSeri.jsx';
 import AyTemposu from '../components/AyTemposu.jsx';   // UX-028 (BUG #466)
+import { kalanCumlesi } from '../lib/bugunKalan.js';   // UX-004 (BUG #467)
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -420,6 +421,21 @@ export default function Cockpit({ setActiveTab }) {
             </span>
           )}
         </p>
+        {/* UX-004 (BUG #467): bugün ne kadar kaldı — canlı; aşımda zikzak bağı */}
+        {Number.isFinite(Number(data.bugun_kalan)) && (
+          <div data-testid="bugun-kalan" className="mt-2">
+            <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden" role="progressbar"
+                 aria-label="Bugünkü limit kullanımı"
+                 aria-valuenow={Math.min(100, Math.round((Number(data.bugun_harcanan) / Math.max(1, Number(data.daily_limit))) * 100))}
+                 aria-valuemin={0} aria-valuemax={100}>
+              <div className={`h-full rounded-full ${Number(data.bugun_kalan) < 0 ? 'bg-negative-500' : 'bg-positive-500'}`}
+                   style={{ width: `${Math.min(100, (Number(data.bugun_harcanan) / Math.max(1, Number(data.daily_limit))) * 100)}%` }} />
+            </div>
+            <p className={`text-xs mt-1 ${Number(data.bugun_kalan) < 0 ? 'text-negative-600 dark:text-negative-400' : 'text-zinc-600 dark:text-zinc-400'}`}>
+              {kalanCumlesi(data.bugun_kalan, data.daily_limit)}
+            </p>
+          </div>
+        )}
         {/* UX-028 (BUG #466): ay ilerlemesi + harcama temposu — sade görünümde de kalır (tek satır + çubuk) */}
         <AyTemposu tempo={data.ay_temposu} />
 

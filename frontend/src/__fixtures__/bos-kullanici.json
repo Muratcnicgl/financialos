@@ -819,6 +819,8 @@
     "borc_ilerleme": null,
     "borc_ozgurluk": null,
     "borclar_toplami": 0,
+    "bugun_harcanan": 0.0,
+    "bugun_kalan": 0.0,
     "butce_dokum": {
       "alacak_haric": 0,
       "beklenen_gelir": 0.0,

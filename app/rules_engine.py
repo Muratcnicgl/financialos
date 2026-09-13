@@ -2690,6 +2690,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     # hissi ayrı, tek-havuzlu bir "harcama günü tavanı" ile verilecek (bkz. ADR-026 Sonraki adım).
     carried_forward = 0.0  # ADR-026: additive carry reddedildi (bilinçli 0, "eksik" değil)
     today_target = daily_limit  # sürdürülebilir dinamik ortalama = bugünkü hedef
+    bugun_harcanan = D(_month_aggregates(db, user_id, today, today)["total_expense"])  # UX-004 (BUG #467)
 
     # ZİKZAK PROJEKSİYONU (kurucu "biriken güç" — Gemini sohbetlerinin ekseni):
     # Bugün harcamazsan reel_butce aynı kalır, kalan gün 1 azalır → yarınki dinamik limit
@@ -2893,6 +2894,11 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "borc_ozgurluk": borc_ozgurluk,  # FEAT-012: borçsuz olma tarihi + kalan faiz (None=borç yok)
         "asgari_tuzagi": asgari_tuzagi,  # FEAT-015: kart asgari-ödemeyle kaç ay + toplam faiz (None=kart yok)
         "ay_temposu": ay_temposu(user_id, today, db),  # UX-028 (BUG #466): ay ilerlemesi + harcama temposu
+        # UX-004 (BUG #467): bugünkü harcama ve limitten kalan — "bugün ne kadar kaldı" canlı.
+        # Aşım negatif döner (klemp yok): ADR-026 zikzakta yarınki limit zaten düşer; kullanıcı
+        # "yarından ne kadar borçlandım"ı görmeli (UX-004'ün zikzak bağı).
+        "bugun_harcanan": bugun_harcanan,
+        "bugun_kalan": round(D(daily_limit) - bugun_harcanan, 2),
         "konsolidasyon": konsolidasyon,  # FEAT-014: konsolidasyon eşiği (ağırlıklı ort. oran; None=<2 borç)
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,

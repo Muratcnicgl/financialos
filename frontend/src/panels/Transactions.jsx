@@ -4,7 +4,9 @@ import {
   Search, Trash2, Pencil, X, Filter, ArrowUp, ArrowDown,
   Wallet, CreditCard,
 } from 'lucide-react';
-import { transactionsApi, accountsApi, formatDate, signClass, todayLocalISO, parseTRNumber } from '../api.js';
+import { transactionsApi, accountsApi, cockpitApi, formatDate, signClass, todayLocalISO, parseTRNumber } from '../api.js';
+import { asimMiktari, hizliTutar } from '../lib/bugunKalan.js';   // UX-005 (BUG #467)
+import { formatPara as _fp } from '../lib/money.js';
 import EmptyState from '../components/EmptyState.jsx';
 import Modal from '../components/Modal.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
@@ -45,6 +47,12 @@ export default function Transactions() {
   const [filterCategory, setFilterCategory] = useKaliciDurum('islem-kategori', 'all');
   const [filterAccount, setFilterAccount] = useKaliciDurum('islem-hesap', 'all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [bugunKalan, setBugunKalan] = useState(null);   // UX-005 (BUG #467): hızlı giriş aşım onayı için
+  useEffect(() => {
+    let iptal = false;
+    cockpitApi.get().then((c) => { if (!iptal && Number.isFinite(Number(c?.bugun_kalan))) setBugunKalan(Number(c.bugun_kalan)); }).catch(() => {});
+    return () => { iptal = true; };
+  }, []);
   const [filterDateTo, setFilterDateTo] = useState('');
 
   const isFiltered = searchText || filterType !== 'all' || filterCategory !== 'all'
@@ -222,7 +230,7 @@ export default function Transactions() {
       </div>
 
       {/* QuickEntry */}
-      <QuickEntry onSubmit={handleQuickSubmit} accounts={accounts} />
+      <QuickEntry onSubmit={handleQuickSubmit} accounts={accounts} bugunKalan={bugunKalan} />
 
       {/* Toplam ozet */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -364,10 +372,11 @@ export default function Transactions() {
 // QUICK ENTRY — "320 borc" gibi tek satir hizli giris
 // ============================================================
 
-function QuickEntry({ onSubmit, accounts }) {
+function QuickEntry({ onSubmit, accounts, bugunKalan = null }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);  // {ok, msg}
+  const [asimOnayi, setAsimOnayi] = useState(null);  // UX-005 (BUG #467): { tutar, asim } — bir adımlık inline onay
 
   const defaultCash = accounts.find(a => a.account_type === 'cash');
 
@@ -375,6 +384,21 @@ function QuickEntry({ onSubmit, accounts }) {
     e.preventDefault();
     const t = text.trim();
     if (!t) return;
+    // UX-005 (BUG #467): tutar bugünkü kalanı aşıyorsa 1 adımlık onay — yalnız aşımda, günde bir
+    // (bildirim yorgunluğu). Onaylandıysa (asimOnayi doluyken ikinci Enter) düz devam.
+    if (!asimOnayi && bugunKalan !== null) {
+      const tutar = hizliTutar(t, parseTRNumber);
+      const asim = asimMiktari(tutar, bugunKalan);
+      const bugunAnahtari = 'fos_asim_nudge_' + todayLocalISO();
+      let bugunGosterildi = false;
+      try { bugunGosterildi = localStorage.getItem(bugunAnahtari) === '1'; } catch { /* depolama yok */ }
+      if (asim > 0 && !bugunGosterildi) {
+        setAsimOnayi({ tutar, asim });
+        try { localStorage.setItem(bugunAnahtari, '1'); } catch { /* depolama yok */ }
+        return;
+      }
+    }
+    setAsimOnayi(null);
     setBusy(true);
     setFeedback(null);
     try {
@@ -413,6 +437,17 @@ function QuickEntry({ onSubmit, accounts }) {
           {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Ekle'}
         </button>
       </form>
+      {asimOnayi && (
+        <div role="alert" data-testid="asim-onayi" className="mt-2 flex items-center justify-between gap-2 text-xs rounded-lg border border-warn-300 dark:border-warn-700/50 bg-warn-50 dark:bg-warn-950/30 px-3 py-2">
+          <span className="text-warn-800 dark:text-warn-200">
+            Bu, bugünkü kalanı {_fp(asimOnayi.asim, { ondalik: 0 })} aşıyor — yarınki limit düşer. Yine de ekle?
+          </span>
+          <span className="flex gap-1 flex-shrink-0">
+            <button type="button" onClick={(e) => handleSubmit(e)} className="btn btn-primary !text-xs !px-2 !min-h-[36px]">Yine de ekle</button>
+            <button type="button" onClick={() => setAsimOnayi(null)} className="btn btn-secondary !text-xs !px-2 !min-h-[36px]">Vazgeç</button>
+          </span>
+        </div>
+      )}
       <div className="flex items-center justify-between mt-2 text-[11px] text-zinc-500">
         <span>
           Format: tutar + kategori (Enter ile gönder)

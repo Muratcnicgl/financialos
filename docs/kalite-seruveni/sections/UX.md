@@ -28,13 +28,13 @@
 - **Etki:** Yüksek · **Efor:** S
 
 ### [UX-004] Günlük limit pasif — "bugün ne kadar kaldı" canlı değil
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: günlük hedef pasif, canlı halka yok
+- **Durum:** ✅ KAPANDI — BUG #467 (13 Eyl 2026): `cockpit.bugun_harcanan` (bugün tarihli giderler, aylık özetle aynı kaynak) + `bugun_kalan` (limit − harcanan; aşım NEGATİF, klemp yok). Kokpitte "Bugün harcayabileceğin" altında kullanım çubuğu (`progressbar`) ve "Bugün kalan X / Y"; aşımda "N aşıldı — yarınki limit o kadar düşer" (ADR-026 zikzakta bu gerçek dinamik; "yarından borçlandın" dili sanal olurdu). Fixture +2 anahtar. Kapılar: `tests/test_ay_temposu_kapisi.py` (bugün/dün ayrımı, negatif), `frontend/src/bugun-kalan.test.jsx`.
 - **Kanıt:** `Cockpit.jsx:207-225`
 - **Aksiyon:** Bugünkü işlemleri çıkarıp "Bugün kalan: X/62 TL" halka; aşımda "Yarının limitinden N TL borçlandın" (zikzak bağı).
 - **Etki:** Yüksek · **Efor:** M · **Not:** Bugünkü harcama toplamı backend'den gerekebilir.
 
 ### [UX-005] Limit yaklaşınca "dur" nudge'ı yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: QuickEntry limit-aşımı nudge yok
+- **Durum:** ✅ KAPANDI — BUG #467 (13 Eyl 2026): hızlı girişte tutar `bugun_kalan`ı aşıyorsa bir adımlık inline onay ("Bu, bugünkü kalanı N aşıyor — yarınki limit düşer. Yine de ekle?"); yalnız aşımda ve **günde bir kez** (localStorage `fos_asim_nudge_<gün>` — bildirim yorgunluğu); "Yine de ekle" gönderir, "Vazgeç" iptal. Tutar metinden ayrıştırılır (`hizliTutar`, TR biçimi). Kapı: `bugun-kalan.test.jsx` (aşımda onay, gönderim, aynı gün ikinci kez sormaz).
 - **Kanıt:** `Transactions.jsx:372-388`
 - **Aksiyon:** Kayıttan önce tutar bugünkü kalanı aşıyorsa 1 adımlık inline onay ("Bu, limitini 258 TL aşıyor. Yine de ekle?"). Sadece aşımda.
 - **Etki:** Yüksek · **Efor:** S · **Not:** Bildirim yorgunluğu için günde bir/2x üstünde tetikle.

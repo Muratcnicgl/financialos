@@ -292,6 +292,14 @@ async def _kapasite_dolu(request, exc: _KapasiteDolu):
     )
 
 
+@app.exception_handler(_butunluk.ButunlukHatasi)
+async def _butunluk_hatasi(request, exc):
+    # BUG #444/#447: ORM bütünlük kuralı flush'ta reddetti — istemci hatasıdır (422), 500 değil;
+    # mesaj alanı ve değeri söyler, iç yığın sızmaz.
+    from fastapi.responses import JSONResponse as _JR
+    return _JR(status_code=422, content={"detail": str(exc)})
+
+
 @app.exception_handler(_GovdeCokBuyuk)
 async def _govde_cok_buyuk(request, exc: _GovdeCokBuyuk):
     # Beklenen bir reddetme — 500 degil 413; hata izlemeye "beklenmedik hata" olarak DUSMEZ.

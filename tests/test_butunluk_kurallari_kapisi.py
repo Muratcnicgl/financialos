@@ -109,3 +109,26 @@ def test_hedef_ilerlemesi_sifir_yuz_araliginda(s):
             s.commit()
         s.rollback(); g = s.query(Goal).one()
     g.progress_percent = 100; s.commit()
+
+
+def test_kart_alanlari_yalniz_kartta_ve_uc_422_doner(s):
+    """DATA-027 / BUG #447: nakit hesapta kart alanı dolu olamaz; kural API'den 422 olarak görünür."""
+    from fastapi.testclient import TestClient
+    from app.dependencies import get_current_user, get_db
+    from app.main import app
+    from app.models import Account, AccountType
+    s.add(Account(user_id=1, name="Kart", account_type=AccountType.credit_card, balance=0,
+                  credit_limit=10000, statement_day=5, payment_day=15)); s.commit()   # kartta serbest
+    s.add(Account(user_id=1, name="Kart2", account_type=AccountType.credit_card, balance=0)); s.commit()  # limitsiz kart da geçer (L45)
+    s.add(Account(user_id=1, name="Nakit", account_type=AccountType.cash, balance=0, statement_day=5))
+    with pytest.raises(butunluk.ButunlukHatasi, match="statement_day"):
+        s.commit()
+    s.rollback()
+    app.dependency_overrides[get_db] = lambda: s
+    app.dependency_overrides[get_current_user] = lambda: s.get(User, 1)
+    try:
+        r = TestClient(app).post("/api/accounts", json={"name": "N", "account_type": "cash", "balance": 0, "credit_limit": 500})
+        assert r.status_code == 422, r.text
+        assert "kart alanı" in r.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()

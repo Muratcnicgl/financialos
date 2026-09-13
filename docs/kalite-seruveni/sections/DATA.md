@@ -175,7 +175,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DATA-027] `credit_limit`/`statement_day`/`payment_day` koşullu zorunluluk yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: credit_limit/statement_day koşullu CHECK yok (models.py:187)
+- **Durum:** ✅ KAPANDI (kart alanları yalnız kartta) · ⚪ DEFEKT DEĞİL (kartta limit zorunlu) — BUG #447 (13 Eyl 2026): ORM kuralı (`app/butunluk.py`): kredi kartı olmayan hesapta `credit_limit/statement_day/payment_day/statement_balance` dolu olamaz; API'den 422 (`ButunlukHatasi` işleyicisi, 500 değil). "Kartta limit ZORUNLU" bilinçli yok: bilinmeyen limit sıfır değildir (L45), arayüz limiti isteğe bağlı tutar, `kart_kullanim` limitsiz kartta None döner. Canlı: 6 kartta hepsi dolu, 18 kart-dışı hesapta hepsi NULL. Kapı: `tests/test_butunluk_kurallari_kapisi.py`.
 - **Kanıt:** `app/models.py:158-166` hepsi nullable
 - **Aksiyon:** Koşullu CHECK (credit_card ⇒ credit_limit NOT NULL, statement_day 1-31).
 - **Etki:** Orta · **Efor:** M

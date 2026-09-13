@@ -20,6 +20,10 @@ Kurallar (ölçüldü, 13 Eyl 2026 — canlı veride ihlal 0/0):
   olan satırda None yasaktır. Canlıda 39/39 dolu (ölçüldü, 13 Eyl 2026).
 - `Goal.progress_percent` (DATA-033): [0, 100]. `goal_engine` iki yolda da klempliyor (BUG #132)
   ama tek yazıcı değil; çekim katkıyı aşınca negatif, hedef küçülünce >100 sızabilirdi.
+- `Account` kart alanları (DATA-027): `credit_limit / statement_day / payment_day /
+  statement_balance` YALNIZ kredi kartında dolu olabilir. Tersi (kartta limit ZORUNLU) bilinçli
+  yok: bilinmeyen limit sıfır değildir, arayüz limiti isteğe bağlı tutar, `kart_kullanim` limitsiz
+  kartta None döner. Canlı: 13 nakit + 4 kredi + 1 yatırımda hepsi NULL, 6 kartta hepsi dolu.
 """
 from __future__ import annotations
 
@@ -28,12 +32,13 @@ import re
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from app.models import CoachInsight, Goal, PersonalDebt, RecurringExpense, RecurringIncome
+from app.models import Account, AccountType, CoachInsight, Goal, PersonalDebt, RecurringExpense, RecurringIncome
 
 YIL_AY = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 # `user_invalidated` belgeli dorduncu durum (coach_insights.py filtre belgesi); yazicisi bugun yok.
+KART_ALANLARI = ("credit_limit", "statement_day", "payment_day", "statement_balance")
 ICGORU_DURUMLARI = ("active", "invalidated", "dormant", "user_invalidated")
 
 
@@ -56,6 +61,14 @@ def _denetle(obj, yeni: bool = False) -> None:
                 f"coach_insights id={obj.id}: status={obj.status!r} geçersiz "
                 f"(izinli: {', '.join(ICGORU_DURUMLARI)}; NULL üçüncü durum değildir)."
             )
+    elif isinstance(obj, Account):
+        if obj.account_type != AccountType.credit_card:
+            dolu = [ad for ad in KART_ALANLARI if getattr(obj, ad, None) is not None]
+            if dolu:
+                raise ButunlukHatasi(
+                    f"accounts id={obj.id}: {obj.account_type!r} hesapta kart alanı dolu: {', '.join(dolu)} "
+                    "(yalnız kredi kartında anlamlı)."
+                )
     elif isinstance(obj, Goal):
         p = obj.progress_percent
         if p is not None and not (0 <= p <= 100):

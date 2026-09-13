@@ -3,7 +3,7 @@ import {
   ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from 'recharts';
 import { formatDate } from '../api.js';
-import { formatPara, formatSayi } from '../lib/money.js';
+import { formatPara, kisaSayi } from '../lib/money.js';
 // BUG #265: cizgi/nokta renkleri burada hex sabitiydi — tek kaynak lib/grafikRenkleri.js
 import { SERI, IZGARA, NOKTA_KENAR } from '../lib/grafikRenkleri.js';
 import { bakiyeTrendiOzeti } from '../lib/grafikOzeti.js';
@@ -70,7 +70,7 @@ export default function BalanceTrend({ days, today }) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={v => formatSayi(v, { compact: true })}
+            tickFormatter={kisaSayi}   /* DVIZ-014 (BUG #454) */
             tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.6 }}
             axisLine={false}
             tickLine={false}

@@ -12,7 +12,7 @@ import { reportsApi } from '../api.js';
 import NetWorthAnalysis from '../components/NetWorthAnalysis.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
-import { formatPara } from '../lib/money.js';
+import { formatPara, kisaSayi } from '../lib/money.js';
 import { kategoriOzeti, netDegerOzeti } from '../lib/grafikOzeti.js';
 // BUG #265: renkler burada hex olarak yaziliydi ve TEK temaya gore secilmisti
 // (`#4f46e5` koyu kartta 2.82 → cizgi ve lejant metni varsayilan temada okunmuyordu).
@@ -28,11 +28,6 @@ const TYPE_META = {
   both:    { label: 'Tümü',   btnClass: 'btn-primary'  },
 };
 
-// Çubuk etiketleri için kısa format: 12300 → "12,3K"
-function shortTL(value) {
-  if (value >= 1000) return (value / 1000).toFixed(1).replace('.', ',') + 'K';
-  return value.toFixed(0);
-}
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -251,7 +246,7 @@ export default function Reports() {
                     <LabelList
                       dataKey="total"
                       position="right"
-                      formatter={shortTL}
+                      formatter={kisaSayi}   /* DVIZ-014 (BUG #454): tek kısa biçim */
                       style={{ fontSize: 11, fill: TICK_COLOR }}
                     />
                   </Bar>
@@ -314,7 +309,7 @@ export default function Reports() {
                     tick={{ fontSize: 11, fill: TICK_COLOR }}
                   />
                   <YAxis
-                    tickFormatter={fmtYAxis}
+                    tickFormatter={kisaSayi}
                     tick={{ fontSize: 11, fill: TICK_COLOR }}
                     width={52}
                   />
@@ -496,11 +491,6 @@ function fmtXDate(iso) {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return iso;
   return `${parseInt(m[3])} ${TR_MONTHS_SHORT[parseInt(m[2]) - 1]}`;
-}
-
-function fmtYAxis(v) {
-  if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + 'K';
-  return String(v);
 }
 
 function TrendTooltip({ active, payload, label }) {

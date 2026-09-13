@@ -180,7 +180,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-014] Sayı biçimlendirme grafikler arası tutarsız
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: üç ayrı formatter
+- **Durum:** ✅ KAPANDI — BUG #454 (13 Eyl 2026): `lib/money.js::kisaSayi` (yerel `Intl` compact, tr-TR: "12,3 B", "1,3 Mn") tek kaynak; Reports `shortTL`/`fmtYAxis` silindi, BalanceTrend ekseni de aynı fonksiyon. Kapı: `frontend/src/kisa-sayi-tek-kaynak.test.jsx`.
 
 Sorun: Kısaltma mantığı her grafikte farklı: Reports bar'da `shortTL` (virgüllü, "12,3K"), Reports Y ekseninde `fmtYAxis` (virgülsüz, "12K"), Cashflow'da `formatTL(v, {compact:true})`. Aynı ekranda üç farklı bin/milyon kısaltması kullanıcıyı yanıltır ve markayı dağıtır.
 

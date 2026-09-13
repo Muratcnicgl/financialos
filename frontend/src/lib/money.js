@@ -51,6 +51,21 @@ function _formatlayici(ondalik) {
  * Sayıyı kullanıcının biçiminde yazar — para ETİKETİ EKLEMEZ.
  * 1234.56 -> "1.234,56" · null/NaN -> "—"
  */
+/**
+ * Grafik ekseni/çubuk etiketi için KISA sayı — DVIZ-014 (BUG #454). 12300 → "12,3 B",
+ * 1250000 → "1,3 Mn", 950 → "950". Tek kaynak: Reports'taki `shortTL` ("12,3K") ve
+ * `fmtYAxis` ("12K") ile BalanceTrend'in `compact` ekseni ("12.300") aynı ekranda üç ayrı
+ * dil konuşuyordu. Yerel `Intl` compact gösterimi (tr-TR: B = bin, Mn = milyon).
+ */
+let _kisaFormatlayici = null;
+export function kisaSayi(amount) {
+  if (amount === null || amount === undefined || Number.isNaN(Number(amount))) return '—';
+  if (!_kisaFormatlayici) {
+    _kisaFormatlayici = new Intl.NumberFormat(PARA_BIRIMI.locale, { notation: 'compact', maximumFractionDigits: 1 });
+  }
+  return _kisaFormatlayici.format(Number(amount));
+}
+
 export function formatSayi(amount, { compact = false, ondalik } = {}) {
   if (amount === null || amount === undefined || Number.isNaN(Number(amount))) return '—';
   const basamak = ondalik !== undefined ? ondalik : (compact ? 0 : PARA_BIRIMI.ondalik);

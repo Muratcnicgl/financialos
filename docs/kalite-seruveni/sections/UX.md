@@ -58,7 +58,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [UX-009] QuickEntry kategori önermiyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: QuickEntry kategori önermiyor
+- **Durum:** ✅ KAPANDI — BUG #468 (13 Eyl 2026): `lib/kategoriOneri.js::enSikKategoriler` — kullanıcının kendi gider geçmişinden en sık 3 kategori (istemci tarafı sayım, istek/model yok; `borc_odeme`/transfer/boş hariç; eşitlikte alfabetik). Metin yalnız tutarken ("320") çipler görünür, tıklayınca "320 market"; kategori yazılınca çipler kaybolur. Sunucudaki `suggest_category` (FEAT-034, açıklamadan marka eşleme) olduğu gibi kalır — çip yalnız yazmayı kısaltır. Kapı: `frontend/src/kategori-oneri.test.jsx` (sayım + RTL akışı).
 - **Kanıt:** `Transactions.jsx:155-167,25-28`
 - **Aksiyon:** Geçmişe dayalı en olası 2 kategoriyi chip öner (client-side frequency map). LLM gerekmez.
 - **Etki:** Orta · **Efor:** M

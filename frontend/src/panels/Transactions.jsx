@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { transactionsApi, accountsApi, cockpitApi, formatDate, signClass, todayLocalISO, parseTRNumber } from '../api.js';
 import { asimMiktari, hizliTutar } from '../lib/bugunKalan.js';   // UX-005 (BUG #467)
+import { enSikKategoriler, yalnizTutar } from '../lib/kategoriOneri.js';   // UX-009 (BUG #468)
 import { formatPara as _fp } from '../lib/money.js';
 import EmptyState from '../components/EmptyState.jsx';
 import Modal from '../components/Modal.jsx';
@@ -230,7 +231,7 @@ export default function Transactions() {
       </div>
 
       {/* QuickEntry */}
-      <QuickEntry onSubmit={handleQuickSubmit} accounts={accounts} bugunKalan={bugunKalan} />
+      <QuickEntry onSubmit={handleQuickSubmit} accounts={accounts} bugunKalan={bugunKalan} oneriler={enSikKategoriler(transactions)} />
 
       {/* Toplam ozet */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -372,7 +373,7 @@ export default function Transactions() {
 // QUICK ENTRY — "320 borc" gibi tek satir hizli giris
 // ============================================================
 
-function QuickEntry({ onSubmit, accounts, bugunKalan = null }) {
+function QuickEntry({ onSubmit, accounts, bugunKalan = null, oneriler = [] }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);  // {ok, msg}
@@ -437,6 +438,15 @@ function QuickEntry({ onSubmit, accounts, bugunKalan = null }) {
           {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Ekle'}
         </button>
       </form>
+      {/* UX-009 (BUG #468): metin yalnız tutarken en sık kategoriler çip olarak — tıkla, tamamla */}
+      {yalnizTutar(text) && oneriler.length > 0 && (
+        <div data-testid="kategori-onerileri" className="flex flex-wrap gap-1.5 mt-2" role="group" aria-label="Kategori önerileri">
+          {oneriler.map((k) => (
+            <button type="button" key={k} onClick={() => setText(`${text.trim()} ${k}`)}
+                    className="chip text-xs !min-h-[32px] hover:border-brand-500">{k}</button>
+          ))}
+        </div>
+      )}
       {asimOnayi && (
         <div role="alert" data-testid="asim-onayi" className="mt-2 flex items-center justify-between gap-2 text-xs rounded-lg border border-warn-300 dark:border-warn-700/50 bg-warn-50 dark:bg-warn-950/30 px-3 py-2">
           <span className="text-warn-800 dark:text-warn-200">

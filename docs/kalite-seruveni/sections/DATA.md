@@ -213,7 +213,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [DATA-033] `Goal.progress_percent` negatif/aşım senaryosu (withdrawal)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: progress_percent quantize ama [0,100] CHECK yok (goal_engine.py:106)
+- **Durum:** ✅ KAPANDI — BUG #446 (13 Eyl 2026): `goal_engine` iki yolda da [0,100] klempliyor (BUG #132, ölçüldü: `max(min(...))`); tek yazıcı olmadığı için kural ORM `before_flush`'ta (`app/butunluk.py`; DB CHECK SQLite'ta tablo yeniden kurulumu ister). Canlı: 1 hedef, 0. Kapı: `tests/test_butunluk_kurallari_kapisi.py`.
 - **Kanıt:** `app/models.py:774-775`; withdrawal `:797`
 - **Aksiyon:** refresh_goal sonrası [0,100] clamp + CHECK.
 - **Etki:** Düşük · **Efor:** S

@@ -18,6 +18,8 @@ Kurallar (ölçüldü, 13 Eyl 2026 — canlı veride ihlal 0/0):
   yeniden kurulumu ister. Kural burada: yalnız `active | invalidated | dormant | user_invalidated`;
   yeni nesnede None "varsayılan uygulanacak" demektir (sütun default'u INSERT'te yazılır), var
   olan satırda None yasaktır. Canlıda 39/39 dolu (ölçüldü, 13 Eyl 2026).
+- `Goal.progress_percent` (DATA-033): [0, 100]. `goal_engine` iki yolda da klempliyor (BUG #132)
+  ama tek yazıcı değil; çekim katkıyı aşınca negatif, hedef küçülünce >100 sızabilirdi.
 """
 from __future__ import annotations
 
@@ -26,7 +28,7 @@ import re
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from app.models import CoachInsight, PersonalDebt, RecurringExpense, RecurringIncome
+from app.models import CoachInsight, Goal, PersonalDebt, RecurringExpense, RecurringIncome
 
 YIL_AY = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
@@ -54,6 +56,10 @@ def _denetle(obj, yeni: bool = False) -> None:
                 f"coach_insights id={obj.id}: status={obj.status!r} geçersiz "
                 f"(izinli: {', '.join(ICGORU_DURUMLARI)}; NULL üçüncü durum değildir)."
             )
+    elif isinstance(obj, Goal):
+        p = obj.progress_percent
+        if p is not None and not (0 <= p <= 100):
+            raise ButunlukHatasi(f"goals id={obj.id}: progress_percent={p!r} [0, 100] dışında.")
     elif isinstance(obj, (RecurringIncome, RecurringExpense)):
         ym = obj.last_triggered_year_month
         if ym is not None and not YIL_AY.match(ym):

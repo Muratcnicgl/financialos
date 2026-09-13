@@ -96,3 +96,16 @@ def test_icgoru_durumu_ucuncu_deger_olamaz(s):
     s.rollback()
     i = s.query(CoachInsight).one()
     i.status = "dormant"; s.commit()
+
+
+def test_hedef_ilerlemesi_sifir_yuz_araliginda(s):
+    """DATA-033: goal_engine klempliyor ama tek yazıcı değil; kural flush'ta."""
+    from app.models import Goal
+    g = Goal(user_id=1, title="Tatil", goal_type="savings", target_amount=1000, progress_percent=0)
+    s.add(g); s.commit()
+    for kotu in (-1, 100.01):
+        g.progress_percent = kotu
+        with pytest.raises(butunluk.ButunlukHatasi, match=r"\[0, 100\]"):
+            s.commit()
+        s.rollback(); g = s.query(Goal).one()
+    g.progress_percent = 100; s.commit()

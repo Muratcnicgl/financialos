@@ -259,14 +259,17 @@ def _simulate(
             # (months_to_freedom çok erken) gösteriyordu. Fiilen ödenen base_min'i sakla.
             last_base_min[aid] = base_min
             min_pay = min(base_min, state[aid])  # Bakiyeden fazla ödeme yok
+            # RULE-012 (BUG #438): ödeme sonrası kuruş-altı artık (0 ≤ r < 0,01) borcu kapatır;
+            # artık AFFEDİLMEZ, son ödemeye eklenir (eskiden hem affediliyor hem "iade" diye
+            # ekstraya ekleniyordu — yön yanlış). Etki < 1 kuruş/borç; korunum kuruş-altında da tutar.
+            if state[aid] - min_pay < 0.01:
+                min_pay = state[aid]
             state[aid] -= min_pay
             total_paid += min_pay
             snapshot_paid[aid] = min_pay
 
-            if state[aid] < 0.01:
-                refund = abs(state[aid])
+            if state[aid] <= 0.0:
                 state[aid] = 0.0
-                available_extra += refund
                 snapshot_events.append(aid)
                 if aid not in debt_payoff_months:
                     debt_payoff_months[aid] = month
@@ -278,12 +281,14 @@ def _simulate(
             if state[aid] <= 0.01:
                 continue
             pay = min(available_extra, state[aid])
+            if state[aid] - pay < 0.01:   # RULE-012 (BUG #438): artık son ödemeye eklenir
+                pay = state[aid]
             state[aid] -= pay
             available_extra -= pay
             total_paid += pay
             snapshot_paid[aid] = snapshot_paid.get(aid, 0.0) + pay
 
-            if state[aid] < 0.01:
+            if state[aid] <= 0.0:
                 state[aid] = 0.0
                 if aid not in snapshot_events:
                     snapshot_events.append(aid)

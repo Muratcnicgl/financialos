@@ -84,7 +84,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [RULE-012] `_simulate` 0.01 TL eşiğiyle borç "kapandı" — toplam korunumu bozuk
-- **Durum:** 🟡 BELGELENDİ (M83 R3) — 0.01 sonlandırma-epsilon'u; para-korunum artık RULE-031 invariant testiyle kilitli.
+- **Durum:** ✅ KAPANDI — BUG #438 (13 Eyl 2026): ölçüm önce: tohumlu 752 biten senaryoda korunum sapması ≤ 3e-11 — artık yalnız ödeme bakiyenin 1 kuruş altına düşünce oluşuyor (nadir), "korunum bozuk" iddiası pratikte yanlıştı; ama RULE-031'in 1 TL toleransı kusuru hiç ölçmüyordu ve adım 2 artığı "iade" diye ekstraya EKLİYORDU (yön yanlış). Düzeltme: artık son ödemeye eklenir (`state − pay < 0,01 → pay = state`), tolerans 1,0 → 0,01. Kapı: `tests/test_borc_kapanis_artigi_kapisi.py` (kurgulu artık senaryosu 333,34; rastgele küme; bitmeyen senaryoda kalan dahil korunum).
 - **Sorun:** `b > 0.01` / `state[aid] <= 0.01` eşiği borçları 1 kuruşa kadar "ödenmiş" sayar ama `total_paid`'e eklemez. Invariant `total_paid ≈ Σbalance + total_interest` bozulur.
 - **Kanıt:** `app/debt_strategy.py:150, 169, 177, 189`
 - **Aksiyon:** Kapanışta kalan artığı son ödemeye ekle veya eşiği kaldır; korunum invariant testi.

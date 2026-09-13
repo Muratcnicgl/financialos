@@ -134,8 +134,9 @@ def test_rule031_para_korunum_invarianti():
     initial_principal = sum(d.balance for d in debts)
     for strat in (calc_snowball, calc_avalanche):
         r = strat(debts, extra_monthly=1000)
-        # kuruş yuvarlama toleransı
-        assert abs(r.total_paid - (initial_principal + r.total_interest_paid)) < 1.0, (
+        # Tolerans 1,0 TL → 0,01 (BUG #438): ölçülen sapma biten senaryolarda ≤ 3e-11; 1 TL
+        # toleransı RULE-012'nin kuruş-altı artığını hiç ölçmüyordu.
+        assert abs(r.total_paid - (initial_principal + r.total_interest_paid)) < 0.01, (
             f"{r.strategy}: korunum bozuk — total_paid={r.total_paid}, "
             f"anapara={initial_principal}, faiz={r.total_interest_paid}")
 

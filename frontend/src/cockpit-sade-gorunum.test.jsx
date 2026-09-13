@@ -292,3 +292,26 @@ describe('DVIZ-005 — kart altında dönem farkı (BUG #429)', () => {
     expect(screen.getAllByTestId('metric-degisim').some((e) => /5 Eyl'den beri/.test(e.textContent))).toBe(true);
   });
 });
+
+describe('UX-036 — vade satırları panele gider (BUG #465)', () => {
+  it('ödeme ve tahsilat satırları düğme; tıklayınca ilgili sekme açılır', async () => {
+    const git = vi.fn();
+    yazModu(DETAYLI);
+    cockpitApi.get.mockResolvedValue(COCKPIT);
+    actionsApi.pending.mockResolvedValue(BEKLEYEN);
+    incomesApi.triggerDue.mockResolvedValue({ triggered: [], atlanan: [] });
+    expensesApi.triggerDue.mockResolvedValue({ triggered: [], atlanan: [] });
+    cashflowApi.getForecast.mockResolvedValue({ summary: { lowest_balance: 500, lowest_date: '2026-09-20', net_flow: 1, crunch_count: 0 } });
+    render(<Cockpit setActiveTab={git} />);
+    await screen.findByText('Bugünkü manzara');
+    // takvimler katlı gelir (planlama bilgisi) — önce aç
+    fireEvent.click(screen.getByRole('button', { name: /Yaklaşan ödemeler/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Yaklaşan tahsilatlar/ }));
+    const odeme = await screen.findByRole('button', { name: /Kredi taksiti: Hesaplar panelinde aç/ });
+    fireEvent.click(odeme);
+    expect(git).toHaveBeenCalledWith('accounts');
+    const tahsilat = await screen.findByRole('button', { name: /Ali: Gelir & Borç panelinde aç/ });
+    fireEvent.click(tahsilat);
+    expect(git).toHaveBeenCalledWith('incomedebt');
+  });
+});

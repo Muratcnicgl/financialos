@@ -226,7 +226,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [UX-036] Cockpit kaleminden ilgili panele deep-link zayıf
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Cockpit vade satırları tıklanamaz
+- **Durum:** ✅ KAPANDI — BUG #465 (13 Eyl 2026): ödeme takvimi ve tahsilat satırları gerçek `<button>` (klavye + ekran okuyucu adı "X: Hesaplar panelinde aç"); kalem tipine göre panel (`gelir/temerrut → Gelir & Borç`, `kredi_taksit/kart_odeme → Hesaplar`) `sekmeler.js` id'leriyle. "Kaydı vurgula" yapılmadı: hedef panellerde satır-kimliğiyle vurgu altyapısı yok; ayrı iş. Kapı: `cockpit-sade-gorunum.test.jsx` (UX-036 bloğu: tıklama → `setActiveTab` doğru sekme).
 - **Kanıt:** `Cockpit.jsx:449-477` (tıklanamaz) vs `:332-339` (cashflow linki var)
 - **Aksiyon:** Vade/tahsilat satırlarını tıklanabilir yap → ilgili panel (`setActiveTab` prop mevcut), kaydı vurgula.
 - **Etki:** Orta · **Efor:** M

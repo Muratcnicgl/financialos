@@ -119,6 +119,10 @@ const KART_KARTI_OLAN_UYARILAR = {
  * - Alt grup: Strateji (Emanet, Gelir, Reel Butce, Gorulen Net, Tam Net) - 5 kart
  */
 // BUG #427 (UX-023): kritik-dışı uyarılardan kaçı katlanmadan görünür
+// UX-036 (BUG #465): vade/tahsilat satırı → kalemin yaşadığı panel (sekme id'leri sekmeler.js).
+const VADE_PANELI = { gelir: 'incomedebt', kredi_taksit: 'accounts', kart_odeme: 'accounts', temerrut: 'incomedebt' };
+const VADE_PANEL_ADI = { incomedebt: 'Gelir & Borç', accounts: 'Hesaplar' };
+
 const KATLANMADAN_GORUNEN = 2;
 
 export default function Cockpit({ setActiveTab }) {
@@ -994,9 +998,13 @@ export default function Cockpit({ setActiveTab }) {
           >
             <div className="space-y-2">
               {data.upcoming_payments.map((p, i) => (
-                <div
+                /* UX-036 (BUG #465): satır tıklanabilir — kalemin yaşadığı panele gider */
+                <button
+                  type="button"
                   key={i}
-                  className="flex items-center justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+                  onClick={() => setActiveTab?.(VADE_PANELI[p.tip] || 'incomedebt')}
+                  aria-label={`${p.ad}: ${VADE_PANEL_ADI[VADE_PANELI[p.tip] || 'incomedebt']} panelinde aç`}
+                  className="w-full text-left flex items-center justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 rounded px-1 -mx-1"
                 >
                   <div className="min-w-0">
                     <p className="font-medium truncate">{p.ad}</p>
@@ -1019,7 +1027,7 @@ export default function Cockpit({ setActiveTab }) {
                     {p.tip === 'gelir' ? '+' : '−'}
                     {formatPara(p.tutar)}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </KatlanirBolum>
@@ -1035,9 +1043,12 @@ export default function Cockpit({ setActiveTab }) {
           >
             <div className="space-y-2">
               {data.upcoming_receivables.map((r, i) => (
-                <div
+                <button
+                  type="button"
                   key={i}
-                  className="flex items-start justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2"
+                  onClick={() => setActiveTab?.('incomedebt')}
+                  aria-label={`${r.kim}: Gelir & Borç panelinde aç`}
+                  className="w-full text-left flex items-start justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 rounded px-1 -mx-1"
                 >
                   <div className="min-w-0">
                     <p className="font-medium">{r.kim}</p>
@@ -1051,7 +1062,7 @@ export default function Cockpit({ setActiveTab }) {
                   <span className="font-numeric font-semibold text-positive-600 dark:text-positive-400 flex-shrink-0">
                     +{formatPara(r.tutar)}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </KatlanirBolum>

@@ -148,7 +148,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [SEC-025] Rıza/gizlilik politikası ve saklama süresi yok
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: kvkk_consent + ReasoningTrace retention var, CoachMemory anonimleştirme yok (models.py:139)
+- **Durum:** ✅ KAPANDI — 13 Eyl 2026 ölçümü: üç ayak da yerinde. (1) Aydınlatma + rıza kaydı: `docs/legal/kvkk-consent-v4.md`, `User.kvkk_consent_at` (kapsam değişince yeniden onay, BUG #231). (2) Saklama süreleri **beyan edilmiş** (§6: hesap aktifken; silinince anında; yedek ≤30 gün; koç izleri 90 gün) ve **koda bağlı** (`scheduler.SAKLAMA_KURALLARI`: reasoning_traces 90, api_call_log 90, scheduler_runs 90, revoked_tokens 0, audit_log 365 — `test_saklama_kapisi`). (3) CoachMemory/CoachInsight: hesap silinince `data_subject` kaydıyla anında silinir (`test_account_deletion_kvkk`); hesap aktifken hafıza ürünün kendisidir — "periyodik anonimleştirme" bu yüzden yapılmadı (anonim bir hafıza koça yaramaz; kullanıcı istediği anda hesabı/hafızayı silebilir).
 - **Kanıt:** CoachMemory/CoachInsight süresiz; sadece insight'ta opsiyonel expires_at
 - **Aksiyon:** Saklama süreleri + periyodik anonimleştirme job (scheduler var); aydınlatma+rıza kaydı.
 - **Etki:** Düşük · **Efor:** M

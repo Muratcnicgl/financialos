@@ -3,11 +3,12 @@ import {
   TrendingUp, TrendingDown, Plus, Pencil, Trash2,
   Loader2, AlertTriangle, RefreshCw, CheckCircle, Clock,
   Calendar, ArrowDownToLine, ArrowUpToLine, Filter,
-  Power, CreditCard, Receipt, Wallet, RotateCcw,
+  Power, CreditCard, Receipt, Wallet, RotateCcw, Users,
 } from 'lucide-react';
 import { incomesApi, expensesApi, debtsApi, accountsApi, formatDate, todayLocalISO, currentYearMonthLocal, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
+import EmptyState from '../components/EmptyState.jsx';   // UX-017 (BUG #464)
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 import { useKaliciDurum } from '../lib/kaliciDurum.js';   // UX-037 (BUG #462)
 import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
@@ -364,9 +365,10 @@ export default function IncomeDebt() {
           </button>
         </div>
         {incomes.length === 0 ? (
-          <div className="card p-6 text-center">
-            <p className="text-sm text-zinc-500">Henüz gelir kaydı yok</p>
-          </div>
+          /* UX-017 (BUG #464): boş durum CTA'lı — İşlemler paneliyle aynı desen */
+          <EmptyState icon={TrendingUp} title="Henüz gelir kaydı yok"
+                      description="Maaş, kira geliri gibi düzenli gelirlerini ekle; koç ve nakit akışı projeksiyonu bunlardan beslenir."
+                      ctaLabel="İlk gelirini ekle" onCta={() => setEditingIncome('new')} />
         ) : (
           <div className="space-y-2">
             {incomes.map(inc => (
@@ -396,9 +398,9 @@ export default function IncomeDebt() {
           </button>
         </div>
         {expenses.length === 0 ? (
-          <div className="card p-6 text-center">
-            <p className="text-sm text-zinc-500">Henüz gider kaydı yok</p>
-          </div>
+          <EmptyState icon={TrendingDown} title="Henüz gider kaydı yok"
+                      description="Kira, abonelik, taksit gibi düzenli giderlerini ekle; günlük limit ve sıkışma uyarıları bunlara bakar."
+                      ctaLabel="İlk giderini ekle" onCta={() => setEditingExpense('new')} />
         ) : (
           <div className="space-y-2">
             {expenses.map(exp => (
@@ -454,11 +456,15 @@ export default function IncomeDebt() {
           </div>
 
           {filteredDebts.length === 0 ? (
-            <div className="card p-6 text-center">
-              <p className="text-sm text-zinc-500">
-                {debts.length === 0 ? 'Henüz borç/alacak kaydı yok' : 'Filtreyle eşleşen kayıt yok'}
-              </p>
-            </div>
+            debts.length === 0 ? (
+              <EmptyState icon={Users} title="Henüz borç/alacak kaydı yok"
+                          description="Birine verdiğin ya da birinden aldığın parayı kaydet; vadesi gelince hatırlatılır, tahsilat nakde işlenir."
+                          ctaLabel="İlk kaydını ekle" onCta={() => setEditingDebt('new')} />
+            ) : (
+              <div className="card p-6 text-center">
+                <p className="text-sm text-zinc-500">Filtreyle eşleşen kayıt yok</p>
+              </div>
+            )
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
               {filteredDebts.map(d => (

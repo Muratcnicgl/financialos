@@ -15,7 +15,9 @@
  *   2. Sızıntı — ekranda "NaN", "Infinity", "undefined" gibi ham JS artıkları.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import bosKullanici from './__fixtures__/bos-kullanici.json';
 import { ToastProvider } from './components/Toast.jsx';
@@ -127,5 +129,22 @@ describe('P3.2 — boş kullanıcı: hiçbir panel çökmez, ham JS artığı s�
     const zorunlu = ['/api/cockpit', '/api/accounts', '/api/transactions', '/api/goals'];
     const eksik = zorunlu.filter((y) => !(y in bosKullanici));
     expect(eksik, `fixture bayat: ${eksik.join(', ')} yok`).toEqual([]);
+  });
+});
+
+// UX-017 (BUG #464): boş durum yalnız "yok" demez, ilk adımı sunar — İşlemler paneliyle aynı desen.
+describe('UX-017 — Gelir & Borç boş durumları CTA\'lı', () => {
+  beforeEach(() => { vi.stubGlobal('fetch', makeFetchMock([])); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('üç sekmede de ilk kaydı ekleme düğmesi var ve formu açar', async () => {
+    render(<ToastProvider><IncomeDebt /></ToastProvider>);
+    const cta = await screen.findByRole('button', { name: /İlk gelirini ekle/ });
+    expect(cta).toBeInTheDocument();
+    fireEvent.click(cta);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    const src = readFileSync(join(__dirname, 'panels', 'IncomeDebt.jsx'), 'utf-8');
+    for (const cta2 of ['İlk gelirini ekle', 'İlk giderini ekle', 'İlk kaydını ekle']) expect(src).toContain(`ctaLabel="${cta2}"`);
+    expect(src).not.toMatch(/Henüz gelir kaydı yok<\/p>/);
   });
 });

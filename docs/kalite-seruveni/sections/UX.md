@@ -106,7 +106,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [UX-017] IncomeDebt boş durumları CTA'sız, sıradan metin
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: IncomeDebt boş durum CTA'sız
+- **Durum:** ✅ KAPANDI — BUG #464 (13 Eyl 2026): üç sekmede ortak `EmptyState` (ikon, ne işe yaradığını söyleyen açıklama, "İlk gelirini/giderini/kaydını ekle" CTA'sı formu açar); filtreyle eşleşmeyen durum ayrı metin. Kapı: `empty-state.test.jsx` (UX-017 bloğu: CTA görünür, tıklayınca diyalog; üç etiket kaynakta).
 - **Kanıt:** `IncomeDebt.jsx:288-291,320-323,378-383` vs `Transactions.jsx:310-316`
 - **Aksiyon:** Üç sekmede de `EmptyState`+"İlk gelirini ekle" CTA.
 - **Etki:** Düşük · **Efor:** S

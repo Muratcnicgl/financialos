@@ -44,6 +44,12 @@ EK_DENETLENEN: dict[str, str] = {
     # tavanı) — sayısal sütun yok (`rule_params` JSON) ama bir kuralın gevşetilmesi/silinmesi
     # en az bir bakiye değişikliği kadar izlenmelidir.
     "master_checkpoints": "kullanıcının para kuralları; rule_params JSON, Numeric sütun yok",
+    # BE-035 (BUG #443): onay/red KARARININ izi. `action_history` yalnız UYGULANAN aksiyonu
+    # (önce/sonra bakiyeyle) yazar; red hiçbir şey uygulamadığı için oraya girmez — doğru.
+    # Ama "kim, ne zaman, hangi gerekçeyle reddetti" sorusunun da bir cevabı olmalı: durum
+    # geçişi (pending→approved/executed/rejected/failed) ve `error_message` (red gerekçesi)
+    # burada izlenir; onay tarafı da aynı izi bırakır (simetri).
+    "pending_actions": "onay/red kararı; durum geçişi ve red gerekçesi (Numeric sütun yok)",
 }
 
 

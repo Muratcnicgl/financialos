@@ -196,7 +196,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [BE-030] `_next_occurrences` cashflow projeksiyonu router'da, rules_engine ile örtüşüyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: upcoming_cashflow router'da, rules_engine örtüşme
+- **Durum:** ✅ KAPANDI — BUG #442 (13 Eyl 2026, PERF-017 ile): `_next_occurrences` silindi, `upcoming-cashflow` `app/cashflow.py` genişleticilerini (`_expand_recurring_income/_expense`, `_expand_loan_payments`) kullanır; hesap tek yerde, router yalnız alacak/borç sorgusu + biçimleme. Kapı: `tests/test_yaklasan_akis_tek_kaynak_kapisi.py`.
 - **Kanıt:** `app/routers/reports.py:141-236` vs rules_engine `upcoming_*`
 - **Aksiyon:** Tek yerde (`services/cashflow_service.py` veya rules_engine — okuma-only).
 - **Etki:** Orta · **Efor:** M
@@ -227,7 +227,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [BE-035] Reject aksiyonu `ActionHistory` yazmıyor — asimetrik denetim izi
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: reject ActionHistory yazmıyor, approve yazıyor asimetri
+- **Durum:** ✅ KAPANDI — BUG #443 (13 Eyl 2026): `action_history` UYGULANAN aksiyonun defteridir (önce/sonra bakiye); red oraya girmez, bu doğru. Kararın izi `audit_log`'a alındı: `pending_actions` denetlenen tablolara eklendi (`denetim.EK_DENETLENEN`, gerekçeli) → red ve onay geçişleri (status, resolved_at, red gerekçesi `error_message`) aktör/istek-id/zamanla izlenir; `action_rejection_pattern` çıkarıcısı zaten `pending_actions`'tan okur (hizalı). Kapı: `tests/test_red_izi_kapisi.py` (uç üzerinden red → iz; onay geçişi → iz; `action_history` boş).
 - **Kanıt:** `app/routers/actions.py:226-319` (approve zengin) vs `322-336` (reject yalın)
 - **Aksiyon:** Reddedilenler için hafif history/log; action_rejection_pattern extractor'ıyla hizala.
 - **Etki:** Düşük · **Efor:** S

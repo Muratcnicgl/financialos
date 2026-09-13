@@ -15,7 +15,7 @@ import EmptyState from '../components/EmptyState.jsx';
 import { formatPara } from '../lib/money.js';
 // BUG #265: renkler burada hex olarak yaziliydi ve TEK temaya gore secilmisti
 // (`#4f46e5` koyu kartta 2.82 → cizgi ve lejant metni varsayilan temada okunmuyordu).
-import { KATEGORIK, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK } from '../lib/grafikRenkleri.js';
+import { KATEGORIK, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK, lejantMetni } from '../lib/grafikRenkleri.js';
 
 const COLORS = KATEGORIK;
 
@@ -218,7 +218,7 @@ export default function Reports() {
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend iconType="circle" iconSize={8} />
+                  <Legend iconType="circle" iconSize={8} formatter={lejantMetni()} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -317,7 +317,7 @@ export default function Reports() {
                     width={52}
                   />
                   <Tooltip content={<TrendTooltip />} />
-                  <Legend />
+                  <Legend formatter={lejantMetni()} />
                   <ReferenceLine y={0} stroke={EKSEN} strokeDasharray="4 2" />
                   <Line
                     type="monotone"

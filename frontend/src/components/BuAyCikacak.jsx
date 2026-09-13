@@ -80,13 +80,13 @@ export default function BuAyCikacak({ takvim, gunKaldi }) {
       )}
 
       {kartVarsayimi && (
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mt-1">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
           Kart tutarı güncel borçtan alındı; ekstre borcunu girersen bu sayı netleşir.
         </p>
       )}
 
       {belirsiz > 0 && (
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mt-1">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
           Hesabı belirtilmemiş <span className="font-numeric">{formatPara(belirsiz)}</span> gider
           bu toplama girmedi (nakit mi kart mı belli değil).
         </p>

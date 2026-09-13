@@ -16,7 +16,7 @@
  * raporlamisti; tarayici 128 kullanimin 123'unu kaciriyordu.
  *
  * Olculen degismezler (her panel x her tema, 390x844):
- *   1) Metin kontrasti >= 3:1 (WCAG AA buyuk-metin esigi; alt sinir, hedef degil)
+ *   1) Metin kontrasti >= 4.5:1 (WCAG AA govde metni; BUG #441 ile 3'ten yukseltildi)
  *   2) Yatay tasma YOK (sayfa govdesi viewport'u asmaz)
  *   3) Dokunma hedefi >= 44px (ADR-010) — iki YAZILI istisna ile:
  *        a. Cumle icindeki kontrol (WCAG 2.5.8 "inline" istisnasi): kardes metin varsa
@@ -60,8 +60,15 @@ test.afterAll(async ({ request }) => {
   if (token) await request.delete(`${API}/api/users/me`, { headers: { Authorization: `Bearer ${token}` } });
 });
 
+// A11Y-005 (BUG #441, 13 Eyl 2026): esik 3 → 4.5 (WCAG AA govde metni). Olcum: 4.5'te 756 ihlal
+// vardi — %90'i koyu temada zinc-500 ikincil metin (3.67/4.12) ve palette 500/600 tonlari
+// (beyaz metin 4.47, positive-600 3.77, warn-600 3.19); token duzeyinde duzeltildi (index.css
+// html.dark .text-zinc-500, tailwind.config semantik tonlar, lejant metni govde rengi) → 0.
+// KONTRAST_ESIGI ile gecici olcum yapilabilir; kapinin kendisi 4.5'te kosar.
+const KONTRAST_ESIGI = parseFloat(process.env.KONTRAST_ESIGI || '4.5');
+
 /** Tarayici icinde kosar: tek bir panelin ihlallerini dondurur. */
-const OLC = () => {
+const OLC = (esik) => {
   const gorunur = (el) => {
     const r = el.getBoundingClientRect();
     const s = getComputedStyle(el);
@@ -97,6 +104,9 @@ const OLC = () => {
   const kucuk = [];
   for (const el of document.querySelectorAll('button, a[href], select, input[type=checkbox], input[type=radio], [role=button]')) {
     if (!gorunur(el)) continue;
+    // istisna (c): ekran-okuyucuya ozel (sr-only) ogeler gorsel hedef degildir — "icerige atla"
+    // baglantisi (BUG #440) odak alinca 44px'e buyur; odaksizken 1x1'dir ve dokunulmaz.
+    if (el.classList.contains('sr-only')) continue;
     if (cumleIcinde(el)) continue;                       // istisna (a): WCAG 2.5.8 inline
     const hedef = olculecekHedef(el);
     const r = hedef.getBoundingClientRect();
@@ -134,8 +144,8 @@ const OLC = () => {
     if (!bg) continue;
     const l1 = lum(fg), l2 = lum(bg);
     const oran = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-    if (oran < 3) {
-      dusukKontrast.push(`"${(el.textContent || '').trim().slice(0, 30)}" ${st.color}/rgb(${bg.slice(0, 3)}) = ${oran.toFixed(2)}`);
+    if (oran < esik) {
+      dusukKontrast.push(`"${(el.textContent || '').trim().slice(0, 30)}" ${st.color}/rgb(${bg.slice(0, 3)}) = ${oran.toFixed(2)} [${Math.round(parseFloat(st.fontSize))}px${parseInt(st.fontWeight, 10) >= 700 ? ' bold' : ''}]`);
     }
   }
 
@@ -187,10 +197,10 @@ for (const tema of ['dark', 'light']) {
       await expect(btn, `"${ad}" sekmesi 390px'te bulunamadi`).toBeVisible();
       await btn.click();
       await page.waitForTimeout(700);   // mount + API; smoke seviyesinde kisa bekleme
-      const r = await page.evaluate(OLC);
+      const r = await page.evaluate(OLC, KONTRAST_ESIGI);
       if (r.tasma > 1) ihlaller.push(`[${ad}/${tema}] YATAY TASMA ${r.tasma}px → ${r.tasanlar.join(' ; ')}`);
       for (const k of r.kucuk) ihlaller.push(`[${ad}/${tema}] DOKUNMA HEDEFI <44px → ${k}`);
-      for (const k of r.dusukKontrast) ihlaller.push(`[${ad}/${tema}] KONTRAST <3:1 → ${k}`);
+      for (const k of r.dusukKontrast) ihlaller.push(`[${ad}/${tema}] KONTRAST <${KONTRAST_ESIGI}:1 → ${k}`);
 
       // BUG #281 (B2): geri bildirim dugmesi HER ANA ROTADA erisilebilir olmali.
       // Statik "App.jsx'te bir kez render ediliyor" tespiti YETMEZ (L29): bir panel

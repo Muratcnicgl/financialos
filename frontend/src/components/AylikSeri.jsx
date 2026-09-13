@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { reportsApi } from '../api.js';
 import { formatSayi, paraEtiketi } from '../lib/money.js';
+import { lejantMetni } from '../lib/grafikRenkleri.js';
 
 /**
  * AylikSeri — son N ayın gelir/gider çubukları + tasarruf oranı (BUG #428 / DVIZ-004, FEAT-023).
@@ -48,7 +49,7 @@ export default function AylikSeri({ months = 6 }) {
               <XAxis dataKey="ad" tick={{ fontSize: 11 }} />
               <YAxis hide />
               <Tooltip formatter={(v, ad) => [`${formatSayi(v)} ${paraEtiketi()}`, ad === 'total_income' ? 'Gelir' : 'Gider']} />
-              <Legend formatter={(v) => (v === 'total_income' ? 'Gelir' : 'Gider')} />
+              <Legend formatter={lejantMetni((v) => (v === 'total_income' ? 'Gelir' : 'Gider'))} />
               <ReferenceLine y={0} stroke="#a1a1aa" />
               <Bar dataKey="total_income" fill="#16a34a" radius={[3, 3, 0, 0]} />
               <Bar dataKey="total_expense" fill="#dc2626" radius={[3, 3, 0, 0]} />

@@ -117,7 +117,7 @@ export default function Onboarding({ setActiveTab, onDegisti }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium ${adim.tamam
-                  ? 'text-zinc-500 line-through'
+                  ? 'text-zinc-600 dark:text-zinc-400 line-through'
                   : 'text-zinc-900 dark:text-zinc-100'}`}>
                   {adim.baslik}
                 </p>
@@ -148,7 +148,7 @@ export default function Onboarding({ setActiveTab, onDegisti }) {
                   className="btn btn-ghost !text-xs">
             <EyeOff className="w-3.5 h-3.5" /> Rehberi gizle
           </button>
-          <span className="text-[10px] text-zinc-500">
+          <span className="text-[10px] text-zinc-600 dark:text-zinc-400">
             Gizlersen Hesap sekmesinden geri açabilirsin.
           </span>
         </div>

@@ -370,6 +370,12 @@ function AppContent({ onLogout }) {
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+      {/* A11Y-011 (BUG #440): "içeriğe atla" — klavye kullanıcısı 13 sekmelik şeridi her
+          seferinde Tab'la geçmesin. Görünmez; odak alınca görünür (sr-only → not-sr-only). */}
+      <a href="#panel-icerik"
+         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 btn btn-primary">
+        İçeriğe atla
+      </a>
       <header className="flex-shrink-0 sticky top-0 z-30 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/85 dark:bg-zinc-950/85 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2 flex-shrink-0">

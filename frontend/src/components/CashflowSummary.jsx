@@ -54,7 +54,7 @@ export default function CashflowSummary({ summary }) {
         <p className="text-xs text-zinc-500 mt-0.5">
           <span className="text-positive-600 dark:text-positive-500">+{formatSayi(total_receivable)}</span>
           {' / '}
-          <span className="text-negative-500">{formatSayi(total_payable)}</span>
+          <span className="text-negative-600 dark:text-negative-400">{formatSayi(total_payable)}</span>
         </p>
       </div>
 

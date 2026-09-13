@@ -68,6 +68,14 @@
   }
 }
 
+@layer utilities {
+  /* A11Y-005 (BUG #441): koyu temada ikincil metin. `text-zinc-500` koyu zeminde 3,67–4,12
+     verir (WCAG AA gövde metni 4,5). 313 kullanımın 192'si `dark:text-zinc-400` eşiyle
+     yazılmış, 121'i unutulmuş — tek tek düzeltmek yerine token düzeyinde: koyu temada
+     zinc-500 metin zinc-400 olur (6,9–7,8). Ölçen kapı: e2e/tema-mobil (KONTRAST_ESIGI=4.5). */
+  html.dark .text-zinc-500 { color: rgb(161 161 170); }
+}
+
 @layer components {
   /* Kart — uygulama boyunca tekrar eden konteyner.
      Yüzey dili (Eyl 2026 sadeleştirme turu): köşe yarıçapı xl→2xl, gölge tek

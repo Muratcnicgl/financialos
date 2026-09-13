@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+
 /**
  * Grafik renkleri — TEK KAYNAK (BUG #265).
  *
@@ -45,3 +47,14 @@ export const IZGARA_OPAKLIK = 0.35;
 
 /** Nokta kenarligi — cizgiden ayirmak icin; iki temada da notr. */
 export const NOKTA_KENAR = '#a1a1aa';
+
+/**
+ * A11Y-005 (BUG #441): Recharts lejant METNİ seri rengini miras alır; seri renkleri iki
+ * temada >= 3:1 (grafik için yeter) ama gövde metni 4,5 ister ve tek hex ile iki temada
+ * 4,5'i tutturmak mümkün değil. Çözüm: renk simgede kalır, metin gövde rengine döner.
+ * Her <Legend formatter={lejantMetni(...)}> bunu kullanır; ölçen kapı e2e/tema-mobil.
+ */
+export const LEJANT_METIN_SINIFI = 'text-zinc-700 dark:text-zinc-300';
+export function lejantMetni(etiketle = (v) => v) {
+  return (value) => createElement('span', { className: LEJANT_METIN_SINIFI }, etiketle(value));
+}

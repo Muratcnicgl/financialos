@@ -44,3 +44,13 @@ describe('DVIZ-006 — grafik rengi tek kaynak', () => {
     expect(ay).toMatch(/stroke=\{IZGARA\}/);
   });
 });
+
+describe('DVIZ-001 — yatırım değeri kendi ekseninde (BUG #457)', () => {
+  it('net değer serileri "net", yatırım "yatirim" (sağ) eksenine bağlı', () => {
+    const rep = readFileSync(join(KOK, 'panels', 'Reports.jsx'), 'utf-8');
+    expect(rep).toMatch(/<YAxis\s+yAxisId="yatirim"\s+orientation="right"/);
+    expect((rep.match(/yAxisId="net"/g) || []).length).toBeGreaterThanOrEqual(4);   // eksen + referans + 2 seri
+    const i = rep.indexOf('dataKey="investment_value"');
+    expect(rep.slice(i - 60, i)).toMatch(/yAxisId="yatirim"/);
+  });
+});

@@ -11,7 +11,7 @@ Araştırma kaynakları:
 ---
 
 ### [DVIZ-001] Net Değer Trendi grafiği yatırım değerini aynı Y ekseninde ezik gösteriyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: üç Line tek YAxis, investment right-axis yok
+- **Durum:** ✅ KAPANDI — BUG #457 (13 Eyl 2026): yatırım değeri kendi sağ ekseninde (`yAxisId="yatirim"`), net değer serileri ve sıfır çizgisi `net` ekseninde; lejant "Yatırım Değeri (sağ eksen)" der (eski etiket ASCII "Yatirim Degeri" idi). Kapı: `grafik-renk-tek-kaynak.test.jsx` (DVIZ-001 bloğu).
 
 Sorun: `net_worth_seen`, `net_worth_full` ve `investment_value` tek çizgi grafiğinde ortak Y ekseninde çiziliyor. Net değer büyüklüğü (milyonlar mertebesi) ile yatırım değeri çok farklı ölçekte olduğunda yatırım çizgisi dibe yapışır, trendi okunmaz olur. Ayrıca NetWorthSnapshot günlük snapshot'ları alacaksız/alacaklı ayrımını doğru veriyor ama üç serinin görsel ağırlığı dengesiz.
 
@@ -37,7 +37,7 @@ Etki: yüksek · Efor: S
 ---
 
 ### [DVIZ-003] Donut 10 dilime kadar çıkıyor, karşılaştırma için zayıf form
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: donut 10 dilim, top-6/Diğer yok
+- **Durum:** ✅ KAPANDI — BUG #456 ile (13 Eyl 2026): donut en fazla 6 dilim + "Diğer (N)" (`KATEGORIK_TAVAN`); toplam tutar ve kategori sayısı grafiğin hemen üstündeki özet satırında zaten yazılı (`formatPara(grandTotal) · N kategori · son N gün`), boş iç halkaya ikinci kopya konmadı. Yatay çubuk tüm kalemleri etiketli listeler. Kapı: `renk-koru-palet.test.jsx` (tavan + Diğer kaynak bağı).
 
 Sorun: Kategori sayısı çoksa donut okunması güç bir renk yığınına dönüşür; pasta/donut 5-6 dilimden fazlasında karşılaştırma için kötü form. Yanındaki yatay bar zaten aynı veriyi daha okunur veriyor, yani donut çoğu zaman gereksiz ikizleme.
 

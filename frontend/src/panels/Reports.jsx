@@ -320,15 +320,26 @@ export default function Reports() {
                     tick={{ fontSize: 11, fill: TICK_COLOR }}
                   />
                   <YAxis
+                    yAxisId="net"
+                    tickFormatter={kisaSayi}
+                    tick={{ fontSize: 11, fill: TICK_COLOR }}
+                    width={52}
+                  />
+                  {/* DVIZ-001 (BUG #457): yatırım değeri net değerden farklı mertebede olabilir —
+                      tek eksende ezilip düz çizgiye dönüşüyordu; kendi sağ ekseni var. */}
+                  <YAxis
+                    yAxisId="yatirim"
+                    orientation="right"
                     tickFormatter={kisaSayi}
                     tick={{ fontSize: 11, fill: TICK_COLOR }}
                     width={52}
                   />
                   <Tooltip content={<TrendTooltip />} />
                   <Legend formatter={lejantMetni()} />
-                  <ReferenceLine y={0} stroke={EKSEN} strokeDasharray="4 2" />
+                  <ReferenceLine yAxisId="net" y={0} stroke={EKSEN} strokeDasharray="4 2" />
                   <Line
                     type="monotone"
+                    yAxisId="net"
                     dataKey="net_worth_seen"
                     name="Görülen"
                     stroke={SERI.marka}
@@ -338,6 +349,7 @@ export default function Reports() {
                   />
                   <Line
                     type="monotone"
+                    yAxisId="net"
                     dataKey="net_worth_full"
                     name="Tam"
                     stroke={SERI.pozitif}
@@ -347,8 +359,9 @@ export default function Reports() {
                   />
                   <Line
                     type="monotone"
+                    yAxisId="yatirim"
                     dataKey="investment_value"
-                    name="Yatirim Degeri"
+                    name="Yatırım Değeri (sağ eksen)"
                     stroke={SERI.bakiye}
                     strokeWidth={2}
                     dot={false}

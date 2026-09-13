@@ -102,7 +102,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [PERF-017] `reports.py` projeksiyonu ağır döngü + rules_engine ile çift hesap
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: monthly_summary tasindi ama upcoming ayri
+- **Durum:** ✅ KAPANDI — BUG #442 (13 Eyl 2026): `upcoming-cashflow` kredi taksiti + düzenli gelir/gider genişletmesini `app/cashflow.py` genişleticilerinden alır (`_next_occurrences` kopyası silindi). Ölçülen ayrışmalar: kalan taksit `None` (rapor sınırsız, tahmin 0 → kredi tahminden KAYBOLUYORDU; L45 gereği None = ufukta her ay taksit, 0 = ödenmiş — tahminde düzeltildi) ve geçmiş vadeli kredi (rapor geçmiş tarihleri "yaklaşan" listeliyordu; artık RULE-016 kuralı). Belgeli fark: rapor gecikmiş alacağı gösterir, tahmin göstermez. Kapı: `tests/test_yaklasan_akis_tek_kaynak_kapisi.py` (iki uç birebir; eski kodda kırmızı).
 - **Kanıt:** `app/routers/reports.py:141-236`
 - **Aksiyon:** Tek yerde hesapla (BE-030); gerekiyorsa memoize.
 - **Etki:** Düşük · **Efor:** M

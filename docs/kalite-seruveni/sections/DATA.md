@@ -81,7 +81,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [DATA-012] FK kolonlarında index eksik
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: RecurringExpense.account_id + GoalAllocation.rule_id indekssiz (models.py:246,928)
+- **Durum:** ✅ KAPANDI — BUG #418 (12 Eyl 2026; bu satır 13 Eyl'e kadar bayat kaldı): sık filtrelenen 7 FK indekslendi (`f7a8b9c0d1e2`: 5 `user_id` + `recurring_expenses.account_id` + `audit_log.workspace_id`). Maddenin ikinci adayı `goal_allocations.rule_id` ÖLÇÜLDÜ: hiçbir sorgu onunla filtrelemiyor/join etmiyor (`goals.py` `GoalRule.id` ile arar) → indeks yazma maliyeti getirir, okuma kazancı yok; bilerek indekssiz. Kalan 9 soğuk FK `tests/test_fk_indeks_kapisi.py` ile ratchet'li (artamaz; düşerse tavan iner).
 - **Kanıt:** `app/models.py:211,367,381,415,817,679`
 - **Aksiyon:** Sık join edilen FK'lara index (RecurringExpense.account_id, GoalAllocation.rule_id).
 - **Etki:** Düşük · **Efor:** S

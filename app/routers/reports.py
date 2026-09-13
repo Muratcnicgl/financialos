@@ -11,11 +11,13 @@ GET /api/reports/category-breakdown
   "both" transferleri icermez (sadece gelir + gider).
 """
 
-from calendar import monthrange
-from datetime import date, timedelta
+from app.cashflow import (  # PERF-017 (BUG #442): projeksiyon tek kaynak
+    _expand_loan_payments, _expand_recurring_expense, _expand_recurring_income,
+)
+from datetime import timedelta
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -193,19 +195,6 @@ def real_net_worth(
 # ALACAK-BORC TAKVIMI
 # ============================================================
 
-def _next_occurrences(today: date, horizon: date, day_of_month: int) -> list[date]:
-    """today <= d <= horizon olan tüm aylık tekrar tarihlerini döner."""
-    results = []
-    cur = today.replace(day=1)
-    while cur <= horizon:
-        last = monthrange(cur.year, cur.month)[1]
-        candidate = date(cur.year, cur.month, min(day_of_month, last))
-        if today <= candidate <= horizon:
-            results.append(candidate)
-        cur = date(cur.year + (cur.month == 12), (cur.month % 12) + 1, 1)
-    return results
-
-
 @router.get("/upcoming-cashflow")
 def upcoming_cashflow(
     days: int = Query(default=30, ge=1, le=180),
@@ -245,51 +234,39 @@ def upcoming_cashflow(
         items.append({"date": d.due_date.isoformat(), "type": "payable",
                       "amount": -d.amount, "label": label, "source": "personal_debt"})
 
-    # --- Loan hesapları: ufuk boyunca AYLIK taksitler (BUG #074 fix / P0-12) ---
-    # Eskiden sadece next_payment_date'teki TEK taksit ekleniyordu; 180 günlük ufukta
-    # 5 kredinin her biri ~6 taksit öderken rapor 1'er gösterip total_payable'ı ciddi eksik,
-    # net_flow'u iyimser çıkarıyordu ("sanal zenginlik" ihlali). Artık next_payment_date'ten
-    # başlayarak ufuk sonuna kadar, kalan taksit sayısıyla sınırlı aylık taksitler üretilir.
-    import calendar as _cal
+    # --- Kredi taksitleri + düzenli gelir/gider: TEK KAYNAK `app/cashflow.py` (PERF-017 / BUG #442) ---
+    # BUG #074 buraya ufuk boyunca aylık taksit üretimini eklemişti; ama aynı mantığın ikinci bir
+    # kopyasıydı ve tahminden iki kusurda ayrışıyordu: kalan taksit `None` (rapor: sınırsız,
+    # tahmin: 0 → kredi kayboluyordu) ve geçmiş vadeli kredi (rapor: geçmiş tarihleri "yaklaşan"
+    # diye listeliyordu; tahmin RULE-016 ile bugüne çeker). Artık iki uç aynı genişleticiyi kullanır.
+    # Alacak/borç sorguları yukarıda kalır: "yaklaşan" listesi GECİKMİŞ alacağı da gösterir (vadesi
+    # geçmiş ama tahsil edilmemiş — kullanıcı için hâlâ bekleyen iş); tahmin yalnız ufuk içini sayar.
+    # Bu fark bilinçli ve kapıda yazılı (`test_yaklasan_akis_tek_kaynak_kapisi`).
     for acc in db.query(Account).filter(
         scope_filter(Account, current_user.id, ws_id),
         Account.account_type == AccountType.loan,
         Account.next_payment_date.isnot(None),
     ).all():
-        pay = acc.monthly_payment or 0
-        if pay <= 0:
-            continue
-        remaining = acc.remaining_installments if acc.remaining_installments is not None else 999
-        cur = acc.next_payment_date
-        pay_day = cur.day
-        count = 0
-        while cur <= horizon and count < remaining:
-            items.append({"date": cur.isoformat(), "type": "payable",
-                          "amount": -pay, "label": acc.name, "source": "loan"})
-            count += 1
-            ny = cur.year + (cur.month // 12)
-            nm = (cur.month % 12) + 1
-            cur = date(ny, nm, min(pay_day, _cal.monthrange(ny, nm)[1]))
+        for ev in _expand_loan_payments(acc, today, horizon):
+            items.append({"date": ev.date.isoformat(), "type": "payable",
+                          "amount": ev.amount, "label": acc.name, "source": "loan"})
 
-    # --- RecurringIncome: aylık tekrar tarihleri ---
     for inc in db.query(RecurringIncome).filter(
         scope_filter(RecurringIncome, current_user.id, ws_id),
         RecurringIncome.is_active == True,   # noqa: E712
     ).all():
-        for d in _next_occurrences(today, horizon, inc.day_of_month):
-            items.append({"date": d.isoformat(), "type": "receivable",
-                          "amount": inc.amount, "label": inc.name, "source": "income"})
+        for ev in _expand_recurring_income(inc, today, horizon):
+            items.append({"date": ev.date.isoformat(), "type": "receivable",
+                          "amount": ev.amount, "label": ev.label, "source": "income"})
 
-    # --- RecurringExpense: aylık tekrar tarihleri ---
     for exp in db.query(RecurringExpense).filter(
         scope_filter(RecurringExpense, current_user.id, ws_id),
         RecurringExpense.is_active == True,   # noqa: E712
     ).all():
-        for d in _next_occurrences(today, horizon, exp.day_of_month):
-            items.append({"date": d.isoformat(), "type": "payable",
-                          "amount": -exp.amount, "label": exp.name, "source": "recurring_expense"})
+        for ev in _expand_recurring_expense(exp, today, horizon):
+            items.append({"date": ev.date.isoformat(), "type": "payable",
+                          "amount": ev.amount, "label": ev.label, "source": "recurring_expense"})
 
-    # Sıralama: tarih ASC, tutar mutlak değer DESC
     items.sort(key=lambda x: (x["date"], -abs(x["amount"])))
 
     total_receivable = sum(i["amount"] for i in items if i["amount"] > 0)

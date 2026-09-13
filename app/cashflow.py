@@ -159,9 +159,14 @@ def _expand_loan_payments(
         return []
     if not account.next_payment_date or not account.monthly_payment:
         return []
-    remaining = account.remaining_installments or 0
+    # PERF-017 / BUG #442: `remaining_installments=None` burada "0" sayılıp kredi projeksiyondan
+    # SİLİNİYORDU; raporun kendi kopyası (upcoming-cashflow) aynı krediyi sınırsız sayıyordu —
+    # iki projeksiyon aynı kredi için farklı cevap veriyordu. Bilinmeyen sıfır değildir (L45):
+    # None = "kaç taksit kaldığı girilmemiş" → ufuk içinde her ay taksit var. 0 = ödenmiş.
+    remaining = account.remaining_installments
     if remaining == 0:
         return []
+    sinirsiz = remaining is None
 
     events: list[ForecastEvent] = []
     current = account.next_payment_date
@@ -178,7 +183,7 @@ def _expand_loan_payments(
     # (recurring) zaten doğru; loan yolu bu düzeltmeyle hizalandı.
     anchor_day = current.day
     idx = 0
-    while current <= end and idx < remaining:
+    while current <= end and (sinirsiz or idx < remaining):
         events.append(ForecastEvent(
             current,
             -(account.monthly_payment),

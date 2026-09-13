@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import SistemDurumu from '../components/SistemDurumu.jsx';
 import { LogIn, UserPlus, Loader2, AlertTriangle, KeyRound, MailCheck } from 'lucide-react';
 import { authApi, metaApi } from '../api.js';
@@ -9,6 +9,7 @@ import { authApi, metaApi } from '../api.js';
  * - reset: Brevo e-postasındaki /auth/reset?token=.. linki → AuthGate resetToken geçirir.
  */
 export default function Login({ onAuthed, initialError = null, initialMode = 'login', resetToken = null }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const [mode, setMode] = useState(initialMode);      // login | register | reset-request | reset
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -107,16 +108,16 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
           {/* E-posta: login/register/reset-request'te var, reset'te YOK */}
           {!isReset && (
             <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400">E-posta</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              <label htmlFor={`${alanId}-e-posta`} className="text-xs text-zinc-500 dark:text-zinc-400">E-posta</label>
+              <input id={`${alanId}-e-posta`} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email" required
                 className="mt-1 w-full rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100" />
             </div>
           )}
           {isRegister && (
             <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400">Ad (opsiyonel)</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              <label htmlFor={`${alanId}-ad-opsiyonel`} className="text-xs text-zinc-500 dark:text-zinc-400">Ad (opsiyonel)</label>
+              <input id={`${alanId}-ad-opsiyonel`} type="text" value={name} onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
                 className="mt-1 w-full rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100" />
             </div>
@@ -124,8 +125,8 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
           {/* Şifre: login/register/reset'te var, reset-request'te YOK */}
           {!isResetReq && (
             <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400">{isReset ? 'Yeni şifre' : 'Şifre'}</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              <label htmlFor={`${alanId}-isreset-yeni-sifre-sifre`} className="text-xs text-zinc-500 dark:text-zinc-400">{isReset ? 'Yeni şifre' : 'Şifre'}</label>
+              <input id={`${alanId}-isreset-yeni-sifre-sifre`} type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                 autoComplete={isRegister || isReset ? 'new-password' : 'current-password'} required
                 className="mt-1 w-full rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100" />
             </div>
@@ -134,8 +135,8 @@ export default function Login({ onAuthed, initialError = null, initialMode = 'lo
             <div>
               {/* P7 (BUG #199): kapalı betada kayıt davetlilere açıktır. Alan opsiyonel
                   görünür çünkü açık beta/dev modunda gerekmez; backend karar verir. */}
-              <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">Davet kodu</label>
-              <input
+              <label htmlFor={`${alanId}-davet-kodu`} className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">Davet kodu</label>
+              <input id={`${alanId}-davet-kodu`}
                 type="text"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}

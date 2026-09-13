@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import {
   TrendingUp, TrendingDown, Plus, Pencil, Trash2,
   Loader2, AlertTriangle, RefreshCw, CheckCircle, Clock,
@@ -729,6 +729,7 @@ function DebtRow({ debt, accounts = [], onEdit, onDelete, onMarkPaid, onUndoPaid
 // ============================================================
 
 function IncomeFormModal({ income, onClose, onSave }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const isNew = !income;
   const [name, setName] = useState(income?.name || '');
   const [amount, setAmount] = useState(income?.amount?.toString() || '');
@@ -765,8 +766,8 @@ function IncomeFormModal({ income, onClose, onSave }) {
     <Modal title={isNew ? 'Yeni periyodik gelir' : 'Geliri düzenle'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ad</label>
-          <input
+          <label htmlFor={`${alanId}-ad`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ad</label>
+          <input id={`${alanId}-ad`}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -777,8 +778,8 @@ function IncomeFormModal({ income, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
-          <input
+          <label htmlFor={`${alanId}-tutar-paraetiketi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
+          <input id={`${alanId}-tutar-paraetiketi`}
             type="text" inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -788,10 +789,10 @@ function IncomeFormModal({ income, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+          <label htmlFor={`${alanId}-ayin-hangi-gunu-1-31`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
             Ayın hangi günü? (1-31)
           </label>
-          <input
+          <input id={`${alanId}-ayin-hangi-gunu-1-31`}
             type="number"
             min="1"
             max="31"
@@ -829,6 +830,7 @@ function IncomeFormModal({ income, onClose, onSave }) {
 // ============================================================
 
 function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const isNew = !expense;
   // BUG #264: kategoriler kullanıcının kendi kayıtlarından. Liste henüz yüklenmemişken
   // mevcut giderin kategorisi "bilinmiyor" sayılıp `diger`e düşürülmemeli — bu, kaydı
@@ -877,18 +879,18 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
     <Modal title={isNew ? 'Yeni düzenli gider' : 'Gideri düzenle'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ad</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)}
+          <label htmlFor={`${alanId}-ad`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ad</label>
+          <input id={`${alanId}-ad`} type="text" value={name} onChange={e => setName(e.target.value)}
             className="input" placeholder="Netflix, Kira, İnternet..." autoFocus />
         </div>
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
-          <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)}
+          <label htmlFor={`${alanId}-tutar-paraetiketi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
+          <input id={`${alanId}-tutar-paraetiketi`} type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)}
             className="input font-numeric !text-base !font-semibold" placeholder="149" />
         </div>
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Hesap</label>
-          <select value={accountId} onChange={e => setAccountId(e.target.value)} className="input">
+          <label htmlFor={`${alanId}-hesap`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Hesap</label>
+          <select id={`${alanId}-hesap`} value={accountId} onChange={e => setAccountId(e.target.value)} className="input">
             <option value="">Hesap seçin...</option>
             {accounts.map(a => (
               <option key={a.id} value={a.id}>{a.name}</option>
@@ -896,8 +898,8 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kategori</label>
-          <select value={category} onChange={e => setCategory(e.target.value)} className="input">
+          <label htmlFor={`${alanId}-kategori`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kategori</label>
+          <select id={`${alanId}-kategori`} value={category} onChange={e => setCategory(e.target.value)} className="input">
             {/* Kaydın mevcut kategorisi listede yoksa (silinmiş/gizlenmiş) yine de gösterilir
                 — açılır menü onu sessizce başka bir değere çeviremez. */}
             {kategoriBilinmiyor && <option value={category}>{category}</option>}
@@ -908,14 +910,14 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
         </div>
         {category === 'diger' && (
           <div>
-            <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Özel kategori</label>
-            <input type="text" value={customCategory} onChange={e => setCustomCategory(e.target.value)}
+            <label htmlFor={`${alanId}-ozel-kategori`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Özel kategori</label>
+            <input id={`${alanId}-ozel-kategori`} type="text" value={customCategory} onChange={e => setCustomCategory(e.target.value)}
               className="input" placeholder="spor, aidat..." />
           </div>
         )}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ayın hangi günü? (1-31)</label>
-          <input type="number" min="1" max="31" value={dayOfMonth}
+          <label htmlFor={`${alanId}-ayin-hangi-gunu-1-31`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ayın hangi günü? (1-31)</label>
+          <input id={`${alanId}-ayin-hangi-gunu-1-31`} type="number" min="1" max="31" value={dayOfMonth}
             onChange={e => setDayOfMonth(e.target.value)} className="input font-numeric" />
         </div>
         <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -939,6 +941,7 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
 // ============================================================
 
 function DebtFormModal({ debt, onClose, onSave }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const isNew = !debt;
   const [counterparty, setCounterparty] = useState(debt?.counterparty || '');
   const [direction, setDirection] = useState(debt?.direction || 'receivable');
@@ -997,10 +1000,10 @@ function DebtFormModal({ debt, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+          <label htmlFor={`${alanId}-alan`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
             {direction === 'receivable' ? 'Bana gelecek (kim)' : 'Vereceğim (kime)'}
           </label>
-          <input
+          <input id={`${alanId}-alan`}
             type="text"
             value={counterparty}
             onChange={(e) => setCounterparty(e.target.value)}
@@ -1011,8 +1014,8 @@ function DebtFormModal({ debt, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
-          <input
+          <label htmlFor={`${alanId}-tutar-paraetiketi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
+          <input id={`${alanId}-tutar-paraetiketi`}
             type="text" inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -1022,8 +1025,8 @@ function DebtFormModal({ debt, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Vade tarihi</label>
-          <input
+          <label htmlFor={`${alanId}-vade-tarihi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Vade tarihi</label>
+          <input id={`${alanId}-vade-tarihi`}
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
@@ -1032,8 +1035,8 @@ function DebtFormModal({ debt, onClose, onSave }) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Açıklama (opsiyonel)</label>
-          <input
+          <label htmlFor={`${alanId}-aciklama-opsiyonel`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Açıklama (opsiyonel)</label>
+          <input id={`${alanId}-aciklama-opsiyonel`}
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -1054,8 +1057,8 @@ function DebtFormModal({ debt, onClose, onSave }) {
 
         {isPaid && (
           <div>
-            <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ödeme tarihi</label>
-            <input
+            <label htmlFor={`${alanId}-odeme-tarihi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ödeme tarihi</label>
+            <input id={`${alanId}-odeme-tarihi`}
               type="date"
               value={paidDate || todayLocalISO()}
               onChange={(e) => setPaidDate(e.target.value)}

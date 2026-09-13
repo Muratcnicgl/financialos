@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Loader2, Plus, Trash2, Eye, EyeOff, Lock, CreditCard, Pencil, Check, X } from 'lucide-react';
 import { categoriesApi } from '../api.js';
 import { useCategories } from '../lib/categories.js';
@@ -20,6 +20,7 @@ import { useToast } from './Toast.jsx';
  *    hedefsiz silme geçmiş işlemleri kategorisiz bırakırdı.
  */
 export default function CategoryManager({ onDegisti }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const toast = useToast();
   const { kategoriler, yukleniyor, hata, yenile } = useCategories(true);
   const [ad, setAd] = useState('');
@@ -114,8 +115,8 @@ export default function CategoryManager({ onDegisti }) {
 
       <form onSubmit={ekle} className="flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[140px]">
-          <label className="text-xs text-zinc-500 dark:text-zinc-400">Yeni kategori</label>
-          <input className="input w-full" placeholder="spor, aidat, kitap..."
+          <label htmlFor={`${alanId}-yeni-kategori`} className="text-xs text-zinc-500 dark:text-zinc-400">Yeni kategori</label>
+          <input id={`${alanId}-yeni-kategori`} className="input w-full" placeholder="spor, aidat, kitap..."
                  value={ad} onChange={(e) => setAd(e.target.value)} />
         </div>
         <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-300 min-h-[44px]">

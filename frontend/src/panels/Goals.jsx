@@ -395,6 +395,7 @@ function RulesTab({ rules, goalId, onRefresh }) {
 // ============================================================
 
 function GoalCreateWizard({ onClose }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const toast = useToast();
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
@@ -497,8 +498,8 @@ function GoalCreateWizard({ onClose }) {
               </button>
 
               <div>
-                <label className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">Hedef Adı *</label>
-                <input
+                <label htmlFor={`${alanId}-hedef-adi`} className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">Hedef Adı *</label>
+                <input id={`${alanId}-hedef-adi`}
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -510,8 +511,8 @@ function GoalCreateWizard({ onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">Hedef Tutar ({paraEtiketi()}) *</label>
-                <input
+                <label htmlFor={`${alanId}-hedef-tutar-paraetiketi`} className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">Hedef Tutar ({paraEtiketi()}) *</label>
+                <input id={`${alanId}-hedef-tutar-paraetiketi`}
                   type="text"
                   inputMode="decimal"
                   value={form.target_amount}
@@ -523,10 +524,10 @@ function GoalCreateWizard({ onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">
+                <label htmlFor={`${alanId}-hedef-tarih-span-classname-text-zinc-500-opsiyonel-span`} className="block text-sm text-zinc-700 dark:text-zinc-300 mb-1">
                   Hedef Tarih <span className="text-zinc-500">(opsiyonel)</span>
                 </label>
-                <input
+                <input id={`${alanId}-hedef-tarih-span-classname-text-zinc-500-opsiyonel-span`}
                   type="date"
                   value={form.target_date}
                   onChange={(e) => setForm({ ...form, target_date: e.target.value })}

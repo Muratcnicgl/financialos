@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { Check, X, AlertCircle, Loader2, Pencil, Brain, TrendingUp } from 'lucide-react';
 import { actionsApi, formatDate, todayLocalISO, parseTRNumber } from '../api.js';
 import PremortemModal from './PremortemModal.jsx';
@@ -72,6 +72,7 @@ function PayloadOzeti({ payload, accounts }) {
 }
 
 function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: setParentEditing, editRequestedAt = 0 }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const p = safeParsePayload(payload); // W3-009
   const todayISO = todayLocalISO();   // LOCAL bugün (UTC slice gece vardiyasında bir gün kayardı)
 
@@ -140,32 +141,32 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
     return (
       <div className="mt-2 space-y-1.5 text-[11px]">
         <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-          <label className="text-zinc-500">Tutar ({paraEtiketi()})</label>
+          <label htmlFor={`${alanId}-tutar`} className="text-zinc-500">Tutar ({paraEtiketi()})</label>
           {/* BUG #422 (UX-016): para girdisi text+decimal — number tipi 1.234,56 kabul etmez, tekerlek değeri oynatır */}
-          <input type="text" inputMode="decimal" value={form.amount}
+          <input id={`${alanId}-tutar`} type="text" inputMode="decimal" value={form.amount}
             onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
             className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
           />
-          <label className="text-zinc-500">Tip</label>
-          <select value={form.transaction_type}
+          <label htmlFor={`${alanId}-tip`} className="text-zinc-500">Tip</label>
+          <select id={`${alanId}-tip`} value={form.transaction_type}
             onChange={e => setForm(f => ({ ...f, transaction_type: e.target.value }))}
             className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
           >
             <option value="expense">Gider</option>
             <option value="income">Gelir</option>
           </select>
-          <label className="text-zinc-500">Kategori</label>
-          <input type="text" value={form.category}
+          <label htmlFor={`${alanId}-kategori`} className="text-zinc-500">Kategori</label>
+          <input id={`${alanId}-kategori`} type="text" value={form.category}
             onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
             className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
           />
-          <label className="text-zinc-500">Tarih</label>
-          <input type="date" value={form.transaction_date}
+          <label htmlFor={`${alanId}-tarih`} className="text-zinc-500">Tarih</label>
+          <input id={`${alanId}-tarih`} type="date" value={form.transaction_date}
             onChange={e => setForm(f => ({ ...f, transaction_date: e.target.value }))}
             className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
           />
-          <label className="text-zinc-500">Hesap</label>
-          <select value={form.account_id}
+          <label htmlFor={`${alanId}-hesap`} className="text-zinc-500">Hesap</label>
+          <select id={`${alanId}-hesap`} value={form.account_id}
             onChange={e => setForm(f => ({ ...f, account_id: e.target.value }))}
             className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
           >

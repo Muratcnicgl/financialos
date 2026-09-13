@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { Loader2, Plus, Trash2, Wallet } from 'lucide-react';
 import { envelopesApi, formatTL, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
@@ -20,6 +20,7 @@ import CategoryManager from '../components/CategoryManager.jsx';
  *    (yukleme basarisizken kullaniciya "zarfin yok" DENMEZ).
  */
 export default function Budget() {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const toast = useToast();
   const [data, setData] = useState(null);      // {envelopes, durum}
   const [hata, setHata] = useState(null);      // BUG #219: yükleme hatası ekranda kalır
@@ -128,9 +129,9 @@ export default function Budget() {
       {/* Yeni zarf */}
       <form onSubmit={add} className="card p-4 flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[140px]">
-          <label className="text-xs text-zinc-500 dark:text-zinc-400">Kategori</label>
+          <label htmlFor={`${alanId}-kategori`} className="text-xs text-zinc-500 dark:text-zinc-400">Kategori</label>
           {/* BUG #264: öneri listesi kullanıcının kendi kategorileri (sabit metin değil) */}
-          <input className="input w-full" list="butce-kategori-list"
+          <input id={`${alanId}-kategori`} className="input w-full" list="butce-kategori-list"
                  placeholder={kategoriler.slice(0, 3).map((k) => k.ad).join(', ') || 'kategori'}
                  value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
           <datalist id="butce-kategori-list">
@@ -138,8 +139,8 @@ export default function Budget() {
           </datalist>
         </div>
         <div className="w-32">
-          <label className="text-xs text-zinc-500 dark:text-zinc-400">Aylık bütçe ({paraEtiketi()})</label>
-          <input type="text" inputMode="decimal" className="input w-full" placeholder="2000"
+          <label htmlFor={`${alanId}-aylik-butce-paraetiketi`} className="text-xs text-zinc-500 dark:text-zinc-400">Aylık bütçe ({paraEtiketi()})</label>
+          <input id={`${alanId}-aylik-butce-paraetiketi`} type="text" inputMode="decimal" className="input w-full" placeholder="2000"
                  value={form.monthly_amount} onChange={(e) => setForm({ ...form, monthly_amount: e.target.value })} />
         </div>
         <button type="submit" disabled={saving} className="btn btn-primary flex items-center gap-1">

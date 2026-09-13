@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
   Plus, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle,
@@ -372,6 +372,7 @@ function AccountRow({ account, onEdit, onDelete, onPriceUpdate }) {
 // ============================================================
 
 function AccountFormModal({ account, onClose, onSave }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const isNew = !account;
   const [type, setType] = useState(account?.account_type || 'cash');
   const [name, setName] = useState(account?.name || '');
@@ -450,8 +451,8 @@ function AccountFormModal({ account, onClose, onSave }) {
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Tip */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tip</label>
-          <select
+          <label htmlFor={`${alanId}-tip`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tip</label>
+          <select id={`${alanId}-tip`}
             value={type}
             onChange={(e) => setType(e.target.value)}
             className="input"
@@ -466,8 +467,8 @@ function AccountFormModal({ account, onClose, onSave }) {
 
         {/* Ad */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ad</label>
-          <input
+          <label htmlFor={`${alanId}-ad`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ad</label>
+          <input id={`${alanId}-ad`}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -479,10 +480,10 @@ function AccountFormModal({ account, onClose, onSave }) {
 
         {/* Bakiye */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+          <label htmlFor={`${alanId}-bakiye`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
             Bakiye {type === 'credit_card' || type === 'loan' ? '(borç)' : ''}
           </label>
-          <input
+          <input id={`${alanId}-bakiye`}
             type="text" inputMode="decimal"
             value={balance}
             onChange={(e) => setBalance(e.target.value)}
@@ -495,17 +496,17 @@ function AccountFormModal({ account, onClose, onSave }) {
         {type === 'credit_card' && (
           <>
             <div>
-              <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Limit</label>
-              <input type="text" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} className="input font-numeric" placeholder="50000" />
+              <label htmlFor={`${alanId}-limit`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Limit</label>
+              <input id={`${alanId}-limit`} type="text" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} className="input font-numeric" placeholder="50000" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kesim günü</label>
-                <input type="text" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} className="input font-numeric" placeholder="2" />
+                <label htmlFor={`${alanId}-kesim-gunu`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kesim günü</label>
+                <input id={`${alanId}-kesim-gunu`} type="text" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} className="input font-numeric" placeholder="2" />
               </div>
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ödeme günü</label>
-                <input type="text" value={paymentDay} onChange={(e) => setPaymentDay(e.target.value)} className="input font-numeric" placeholder="12" />
+                <label htmlFor={`${alanId}-odeme-gunu`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ödeme günü</label>
+                <input id={`${alanId}-odeme-gunu`} type="text" value={paymentDay} onChange={(e) => setPaymentDay(e.target.value)} className="input font-numeric" placeholder="12" />
               </div>
             </div>
           </>
@@ -515,24 +516,24 @@ function AccountFormModal({ account, onClose, onSave }) {
         {type === 'loan' && (
           <>
             <div>
-              <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Aylık taksit</label>
-              <input type="text" value={monthlyPayment} onChange={(e) => setMonthlyPayment(e.target.value)} className="input font-numeric" placeholder="4109.90" />
+              <label htmlFor={`${alanId}-aylik-taksit`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Aylık taksit</label>
+              <input id={`${alanId}-aylik-taksit`} type="text" value={monthlyPayment} onChange={(e) => setMonthlyPayment(e.target.value)} className="input font-numeric" placeholder="4109.90" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kalan taksit</label>
-                <input type="text" value={remainingInstallments} onChange={(e) => setRemainingInstallments(e.target.value)} className="input font-numeric" placeholder="8" />
+                <label htmlFor={`${alanId}-kalan-taksit`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kalan taksit</label>
+                <input id={`${alanId}-kalan-taksit`} type="text" value={remainingInstallments} onChange={(e) => setRemainingInstallments(e.target.value)} className="input font-numeric" placeholder="8" />
               </div>
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Sonraki tarih</label>
-                <input type="date" value={nextPaymentDate} onChange={(e) => setNextPaymentDate(e.target.value)} className="input" />
+                <label htmlFor={`${alanId}-sonraki-tarih`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Sonraki tarih</label>
+                <input id={`${alanId}-sonraki-tarih`} type="date" value={nextPaymentDate} onChange={(e) => setNextPaymentDate(e.target.value)} className="input" />
               </div>
             </div>
             <div>
-              <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+              <label htmlFor={`${alanId}-bugun-kapatma-bedeli`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
                 Bugün kapatma bedeli
               </label>
-              <input type="text" value={earlyPayoff} onChange={(e) => setEarlyPayoff(e.target.value)}
+              <input id={`${alanId}-bugun-kapatma-bedeli`} type="text" value={earlyPayoff} onChange={(e) => setEarlyPayoff(e.target.value)}
                      className="input font-numeric" placeholder="14023.29" />
               <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                 Bankanın "Erken Kapama Tutarı". Yukarıdaki bakiye kalan taksitlerin
@@ -547,25 +548,25 @@ function AccountFormModal({ account, onClose, onSave }) {
         {type === 'investment' && (
           <>
             <div>
-              <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Fon kodu</label>
-              <input type="text" value={fundCode} onChange={(e) => setFundCode(e.target.value.toUpperCase())} className="input font-numeric" placeholder="TLY" />
+              <label htmlFor={`${alanId}-fon-kodu`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Fon kodu</label>
+              <input id={`${alanId}-fon-kodu`} type="text" value={fundCode} onChange={(e) => setFundCode(e.target.value.toUpperCase())} className="input font-numeric" placeholder="TLY" />
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Lot</label>
-                <input type="text" value={lotCount} onChange={(e) => setLotCount(e.target.value)} className="input font-numeric" placeholder="6" />
+                <label htmlFor={`${alanId}-lot`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Lot</label>
+                <input id={`${alanId}-lot`} type="text" value={lotCount} onChange={(e) => setLotCount(e.target.value)} className="input font-numeric" placeholder="6" />
               </div>
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ort. maliyet/lot</label>
-                <input type="text" value={costPerLot} onChange={(e) => setCostPerLot(e.target.value)} className="input font-numeric" placeholder="4125"
+                <label htmlFor={`${alanId}-ort-maliyet-lot`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ort. maliyet/lot</label>
+                <input id={`${alanId}-ort-maliyet-lot`} type="text" value={costPerLot} onChange={(e) => setCostPerLot(e.target.value)} className="input font-numeric" placeholder="4125"
                        aria-describedby="maliyet-ipucu" />
                 <p id="maliyet-ipucu" className="text-[11px] text-zinc-500 mt-1">
                   Farklı fiyattan alımların ağırlıklı ortalaması. Kâr ve stopaj tahmini bu ortalamayla hesaplanır (lot bazlı FIFO değil).
                 </p>
               </div>
               <div>
-                <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Güncel fiyat</label>
-                <input type="text" inputMode="decimal" value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} className="input font-numeric" placeholder="5223" />
+                <label htmlFor={`${alanId}-guncel-fiyat`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Güncel fiyat</label>
+                <input id={`${alanId}-guncel-fiyat`} type="text" inputMode="decimal" value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} className="input font-numeric" placeholder="5223" />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -593,6 +594,7 @@ function AccountFormModal({ account, onClose, onSave }) {
 // ============================================================
 
 function PriceUpdateModal({ account, onClose, onUpdated }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const [newPrice, setNewPrice] = useState(account.current_price?.toString() || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -623,8 +625,8 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
         <ExternalLink className="w-3 h-3" /> TEFAS'ta aç
       </a>
       <form onSubmit={handleSubmit}>
-        <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Yeni fiyat ({paraEtiketi()})</label>
-        <input type="text" inputMode="decimal" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="input font-numeric" placeholder="5223.81" autoFocus />
+        <label htmlFor={`${alanId}-yeni-fiyat-paraetiketi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Yeni fiyat ({paraEtiketi()})</label>
+        <input id={`${alanId}-yeni-fiyat-paraetiketi`} type="text" inputMode="decimal" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="input font-numeric" placeholder="5223.81" autoFocus />
         {err && <p className="text-xs text-negative-600 dark:text-negative-400 mt-2">{err}</p>}
         <div className="flex gap-2 mt-4">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">

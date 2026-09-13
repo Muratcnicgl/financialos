@@ -1218,6 +1218,7 @@ function CockpitSkeleton() {
 // ============================================================
 
 function PriceUpdateModal({ account, onClose, onUpdated }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
   const kutuRef = useRef(null);
@@ -1270,10 +1271,10 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
         </a>
 
         <form onSubmit={handleSubmit}>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+          <label htmlFor={`${alanId}-yeni-fiyat`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
             Yeni fiyat ({paraEtiketi()})
           </label>
-          <input
+          <input id={`${alanId}-yeni-fiyat`}
             type="text" inputMode="decimal"
             value={newPrice}
             onChange={(e) => setNewPrice(e.target.value)}

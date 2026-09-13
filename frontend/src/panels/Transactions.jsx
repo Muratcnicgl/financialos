@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import {
   Receipt, Plus, Loader2, AlertTriangle, RefreshCw,
   Search, Trash2, Pencil, X, Filter, ArrowUp, ArrowDown,
@@ -496,6 +496,7 @@ function TransactionRow({ txn, account, onEdit, onDelete }) {
 // ============================================================
 
 function TransactionFormModal({ txn, accounts, onClose, onSave }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const isNew = !txn;
   const { kategoriler } = useCategories();  // BUG #264: liste kullanıcının kendi kayıtları
   const [type, setType] = useState(txn?.transaction_type || 'expense');
@@ -570,8 +571,8 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
 
         {/* Tutar */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
-          <input
+          <label htmlFor={`${alanId}-tutar-paraetiketi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
+          <input id={`${alanId}-tutar-paraetiketi`}
             type="text" inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -583,8 +584,8 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
 
         {/* Kategori */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kategori</label>
-          <input
+          <label htmlFor={`${alanId}-kategori`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kategori</label>
+          <input id={`${alanId}-kategori`}
             type="text"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -604,8 +605,8 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
 
         {/* Aciklama */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Açıklama (opsiyonel)</label>
-          <input
+          <label htmlFor={`${alanId}-aciklama-opsiyonel`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Açıklama (opsiyonel)</label>
+          <input id={`${alanId}-aciklama-opsiyonel`}
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -617,8 +618,8 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
         {/* Hesap + Tarih */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Hesap</label>
-            <select
+            <label htmlFor={`${alanId}-hesap`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Hesap</label>
+            <select id={`${alanId}-hesap`}
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               className="input"
@@ -632,8 +633,8 @@ function TransactionFormModal({ txn, accounts, onClose, onSave }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tarih</label>
-            <input
+            <label htmlFor={`${alanId}-tarih`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tarih</label>
+            <input id={`${alanId}-tarih`}
               type="date"
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}

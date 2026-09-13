@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import {
   ShieldAlert, ShieldCheck, Shield, Plus, Pencil, Trash2, X,
   Loader2, AlertTriangle, RefreshCw, CheckCircle, Power,
@@ -392,6 +392,7 @@ function CheckpointCard({ checkpoint, onEdit, onDelete, onToggleActive }) {
 // ============================================================
 
 function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
+  const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const isNew = !checkpoint;
   const [title, setTitle] = useState(checkpoint?.title || '');
   const [description, setDescription] = useState(checkpoint?.description || '');
@@ -451,8 +452,9 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Tip secimi */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tip</label>
-          <div className="grid grid-cols-2 gap-2">
+          {/* A11Y-008 (BUG #448): düğme grubu — etiket tek girdiye bağlanır; burada grup rolü + adlandırma */}
+          <span id={`${alanId}-tip-etiket`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tip</span>
+          <div role="group" aria-labelledby={`${alanId}-tip-etiket`} className="grid grid-cols-2 gap-2">
             {Object.entries(TYPE_META).map(([key, meta]) => {
               const Icon = meta.icon;
               return (
@@ -471,8 +473,8 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
 
         {/* Oncelik */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Öncelik</label>
-          <div className="grid grid-cols-3 gap-2">
+          <span id={`${alanId}-oncelik-etiket`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Öncelik</span>
+          <div role="group" aria-labelledby={`${alanId}-oncelik-etiket`} className="grid grid-cols-3 gap-2">
             {Object.entries(PRIORITY_META).map(([key, meta]) => (
               <button
                 key={key}
@@ -488,8 +490,8 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
 
         {/* Baslik */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Başlık</label>
-          <input
+          <label htmlFor={`${alanId}-baslik`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Başlık</label>
+          <input id={`${alanId}-baslik`}
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -501,10 +503,10 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
 
         {/* Aciklama */}
         <div>
-          <label className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+          <label htmlFor={`${alanId}-aciklama-koc-bunu-kullanacak`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
             Açıklama (koç bunu kullanacak)
           </label>
-          <textarea
+          <textarea id={`${alanId}-aciklama-koc-bunu-kullanacak`}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="input min-h-[120px] resize-y"
@@ -517,10 +519,10 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
 
         {/* H21 / BUG #192: DAYATILAN kural — koçun iyi niyetine bırakılmaz, kod uygular */}
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
-          <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+          <label htmlFor={`${alanId}-bu-kural-otomatik-uygulansin-mi-opsiyonel`} className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
             Bu kural otomatik UYGULANSIN mı? (opsiyonel)
           </label>
-          <select
+          <select id={`${alanId}-bu-kural-otomatik-uygulansin-mi-opsiyonel`}
             value={ruleType}
             onChange={(e) => setRuleType(e.target.value)}
             className="input"
@@ -533,8 +535,8 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
 
           {ruleType && ruleType !== 'account_untouchable' && (
             <div>
-              <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
-              <input
+              <label htmlFor={`${alanId}-tutar-paraetiketi`} className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Tutar ({paraEtiketi()})</label>
+              <input id={`${alanId}-tutar-paraetiketi`}
                 type="text" inputMode="decimal"
                 value={ruleAmount}
                 onChange={(e) => setRuleAmount(e.target.value)}
@@ -545,8 +547,8 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
 
           {ruleType === 'account_untouchable' && (
             <div>
-              <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Hesap</label>
-              <select value={ruleAccountId} onChange={(e) => setRuleAccountId(e.target.value)} className="input">
+              <label htmlFor={`${alanId}-hesap`} className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Hesap</label>
+              <select id={`${alanId}-hesap`} value={ruleAccountId} onChange={(e) => setRuleAccountId(e.target.value)} className="input">
                 <option value="">Seç…</option>
                 {(accounts || []).map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>

@@ -178,7 +178,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [UX-028] "Bu ay" temposu görünmüyor (ay sonu ufku)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ay ilerleme/tempo göstergesi yok
+- **Durum:** ✅ KAPANDI — BUG #466 (13 Eyl 2026): `cockpit.ay_temposu` (rules_engine, aylık özetle aynı kaynak): ayın kaçta kaçı geçti, ay başından beri harcanan, bu gidişle ay sonu projeksiyonu (harcanan/gün×ay günü — FEAT-005 ile aynı hız modeli), geçen ay referansı; hüküm `erken` (ilk 3 gün) / `bilinmiyor` (referans yok — 0 hedef değildir) / `ustunde` (%105 eşiği) / `hedefte`. Kokpitte "Bugün harcayabileceğin" bloğunda ilerleme çubuğu (`progressbar`) + tek cümle, iki görünümde de. Kapılar: `tests/test_ay_temposu_kapisi.py` (mutasyonla), `frontend/src/ay-temposu.test.jsx`. Fixture +1 anahtar.
 - **Kanıt:** `Cockpit.jsx:216-217`
 - **Aksiyon:** Ay ilerleme barı + "harcama temposu hedefte/üstünde" (goal-gradient).
 - **Etki:** Orta · **Efor:** M

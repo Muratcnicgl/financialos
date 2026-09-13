@@ -1188,6 +1188,46 @@ def _month_bounds(year: int, month: int) -> Tuple[date, date]:
     return date(year, month, 1), date(year, month, last)
 
 
+def ay_temposu(user_id: int, today: date, db: Session) -> Dict:
+    """UX-028 (BUG #466): "bu ay" temposu — ayın kaçta kaçı geçti, bu gidişle ay sonu gider ne olur,
+    geçen aya göre hedefte mi.
+
+    `_month_aggregates` (aylık özetle aynı kaynak): ay başı → bugün gider toplamı, geçen ayın tam
+    gideri referans. `projeksiyon = harcanan / gecen_gun * ay_gunu` (FEAT-005 ile aynı hız modeli).
+    Durum: geçen ay gideri yoksa "bilinmiyor" (sıfır referans hedef değildir, L45); projeksiyon
+    referansın %105'ini aşarsa "ustunde", altındaysa "hedefte". Ayın ilk 3 günü projeksiyon
+    gürültülüdür → durum "erken" (sayılar yine verilir, hüküm verilmez).
+    """
+    ay_basi, ay_sonu = _month_bounds(today.year, today.month)
+    pm_y, pm_m = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+    onceki_bas, onceki_son = _month_bounds(pm_y, pm_m)
+    su_an = _month_aggregates(db, user_id, ay_basi, today)
+    onceki = _month_aggregates(db, user_id, onceki_bas, onceki_son)
+    gecen_gun = today.day
+    ay_gunu = ay_sonu.day
+    harcanan = D(su_an["total_expense"])
+    referans = D(onceki["total_expense"])
+    projeksiyon = round(harcanan / gecen_gun * ay_gunu, 2) if gecen_gun else harcanan
+    if gecen_gun < 3:
+        durum = "erken"
+    elif referans <= 0:
+        durum = "bilinmiyor"
+    elif projeksiyon > referans * D("1.05"):
+        durum = "ustunde"
+    else:
+        durum = "hedefte"
+    return {
+        "gun": gecen_gun,
+        "ay_gunu": ay_gunu,
+        "ilerleme_pct": round(gecen_gun / ay_gunu * 100, 1),
+        "harcanan": round(harcanan, 2),
+        "projeksiyon": projeksiyon,
+        "referans": round(referans, 2) if referans > 0 else None,
+        "referans_ay": f"{_TR_AYLAR[pm_m]}",
+        "durum": durum,
+    }
+
+
 def _category_overspend_alerts(
     user_id: int, today: date, db: Session,
     min_days: int = 5, over_ratio: float = 1.15, top_n: int = 2,
@@ -2852,6 +2892,7 @@ def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
         "saglik_skoru": saglik_skoru,  # FEAT-022: 0-100 şeffaf finansal sağlık skoru
         "borc_ozgurluk": borc_ozgurluk,  # FEAT-012: borçsuz olma tarihi + kalan faiz (None=borç yok)
         "asgari_tuzagi": asgari_tuzagi,  # FEAT-015: kart asgari-ödemeyle kaç ay + toplam faiz (None=kart yok)
+        "ay_temposu": ay_temposu(user_id, today, db),  # UX-028 (BUG #466): ay ilerlemesi + harcama temposu
         "konsolidasyon": konsolidasyon,  # FEAT-014: konsolidasyon eşiği (ağırlıklı ort. oran; None=<2 borç)
         "yarin_limit_harcamasiz": yarin_limit_harcamasiz,  # zikzak: bugün 0 harcarsan yarın
         "days_remaining": days_remaining,

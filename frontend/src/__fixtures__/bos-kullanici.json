@@ -805,6 +805,16 @@
     ],
     "asgari_tuzagi": null,
     "atanmamis_nakit": 0.0,
+    "ay_temposu": {
+      "ay_gunu": 30,
+      "durum": "bilinmiyor",
+      "gun": 13,
+      "harcanan": 0.0,
+      "ilerleme_pct": 43.3,
+      "projeksiyon": 0.0,
+      "referans": null,
+      "referans_ay": "Ağustos"
+    },
     "beklenen_gelir": 0.0,
     "borc_ilerleme": null,
     "borc_ozgurluk": null,

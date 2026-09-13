@@ -1259,3 +1259,4 @@ Tur şu şikâyetle başladı: koç kalitesi düşük, düzeltmeler ölçülemiy
 | #463 | **EKSTRA ÖDEME KAYDIRICISI SABİT 5.000'Dİ (UX-025)** | Tavan reel bütçeden (%125, 500'e yuvarlı, ≥1.000; bilinmiyorsa 5.000); referans işareti. | `lib/sliderTavani.js`, `DebtStrategy.jsx`, test | vitest 345; build | ✅ |
 | #464 | **GELİR & BORÇ BOŞ DURUMLARI CTA'SIZDI (UX-017)** | Üç sekmede `EmptyState` + ilk-kayıt CTA'sı (formu açar); filtre-boş ayrı. | `IncomeDebt.jsx`, test | RTL; vitest 346; build | ✅ |
 | #465 | **KOKPİT VADE SATIRLARI TIKLANAMIYORDU (UX-036)** | Satırlar düğme; tipe göre panel; erişilebilir ad. Vurgu ayrı iş. | `Cockpit.jsx`, test | RTL; vitest 347; build | ✅ |
+| #466 | **"BU AY" TEMPOSU GÖRÜNMÜYORDU (UX-028)** | `ay_temposu` (ilerleme, harcanan, projeksiyon, geçen ay referansı, dört durum); kokpitte çubuk + cümle. | `rules_engine.py`, `AyTemposu.jsx`, `Cockpit.jsx`, 2 test, fixture | mutasyon; vitest 349; build | ✅ |

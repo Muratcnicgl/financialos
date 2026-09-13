@@ -10,6 +10,7 @@ import { cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi, cashflow
 import MetricCard from '../components/MetricCard.jsx';
 import MonthlySummary from '../components/MonthlySummary.jsx';
 import AylikSeri from '../components/AylikSeri.jsx';
+import AyTemposu from '../components/AyTemposu.jsx';   // UX-028 (BUG #466)
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -419,6 +420,8 @@ export default function Cockpit({ setActiveTab }) {
             </span>
           )}
         </p>
+        {/* UX-028 (BUG #466): ay ilerlemesi + harcama temposu — sade görünümde de kalır (tek satır + çubuk) */}
+        <AyTemposu tempo={data.ay_temposu} />
 
         {/* İKİNCİ SAYI (kullanıcı bildirimi, 10 Eyl 2026): üstteki sayı MC4 gereği kart
             borcunun TAMAMINI düşer — bir stok ile bir akışı aynı kefeye koyar. Bu satır

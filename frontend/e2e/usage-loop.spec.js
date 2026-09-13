@@ -54,6 +54,11 @@ test('kullanım döngüsü: harcama gir → cockpit güncellenir (UI→DB→rule
   await expect(quick).toBeVisible();
   await quick.fill('300 fatura');
   await quick.press('Enter');
+  // UX-005 (BUG #467): 300, taze kullanıcının günlük limitinin (5000 / ay-kalan gün) üstünde →
+  // ürün bir adımlık aşım onayı sorar; döngü onayla devam eder (nudge'ın kendisi kendi
+  // vitest kapısında ölçülür). Onay çıkmazsa (limit yeterse) doğrudan geçer.
+  const asimOnayi = page.getByRole('button', { name: /Yine de ekle/ });
+  if (await asimOnayi.isVisible({ timeout: 1500 }).catch(() => false)) await asimOnayi.click();
   // Zaman aşımı BİLEREK varsayılanın (5 sn) üstünde. Bu iddia bir AĞ TURUNU bekliyor:
   // hızlı giriş POST eder, liste yeniden çeker. Ölçüldü (9 Eyl 2026): spec TEK BAŞINA
   // koşunca 2/2 temiz, TAM SÜİT içinde ilk deneme düşüp retry'de geçiyor — süit 6

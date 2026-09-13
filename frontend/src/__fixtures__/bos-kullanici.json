@@ -1256,10 +1256,14 @@
     "days": 30,
     "items": [
       {
+        "card_debt": 0.0,
+        "cash": 0.0,
         "date": "2026-01-02",
         "investment_value": 0.0,
+        "loan_debt": 0.0,
         "net_worth_full": 0.0,
-        "net_worth_seen": 0.0
+        "net_worth_seen": 0.0,
+        "receivables": 0.0
       }
     ]
   },

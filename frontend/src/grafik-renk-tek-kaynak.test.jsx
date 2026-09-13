@@ -54,3 +54,14 @@ describe('DVIZ-001 — yatırım değeri kendi ekseninde (BUG #457)', () => {
     expect(rep.slice(i - 60, i)).toMatch(/yAxisId="yatirim"/);
   });
 });
+
+describe('DVIZ-012 — net değer bileşenleri (BUG #458)', () => {
+  it('bileşen serisi: varlıklar +, borçlar − işaretli; Reports toggle ve bileşen bileşeni bağlı', async () => {
+    const { bilesenSerisi } = await import('./components/NetDegerBilesenleri.jsx');
+    const [s] = bilesenSerisi([{ date: '2026-09-12', cash: 1000, investment_value: 500, receivables: 150, card_debt: 300, loan_debt: 200, net_worth_full: 1150 }]);
+    expect(s).toEqual({ date: '2026-09-12', cash: 1000, investment_value: 500, receivables: 150, card_debt_neg: -300, loan_debt_neg: -200, net_worth_full: 1150 });
+    const rep = readFileSync(join(KOK, 'panels', 'Reports.jsx'), 'utf-8');
+    expect(rep).toMatch(/aria-pressed=\{bilesenGorunumu\}/);
+    expect(rep).toMatch(/<NetDegerBilesenleri items=\{trendItems\}/);
+  });
+});

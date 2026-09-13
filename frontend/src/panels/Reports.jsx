@@ -14,6 +14,7 @@ import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import { formatPara, kisaSayi } from '../lib/money.js';
 import { kategoriOzeti, netDegerOzeti } from '../lib/grafikOzeti.js';
+import NetDegerBilesenleri from '../components/NetDegerBilesenleri.jsx';
 // BUG #265: renkler burada hex olarak yaziliydi ve TEK temaya gore secilmisti
 // (`#4f46e5` koyu kartta 2.82 → cizgi ve lejant metni varsayilan temada okunmuyordu).
 import { KATEGORIK, KATEGORIK_TAVAN, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK, lejantMetni } from '../lib/grafikRenkleri.js';
@@ -110,6 +111,7 @@ export default function Reports() {
   ];
   const [trendDays, setTrendDays] = useState(30);
   const [trendData, setTrendData] = useState(null);
+  const [bilesenGorunumu, setBilesenGorunumu] = useState(false);   // DVIZ-012 (BUG #458)
   const [loadingTrend, setLoadingTrend] = useState(true);
   const [errorTrend, setErrorTrend] = useState(null);
 
@@ -284,6 +286,11 @@ export default function Reports() {
                 {r.label}
               </button>
             ))}
+            {/* DVIZ-012 (BUG #458): bileşen görünümü — net değer nasıl oluşuyor */}
+            <button type="button" onClick={() => setBilesenGorunumu((b) => !b)} aria-pressed={bilesenGorunumu}
+              className={`btn !text-xs !px-3 ${bilesenGorunumu ? 'btn-primary' : 'btn-secondary'}`}>
+              Bileşenler
+            </button>
           </div>
         </div>
 
@@ -308,6 +315,9 @@ export default function Reports() {
         ) : (
           <div className="card p-4">
             <div style={{ width: '100%', height: 320 }} role="img" aria-label={netDegerOzeti(trendItems)}>
+              {bilesenGorunumu ? (
+                <NetDegerBilesenleri items={trendItems} tickColor={TICK_COLOR} />
+              ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={trendItems}
@@ -369,6 +379,7 @@ export default function Reports() {
                   />
                 </LineChart>
               </ResponsiveContainer>
+              )}
             </div>
           </div>
         )}

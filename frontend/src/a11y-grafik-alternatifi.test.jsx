@@ -31,8 +31,10 @@ describe('A11Y-013 — grafik metin alternatifi', () => {
       L.forEach((s, i) => {
         if (!/<ResponsiveContainer\b/.test(s)) return;
         sayi += 1;
-        const once = L.slice(Math.max(0, i - 3), i).join('\n');
-        if (!/role="img"/.test(once) || !/aria-label=/.test(once)) ihlal.push(`${f.split('src')[1]}:${i + 1}`);
+        const once = L.slice(Math.max(0, i - 6), i).join('\n');
+        // Açık muafiyet: sarmalayıcı başka dosyada ise yazılı işaret ("role=img: üst sarmalayıcıda")
+        const ustte = /role=img: üst sarmalayıcıda/.test(once);
+        if (!ustte && (!/role="img"/.test(once) || !/aria-label=/.test(once))) ihlal.push(`${f.split('src')[1]}:${i + 1}`);
       });
     }
     expect(sayi, 'kapsam tabanı (L45)').toBeGreaterThanOrEqual(6);

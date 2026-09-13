@@ -151,6 +151,13 @@ def net_worth_trend(
             "net_worth_seen": round(float(r.net_worth_seen), 2),
             "net_worth_full": round(float(r.net_worth_full), 2),
             "investment_value": round(float(r.investment_value or 0), 2),
+            # DVIZ-012 (BUG #458): net değerin BİLEŞENLERİ — snapshot bunları günlerdir saklıyordu,
+            # uç yalnız toplamları veriyordu. Varlıklar (+) ve borçlar (+, işaretsiz — arayüz
+            # eksiye çevirir) ayrı; `net_worth_full − net_worth_seen = receivables` sağlaması olur.
+            "cash": round(float(r.cash or 0), 2),
+            "card_debt": round(float(r.card_debt or 0), 2),
+            "loan_debt": round(float(r.loan_debt or 0), 2),
+            "receivables": round(float(r.receivables or 0), 2),
         }
         for r in rows
     ]

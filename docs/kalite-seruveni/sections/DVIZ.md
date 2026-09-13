@@ -154,7 +154,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-012] Net değer trendi varlık/borç kompozisyonunu göstermiyor (veri var, kullanılmıyor)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: net-worth-trend cash/card/loan serialize etmiyor
+- **Durum:** ✅ KAPANDI — BUG #458 (13 Eyl 2026): `net-worth-trend` kalemleri `cash/card_debt/loan_debt/investment_value/receivables` taşır (sağlama: tam − görülen = alacak; görülen = nakit + yatırım − kart − kredi). Raporlar'da "Bileşenler" düğmesi (`aria-pressed`): yığılmış alan (varlıklar +, borçlar −, `stackOffset="sign"`) + tam net değer çizgisi (`components/NetDegerBilesenleri.jsx`); varsayılan çizgi görünümü aynen. Kapılar: `tests/test_net_deger_bilesenleri_kapisi.py` (uç + sağlama, mutasyonla), `grafik-renk-tek-kaynak.test.jsx` (seri işaretleri + bağ). Fixture +4 alan.
 
 Sorun: NetWorthSnapshot her gün `cash`, `card_debt`, `loan_debt`, `investment_value`, `receivables` ayrı ayrı saklıyor ama trend endpoint'i yalnızca 3 birleşik toplamı döndürüyor. Net değerin nasıl oluştuğu (varlık kırılımı vs borç kırılımı) stacked area olarak gösterilmiyor — zengin veri boşa gidiyor.
 

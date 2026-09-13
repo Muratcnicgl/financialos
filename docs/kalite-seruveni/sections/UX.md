@@ -202,7 +202,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [UX-032] Fiyat güncelleme çok adımlı — inline giriş yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: fiyat güncelleme modal, inline giriş yok
+- **Durum:** ✅ KAPANDI — BUG #470 (13 Eyl 2026): kokpit "Fiyat tazeliği" listesinde BAYAT satırlarda satır içi giriş (`components/SatirIciFiyat.jsx`: kutu + Kaydet, aynı `fund-price/update` ucu, TR sayı biçimi, inline hata `aria-invalid`/`role=alert`, başarıda "Güncellendi" + yenileme). Modal (`PriceUpdateModal`) hesap kartındaki yol için kalır. Toast kullanılmadı: bileşen ToastProvider'sız bağlamda da çalışır (kokpit testi bunu yakaladı). Kapı: `frontend/src/satir-ici-fiyat.test.jsx`.
 - **Kanıt:** `Cockpit.jsx:481-514`; `Accounts.jsx:536-578`
 - **Aksiyon:** Tazelik satırında modal açmadan inline fiyat girişi.
 - **Etki:** Düşük · **Efor:** S

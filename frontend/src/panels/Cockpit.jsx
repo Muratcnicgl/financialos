@@ -12,6 +12,7 @@ import MonthlySummary from '../components/MonthlySummary.jsx';
 import AylikSeri from '../components/AylikSeri.jsx';
 import AyTemposu from '../components/AyTemposu.jsx';   // UX-028 (BUG #466)
 import { kalanCumlesi } from '../lib/bugunKalan.js';   // UX-004 (BUG #467)
+import SatirIciFiyat from '../components/SatirIciFiyat.jsx';   // UX-032 (BUG #470)
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -1108,21 +1109,27 @@ export default function Cockpit({ setActiveTab }) {
         >
           <div className="space-y-1.5">
             {data.price_freshness.items.map((item) => (
-              <div key={item.account_id} className="flex items-center justify-between text-xs">
+              <div key={item.account_id} className="flex items-center justify-between gap-2 text-xs flex-wrap">
                 <span className="text-zinc-700 dark:text-zinc-300">
                   {item.name}
                   {item.is_emanet && (
                     <Lock className="inline w-3 h-3 ml-1 text-warn-600 dark:text-warn-500" />
                   )}
                 </span>
-                <span
-                  className={`font-numeric ${
-                    item.is_stale
-                      ? 'text-warn-600 dark:text-warn-400'
-                      : 'text-zinc-500 dark:text-zinc-400'
-                  }`}
-                >
-                  {item.age_text}
+                <span className="flex items-center gap-2">
+                  <span
+                    className={`font-numeric ${
+                      item.is_stale
+                        ? 'text-warn-600 dark:text-warn-400'
+                        : 'text-zinc-500 dark:text-zinc-400'
+                    }`}
+                  >
+                    {item.age_text}
+                  </span>
+                  {/* UX-032 (BUG #470): modal açmadan satır içi fiyat girişi — bayat satırda */}
+                  {item.is_stale && (
+                    <SatirIciFiyat accountId={item.account_id} name={item.name} onUpdated={handleRefresh} />
+                  )}
                 </span>
               </div>
             ))}

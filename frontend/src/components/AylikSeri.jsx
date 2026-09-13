@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Refe
 import { reportsApi } from '../api.js';
 import { formatSayi, paraEtiketi } from '../lib/money.js';
 import { lejantMetni } from '../lib/grafikRenkleri.js';
+import { aylikSeriOzeti } from '../lib/grafikOzeti.js';
 
 /**
  * AylikSeri — son N ayın gelir/gider çubukları + tasarruf oranı (BUG #428 / DVIZ-004, FEAT-023).
@@ -43,7 +44,7 @@ export default function AylikSeri({ months = 6 }) {
       {hepsiBos ? (
         <p className="text-xs text-zinc-500">Bu dönemde işlem yok.</p>
       ) : (
-        <div style={{ width: '100%', height: 180 }}>
+        <div style={{ width: '100%', height: 180 }} role="img" aria-label={aylikSeriOzeti(seri)}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={seri} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <XAxis dataKey="ad" tick={{ fontSize: 11 }} />

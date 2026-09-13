@@ -13,6 +13,7 @@ import NetWorthAnalysis from '../components/NetWorthAnalysis.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import { formatPara } from '../lib/money.js';
+import { kategoriOzeti, netDegerOzeti } from '../lib/grafikOzeti.js';
 // BUG #265: renkler burada hex olarak yaziliydi ve TEK temaya gore secilmisti
 // (`#4f46e5` koyu kartta 2.82 → cizgi ve lejant metni varsayilan temada okunmuyordu).
 import { KATEGORIK, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK, lejantMetni } from '../lib/grafikRenkleri.js';
@@ -200,7 +201,8 @@ export default function Reports() {
           {/* Donut — wrapper div explicit height + height="100%" pattern */}
           <div className="card p-4">
             <h3 className="text-sm font-semibold mb-3 text-zinc-700 dark:text-zinc-300">Dağılım</h3>
-            <div style={{ width: '100%', height: 280 }}>
+            {/* A11Y-013 (BUG #451): grafik = resim; özet veriden türer */}
+            <div style={{ width: '100%', height: 280 }} role="img" aria-label={kategoriOzeti(items, grandTotal)}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -227,7 +229,7 @@ export default function Reports() {
           {/* Yatay çubuk — wrapper div explicit height + height="100%" pattern */}
           <div className="card p-4">
             <h3 className="text-sm font-semibold mb-3 text-zinc-700 dark:text-zinc-300">Kategoriler</h3>
-            <div style={{ width: '100%', height: barHeight }}>
+            <div style={{ width: '100%', height: barHeight }} role="img" aria-label={kategoriOzeti(items, grandTotal)}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   layout="vertical"
@@ -299,7 +301,7 @@ export default function Reports() {
           />
         ) : (
           <div className="card p-4">
-            <div style={{ width: '100%', height: 320 }}>
+            <div style={{ width: '100%', height: 320 }} role="img" aria-label={netDegerOzeti(trendItems)}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={trendItems}

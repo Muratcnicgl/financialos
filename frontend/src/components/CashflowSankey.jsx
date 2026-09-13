@@ -1,6 +1,7 @@
 import { Sankey, Tooltip, ResponsiveContainer } from 'recharts';
 import { GitMerge } from 'lucide-react';
 import { formatPara } from '../lib/money.js';
+import { sankeyOzeti } from '../lib/grafikOzeti.js';
 
 const NODE_COLORS = {
   income: '#22c55e',    // positive-500
@@ -75,7 +76,7 @@ export default function CashflowSankey({ sankey }) {
       <h3 className="text-sm font-semibold mb-3 text-zinc-700 dark:text-zinc-300">
         Nakit Akış Diyagramı
       </h3>
-      <div className="w-full" style={{ height: 220 }}>
+      <div className="w-full" style={{ height: 220 }} role="img" aria-label={sankeyOzeti(sankey)}>
         <ResponsiveContainer width="100%" height="100%">
           <Sankey
             data={data}

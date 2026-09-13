@@ -6,6 +6,7 @@ import { formatDate } from '../api.js';
 import { formatPara, formatSayi } from '../lib/money.js';
 // BUG #265: cizgi/nokta renkleri burada hex sabitiydi — tek kaynak lib/grafikRenkleri.js
 import { SERI, IZGARA, NOKTA_KENAR } from '../lib/grafikRenkleri.js';
+import { bakiyeTrendiOzeti } from '../lib/grafikOzeti.js';
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -56,6 +57,7 @@ export default function BalanceTrend({ days, today }) {
       <h3 className="text-sm font-semibold mb-3 text-zinc-700 dark:text-zinc-300">
         Bakiye Trendi
       </h3>
+      <div role="img" aria-label={bakiyeTrendiOzeti(chartData)}>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} />
@@ -103,6 +105,7 @@ export default function BalanceTrend({ days, today }) {
           ))}
         </LineChart>
       </ResponsiveContainer>
+      </div>
       {crunchDays.length > 0 && (
         <p className="text-xs text-negative-600 dark:text-negative-400 mt-2 flex items-center gap-1">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-negative-500 flex-shrink-0" />

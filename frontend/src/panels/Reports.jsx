@@ -584,7 +584,7 @@ function CashflowTimeline({ items, days, today: todayStr }) {
               left: `${pct}%`,
               width: r * 2,
               height: r * 2,
-              backgroundColor: item.type === 'receivable' ? '#16a34a' : '#e11d48',
+              backgroundColor: item.type === 'receivable' ? SERI.pozitif : SERI.negatif,   // DVIZ-006 (BUG #453)
             }}
           />
         );

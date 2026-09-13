@@ -2,11 +2,14 @@ import { Sankey, Tooltip, ResponsiveContainer } from 'recharts';
 import { GitMerge } from 'lucide-react';
 import { formatPara } from '../lib/money.js';
 import { sankeyOzeti } from '../lib/grafikOzeti.js';
+import { SERI } from '../lib/grafikRenkleri.js';
 
+// DVIZ-006 (BUG #453): renkler tek kaynaktan (iki temada >= 3:1 ölçülü); yorumlardaki
+// "positive-500/brand-500" adları paletle uyuşmuyordu (#22c55e hiçbir tokenin değeri değildi).
 const NODE_COLORS = {
-  income: '#22c55e',    // positive-500
-  cash: '#3b82f6',      // brand-500
-  expense: '#ef4444',   // negative-500
+  income: SERI.pozitif,
+  cash: SERI.bakiye,
+  expense: SERI.negatif,
 };
 
 function CustomNode({ x, y, width, height, index, payload }) {

@@ -76,7 +76,7 @@ Etki: yüksek · Efor: M
 ---
 
 ### [DVIZ-006] Grafiklerde dark mode grid/eksen rengi sabit açık tona kodlanmış
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: grid/ReferenceLine sabit renk
+- **Durum:** ✅ KAPANDI — BUG #453 (13 Eyl 2026): grid/eksen BUG #265'ten beri tek kaynaktan (`IZGARA` #a1a1aa @0.35, `EKSEN` #71717a — iki temada ≥ 3:1 ölçülü), "dark'ta görünmez" iddiası bugün için yanlıştı; ama üç yerde literal hex geri sızmıştı (AylikSeri referans çizgisi + 2 bar, Sankey düğümleri — yorumdaki token adları paletle uyuşmuyordu —, Raporlar takvim noktası) → `SERI`/`IZGARA`. Kapı: `frontend/src/grafik-renk-tek-kaynak.test.jsx` (ürün `.jsx`'te literal hex yok).
 
 Sorun: Net değer trend grafiğinde CartesianGrid ve referans çizgileri sabit hex ile veriliyor; dark mode'da grid neredeyse görünmez veya yanlış kontrast. Aynı repoda BalanceTrend `currentColor` + opacity ile doğru temaya duyarlı deseni kullanıyor — tutarsızlık var.
 
@@ -167,7 +167,7 @@ Etki: orta · Efor: M
 ---
 
 ### [DVIZ-013] Grafiklerde ARIA/metin alternatifi ve veri tablosu yedeği yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: grafik role=img/tablo yedeği yok
+- **Durum:** ✅ KAPANDI — A11Y-013 ile aynı madde; BUG #451 (13 Eyl 2026): 6 grafik `role="img"` + veriden türeyen özet (`lib/grafikOzeti.js`); tablo yedeği bilinçli yok (veri yandaki listelerde). Kapı: `a11y-grafik-alternatifi.test.jsx`.
 
 Sorun: Hiçbir ResponsiveContainer/chart `role="img"`, `aria-label`, `<title>` veya erişilebilir veri tablosu yedeği taşımıyor. Ekran okuyucu kullanıcıları grafik içeriğine hiç erişemiyor. Araştırma: renk artıklı kodlamanın yanında metin alternatifi/veri tablosu zorunlu ilk savunma hattı.
 

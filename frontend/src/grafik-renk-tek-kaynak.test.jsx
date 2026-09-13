@@ -1,0 +1,46 @@
+/**
+ * DVIZ-006 KAPISI (BUG #453) — GRAFİK RENKLERİ TEK KAYNAKTAN, TEMA-NÖTR.
+ *
+ * Ölçülen (13 Eyl 2026): BUG #265 grafik renklerini `lib/grafikRenkleri.js`'e toplamıştı (her
+ * renk iki temada ≥ 3:1) ama üç yerde literal hex geri sızmıştı: AylikSeri (referans çizgisi
+ * ve iki bar), Sankey düğüm renkleri (yorumdaki token adları paletle uyuşmuyordu), Raporlar
+ * takvim noktası. Grid/eksen: `IZGARA`/`EKSEN` (BUG #265) — dark mode'da görünmez grid iddiası
+ * bugün için yanlış; kilit yoktu.
+ *
+ * Kilitlenen: `.jsx` ürün dosyalarında grafik/nokta rengi olarak literal hex yok (yalnız
+ * `grafikRenkleri.js` tanımlar); AkisSparkline `currentColor`/Tailwind sınıfı kullanır (muaf).
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+const KOK = join(__dirname);
+function jsxDosyalari(dir, out = []) {
+  for (const ad of readdirSync(dir)) {
+    const yol = join(dir, ad);
+    if (statSync(yol).isDirectory()) jsxDosyalari(yol, out);
+    else if (ad.endsWith('.jsx') && !ad.includes('.test.')) out.push(yol);
+  }
+  return out;
+}
+
+describe('DVIZ-006 — grafik rengi tek kaynak', () => {
+  it('ürün .jsx dosyalarında literal hex renk yok', () => {
+    const ihlal = [];
+    for (const f of jsxDosyalari(KOK)) {
+      readFileSync(f, 'utf-8').split('\n').forEach((s, i) => {
+        if (/^\s*(\/\/|\*|\/\*)/.test(s)) return;   // yorum satırı
+        if (/['"]#[0-9a-fA-F]{6}['"]/.test(s)) ihlal.push(`${f.split('src')[1]}:${i + 1}`);
+      });
+    }
+    expect(ihlal).toEqual([]);
+  });
+
+  it('grid/eksen renkleri tek kaynaktan (IZGARA/EKSEN) kullanılıyor', () => {
+    const rep = readFileSync(join(KOK, 'panels', 'Reports.jsx'), 'utf-8');
+    expect(rep).toMatch(/stroke=\{IZGARA\}/);
+    expect(rep).toMatch(/EKSEN/);
+    const ay = readFileSync(join(KOK, 'components', 'AylikSeri.jsx'), 'utf-8');
+    expect(ay).toMatch(/stroke=\{IZGARA\}/);
+  });
+});

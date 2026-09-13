@@ -61,11 +61,16 @@ def _silinen_modeller() -> list[str]:
 
 
 def _onay_metni() -> str:
-    """`window.confirm(...)` çağrısının argüman metni (birleştirilmiş dizgeler dahil)."""
+    """Onay penceresinin listelediği maddeler — `SIFIRLAMA_SILINECEKLER` sabiti.
+
+    UX-014 (BUG #461): `window.confirm` yerine uygulama içi Modal; metin bu sabitten çizilir,
+    kapı da aynı sabiti okur (metin ile davranış tek yerde)."""
     kaynak = COACH_JSX.read_text(encoding="utf-8")
-    m = re.search(r"window\.confirm\((.*?)\);", kaynak, re.S)
-    assert m, "window.confirm çağrısı bulunamadı — sıfırlama akışı değişmiş olabilir"
-    return m.group(1)
+    m = re.search(r"const SIFIRLAMA_SILINECEKLER = \[(.*?)\];", kaynak, re.S)
+    u = re.search(r"const SIFIRLAMA_UYARI = '([^']*)';", kaynak)
+    assert m and u, "SIFIRLAMA_UYARI/SIFIRLAMA_SILINECEKLER sabiti bulunamadı — sıfırlama akışı değişmiş olabilir"
+    assert "window.confirm(" not in kaynak, "tarayıcı confirm'i geri gelmiş (UX-014)"
+    return u.group(1) + " " + m.group(1)
 
 
 def test_KAPI_dogru_yeri_okuyor():

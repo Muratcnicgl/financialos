@@ -5,6 +5,16 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { coachApi, cockpitApi, userApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
+import Modal from '../components/Modal.jsx';
+
+// UX-014 / BUG #354: sıfırlamada SİLİNENLER — `reset_history`nin üç tablosuyla birebir;
+// `tests/test_koc_sifirlama_onayi_kapisi.py` bu listeyi okur.
+const SIFIRLAMA_UYARI = 'Bu işlem geri alınamaz. Silinecekler:';
+const SIFIRLAMA_SILINECEKLER = [
+  'tüm sohbet geçmişin',
+  'koçun senin hakkında çıkardığı içgörüler (alışkanlıklar, tercihler)',
+  'koçun muhakeme/gerekçe izleri',
+];
 import PendingActions from '../components/PendingActions.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import TracePanel from '../components/TracePanel.jsx';
@@ -148,6 +158,7 @@ function CoachInner({ onActionResolved }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [sifirlamaOnay, setSifirlamaOnay] = useState(false);   // UX-014 (BUG #461)
   const [usage, setUsage] = useState(null);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState(null);
@@ -276,7 +287,7 @@ function CoachInner({ onActionResolved }) {
   // SOHBETI SIFIRLA
   // ============================================================
 
-  const handleReset = async () => {
+  const handleReset = () => {
     // BUG #354 (5 Eyl 2026): ONAY METNİ YAPILAN İŞİ EKSİK ANLATIYORDU.
     // Eski metin yalnız "Tüm sohbet geçmişi silinecek" diyordu. Oysa
     // `CoachEngine.reset_history` ÜÇ tabloyu birden kalıcı siliyor: sohbet (`CoachMemory`),
@@ -287,14 +298,14 @@ function CoachInner({ onActionResolved }) {
     // NE SİLİNECEĞİ bir ürün kararıdır ve DEĞİŞTİRİLMEDİ; değişen, onayın doğruyu
     // söylemesi. Metin ile davranışın ayrışması `tests/test_koc_sifirlama_onayi_kapisi.py`
     // ile kilitli.
-    const ok = window.confirm(
-      'Bu işlem geri alınamaz. Silinecekler:\n' +
-      '  • tüm sohbet geçmişin\n' +
-      '  • koçun senin hakkında çıkardığı içgörüler (alışkanlıklar, tercihler)\n' +
-      '  • koçun muhakeme/gerekçe izleri\n\n' +
-      'Devam edilsin mi?'
-    );
-    if (!ok) return;
+    // UX-014 (BUG #461): tarayıcı `window.confirm` yerine uygulama içi erişilebilir Modal
+    // (odak tuzağı, Escape, ekran okuyucu başlığı). İlk tıklama pencereyi açar; onay
+    // `sifirlaGercekten` ile gelir. Metin SIFIRLAMA_SILINECEKLER'den (kapı onu okur).
+    setSifirlamaOnay(true);
+  };
+
+  const sifirlaGercekten = async () => {
+    setSifirlamaOnay(false);
     setResetting(true);
     try {
       await coachApi.reset();
@@ -538,6 +549,19 @@ function CoachInner({ onActionResolved }) {
           </>
         )}
       </div>
+
+      {sifirlamaOnay && (
+        <Modal title="Sohbeti sıfırla" onClose={() => setSifirlamaOnay(false)}>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-2">{SIFIRLAMA_UYARI}</p>
+          <ul className="text-sm text-zinc-700 dark:text-zinc-300 list-disc pl-5 space-y-1 mb-4">
+            {SIFIRLAMA_SILINECEKLER.map((m) => <li key={m}>{m}</li>)}
+          </ul>
+          <div className="flex gap-2">
+            <button type="button" onClick={sifirlaGercekten} className="btn btn-negative flex-1">Evet, sıfırla</button>
+            <button type="button" onClick={() => setSifirlamaOnay(false)} className="btn btn-secondary">Vazgeç</button>
+          </div>
+        </Modal>
+      )}
 
       {/* ===== HATA BANT ===== */}
       {error && (

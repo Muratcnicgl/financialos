@@ -156,7 +156,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DATA-024] `ActionHistory.reverted_by_action_id` self-FK indekssiz + döngü riski
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ActionHistory.reverted_by self-FK indekssiz (models.py:475)
+- **Durum:** ⚪ DEFEKT DEĞİL — 13 Eyl 2026 ölçümü: `reverted_by_action_id`/`reverted_at` sütunlarını **hiçbir ürün kodu yazmıyor** (grep: yalnız model tanımı); "geri al" özelliği yok. Canlı: 9 kayıtta 0 dolu. Döngü riski yazıcısı olmayan sütunda yoktur; indeks okuyucusu olmayan sütunda israftır. Sütun soğuk-FK ratchet'inde (`test_fk_indeks_kapisi`, 9'un biri). Geri-al özelliği gelirse (roadmap) o iş kendi kapısıyla açılır: indeks + döngü kontrolü + `ondelete=SET NULL`.
 - **Kanıt:** `app/models.py:381`
 - **Aksiyon:** Index; döngü kontrolü; ondelete SET NULL.
 - **Etki:** Düşük · **Efor:** S
@@ -195,7 +195,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DATA-030] `RecurringExpense` dedup taraması için composite index yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Recurring* (user_id,is_active) dedup index yok (models.py:220)
+- **Durum:** ⚪ DEFEKT DEĞİL — 13 Eyl 2026 ölçümü: `recurring_incomes.user_id` ve `recurring_expenses.user_id` BUG #418 ile indeksli; `is_active` bunun üstünde bir kullanıcının kendi ~10 satırını süzer (canlı: 9 gelir + 8 gider). Kompozit `(user_id, is_active)` bu ölçekte hiçbir planı değiştirmez, yazma maliyeti ekler. Dedup doğruluğu indeksle değil `last_triggered_year_month` kuralıyla (BUG #444) korunur. Bir kullanıcının düzenli kaydı yüzleri bulursa yeniden ölçülür.
 - **Kanıt:** `app/models.py:203-219`
 - **Aksiyon:** `Index(user_id, is_active)` (RecurringIncome'a da).
 - **Etki:** Düşük · **Efor:** S

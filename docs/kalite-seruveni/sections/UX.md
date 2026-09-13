@@ -160,7 +160,7 @@
 - **Etki:** Yüksek · **Efor:** M
 
 ### [UX-025] Ekstra ödeme slider'ı 0-5000 sabit — reel bütçeyle ilgisiz
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: slider max 5000 sabit, reel_butce ölçek yok
+- **Durum:** ✅ KAPANDI — BUG #463 (13 Eyl 2026): tavan = reel bütçenin %125'i (500'e yuvarlı, ≥ 1.000; bütçe bilinmiyor/negatifse 5.000 — belgeli eski davranış), `lib/sliderTavani.js`; kaydırıcının altında "▲ ayırabileceğin ~X" referans işareti (bütçe yüzdesinde). Bütçe `/api/cockpit`'ten bir kez okunur. Kapı: `frontend/src/slider-tavani.test.jsx`.
 - **Kanıt:** `DebtStrategy.jsx:166-174`
 - **Aksiyon:** Üst sınırı reel_butce'ye göre ölçekle; "Ayırabileceğin ~X TL" referans işareti.
 - **Etki:** Orta · **Efor:** S

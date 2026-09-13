@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart, AlertTriangle } from 'lucide-react';
-import { debtStrategyApi, parseTRNumber } from '../api.js';
+import { debtStrategyApi, cockpitApi, parseTRNumber } from '../api.js';
+import { sliderTavani, referansYuzde } from '../lib/sliderTavani.js';   // UX-025 (BUG #463)
 import { useToast } from '../components/Toast.jsx';
 import { formatPara, paraEtiketi } from '../lib/money.js';
 import BorcErimeGrafigi from '../components/BorcErimeGrafigi.jsx';
@@ -249,6 +250,7 @@ function OpportunityCost({ hasDebt }) {
 export default function DebtStrategy() {
   const toast = useToast();
   const [extraMonthly, setExtraMonthly] = useState(0);
+  const [reelButce, setReelButce] = useState(null);   // UX-025 (BUG #463): kaydırıcı tavanı bütçeden
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -274,6 +276,11 @@ export default function DebtStrategy() {
 
   // Neden susturuldu: ilk yükleme bir kez; `fetchData` her render'da yeni kimlik alır.
   useEffect(() => { fetchData(0); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let iptal = false;
+    cockpitApi.get().then((c) => { if (!iptal) setReelButce(c?.reel_butce ?? null); }).catch(() => {});
+    return () => { iptal = true; };
+  }, []);
 
   const debtsById = useMemo(() => {
     if (!data?.debts) return {};
@@ -323,6 +330,8 @@ export default function DebtStrategy() {
     );
   }
 
+  const tavan = sliderTavani(reelButce);                 // UX-025 (BUG #463)
+  const referans = referansYuzde(reelButce, tavan);
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -374,7 +383,7 @@ export default function DebtStrategy() {
           id="ekstra-aylik-odeme"
           type="range"
           min="0"
-          max="5000"
+          max={tavan}
           step="100"
           aria-valuetext={paraTam(extraMonthly)}
           value={extraMonthly}
@@ -384,9 +393,17 @@ export default function DebtStrategy() {
           onKeyUp={handleExtraKeyUp}
           className="w-full accent-brand-500"
         />
+        {/* UX-025 (BUG #463): tavan reel bütçeden; referans işareti "ayırabileceğin ~X" */}
+        {referans !== null && (
+          <div className="relative h-4 mt-1" aria-hidden="true">
+            <span className="absolute -translate-x-1/2 text-[10px] text-zinc-500 whitespace-nowrap" style={{ left: `${referans}%` }}>
+              ▲ ayırabileceğin ~{formatPara(reelButce, { ondalik: 0 })}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between text-xs text-zinc-500 mt-1">
           <span>{formatPara(0, { ondalik: 0 })}</span>
-          <span>{formatPara(5000, { ondalik: 0 })}</span>
+          <span>{formatPara(tavan, { ondalik: 0 })}</span>
         </div>
       </div>
 

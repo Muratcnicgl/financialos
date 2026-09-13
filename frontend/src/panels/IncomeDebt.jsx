@@ -137,7 +137,7 @@ export default function IncomeDebt() {
       else await incomesApi.update(editingIncome.id, data);
       setEditingIncome(null);
       handleRefresh();
-    } catch (e) { toast.error(`Gelir kaydedilemedi: ${e.message}`); }
+    } catch (e) { toast.error(`Gelir kaydedilemedi: ${e.message}`); throw e; }   // BUG #449: pencere de göstersin (role=alert)
   };
 
   const handleToggleIncome = async (inc) => {
@@ -153,7 +153,7 @@ export default function IncomeDebt() {
       else await expensesApi.update(editingExpense.id, data);
       setEditingExpense(null);
       handleRefresh();
-    } catch (e) { toast.error(`Gider kaydedilemedi: ${e.message}`); }
+    } catch (e) { toast.error(`Gider kaydedilemedi: ${e.message}`); throw e; }   // BUG #449
   };
 
   const handleToggleExpense = async (exp) => {
@@ -169,7 +169,7 @@ export default function IncomeDebt() {
       else await debtsApi.update(editingDebt.id, data);
       setEditingDebt(null);
       handleRefresh();
-    } catch (e) { toast.error(`Kayıt yapılamadı: ${e.message}`); }
+    } catch (e) { toast.error(`Kayıt yapılamadı: ${e.message}`); throw e; }   // BUG #449
   };
 
   // BUG #241: "Ödendi" artık nakde de yansıyor. Kullanıcı bakiyesinin NEDEN değiştiğini
@@ -812,7 +812,7 @@ function IncomeFormModal({ income, onClose, onSave }) {
           Aktif (Cockpit hesaplamasına dahil)
         </label>
 
-        {error && <p className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
+        {error && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
@@ -924,7 +924,7 @@ function ExpenseFormModal({ expense, accounts, onClose, onSave }) {
           <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="w-4 h-4 rounded" />
           Aktif (otomatik tetiklenir)
         </label>
-        {error && <p className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
+        {error && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
         <div className="flex gap-2 pt-2">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
             {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{(isNew ? 'Ekle' : 'Kaydet')}
@@ -1067,7 +1067,7 @@ function DebtFormModal({ debt, onClose, onSave }) {
           </div>
         )}
 
-        {error && <p className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
+        {error && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
@@ -1126,7 +1126,7 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }) {
           )}
         </div>
       </div>
-      {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
+      {err && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
       <div className="flex gap-2">
         <button aria-busy={busy} type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
           {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Evet, sil'}

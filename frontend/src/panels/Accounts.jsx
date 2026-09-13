@@ -65,7 +65,7 @@ export default function Accounts() {
       }
       setEditingAccount(null);
       handleRefresh();
-    } catch (e) { toast.error(`Hesap kaydedilemedi: ${e.message}`); }
+    } catch (e) { toast.error(`Hesap kaydedilemedi: ${e.message}`); throw e; }   // BUG #449: pencere de göstersin (role=alert)
   };
 
   const handleDelete = async (id) => {
@@ -576,7 +576,7 @@ function AccountFormModal({ account, onClose, onSave }) {
           </>
         )}
 
-        {error && <p className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
+        {error && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
@@ -627,7 +627,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
       <form onSubmit={handleSubmit}>
         <label htmlFor={`${alanId}-yeni-fiyat-paraetiketi`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Yeni fiyat ({paraEtiketi()})</label>
         <input id={`${alanId}-yeni-fiyat-paraetiketi`} type="text" inputMode="decimal" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="input font-numeric" placeholder="5223.81" autoFocus />
-        {err && <p className="text-xs text-negative-600 dark:text-negative-400 mt-2">{err}</p>}
+        {err && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400 mt-2">{err}</p>}
         <div className="flex gap-2 mt-4">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
             {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Kaydet'}
@@ -675,7 +675,7 @@ function ConfirmDeleteModal({ account, onClose, onConfirm }) {
           </p>
         </div>
       </div>
-      {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
+      {err && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
       <div className="flex gap-2">
         <button aria-busy={busy} type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
           {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Evet, sil'}

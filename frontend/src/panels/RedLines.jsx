@@ -574,7 +574,7 @@ function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
           Aktif (koç bu kuralı dikkate alır)
         </label>
 
-        {error && <p className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
+        {error && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button aria-busy={busy} type="submit" disabled={busy} className="btn btn-primary flex-1">
@@ -620,7 +620,7 @@ function ConfirmDeleteModal({ checkpoint, onClose, onConfirm }) {
           </p>
         </div>
       </div>
-      {err && <p className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
+      {err && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400 mb-2">{err}</p>}
       <div className="flex gap-2">
         <button aria-busy={busy} type="button" onClick={handleDelete} disabled={busy} className="btn btn-negative flex-1">
           {busy && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}{'Evet, sil'}

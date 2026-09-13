@@ -153,7 +153,7 @@ export default function Onboarding({ setActiveTab, onDegisti }) {
           </span>
         </div>
 
-        {hata && <p className="text-xs text-negative-600 dark:text-negative-400">{hata}</p>}
+        {hata && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400">{hata}</p>}
       </div>
     </div>
   );

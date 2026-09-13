@@ -175,7 +175,7 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
             ))}
           </select>
         </div>
-        {editErr && <p className="text-red-500">{editErr}</p>}
+        {editErr && <p role="alert" className="text-red-500">{editErr}</p>}
         <div className="flex gap-1.5 mt-1">
           <button type="button" onClick={handleSave} disabled={saving}
             className="btn btn-positive !py-1 !text-[11px]">

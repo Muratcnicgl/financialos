@@ -94,7 +94,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [API-014] OpenAPI dokümantasyon kalitesi düşük (özet/örnek/etiket eksik)
-- **Durum:** 🟡 KISMEN — M85 R3 doğrulama: tags var ama summary/response örnekleri yok
+- **Durum:** ✅ KAPANDI (özet/açıklama/etiket) · ⛔ YAPILMAYACAK (yanıt örnekleri) — 13 Eyl 2026 ölçümü `app.openapi()` üzerinden: **131/131** uçta `summary`, **131/131** `description` (BUG #394 ile 24 eksik docstring tamamlandı), **131/131** `tags`; yanıt örneği 0/131. Örnekler bilinçli yazılmadı: tek istemci bu depodaki arayüz, sözleşme `api-sozlesmesi.json` ile donuk ve `bos-kullanici.json` fixture'ı gerçek yanıt şekillerini zaten taşıyor — 131 uca elle örnek yazmak bakımı olmayan ikinci bir kopya üretir (ihtiyaç ölçülmedi; mobil/üçüncü istemci gelirse yeniden açılır).
 - **Sorun/Fırsat:** Endpoint'lerde `summary`/`description`/`tags`/örnek eksik; `/docs` üretilen sözleşme zayıf (ayrıca prod'da açık — SEC-015).
 - **Kanıt:** `app/routers/*` decorator'ları (tags/summary tutarsız)
 - **Aksiyon:** Her endpoint'e tags+summary+response örnekleri; `openapi_tags` meta. İstemci/mobil ekip için sözleşme netliği.

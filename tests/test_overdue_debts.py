@@ -16,7 +16,8 @@ def _debt(db, user_id, *, direction, counterparty="X", amount=1000.0,
           overdue_days=5, is_paid=False, today=date(2026, 5, 20)):
     d = PersonalDebt(
         user_id=user_id, counterparty=counterparty, direction=direction,
-        amount=amount, is_paid=is_paid, due_date=today - timedelta(days=overdue_days),
+        amount=amount, is_paid=is_paid, paid_date=(today if is_paid else None),  # BUG #444: is_paid⇔paid_date
+        due_date=today - timedelta(days=overdue_days),
     )
     db.add(d); db.commit(); db.refresh(d)
     return d

@@ -310,7 +310,7 @@ def test_upcoming_cashflow_alacak_ve_borc(db_session):
                          amount=500, due_date=soon, is_paid=False),
             # ödenmiş → dahil edilmemeli
             PersonalDebt(user_id=1, counterparty="Eski", direction=DebtDirection.receivable,
-                         amount=999, due_date=soon, is_paid=True),
+                         amount=999, due_date=soon, is_paid=True, paid_date=soon),  # BUG #444: is_paid⇔paid_date
         ])
         db_session.commit()
         body = c.get("/api/reports/upcoming-cashflow?days=30").json()

@@ -13,6 +13,7 @@ KVKK silmesi izi de götürür (user_id); saklama 365 gün.
 from __future__ import annotations
 
 import json
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -63,11 +64,11 @@ def test_silme_tum_satiri_yazar_ekleme_yazmaz(s):
 def test_guncelleme_yalniz_degisen_alanlari_yazar(s):
     d = PersonalDebt(user_id=1, counterparty="Ahmet", direction="receivable", amount=100)
     s.add(d); s.commit()
-    d.amount = 250; d.is_paid = True
+    d.amount = 250; d.is_paid = True; d.paid_date = date(2026, 9, 1)   # BUG #444: is_paid⇔paid_date
     s.commit()
     iz = s.query(AuditLog).filter_by(action="update").one()
     once, sonra = json.loads(iz.before_json), json.loads(iz.after_json)
-    assert set(once) == {"amount", "is_paid"} and set(sonra) == {"amount", "is_paid"}
+    assert set(once) == {"amount", "is_paid", "paid_date"} and set(sonra) == {"amount", "is_paid", "paid_date"}
     assert once["is_paid"] is False and sonra["is_paid"] is True
     assert once["amount"].startswith("100") and sonra["amount"].startswith("250")
     d.counterparty = "Ahmet"   # değişmeyen atama → iz yok

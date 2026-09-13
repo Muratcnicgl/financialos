@@ -184,6 +184,7 @@ def delete_debt(
 
     onceki = KapanisDurumu.oku(debt)
     debt.is_paid = False          # kayıt yok olacak → ayağı da yok say
+    debt.paid_date = None         # BUG #444: is_paid⇔paid_date kuralı (silmeden önce autoflush olabilir)
     senkronize_nakit(db, user.id, debt, onceki, ws_id)
     db.delete(debt)
     db.commit()

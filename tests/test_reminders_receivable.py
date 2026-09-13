@@ -15,7 +15,8 @@ def _receivable(db, user_id, *, counterparty="Efe", amount=2000.0, due_in_days=3
                 is_paid=False, today=date(2026, 5, 7)):
     d = PersonalDebt(
         user_id=user_id, counterparty=counterparty, direction=DebtDirection.receivable,
-        amount=amount, is_paid=is_paid, due_date=today + timedelta(days=due_in_days),
+        amount=amount, is_paid=is_paid, paid_date=(today if is_paid else None),  # BUG #444: is_paid⇔paid_date
+        due_date=today + timedelta(days=due_in_days),
     )
     db.add(d); db.commit(); db.refresh(d)
     return d

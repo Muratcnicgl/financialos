@@ -80,6 +80,7 @@ def _receivable(db, user_id, amount, due_date, counterparty="Test", is_paid=Fals
         user_id=user_id, counterparty=counterparty,
         direction=DebtDirection.receivable, amount=amount,
         due_date=due_date, is_paid=is_paid,
+        paid_date=(due_date if is_paid else None),   # BUG #444: is_paid⇔paid_date bütünlük kuralı
     )
     db.add(d)
     db.flush()
@@ -91,6 +92,7 @@ def _payable(db, user_id, amount, due_date, counterparty="Test", is_paid=False):
         user_id=user_id, counterparty=counterparty,
         direction=DebtDirection.payable, amount=amount,
         due_date=due_date, is_paid=is_paid,
+        paid_date=(due_date if is_paid else None),   # BUG #444: is_paid⇔paid_date bütünlük kuralı
     )
     db.add(d)
     db.flush()

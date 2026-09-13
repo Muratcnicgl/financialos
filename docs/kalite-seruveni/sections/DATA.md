@@ -162,7 +162,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DATA-025] `PersonalDebt` `is_paid`+`paid_date` senkron guard yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: PersonalDebt is_paid/paid_date senkron CHECK yok (models.py:347)
+- **Durum:** ✅ KAPANDI — BUG #444 (13 Eyl 2026): kural ORM `before_flush` kancasında (`app/butunluk.py`), DB CHECK yerine — SQLite'ta var olan tabloya CHECK eklemek tablo yeniden kurulumu (batch) ister, depo göçlerde bundan bilinçli kaçınıyor. Hangi yazıcıdan gelirse gelsin `is_paid ⇔ paid_date` tutarsız satır diske inmez; `debts.delete` yolu ikisini birlikte sıfırlar. Canlı veri ölçüldü: 0 ihlal; kapı ilk koşumda **dört test fikstürünü** yakaladı (`is_paid=True, paid_date=None`). Kapı: `tests/test_butunluk_kurallari_kapisi.py`.
 - **Kanıt:** `app/models.py:259-260`
 - **Aksiyon:** CHECK: `(is_paid=0 AND paid_date IS NULL) OR (is_paid=1 AND paid_date IS NOT NULL)`.
 - **Etki:** Düşük · **Efor:** S
@@ -188,7 +188,7 @@
 - **Durum:** `POST /api/goals/{id}/allocations` 0 tutarı reddeder (422 — progress'e etkisiz gürültü). Negatif GEÇERLİ (cash_target withdrawal). API-katmanı enforcement (CHECK/migrasyon değil). 2 test (0→422, negatif→201).
 
 ### [DATA-029] Recurring dedup `last_triggered_year_month` String(7) format guard yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: last_triggered_year_month String(7) GLOB/CHECK yok (models.py:232)
+- **Durum:** ✅ KAPANDI — BUG #444 (13 Eyl 2026): `YYYY-MM` (ay 01–12) biçimi ORM `before_flush` kancasında zorunlu (`app/butunluk.py`; GLOB SQLite'a özel, CHECK tablo yeniden kurulumu ister → ORM). Canlı veri: 17 kayıtta 0 ihlal. Kapı: `tests/test_butunluk_kurallari_kapisi.py` (6 biçim örneği).
 - **Sorun:** "2026-5" veya "May-26" yazılırsa dedup kırılır → mükerrer propose_action.
 - **Kanıt:** `app/models.py:198,215`
 - **Aksiyon:** GLOB CHECK `'[0-9][0-9][0-9][0-9]-[0-9][0-9]'` veya Date sakla.

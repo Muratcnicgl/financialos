@@ -238,6 +238,7 @@ app.add_middleware(_GuvenlikBasliklari)
 # BUG #408 (OBS-020): finansal kaydın güncelleme/silme izi — ORM flush kancası, import
 # anında bağlanır (router'lara kanca konmaz, unutulamaz).
 from app import denetim as _denetim  # noqa: F401  (`import app.denetim` yazımı `app` adını gölgelerdi)
+from app import butunluk as _butunluk  # noqa: F401  BUG #444: ORM bütünlük kuralları (flush kancası)
 
 # Ayrinti ve tasarim gerekceleri: app/correlation.py
 from starlette.middleware.base import BaseHTTPMiddleware as _BaseHTTP

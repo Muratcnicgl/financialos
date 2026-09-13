@@ -33,7 +33,7 @@ def _rec(kim, amount, due_offset=None, paid=False):
     """due_offset: today'den gün farkı (negatif = geçmiş/gecikmiş, None = tarihsiz)."""
     due = None if due_offset is None else TODAY + timedelta(days=due_offset)
     return PersonalDebt(user_id=1, counterparty=kim, direction=DebtDirection.receivable,
-                        amount=amount, due_date=due, is_paid=paid)
+                        amount=amount, due_date=due, is_paid=paid, paid_date=(due if paid else None))  # BUG #444
 
 
 def _payable(kim, amount, due_offset=-10):

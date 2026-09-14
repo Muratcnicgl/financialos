@@ -50,6 +50,22 @@ ki geri kalan 7 gibi olmasın:
   `frontend/src/*.test.jsx`) altında kaynaktan TÜRETİLEN bir testle kilitlenir; elle
   liste yerine tarama; muafiyet varsa gerekçesiyle ve testin içinde (sessiz muafiyet yok).
 
+## Sürüm çıkarma
+Sürüm bir sayı değil, bir kayıttır: **canlıda hangi kodun koştuğu** `/api/meta` ile
+ölçülür, **o kodun ne getirdiği** `CHANGELOG.md` ile okunur. İkisi ayrışırsa kapı kırılır
+(`tests/test_version_release.py`, `tests/test_surum_notu_kapisi.py`).
+
+1. `CHANGELOG.md`: "Yayınlanmamış" bölümünü `## [x.y.z] — YYYY-AA-GG` başlığına taşı;
+   alanlara göre özetle, her maddede BUG numarası; "Bilinen sınırlar" bölümü zorunlu.
+   SemVer: kırıcı API/env değişikliği → MAJOR (0.x'te MINOR), yeni özellik → MINOR, yalnız
+   düzeltme → PATCH.
+2. `app/version.py` › `APP_VERSION` aynı sayı (tek kaynak; `/api/meta` bunu döner).
+3. `python -m scripts.gorev kapilar` + tam süit yeşil; commit; CI yeşil.
+4. Etiket: `git tag -a v<x.y.z> -m "<x.y.z>"` ve `git push origin v<x.y.z>` (etiket commit'i
+   CI'ın yeşil dediği commit olmalı).
+5. Dağıt (`deploy/windows/guncelle.ps1`) ve `/api/meta` çıktısında `surum` + `build`
+   damgasının HEAD ile aynı olduğunu gör — damga görülmeden yayın bitmiş sayılmaz (L68).
+
 ## Yerel kapılar (commit engellenirse)
 - `python -m scripts.gorev kapilar` — aşağıdakilerin hepsi tek komutla (komutların tek
   kaynağı `scripts/gorev.py`; `python -m scripts.gorev` listeler, `make <görev>` vekildir).

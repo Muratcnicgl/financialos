@@ -809,9 +809,9 @@
     "ay_temposu": {
       "ay_gunu": 30,
       "durum": "bilinmiyor",
-      "gun": 13,
+      "gun": 14,
       "harcanan": 0.0,
-      "ilerleme_pct": 43.3,
+      "ilerleme_pct": 46.7,
       "projeksiyon": 0.0,
       "referans": null,
       "referans_ay": "Ağustos"
@@ -827,7 +827,7 @@
       "beklenen_gelir": 0.0,
       "bu_ayki_taksit": 0,
       "daily_limit": 0.0,
-      "days_remaining": 18,
+      "days_remaining": 17,
       "kart_borcu": 0.0,
       "nakit": 0.0,
       "reel_butce": 0.0
@@ -836,7 +836,7 @@
     "category_patterns": [],
     "daily_limit": 0.0,
     "date": "2026-01-02",
-    "days_remaining": 18,
+    "days_remaining": 17,
     "donem_degisimi": null,
     "emanet_kasa": 0.0,
     "faiz_sizintisi": {
@@ -897,7 +897,7 @@
       "karta_yazilacak_toplam": 0.0,
       "toplam_cikis": 0.0,
       "toplam_giris": 0.0,
-      "ufuk": "2026-01-19",
+      "ufuk": "2026-01-18",
       "yatirimda_bekleyen": 0.0,
       "yatirimda_bekleyen_kalemler": []
     },
@@ -926,8 +926,8 @@
     },
     "son_islemler": [],
     "sonraki_eylem": null,
-    "statu": "Ay sonuna 18 gün, günlük limit 0 TL. Sıkı dönem.",
-    "tarih_turkce": "13 Eylül 2026 Pazar",
+    "statu": "Ay sonuna 17 gün, günlük limit 0 TL. Sıkı dönem.",
+    "tarih_turkce": "14 Eylül 2026 Pazartesi",
     "today_target": 0.0,
     "upcoming_payments": [],
     "upcoming_receivables": [],
@@ -1013,7 +1013,7 @@
     },
     "kayit_modu": "open",
     "kimlik_gerekli": true,
-    "surum": "0.2.0",
+    "surum": "0.3.0",
     "urun": "FinancialOS"
   },
   "/api/meta/durum": {
@@ -1162,7 +1162,7 @@
     "db": "ok",
     "hazir": true,
     "sema": "atlandi",
-    "surum": "0.2.0"
+    "surum": "0.3.0"
   },
   "/api/reports/category-breakdown": {
     "days": 30,
@@ -1242,7 +1242,7 @@
     },
     "kategori_kaymalari": [],
     "period": {
-      "end": "2026-01-19",
+      "end": "2026-01-18",
       "label": "Eylül 2026",
       "month": 9,
       "start": "2026-01-01",

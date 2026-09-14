@@ -7,28 +7,138 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 ## [Yayınlanmamış]
 
-### ⚠️ Kırıcı değişiklik (self-host)
-- **`AUTH_ENABLED` varsayılanı AÇIK oldu (#227).** Eskiden değişken tanımsız/boşsa kimlik
-  doğrulama KAPALI sayılıyordu; belgelenen systemd dağıtım yolu bu değişkeni hiç set
-  etmediği için dokümanı izleyen operatör tüm finansal verisini (cockpit, hesaplar, KVKK
-  export'u, hesap silme) kimliksiz açıyordu. Artık kimlik doğrulama açıkça kapatılmadıkça
-  AÇIKTIR. **Kimliksiz yerel tek-kullanıcı kurulumu kullananlar `.env`'e `AUTH_ENABLED=false`
-  eklemelidir** (production'da bu da fail-fast ile reddedilir).
+_(boş — 0.3.0 ile kapatıldı; yeni değişiklikler buraya, sürüm çıkarken aşağıya taşınır)_
+
+## [0.3.0] — 2026-09-14 — "Ölçülen sistem" (kapalı beta → kalite serüveni)
+
+0.2.0'dan bu yana **#223–#475** arası 253 düzeltme/özellik, 333 commit. Bu sürümün ana
+fikri: hiçbir iddia ölçümsüz kalmaz — her kapanış kaynaktan türeyen bir kapı testiyle
+kilitlenir (`tests/*_kapisi.py`, `frontend/src/*.test.jsx`), her ölçü mutasyonla sınanır.
+Madde madde döküm `docs/kalite-seruveni/uygulanan-fixler.md`; bu not alanlara göre özettir.
+
+### ⚠️ Kırıcı değişiklikler (self-host)
+- **`AUTH_ENABLED` varsayılanı AÇIK** (#227). Kimliksiz yerel tek-kullanıcı kurulumu
+  `.env`'e `AUTH_ENABLED=false` yazmalıdır; production'da bu da fail-fast ile reddedilir.
+- `/api/health` artık yalnız `{"status":"ok"}` döner; sürüm/yapı bilgisi `/api/meta`
+  (kimlik ister) ve `/api/ready` uçlarındadır (#436, SEC-027).
+- Kök `test_*.py` duman betikleri `scripts/smoke/` altına taşındı; `python -m
+  scripts.smoke.<ad>` ile koşulur (#431). Canlı DB'ye `drop_all` artık reddedilir (#381).
+- Aksiyon uçları iş kuralı hatasında 422, bulunamayanda 404 döner (BE-011); kısmi
+  güncelleme fiili PATCH (API-009). API sözleşmesi dondurulmuştur:
+  `docs/api-reference/api-sozlesmesi.json` (#306) — ek alanlar serbest, kaldırma yasak.
 
 ### Güvenlik
-- Şifre sıfırlama bağlantısı, kullanıcı şifresini değiştirdikten sonra hâlâ geçerliydi;
-  saldırgan bağlantıyı bekletip hesabı kalıcı ele geçirebiliyordu — token artık oturum
-  sürümüne bağlı (#225).
-- OAuth kaydı kapalı-beta davet kapısını atlıyordu; alan adını bilen herkes Google/GitHub
-  ile hesap açabiliyordu — e-posta eşleşmeli davet kapısı (#226).
-- Belgelenen bir dağıtım yolu kimliksiz canlı sunucu üretiyordu — güvenlik varsayılanı
-  fail-closed'a çevrildi, systemd unit'i kendini production ilan ediyor (#227).
+- Şifre sıfırlama bağlantısı şifre değiştikten sonra ölüyor (#225); OAuth kaydı davet
+  kapısından geçiyor (#226); Google ile açılan hesap şifre alabiliyor (#233).
+- LLM kotası tüm yollarda tek sayaçtan (#228, #234); prompt enjeksiyonuna yapısal
+  savunma (#257, ADR-045); kalıcı hata maskesi ve uygulama katmanı başlıkları (#258–#260);
+  sır sızma denetimi commit anında ve git geçmişinde (#261, #384).
+- Canlı `Server: uvicorn` başlığı kapandı; CSP arayüzü öldürmüyor (#287); sızan oturumu
+  iptal aracı (#291); şifre politikası kişiye özel tahmini görüyor (#254).
+- Onay/ret/düzenleme uçlarında hız sınırı (#382); onay geçişi atomik — eşzamanlı iki
+  onay çift işlem üretemez (SEC-023); koç motoru kullanıcılar arası yalıtımı ölçüldü
+  (SEC-026); sohbet yanıtı kokpit kopyasını istemcinin okuduğu kadar taşır (#435); onay/red kararı denetim izinde (#443).
+- Kurucunun ve üçüncü kişilerin gerçek finansal verisi prod imajına giremez (#236);
+  kişisel veri ratchet'i test fikstürlerini de tarar (#338).
 
-### Düzeltmeler
-- Nakit-akış tahmini ve borç-stratejisi uçları workspace bağlamını kurmuyordu: aile
-  görünümünde kişisel borçlar üzerinden strateji hesaplanıyor, cockpit ile çelişen rakamlar
-  gösteriliyordu (#223).
-- Ön-ölüm (premortem) ve simülasyon uçları da aynı kör noktadaydı (#224).
+### Veri doğruluğu ve bütünlük
+- Koçun kaydettiği işlem yanlış güne yazılıyordu — kullanıcı saat dilimi (#237); fiyat
+  cron'u bakiyeyi güncellemiyordu (#229); bayat fiyat "güncel" sunuluyordu (#239).
+- Nakit-akış, borç-stratejisi, premortem ve simülasyon uçları workspace bağlamını kurmuyordu
+  (#223–#224). Panelden ödendi işaretlenen alacak nakde geçmiyordu (#241); kayıt gününün net değeri 0
+  kalıyordu (#292); net-worth snapshot yarışı (#378).
+- Nakit takvimi tek parça: koç gelen parayı gider saymıyor (#319); yatırımda bekleyen
+  nakit ayrı kalem (#320); karta yazılan düzenli gider nakit çıkışı sayılmıyor (#331);
+  kart asgarisi ekstre borcundan ve hesabın kendi oranından (#330, #337, #340).
+- Kredi erken kapama tutarı sayısal alan (#318); borç kapanış artığı son ödemeye eklenir,
+  korunum toleransı 1 kuruş (#438); maliyet esası "ağırlıklı ortalama" olarak etiketli.
+- ORM bütünlük kuralları flush anında: `is_paid ⇔ paid_date`, `YYYY-MM` tekilleştirme
+  anahtarı, `CoachInsight.status` NULL olamaz, `Goal.progress_percent ∈ [0,100]`, kart
+  alanları yalnız kredi kartında; ihlal 422 (#444–#447). Para kuralları denetim
+  türetiminde (DATA-034); büyüyen tablolarda saklama kuralı (#383); sık filtrelenen FK
+  sütunlarına indeks (PERF-010).
+- Para birimi tek kaynak (#256, ADR-044); Decimal/NUMERIC saklama kayıpsız ölçüldü
+  (DATA-002); kategori seti kullanıcıya ait (#264).
+
+### Koç (LLM) ve kural motoru
+- Koç aritmetik yapmaz, kural motoru hesaplar: kötü hâl (#333), stopaj/getiri eşiği
+  (Wave-K, `app/vergi.py`), belirsizlikte tek "ay sonu" sayısı yazılmaz (#334).
+- Grounding: izin listesi modelin gördüğü veri kadar (#322); "bugün" reddedilmez (#323);
+  beraatin gerekçesi var, zayıf beraat işaretlenir (#324–#325); ret sebebi loglanır ve
+  retry sebebi öğrenir (#335–#336); koçun düştüğü sözleşmede görünür (#376).
+- Soru gerçekleşmiş eylemi veto edemez (#267, ADR-049); "asla unutma" hafızası (#268);
+  "kaydettim" güvencesi (#271); yönlendirme sözleşmeyi değiştiremez (#272); premortem
+  nezaket cümlesinde kaybolmuyor (#270); onay yaptığı işi tam anlatır (#354).
+- Prompt yasakladığı jargonu kendisi öğretmiyor (#374); "reel bütçe" kullanıcının
+  gördüğü ad (#379); sabit model kimliği çürüyünce bunu soran biri var (#369).
+- Kalite ölçümü: altın senaryo seti (#317), judge + yan yana koşum (#278), ölü koç
+  ödüllendirilmiyor (#276), üslup sözleşmesi ölçülüyor (#277), sağlayıcı başına ölçüm
+  (`--saglayicilar`, `--bekle`); koç kalite özeti ucu `/api/ops/koc-kalite` (#439).
+- Aylık özet: kategori kaymaları ve "geçen aya göre" anlatısı (#430); nakit-akışı
+  projeksiyonu kapsamını söyler, kart tamponunu ayrı verir (#432); yaklaşan akış raporu
+  tahminle aynı projeksiyonu kullanır (#442).
+
+### Arayüz ve kullanım
+- Onboarding rehberi (#262), panel ipuçları ve kurulum sihirbazı, sade/detaylı görünüm
+  modu, komut paleti tüm panelleri biliyor (#360), yardım ekranı doğru kısayolları öğretiyor (#361).
+- Kokpit: kartlarda "ay başından beri" farkı (#429), "bu ay" temposu (#466), bugün kalan
+  limit canlı ve hızlı girişte aşım onayı (#467), günlük limit dökümü, bayat fiyat satırında
+  modalsız fiyat girişi (#470), vade satırları ilgili panele gider (#465), karar geçmişi (#471),
+  düşük riskli bekleyenler toplu onaylanır (#472), uyarılar katlanır (UX-023).
+- Raporlar: ay-be-ay gelir/gider/tasarruf (DVIZ-004), net değer bileşenleri (#458), borç
+  eritme projeksiyonu (#459), fon fiyat geçmişi (#460), bakiye trendinde sıkışma bandı ve
+  eşik çizgisi, yatırım değeri kendi ekseninde; grafik renkleri tek kaynak ve renk körü
+  güvenli 6'lı palet (#453, DVIZ-002).
+- Hesap silme onayı gerçek kapsamı söyler (#434); hızlı giriş en sık kategorileri önerir
+  (#468); ekstra ödeme kaydırıcısı reel bütçeye ölçekli (#463); panel filtreleri hatırlanır
+  (#462); boş durumlar CTA'lı (#464); para girdileri doğru klavye ipucu verir (UX-016).
+- Arka plandaki sekme saatte 720 istek üretmiyor (PERF-008); PWA service worker API
+  isteklerini öldürmüyor (#288); favicon.
+
+### Erişilebilirlik
+- Tüm diyaloglar APG "modal dialog" örüntüsünde: rol, başlık bağı, odak tuzağı, Escape,
+  odak iadesi (#395–#396); sekme çubuğu gerçek ARIA sekme örüntüsü (A11Y-002).
+- 28 ikon-only butona ad (A11Y-003); meşgulken buton adı düşmüyor (#385); panel yüklemesi
+  duyurulur (A11Y-010); her etiket bir girdiye bağlı (#448); form hatası duyurulur (#449);
+  koç mesajı duyurulur, OS tema ve hareket tercihi dinlenir (#450).
+- Kontrast 4.5:1 ve 0 ihlal (ölçülen: 756 → 0), odak halkası `focus-visible`, "içeriğe
+  atla" bağlantısı (#441, A11Y-005/011); grafiklere veriden türeyen metin alternatifi
+  (#451); axe-core e2e kapısı (#452); tarih biçimi `Intl` ile (#398); belge başlığı
+  panelle değişir, slider adlı (#392).
+
+### Operasyon, dağıtım ve gözlem
+- Canlı yayın: Tailscale Funnel / Cloudflare Tunnel runbook'ları, DNS negatif önbellek
+  bulgusu, tünel modunda nginx sonsuz yönlendirme (#283–#286); barındırma kararı (ADR-057).
+- Windows servis paketi: `baslat.ps1` idempotent ve dizinden bağımsız (#367–#368, #371),
+  `guncelle.ps1` çıkış kodu ve derleme (#341, #353, #373), sağlık görevi (#290, #303).
+- Kesinti körlüğü bitti: dış izleme + ölü adam anahtarı (#342), onarım ölçümü yemiyor
+  (#344, #359), canlı durum commit'e bağlı (#328), "neredeyiz" ölçüme sorulur (#357, #366).
+- Sürüm damgası git HEAD'den (#294); korelasyon kimliği log↔yanıt↔ekran (#280); hatadan
+  bildirime tek tık (#281); tarayıcı hataları sunucu defterine düşer (OBS-013); finansal
+  kaydın güncelleme/silme izi (OBS-020); istek süresi her halkada ölçülür (OBS-016).
+- Cron: kaçırılan gece işleri telafi edilir (#302), her iş çalışma kaydı tutar (#240),
+  gece batch'i kullanıcı başına session (BE-029); otomatik yedek + geri yükleme provası.
+
+### Geliştirme kalitesi (kalite serüveni)
+- CI 30 koşumdur kırmızıydı, hiçbir kapı uzaktan korumuyordu — onarıldı (#295–#300);
+  postgres dual-dialect kapıları gerçekten koşuyor; `npm audit` üretim/geliştirme ayrımı (#329).
+- Gerileme sayaçları: ruff (#309), eslint (#474, react-hooks; 2 gerçek koşullu-hook
+  defekti bulundu), coverage %94 kilitli (#308), ölü kod kapısı (#345, #352), belge
+  denetimi (#310, #363), API sözleşmesi dondurma (#306), ağ kapısı (#307), kişisel veri
+  ve sır taramaları, mutasyon skorları makine-okunur.
+- pre-commit kancası: staged dosyaya göre pytest/vitest/kapı altkümesi/lint/sır taraması
+  (#364, #380, #384); CI'da frontend lint + vitest işi (#474).
+- Komutların tek kaynağı `python -m scripts.gorev` (#475); üretilen veri modeli belgesi
+  (#473); üretilen backlog özeti (#348); 24 API ucu açıklamalı (#394);
+  sürüm notu bayatlama kapısı ve yazılı yayın süreci, `v0.2.0`/`v0.3.0` etiketleri (#476).
+- Bağımlılıklar tam sabit (#390); vite 8 (#301); alembic zinciri ve fresh-DB göç kilidi.
+
+### Bilinen sınırlar
+- Para birimi görüntülemesi TRY varsayımlı (ADR-042).
+- Kimlik doğrulama gerektiren canlı doğrulamalar (TLS, 7/24 cron) yalnız gerçek sunucuda
+  ölçülebilir; yerel Windows servisi tek makinedir.
+- `react-hooks/set-state-in-effect` 27 uyarı tavanla izleniyor (sıfır değil); API `/v1/`
+  ön eki yok (API-001 açık); frontend paketleme/dağıtım hattı yerel `guncelle.ps1` ile.
 
 ## [0.2.0] — 2026-08-05 — "Kapalı betaya hazırlık" (Wave-9)
 

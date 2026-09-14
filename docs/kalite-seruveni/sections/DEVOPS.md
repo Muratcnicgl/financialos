@@ -118,8 +118,8 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DEVOPS-020] Sürümleme/CHANGELOG/release süreci yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: CHANGELOG yok, SemVer disiplini yok
-- **Kanıt:** `app.version` var ama CHANGELOG/tag disiplini yok (DOCS ile)
+- **Durum:** ✅ KAPANDI — BUG #476 (14 Eyl 2026). Ölçüldü: `CHANGELOG.md` VARDI (madde "yok" diyordu — bayat) ama 5 Ağustos'tan (0.2.0) beri dokunulmamıştı: arada 253 düzeltme (#223–#475), 333 commit; `APP_VERSION` 40 gündür 0.2.0, canlı `/api/meta` eski sürümü bildiriyordu; sürüm etiketi hiç yoktu (yalnız `pre-wave-*`). Mevcut kapı (`test_version_release.py`) yalnız "[APP_VERSION] başlığı var mı" diye bakıyordu — bayat günlük onu geçer. Yapılan: **0.3.0 yayın notu** (alanlara göre, her madde BUG numaralı, kırıcı değişiklikler + bilinen sınırlar), `APP_VERSION=0.3.0`, `docs/contributing.md › Sürüm çıkarma` (5 adım: not → sürüm → kapılar/CI → `git tag -a v<x.y.z>` → dağıt + `/api/meta` damgası), etiketler `v0.2.0` (0.2.0'ın ayarlandığı commit) ve `v0.3.0`. Bayatlama kapısı `tests/test_surum_notu_kapisi.py`: en üstteki yayın = APP_VERSION, sürüm/tarih sırası azalan, anılan her `#NNN` belgelerde gerçek, **defterdeki son BUG ya son sürüm notunda ya 'Yayınlanmamış'ta** (günlük defterden geride kalamaz), yayın adımları yazılı. API versiyonu (API-001) ile hizalama ⚪: `/api/v1/` ön eki ayrı karar, sözleşme dondurma (#306) o boşluğu bugün kapatıyor.
+- **Kanıt:** `CHANGELOG.md`, `app/version.py`, `docs/contributing.md`, `git tag -l v*`
 - **Aksiyon:** SemVer tag + CHANGELOG (BUG #NNN geçmişini toparla); API versiyonuyla (API-001) hizala.
 - **Etki:** Düşük · **Efor:** S
 

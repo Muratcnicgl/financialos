@@ -34,7 +34,7 @@ import subprocess
 from functools import lru_cache
 from pathlib import Path
 
-APP_VERSION = "0.2.0"   # CHANGELOG.md ile SENKRON olmalı (testle kilitli)
+APP_VERSION = "0.3.0"   # CHANGELOG.md ile SENKRON olmalı (testle kilitli)
 
 _KOK = Path(__file__).resolve().parent.parent
 

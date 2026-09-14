@@ -21,7 +21,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [DOCS-004] CHANGELOG yok — BUG #NNN geçmişi koda dağılmış
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: CHANGELOG.md yok
+- **Durum:** ✅ KAPANDI — BUG #476 (14 Eyl 2026, DEVOPS-020 ile birlikte). Ölçüldü: `CHANGELOG.md` zaten vardı (0.1.0/0.2.0 girdileri, Keep-a-Changelog biçimi) — madde bayattı; gerçek sorun günlüğün 40 gündür güncellenmemesiydi. 0.3.0 notu #223–#475 arasını alanlara göre toplar; BUG başına ayrıntı `uygulanan-fixler.md`de kalır (günlük özettir, defter kaynaktır — iki yerde aynı ayrıntı sürüklenirdi). Bayatlama kapısı `tests/test_surum_notu_kapisi.py`.
 - **Sorun/Fırsat:** BUG #001..#058 düzeltmeleri dosya docstring'lerinde dağınık; sürüm/tarih bazlı toplu geçmiş yok.
 - **Kanıt:** 19 dosyada `BUG #NNN` (159 atıf); CHANGELOG yok
 - **Aksiyon:** `CHANGELOG.md` (Keep a Changelog formatı); BUG geçmişini sürümlere topla. (DEVOPS-020)

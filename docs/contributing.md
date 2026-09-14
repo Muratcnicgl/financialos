@@ -44,7 +44,8 @@ ki geri kalan 7 gibi olmasın:
 - **Her commit'in üç eşi vardır:** `docs/kalite-seruveni/sections/<BOYUT>.md`'de madde durumu
   (🟡→✅, tarih ve BUG # ile), `python scripts/backlog_ozeti.py --yaz` (indeks ve öncelik
   bloğu ÜRETİLİR, elle yazılmaz), `uygulanan-fixler.md`'ye defter satırı (bulgu · ayrıntı ·
-  dosya · kanıt · durum).
+  dosya · kanıt · durum). Modeli değiştiren commit ayrıca `python scripts/veri_modeli_belgesi.py
+  --yaz` çalıştırır (`docs/architecture/data-model.md` üretilir; kapı `test_veri_modeli_belgesi_kapisi`).
 - **Kapı yoksa iddia yoktur:** bir maddeyi ✅ yapan değişiklik `tests/*_kapisi.py` (ya da
   `frontend/src/*.test.jsx`) altında kaynaktan TÜRETİLEN bir testle kilitlenir; elle
   liste yerine tarama; muafiyet varsa gerekçesiyle ve testin içinde (sessiz muafiyet yok).

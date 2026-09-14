@@ -72,7 +72,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DOCS-012] `data/` runtime dizini ve DB şeması belgelenmemiş
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: data-model.md ER dokümanı yok
+- **Durum:** ✅ KAPANDI — BUG #473 (14 Eyl 2026): `docs/architecture/data-model.md` **üretilir** (`scripts/veri_modeli_belgesi.py --yaz`: 32 tablo, sütun/tip/boşluk/varsayılan/FK+silme kuralı/indeks/kısıt; para sütunları işaretli — Float/Numeric ayrımı; tabloda denetim/saklama/workspace rozetleri gerçek kaynaklardan; başta para/zaman/kapsam/denetim/bütünlük/saklama konvansiyonları). Elle ER belgesi ilk göçte bayatlardı; kapı `tests/test_veri_modeli_belgesi_kapisi.py` diskteki metni üreticiyle karşılaştırır. `data/` dizini: `docs/dev-commands.md` (yedekleme) ve `.dockerignore` zaten anlatıyor.
 - **Kanıt:** `.gitignore` data/ hariç; şema `models.py`'de ama ER diyagramı/tablo açıklaması yok
 - **Aksiyon:** `docs/architecture/data-model.md` (tablolar, ilişkiler, para/timezone konvansiyonu — DATA bölümü kararlarını yansıt).
 - **Etki:** Düşük · **Efor:** M

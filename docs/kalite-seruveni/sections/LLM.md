@@ -277,7 +277,7 @@ Harcamanı kaydettim."`
 - **Etki:** Düşük · **Efor:** M
 
 ### [LLM-025] Provider client'ları lazy import — ilk çağrı latency + gizli hata
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: provider lazy import warmup yok
+- **Durum:** ✅ KAPANDI — BUG #505 (14 Eyl 2026). Ölçüldü: SDK import süreleri openai 0,9 s / anthropic 0,8 s / google.genai 1,7 s; motor ilk istekte kuruluyordu (`_get_engine` tembel, kilitsiz) → ilk sohbet ~3,4 s fazladan bekliyor, eksik/bozuk SDK ilk kullanıcıda patlıyor, iki eşzamanlı ilk istek iki motor kurabiliyordu. `koc_motorunu_isit`: açılışta (`lifespan`, arka iş parçacığı, `LLM_WARMUP=0` ile kapatılır) motoru kurar; anahtar yoksa hiçbir şey yapmaz, kurulum hatası açılışı durdurmaz (log + istekte yeniden deneme); `_get_engine` çift kontrollü kilit. Kapı `tests/test_koc_isitma_kapisi.py` (8 iş parçacığı → tek motor; anahtarsız None; hata yutulur/log; başarıda ad; lifespan kaynak).
 - **Kanıt:** `coach.py:771,827,968`; `routers/coach.py:247-256`
 - **Aksiyon:** `build_provider`'da import hatalarını erken yakala; thread-safety doğrula; startup warmup (LLM-002 cache pre-warm ile birleştir).
 - **Etki:** Düşük · **Efor:** S

@@ -37,6 +37,7 @@ GUNCELLEMELER:
 """
 
 import os
+import threading
 import json
 import time
 import logging
@@ -385,13 +386,38 @@ def _memory_to_history_item(m: CoachMemory, pa_map: Dict[int, PendingAction] = N
 # Tek paylasilan CoachEngine instance — provider client'i her cagri icin
 # yeniden olusturmak yerine baglantiyi tekrar kullanir.
 _engine: Optional[CoachEngine] = None
+_engine_kilidi = threading.Lock()   # LLM-025 (BUG #505): iki eşzamanlı ilk istek iki motor kurmasın
 
 
 def _get_engine() -> CoachEngine:
     global _engine
     if _engine is None:
-        _engine = CoachEngine()
+        with _engine_kilidi:
+            if _engine is None:   # çift kontrol: kilidi bekleyen ikinci istek yeniden kurmaz
+                _engine = CoachEngine()
     return _engine
+
+
+def koc_motorunu_isit() -> Optional[str]:
+    """LLM-025 (BUG #505): sağlayıcı SDK'larını ve motoru AÇILIŞTA kur — ilk kullanıcı isteği
+    bedeli ödemesin. Ölçüldü (14 Eyl 2026): openai 0,9 s, anthropic 0,8 s, google.genai 1,7 s
+    import süresi; motor lazy kurulduğu için ilk sohbet ~3,4 s fazladan bekliyordu ve bir SDK
+    eksik/bozuksa hata ilk kullanıcıda patlıyordu. Anahtar yoksa ısıtılacak bir şey yoktur
+    (hata da yoktur); kurulum hatası uygulamayı DÜŞÜRMEZ — log'a düşer, motor istekte yeniden
+    denenir. Dönüş: kurulan sağlayıcı adı ya da None (teşhis için).
+    """
+    anahtar_var = any(os.getenv(k, "").strip() for k in (
+        "GEMINI_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "CEREBRAS_API_KEY",
+        "OPENROUTER_API_KEY", "TOGETHER_API_KEY", "DEEPINFRA_API_KEY",
+    )) or os.getenv("LLM_PROVIDER", "").strip().lower() == "ollama"
+    if not anahtar_var:
+        return None
+    try:
+        motor = _get_engine()
+        return getattr(getattr(motor, "provider", None), "NAME", None)
+    except Exception as e:   # noqa: BLE001 — ısıtma teşhistir, uygulama açılışını durdurmaz
+        logger.warning("Koc motoru isitma basarisiz (istekte yeniden denenecek): %s: %s", type(e).__name__, e)
+        return None
 
 
 # ============================================================

@@ -115,6 +115,12 @@ async def lifespan(app: FastAPI):
     # her worker'da başlarsa cron N kez tetiklenir (çift fiyat/batch). Prod'da web worker'ları
     # SCHEDULER_ENABLED=false, ayrı bir "scheduler" servisi SCHEDULER_ENABLED=true ile TEK scheduler koşar.
     # Dev/tek-process (uvicorn) default AÇIK (geriye uyum) — env verilmemişse true.
+    # LLM-025 (BUG #505): koç motoru ve SDK importları açılışta, arka iş parçacığında ısıtılır —
+    # ilk sohbet ~3,4 s import bedelini ödemez; SDK hatası ilk kullanıcıda değil açılış log'unda görünür.
+    if os.getenv("LLM_WARMUP", "1").strip().lower() not in ("0", "false", "no"):
+        from threading import Thread as _Thread
+        from app.routers.coach import koc_motorunu_isit as _koc_isit
+        _Thread(target=_koc_isit, name="koc-isitma", daemon=True).start()
     _sched_on = os.getenv("SCHEDULER_ENABLED", "true").strip().lower() not in ("0", "false", "no")
     _scheduler_started = False
     if _sched_on:

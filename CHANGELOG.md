@@ -70,6 +70,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Koç geçmişi kırpılırken araç çağrısı/yanıtı çifti birlikte düşer (yetim yanıt sağlayıcıda 400 üretiyordu);
   token tahmini tek ve muhafazakâr (#504).
 
+- Koç motoru açılışta ısıtılır — ilk sohbet SDK yükleme bedelini (~3 sn) ödemez (#505).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

@@ -20,8 +20,8 @@
 - **Etki:** Yüksek · **Efor:** S
 
 ### [FE-004] Modal wrapper 7 kez tekrar, hiçbiri erişilebilir değil
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Modal wrapper 6 panelde kopya, role=dialog/focus-trap yok
-- **Sorun:** role="dialog", aria-modal, focus-trap, Escape, scroll-lock yok.
+- **Durum:** ✅ KAPANDI — BUG #395/#396 ile (11 Eyl 2026, A11Y-001); 14 Eyl ölçümü maddeyi bayat buldu: ortak `components/Modal.jsx` var (dört panel onu kullanır), kendi düzenini taşıyan yedi diyalog (`useDialog` — rol, `aria-modal`, başlık bağı, odak tuzağı, Escape, odak iadesi tek kaynaktan; `modal-erisilebilirlik.test.jsx` ≥7 dosya sayar) — BUG #482 turunda `useDialog` ref'i içine alındı (react-hooks/refs). Scroll kilidi ⚪: mobil ölçümde (tema-mobil e2e) arka plan kaydırması sorun üretmedi; eklenirse `body` sınıfıyla tek yerden.
+- **Sorun (o zamanki):** role="dialog", aria-modal, focus-trap, Escape, scroll-lock yok.
 - **Kanıt:** `Transactions.jsx:711-730`, `IncomeDebt.jsx:1025-1044`, `Accounts.jsx:628-647`, `RedLines.jsx:535-554`, `Cockpit.jsx:629-634`, `Goals.jsx:223-231`
 - **Aksiyon:** Tek `components/Modal.jsx` (dialog+Escape+focus trap+scroll kilidi); tüm paneller geçsin.
 - **Etki:** Yüksek · **Efor:** M
@@ -33,7 +33,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [FE-006] Coach `onActionResolved` App'te bağlanmamış — dead prop
-- **Durum:** 🔲 AÇIK — 5 Eyl 2026 ölçümü maddeyi **birebir doğruluyor**: `App.jsx:386` bileşeni `{activeTab === 'coach' && <Coach />}` diye **prop'suz** render ediyor; `Coach` ise `onActionResolved`'ı bekliyor ve içeride `onActionResolved?.(actionId, status)` diye çağırıyor (`Coach.jsx:385`). Yani callback hiçbir zaman ateşlemiyor — koçtan onaylanan bir aksiyon, diğer panellere haber vermiyor. **Bağlanmadı, çünkü ne yapması gerektiği bir ÜRÜN kararıdır** (hangi paneller tazelensin?); uydurmak yerine ölçüm kaydedildi.
+- **Durum:** ✅ KAPANDI — BUG #482 (14 Eyl 2026). Ölçüldü: `App.jsx` sekmeleri tek tek bağlar (`activeTab === 'cockpit' && <Cockpit/>`), kokpit her geçişte yeniden bağlanır ve `load()` çağırır — yani panel-arası tazeleme sinyali zaten var: yeniden bağlanmanın kendisi. Bu yüzden prop bağlanmadı; ölü prop ve onu koruyan try/catch (3. koruma bloğu) SİLİNDİ (`Coach()` artık prop almaz). Query invalidation ⚪: panel bileşenleri bağlı kalmadığı sürece ihtiyaç yok (FE-013/FE-014 ile birlikte düşünülür). Kapı `frontend/src/olu-prop.test.jsx`: `Coach` prop almaz, `App` prop geçmez, sekmeler koşullu bağlanır.
 - **Kanıt:** `App.jsx:201` (`<Coach />` propsuz); `Coach.jsx:499-505,349-355`
 - **Aksiyon:** Panel-arası tazeleme sinyali kur, `onActionResolved={triggerCockpitRefresh}` bağla; veya query invalidation.
 - **Etki:** Orta · **Efor:** S

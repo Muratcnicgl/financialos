@@ -67,7 +67,7 @@ const mdComponents = {
  * BUG #010 fix (2 May 2026):
  *   - handleActionResolved try-catch ile saritildi (3 ayri korumali blok)
  *   - ErrorBoundary ile sayfa kilitlenmesi engellendi
- *   - onActionResolved callback'i guvenli hale getirildi (parent hatasi Coach'u dusurmez)
+ *   - (eski) parent onActionResolved callback'i — FE-006 (BUG #482) ile silindi, hic baglanmamisti
  *   - summary parametresi tipinden bagimsiz hale getirildi
  *
  * BUG #018 fix (2 May 2026):
@@ -164,7 +164,7 @@ function parseHistoryDate(item) {
 // COACH (icerik) — ErrorBoundary ile saritlanir
 // ============================================================
 
-function CoachInner({ onActionResolved }) {
+function CoachInner() {
   const toast = useToast();
   const [messages, setMessages] = useState([]);
   // UX-013 (BUG #477): başka panelden "Koça sor" ile gelindiyse girdi hazır gelir (gönderilmez).
@@ -398,12 +398,10 @@ function CoachInner({ onActionResolved }) {
       console.warn('[Coach] Toast cagri hatasi (gormezden geliniyor):', toastErr);
     }
 
-    // (3) Parent callback — Cockpit refresh tetikler, hata Coach'u dusurmez
-    try {
-      onActionResolved?.(actionId, status);
-    } catch (parentErr) {
-      console.error('[Coach] Parent onActionResolved hatasi (panel acik kaliyor):', parentErr);
-    }
+    // FE-006 (BUG #482): eskiden burada "parent callback" vardı ve HİÇ bağlanmamıştı.
+    // Bağlanmasına gerek de yok: App sekmeleri tek tek bağlar (`activeTab === 'cockpit' &&
+    // <Cockpit/>`), kokpit her geçişte yeniden bağlanıp `load()` çağırır — panel-arası
+    // tazeleme sinyali, yeniden bağlanmanın kendisidir. Ölü prop ve koruma bloğu silindi.
   };
 
   // ============================================================
@@ -626,10 +624,10 @@ function CoachInner({ onActionResolved }) {
 // ANA EXPORT — ErrorBoundary ile sarit
 // ============================================================
 
-export default function Coach({ onActionResolved }) {
+export default function Coach() {
   return (
     <CoachErrorBoundary>
-      <CoachInner onActionResolved={onActionResolved} />
+      <CoachInner />
     </CoachErrorBoundary>
   );
 }

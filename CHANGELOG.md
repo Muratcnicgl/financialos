@@ -20,6 +20,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Boş "Kırmızı Çizgiler" üç tipik başlangıç şablonu sunar (nakit tabanı, tek harcama tavanı,
   dokunulmaz hesap); tutarı kullanıcı yazar (#481).
 
+- Koçta hiç bağlanmamış `onActionResolved` prop'u ve koruma bloğu silindi; panel-arası tazeleme
+  yeniden bağlanmayla zaten sağlanıyor (#482).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

@@ -329,3 +329,18 @@
 .animate-toast-out {
   animation: toast-out 0.2s ease-in both;
 }
+
+/* UX-035 (BUG #480): kutlama konfetisi — 14 küçük parça, 1,8 sn'de düşer ve söner.
+   Yalnız süs (aria-hidden); prefers-reduced-motion'da bileşen hiç çizmez (kutlama.js). */
+@keyframes kutlama-dus {
+  0%   { transform: translateY(-12px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(140px) rotate(540deg); opacity: 0; }
+}
+.kutlama-parca {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 10px;
+  border-radius: 1px;
+  animation: kutlama-dus 1.8s ease-in forwards;
+}

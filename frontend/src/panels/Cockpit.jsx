@@ -17,6 +17,8 @@ import { kocaSor, kartSonOdemeSorusu } from '../lib/kocaSor.js';   // UX-013 (BU
 import { useToast } from '../components/Toast.jsx';
 import SatirIciFiyat from '../components/SatirIciFiyat.jsx';   // UX-032 (BUG #470)
 import KararGecmisi from '../components/KararGecmisi.jsx';   // UX-027 (BUG #471)
+import Kutlama from '../components/Kutlama.jsx';   // UX-035 (BUG #480)
+import { borcKutlamasi } from '../lib/kutlama.js';
 import AccountCard from '../components/AccountCard.jsx';
 import PendingActions from '../components/PendingActions.jsx';
 import { Skeleton } from '../components/Skeleton.jsx';
@@ -409,9 +411,13 @@ export default function Cockpit({ setActiveTab }) {
   // BUG #262: "boş mu" ölçütü ARTIK burada değil — rehber 4 adımı backend'de sayar
   // (`/api/onboarding/rehber`) ve hepsi bitene kadar görünür kalır. `setActiveTab`
   // geçilmezse adım düğmeleri ölü bağlantıya döner, bu yüzden zorunlu.
+  const borcKutlama = borcKutlamasi(data.borc_ilerleme);   // UX-035 (BUG #480)
   return (
     <div className="space-y-6 animate-fade-in">
       <Onboarding setActiveTab={setActiveTab} onDegisti={handleRefresh} />
+
+      {/* UX-035 (BUG #480): borç kilometre taşı (FEAT-017 sinyali yalnız koça gidiyordu) */}
+      {borcKutlama && <Kutlama key={borcKutlama.anahtar} kutlama={borcKutlama} />}
 
       {/* Statu + Yenile */}
       <div className="flex items-start justify-between gap-4">

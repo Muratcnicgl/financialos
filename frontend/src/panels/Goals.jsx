@@ -5,6 +5,7 @@ import { formatDate, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import { Loader2, Target, Plus, X, RefreshCw } from 'lucide-react';
 import { planEtiketi } from '../lib/borcPlani.js';   // UX-024 (BUG #479)
+import { hedefKutlamasi, kutlandi, kutlandiMi } from '../lib/kutlama.js';   // UX-035 (BUG #480)
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 function getGoalIcon(goalType) {
@@ -27,12 +28,23 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const oncekiHedefler = useRef([]);   // UX-035 (BUG #480): geçiş tespiti için son liste
 
   // `toast` useMemo ile sabit (Toast.jsx); kimlik değişmez, effect yalnız ilk yüklemede koşar.
   const fetchGoals = useCallback(async () => {
     try {
       setLoading(true);
       const res = await goalsApi.list();
+      // UX-035 (BUG #480): sunucunun `achieved` geçişi bir kez kutlanır (anahtar hedef id'si —
+      // ilk yüklemede de: tamamlanmış hedef daha önce kutlanmadıysa şimdi kutlanır).
+      for (const g of res || []) {
+        const k = hedefKutlamasi(oncekiHedefler.current.find((o) => o.id === g.id), g);
+        if (k && !kutlandiMi(k.anahtar)) {
+          kutlandi(k.anahtar);
+          toast.success(k.baslik, { detail: k.detay });
+        }
+      }
+      oncekiHedefler.current = res || [];
       setGoals(res);
     } catch (e) {
       toast.error(`Hedefler yüklenemedi: ${e.message}`);

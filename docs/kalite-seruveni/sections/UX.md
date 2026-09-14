@@ -220,8 +220,8 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-035] Başarı anları kutlanmıyor — borç kapama/hedef sessiz
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: borç/hedef başarısı kutlanmıyor
-- **Kanıt:** `IncomeDebt.jsx:147-153`; Goals achieved düz rozet
+- **Durum:** ✅ KAPANDI — BUG #480 (14 Eyl 2026). Ölçüldü: backend borç kilometre taşını ZATEN üretiyordu (FEAT-017 `borc_ilerleme.yeni_milestone`, %10/25/50/75, taze geçiş tespiti snapshot'tan) ama sinyal yalnız koç prompt'una gidiyordu — arayüzde `borc_ilerleme` hiç okunmuyordu; hedef `achieved` olunca düz rozet. Yapılan: sinyal ÜRETİLMEDİ, okundu. `lib/kutlama.js` (metinler + "bir kez" kuralı, `hareketAzaltilmisMi`), `components/Kutlama.jsx` (pankart `role=status` + 14 parçalık CSS konfeti, 1,8 sn, kütüphane yok), kokpitte kilometre taşı pankartı, Hedefler'de `achieved` geçişinde bir kez toast. **Ölçülü:** konfeti anahtar başına tek sefer (localStorage `fos_kutlama_*`), `prefers-reduced-motion`'da hiç çizilmez (A11Y-016 ile tutarlı), pankart o gün boyunca kalır (bilgi) ama tekrar oynamaz (gürültü). ⚪ "kart %92'ye indi" tarzı band geçişi kutlaması yazılmadı: kart bandı zaten uyarı/rozet olarak görünür ve backend'de taze-geçiş sinyali yok — sinyal üretmek ölçüm ister, ayrı iş. Kapı `frontend/src/kutlama.test.jsx` (6 test: metinler, tek sefer + süre, hareket azaltma, boş durum, kaynak bağı; set-state-in-effect tavanı 27'de kaldı — karar `useState` başlatıcısında).
+- **Kanıt:** `lib/kutlama.js`, `components/Kutlama.jsx`, `Cockpit.jsx` (borcKutlama), `Goals.jsx` (fetchGoals), `index.css` (kutlama-dus)
 - **Aksiyon:** Hedef/eşik geçişinde kısa konfeti + "🎉 X TL borç kapandı, kart %92'ye indi". Ölçülü.
 - **Etki:** Orta · **Efor:** S
 

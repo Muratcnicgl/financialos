@@ -14,6 +14,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Borç Stratejisi'nde "Bu planı benimse": seçilen strateji + aylık ekstra, Borç Ödeme hedefine
   bağlanır; hedefin tahmini bitişi artık benimsenen planla hesaplanır (eskiden hep Kartopu/0) (#479).
 
+- Başarı anları: borç kilometre taşı (%10/25/50/75) kokpitte pankart + tek seferlik kısa konfeti,
+  hedef tamamlanınca bir kez kutlama; hareket azaltma tercihine saygılı (#480).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

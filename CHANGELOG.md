@@ -46,6 +46,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Hız sınırlı uçlar `X-RateLimit-*` başlıkları döner; 429 `Retry-After` taşır (#492).
 
+- Operatör uçları: veritabanı sağlığı (`/api/ops/db` — boyut, WAL, tablo satırları, kilit sayacı)
+  ve zamanlanmış işlerin süreleri (#493).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

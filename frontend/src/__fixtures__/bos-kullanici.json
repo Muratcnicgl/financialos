@@ -1062,6 +1062,64 @@
     "tamamlandi": false,
     "toplam": 4
   },
+  "/api/ops/db": {
+    "dosya_mb": null,
+    "kilit_hatasi_sayisi": 0,
+    "motor": "sqlite",
+    "son_kilit_hatasi": null,
+    "tablolar": [
+      {
+        "ad": "net_worth_snapshots",
+        "satir": 1
+      },
+      {
+        "ad": "rate_limit_hits",
+        "satir": 1
+      },
+      {
+        "ad": "transactions",
+        "satir": 0
+      },
+      {
+        "ad": "reasoning_traces",
+        "satir": 0
+      },
+      {
+        "ad": "api_call_log",
+        "satir": 0
+      },
+      {
+        "ad": "coach_memories",
+        "satir": 0
+      },
+      {
+        "ad": "price_history",
+        "satir": 0
+      },
+      {
+        "ad": "audit_log",
+        "satir": 0
+      },
+      {
+        "ad": "scheduler_runs",
+        "satir": 0
+      },
+      {
+        "ad": "pending_actions",
+        "satir": 0
+      },
+      {
+        "ad": "action_history",
+        "satir": 0
+      },
+      {
+        "ad": "error_logs",
+        "satir": 0
+      }
+    ],
+    "toplam_satir": 2,
+    "wal_mb": null
+  },
   "/api/ops/koc-kalite": {
     "cevap": 0,
     "cikti_token": 0,
@@ -1087,66 +1145,78 @@
         "gecikti": false,
         "hic_calismadi": true,
         "job_name": "fetch_investment_prices",
+        "ortalama_sure_sn": null,
         "planli": true,
         "saat_once": null,
         "son_basarili": null,
         "son_calisma": null,
-        "son_sonuc": null
+        "son_sonuc": null,
+        "son_sure_sn": null
       },
       {
         "detay": null,
         "gecikti": false,
         "hic_calismadi": true,
         "job_name": "nightly_batch",
+        "ortalama_sure_sn": null,
         "planli": true,
         "saat_once": null,
         "son_basarili": null,
         "son_calisma": null,
-        "son_sonuc": null
+        "son_sonuc": null,
+        "son_sure_sn": null
       },
       {
         "detay": null,
         "gecikti": false,
         "hic_calismadi": true,
         "job_name": "k2_batch",
+        "ortalama_sure_sn": null,
         "planli": true,
         "saat_once": null,
         "son_basarili": null,
         "son_calisma": null,
-        "son_sonuc": null
+        "son_sonuc": null,
+        "son_sure_sn": null
       },
       {
         "detay": null,
         "gecikti": false,
         "hic_calismadi": true,
         "job_name": "nightly_trace_cleanup",
+        "ortalama_sure_sn": null,
         "planli": true,
         "saat_once": null,
         "son_basarili": null,
         "son_calisma": null,
-        "son_sonuc": null
+        "son_sonuc": null,
+        "son_sure_sn": null
       },
       {
         "detay": null,
         "gecikti": false,
         "hic_calismadi": true,
         "job_name": "weekly_smoke_test",
+        "ortalama_sure_sn": null,
         "planli": true,
         "saat_once": null,
         "son_basarili": null,
         "son_calisma": null,
-        "son_sonuc": null
+        "son_sonuc": null,
+        "son_sure_sn": null
       },
       {
         "detay": null,
         "gecikti": false,
         "hic_calismadi": true,
         "job_name": "pg_backup",
+        "ortalama_sure_sn": null,
         "planli": true,
         "saat_once": null,
         "son_basarili": null,
         "son_calisma": null,
-        "son_sonuc": null
+        "son_sonuc": null,
+        "son_sure_sn": null
       }
     ],
     "sorunlu_isler": [

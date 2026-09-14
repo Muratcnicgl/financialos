@@ -82,6 +82,24 @@ if IS_SQLITE:
         cur.close()
 
 
+# OBS-018 (BUG #493): "database is locked" SAYACI. busy_timeout (5 sn) çoğu çakışmayı yutar;
+# yutamadığı an bir kullanıcı isteği 500 ile düşer ve iz yalnız log'da kalır. Sayaç süreç
+# ömrü boyunca birikir ve /api/ops/db ile okunur — "kilit yaşanıyor mu" sorusu ölçülür.
+KILIT_HATASI = {"sayi": 0, "son": None}
+
+
+def _kilit_hatasi_mi(istisna) -> bool:
+    return "database is locked" in str(istisna).lower()
+
+
+@event.listens_for(engine, "handle_error")
+def _kilit_hatasini_say(baglam):
+    if _kilit_hatasi_mi(baglam.original_exception):
+        from datetime import datetime as _dt
+        KILIT_HATASI["sayi"] += 1
+        KILIT_HATASI["son"] = _dt.utcnow()
+
+
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

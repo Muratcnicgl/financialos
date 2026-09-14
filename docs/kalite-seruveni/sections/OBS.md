@@ -58,7 +58,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [OBS-009] Scheduler job görünürlüğü yok — çalıştı mı, sürdü mü, hata mı
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: job sure/last_run metrik yok
+- **Durum:** ✅ KAPANDI — BUG #240 (çalışma kaydı, gecikme, hiç-koşmadı, sorunlu liste) + BUG #493 (14 Eyl 2026): kayıtlar başlangıç/bitiş taşıyordu ama SÜRE hiçbir yerde görünmüyordu — yavaşlayan gece işi fark edilmezdi. `/api/ops/scheduler` her iş için `son_sure_sn` ve son-10 `ortalama_sure_sn` verir. Başarısız iş alarmı: `sorunlu_isler` canlı kapı/`saglik.ps1` zincirinde (BUG #342). ⚪ işlenen-kayıt metriği: işlerin `detail` metni zaten sayıyı taşıyor (ör. "12 kullanıcı"), ayrı sütun eklenmedi.
 - **Kanıt:** `app/scheduler.py:144-169` (log seviyesinde)
 - **Aksiyon:** Her job için başlangıç/bitiş/süre/işlenen-kayıt metriği; son çalışma zamanı bir tabloda/gauge'da; başarısız job alarmı.
 - **Etki:** Orta · **Efor:** M
@@ -111,7 +111,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [OBS-018] DB sağlık/boyut metriği yok (SQLite dosya boyutu, WAL, lock)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: DB boyut/lock metrik yok
+- **Durum:** ✅ KAPANDI — BUG #493 (14 Eyl 2026). Ölçüldü: SQLite dosya/WAL boyutu, büyüyen 12 tablonun satırı ve "database is locked" olup olmadığı hiçbir uçtan okunamıyordu (saklama kuralının — BUG #383 — etkisi de ölçülemiyordu). `GET /api/ops/db` (kimlik ister): motor, dosya_mb, wal_mb, tablo satırları (gerçek COUNT, azalan), toplam, kilit hatası sayacı + son zamanı. Sayaç `app/database.py`de `handle_error` olayına bağlı, yalnız "database is locked" metninde artar (başka hata saymaz — kapı ölçer); süreç ömrü boyunca birikir. Sözleşme donduruldu (KAP-01: ek uç, kaldırma yok). ⚪ Prometheus gauge yok (OBS-004 ayrı): uç JSON; `scripts/durum_ozeti` ve operatör paneli buradan okur.
 - **Kanıt:** `app/database.py`; büyüyen tablolar (OBS-014)
 - **Aksiyon:** DB dosya boyutu, tablo satır sayıları, "database is locked" sayacı (DATA-004 ile) gauge'la.
 - **Etki:** Düşük · **Efor:** S

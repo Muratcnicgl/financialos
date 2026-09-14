@@ -45,6 +45,8 @@ class IsDurumu(BaseModel):
     planli: bool = True          # BUG #240: PLANLI_ISLER'de mi, yoksa yalnız tarihsel kayıt mı
     hic_calismadi: bool = False  # BUG #240: planlı ama bir kez bile koşmamış
     gecikti: bool = False        # BUG #240: son koşum beklenen periyodun 1.5 katından eski
+    son_sure_sn: Optional[float] = None       # OBS-009 (BUG #493): son koşumun süresi
+    ortalama_sure_sn: Optional[float] = None  # OBS-009: son 10 koşumun ortalaması (yavaşlama görünür)
 
 
 class SchedulerDurumu(BaseModel):
@@ -81,6 +83,12 @@ def scheduler_durumu(db: Session = Depends(get_db),
         saat_once = (round((simdi - son.started_at).total_seconds() / 3600, 1)
                      if son else None)
         periyot = periyotlar.get(ad)
+        # OBS-009 (BUG #493): süre — başlangıç/bitiş zaten kayıtta, yalnız okunmuyordu
+        son_sure = (round((son.finished_at - son.started_at).total_seconds(), 1)
+                    if son and son.finished_at else None)
+        sureler = [(r.finished_at - r.started_at).total_seconds()
+                   for r in db.query(SchedulerRun).filter(SchedulerRun.job_name == ad)
+                   .order_by(SchedulerRun.id.desc()).limit(10).all() if r.finished_at]
         isler.append(IsDurumu(
             job_name=ad,
             son_calisma=son.started_at if son else None,
@@ -92,6 +100,8 @@ def scheduler_durumu(db: Session = Depends(get_db),
             hic_calismadi=(son is None and ad in periyotlar),
             gecikti=bool(periyot and saat_once is not None
                          and saat_once > periyot * GECIKME_KATSAYISI),
+            son_sure_sn=son_sure,
+            ortalama_sure_sn=round(sum(sureler) / len(sureler), 1) if sureler else None,
         ))
     sorunlu = [i.job_name for i in isler
                if i.hic_calismadi or i.gecikti or i.son_sonuc is False]
@@ -263,3 +273,67 @@ def koc_kalite(gun: int = 7, db: Session = Depends(get_db),
     """Son N günün koç kalite özeti: grounding ihlali/zayıf beraat, retry, hata, gecikme, token."""
     gun = max(1, min(gun, 90))
     return koc_kalitesi(db, gun)
+
+
+# ============================================================
+# OBS-018 (BUG #493): VERİTABANI SAĞLIĞI — boyut, WAL, tablo satırları, kilit sayacı
+# ============================================================
+# Ölçüldü (14 Eyl 2026): canlı SQLite dosyası ve WAL boyutu, büyüyen tabloların satır sayısı,
+# "database is locked" olup olmadığı hiçbir uçtan okunamıyordu; saklama kuralı (BUG #383) etkisi
+# de ölçülemiyordu. Bu uç yalnız OKUR; sayılar gauge gibi anlık.
+
+class TabloSatiri(BaseModel):
+    ad: str
+    satir: int
+
+
+class DbSagligi(BaseModel):
+    motor: str                              # sqlite | postgresql
+    dosya_mb: Optional[float] = None        # yalnız sqlite
+    wal_mb: Optional[float] = None          # yalnız sqlite (WAL dosyası)
+    toplam_satir: int
+    tablolar: list[TabloSatiri]             # satır sayısına göre azalan
+    kilit_hatasi_sayisi: int
+    son_kilit_hatasi: Optional[UtcDateTime] = None
+
+
+BUYUYEN_TABLOLAR = ("transactions", "reasoning_traces", "api_call_log", "coach_memories",
+                    "net_worth_snapshots", "price_history", "audit_log", "rate_limit_hits",
+                    "scheduler_runs", "pending_actions", "action_history", "error_logs")
+
+
+def db_sagligi(db: Session) -> DbSagligi:
+    from sqlalchemy import inspect, text
+    from app import database as _db
+
+    bind = db.get_bind()
+    motor = bind.dialect.name
+    mevcut = set(inspect(bind).get_table_names())
+    tablolar = []
+    for ad in BUYUYEN_TABLOLAR:
+        if ad in mevcut:
+            # ham-sql-muaf: tablo adı bağlı parametre olamaz (tanımlayıcı); ad SABİT listeden (BUYUYEN_TABLOLAR)
+            # ve inspect ile doğrulanmış — kullanıcı girdisi yok
+            tablolar.append(TabloSatiri(ad=ad, satir=int(db.execute(text(f"SELECT COUNT(*) FROM {ad}")).scalar() or 0)))  # noqa: S608
+    tablolar.sort(key=lambda t: -t.satir)
+    dosya_mb = wal_mb = None
+    if motor == "sqlite":
+        yol = bind.url.database
+        if yol and yol != ":memory:":
+            import os
+            p = os.path.abspath(yol)
+            if os.path.exists(p):
+                dosya_mb = round(os.path.getsize(p) / 1048576, 2)
+            if os.path.exists(p + "-wal"):
+                wal_mb = round(os.path.getsize(p + "-wal") / 1048576, 2)
+    return DbSagligi(
+        motor=motor, dosya_mb=dosya_mb, wal_mb=wal_mb,
+        toplam_satir=sum(t.satir for t in tablolar), tablolar=tablolar,
+        kilit_hatasi_sayisi=_db.KILIT_HATASI["sayi"], son_kilit_hatasi=_db.KILIT_HATASI["son"],
+    )
+
+
+@router.get("/db", response_model=DbSagligi)
+def db_durumu(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> DbSagligi:
+    """Veritabanı sağlığı: dosya/WAL boyutu, büyüyen tabloların satır sayısı, kilit hatası sayacı."""
+    return db_sagligi(db)

@@ -2248,6 +2248,19 @@
     }
   },
   {
+    "yol": "/api/ops/db",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user"
+    ],
+    "parametreler": [],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "DbSagligi"
+    }
+  },
+  {
     "yol": "/api/ops/istemci-hata",
     "metot": "POST",
     "kimlik": "korumali",

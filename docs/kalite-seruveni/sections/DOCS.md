@@ -66,7 +66,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DOCS-011] setup/onboarding netliği — ilk çalıştırma adımları dağınık
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: tek Getting Started yok, dağınık
+- **Durum:** ✅ KAPANDI — BUG #496 turu (14 Eyl 2026). Ölçüldü: README "Running locally" `python -m scripts.setup_data` diyordu — o betik kurucunun kanonik verisini yükler ve hedef DB'yi siler (drop_all); yeni kullanıcı için yanlış başlangıç. README artık görev koşucusuna bağlı (`kur → goc → calistir/arayuz`), ilk giriş için onboarding örnek verisini gösterir, `setup_data`'nın ne olduğunu açıkça söyler; proje yerleşimi ölçülü sayılarla (29 router / 135 uç, 14 panel, 41 bileşen) ve belge işaretçileriyle (sozluk, ADR, data-model, kalite-seruveni) güncellendi. `docs/dev-commands.md` görev koşucusu bölümü (BUG #475) ayrıntıyı taşır.
 - **Kanıt:** README + dev-commands.md + PROJE.md'lerde tekrar/farklılık
 - **Aksiyon:** Tek "Getting Started" (5 dk kurulum); DEVOPS-014 task runner'a bağla.
 - **Etki:** Düşük · **Efor:** S
@@ -91,7 +91,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DOCS-015] Finansal formül/konvansiyon sözlüğü yok (reel bütçe, zikzak, emanet, görülen vs tam net değer)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: glossary.md yok
+- **Durum:** ✅ KAPANDI — BUG #496 (14 Eyl 2026). `docs/sozluk.md`: 14 terim (reel bütçe, günlük limit, zikzak, görülen/tam net değer, emanet, yatırım değeri, kart doluluk bandı, asgari/son ödeme, nakit pisti, güvenli harcama, borç kilometre taşı, kartopu/çığ, üç dayatılan kural, bugün kalan) — her biri tanım + formül + `dosya::sembol` kaynağı. Kapı `tests/test_sozluk_kapisi.py`: her kaynak dosya/sembol gerçekten var (mutasyon: uydurma sembol → kırmızı), çekirdek terimler mevcut, net değer formülü kodla aynı işaret düzeninde. UX-034 mikro-kopya işi artık bu tanımlara dayanabilir.
 - **Sorun/Fırsat:** Alan-özel terimler kod ve UI'da var ama tanımlı tek yer yok; UX-034 mikro-kopya tutarsızlığının da kaynağı.
 - **Kanıt:** `rules_engine.py` (reel_butce, shadow accounting); UI etiketleri
 - **Aksiyon:** `docs/glossary.md` — her terimin tanımı + formülü + hangi modülde. UX kopyası buna dayansın.

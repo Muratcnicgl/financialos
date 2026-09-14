@@ -54,6 +54,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - İşlemler CSV olarak indirilebilir (Türkçe Excel uyumlu; tarih aralığı) (#495).
 
+- Finansal sözlük (`docs/sozluk.md`) ve doğru ilk-çalıştırma akışı (README) (#496).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

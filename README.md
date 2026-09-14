@@ -93,7 +93,7 @@ The chain is configured via environment variables; ordering can be changed witho
 ```
 financialos/
 ├── app/                       # Backend
-│   ├── routers/               # 23 routers, 96 routes
+│   ├── routers/               # 29 routers, 135 routes (frozen contract: docs/api-reference)
 │   ├── coach.py               # LLM orchestration, FallbackProvider
 │   ├── rules_engine.py        # Deterministic decisions
 │   ├── action_executor.py     # Write-side, idempotent
@@ -102,10 +102,13 @@ financialos/
 │   └── models.py              # SQLAlchemy models
 ├── frontend/                  # React app
 │   └── src/
-│       ├── panels/            # 13 panels
-│       └── components/        # 8 components
-├── docs/                      # Architecture, dev commands, roadmap
-├── scripts/                   # Setup, seed data
+│       ├── panels/            # 14 panels (lazy-loaded except Cockpit)
+│       ├── components/        # 41 components
+│       └── lib/               # pure helpers (money, dates, single-source rules)
+├── docs/                      # architecture.md · sozluk.md (financial glossary) · dev-commands.md · contributing.md
+│   ├── architecture/          # ADRs + generated data-model.md
+│   └── kalite-seruveni/       # quality backlog, fix ledger, ratchet baselines
+├── scripts/                   # gorev.py (task runner), gates, backup, smoke/
 ```
 
 ---
@@ -119,22 +122,26 @@ financialos/
 
 ## Running locally
 
-> The repository ships without `.env` and without a populated database. You will need API keys for at least one LLM provider.
+> The repository ships without `.env` and without a populated database. You will need API keys for at least one LLM provider. Commands below are the task runner (`scripts/gorev.py`, the single source of truth — `python -m scripts.gorev` lists every task; `make <task>` proxies to it).
 
 ```bash
-# 1. Backend
-python -m venv .venv
-source .venv/bin/activate         # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env              # then fill in your API keys
-python -m scripts.setup_data      # seed canonical demo data
-uvicorn app.main:app --reload --port 8000
+# 0. Once: a virtualenv, then every dependency + the commit hook
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scriptsctivate
+python -m scripts.gorev kur       # pip (runtime + dev) · npm ci · git hooks
 
-# 2. Frontend (in a second terminal)
-cd frontend
-npm install
-npm run dev                       # http://localhost:5173
+# 1. Config + schema
+cp .env.example .env              # fill in at least one LLM key (see below)
+python -m scripts.gorev goc       # alembic upgrade head (schema is migration-owned, ADR-013)
+
+# 2. Run (two terminals)
+python -m scripts.gorev calistir  # backend  http://localhost:8000  (/docs for OpenAPI)
+python -m scripts.gorev arayuz    # frontend http://localhost:5173  (/api → :8000 proxy)
 ```
+
+First visit: the onboarding wizard offers **sample data** you can load and later delete in full (`Hesap → Verilerimi sil`). `scripts/setup_data.py` is *not* the way to start — it is the maintainer's canonical dataset and **wipes the target database** (asks for confirmation unless `--force`).
+
+Quality gates before a commit: `python -m scripts.gorev kapilar` (ruff/eslint ratchets, doc audit, dead-code, secret scan) — the pre-commit hook runs the relevant subset automatically.
 
 ### Environment variables
 

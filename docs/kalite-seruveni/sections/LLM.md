@@ -307,7 +307,7 @@ Harcamanı kaydettim."`
 - **Etki:** Düşük · **Efor:** S
 
 ### [LLM-030] max_tokens=4096 sabit — uzun rapor kesilme riski
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: max_tokens 4096 sabit
+- **Durum:** ✅ KAPANDI — BUG #501 (14 Eyl 2026). Ölçüldü: `max_tokens=4096` üç sağlayıcı dalında sabitti; yanıt sınırda kesildiğinde (Anthropic `stop_reason=max_tokens`, OpenAI-uyumlu `finish_reason=length`, Gemini `MAX_TOKENS`) izde/log'da hiçbir şey yoktu — koç cümle ortasında susuyor, kullanıcı "bozuk" sanıyordu. `llm_max_tokens()` tek kaynak (`LLM_MAX_TOKENS`, 256–32000 klemp, varsayılan 4096 — ölçülen sohbetlerde ortalama çıktı ~600 token); `LLMResponse.kesildi` üç dalda bitiş nedeninden set edilir; chat akışı iz gözlemine `[KESILDI: …]` yazar ve log'lar. Ollama'ya bilerek tavan gönderilmez (yerel model kendi penceresini yönetir). ⚪ "analiz 8000 / bildirim 1024" gibi bağlam-bazlı tavan ve >16K streaming (LLM-014) yapılmadı: tek env değeri bugünkü ihtiyacı karşılar, kesilme artık ölçülür — sayısı büyürse bağlam-bazlı tavan o ölçüme dayanır. Kapı `tests/test_cikti_siniri_kapisi.py` (4 test).
 - **Kanıt:** `coach.py:787,869,994` vd.
 - **Aksiyon:** Analiz 8000+, bildirim 1024; `stop_reason==max_tokens` yakala/logla; >16K streaming.
 - **Etki:** Orta · **Efor:** S

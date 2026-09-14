@@ -61,6 +61,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Koç: sağlayıcı "şu kadar bekle" derse (≤5 sn) aynı sağlayıcıda beklenir, hemen yedeğe düşülmez (#500).
 
+- Koç çıktı tavanı ayarlanabilir (`LLM_MAX_TOKENS`); sınırda kesilen yanıt izde ve log'da görünür (#501).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

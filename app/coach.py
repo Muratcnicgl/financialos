@@ -1564,6 +1564,35 @@ class LLMResponse:
         self.usage = usage            # {"input_tokens": int, "output_tokens": int} veya None
         self.provider_used = provider_used  # "groq" / "gemini" / vs. veya None
         self.model_name = model_name  # "llama-3.3-70b-versatile" / "claude-..." / vs.
+        # LLM-030 (BUG #501): yanıt çıktı sınırında kesildi mi (stop/finish reason). Sessiz
+        # kesilme koçun cümle ortasında susması demek — burada bayrak, chat'te uyarı + log.
+        self.kesildi = False
+
+
+def llm_max_tokens() -> int:
+    """LLM-030 (BUG #501): çıktı token tavanı — TEK KAYNAK, üç sağlayıcı dalı buradan okur.
+
+    Ölçüldü (14 Eyl 2026): 4096 üç yerde sabit yazılıydı; uzun rapor kesildiğinde bunu
+    söyleyen yoktu. `LLM_MAX_TOKENS` ile ayarlanır (256–32000 klempi: 0 sağlayıcıyı kırar,
+    aşırı değer bazı modellerde 400 döner). Varsayılan 4096 korunur — ölçülen sohbetlerde
+    ortalama çıktı ~600 token, tavana çarpma yalnız uzun analiz isteğinde.
+    """
+    try:
+        deger = int(os.getenv("LLM_MAX_TOKENS", "4096"))
+    except ValueError:
+        return 4096
+    return max(256, min(32000, deger))
+
+
+_KESILME_NEDENLERI = {"max_tokens", "length", "MAX_TOKENS"}
+
+
+def kesildi_mi(neden) -> bool:
+    """Sağlayıcının bitiş nedeni çıktı sınırını gösteriyor mu (Anthropic/OpenAI/Gemini adları)."""
+    if neden is None:
+        return False
+    ad = getattr(neden, "name", None) or str(neden).split(".")[-1]
+    return ad in _KESILME_NEDENLERI
 
 
 def llm_timeout_saniye() -> float:
@@ -1664,7 +1693,7 @@ class AnthropicProvider(LLMProvider):
 
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=4096,
+            max_tokens=llm_max_tokens(),   # LLM-030 (BUG #501)
             system=system_prompt,
             tools=anthropic_tools,
             messages=_to_anthropic_messages(messages),  # BUG #152 (P1-25): tool-aware adapter
@@ -1686,8 +1715,10 @@ class AnthropicProvider(LLMProvider):
                 "input_tokens": getattr(_au, "input_tokens", None),
                 "output_tokens": getattr(_au, "output_tokens", None),
             }
-        return LLMResponse(text="\n".join(text_parts).strip(), tool_calls=tool_calls,
-                           usage=_ausage, provider_used=self.NAME.lower(), model_name=self.model)
+        yanit = LLMResponse(text="\n".join(text_parts).strip(), tool_calls=tool_calls,
+                            usage=_ausage, provider_used=self.NAME.lower(), model_name=self.model)
+        yanit.kesildi = kesildi_mi(getattr(response, "stop_reason", None))   # LLM-030
+        return yanit
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1758,7 +1789,7 @@ class GeminiProvider(LLMProvider):
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
             temperature=0.4,
-            max_output_tokens=4096,
+            max_output_tokens=llm_max_tokens(),   # LLM-030 (BUG #501)
         )
         if tools:
             function_declarations = [
@@ -1851,8 +1882,10 @@ class GeminiProvider(LLMProvider):
                 "input_tokens": getattr(_um, "prompt_token_count", None),
                 "output_tokens": getattr(_um, "candidates_token_count", None),
             }
-        return LLMResponse(text=result_text, tool_calls=tool_calls,
-                           usage=_gusage, provider_used=self.NAME.lower(), model_name=self.model)
+        yanit = LLMResponse(text=result_text, tool_calls=tool_calls,
+                            usage=_gusage, provider_used=self.NAME.lower(), model_name=self.model)
+        yanit.kesildi = kesildi_mi(finish_reason_str)   # LLM-030
+        return yanit
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -1879,7 +1912,7 @@ class _OpenAICompatMixin:
         ]
         oai_messages = [{"role": "system", "content": system_prompt}]
         oai_messages.extend(_to_openai_messages(messages))
-        kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2, "max_tokens": 4096}
+        kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2, "max_tokens": llm_max_tokens()}   # LLM-030
         if oai_tools:
             kwargs["tools"] = oai_tools
             kwargs["tool_choice"] = "auto"
@@ -1895,9 +1928,11 @@ class _OpenAICompatMixin:
                     except Exception:
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
-                           usage=_openai_compat_usage(response),
-                           provider_used=self.NAME.lower(), model_name=self.model)
+        yanit = LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                            usage=_openai_compat_usage(response),
+                            provider_used=self.NAME.lower(), model_name=self.model)
+        yanit.kesildi = kesildi_mi(getattr(response.choices[0], "finish_reason", None))   # LLM-030
+        return yanit
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -2061,6 +2096,8 @@ class OllamaProvider(LLMProvider):
         oai_messages = [{"role": "system", "content": system_prompt}]
         oai_messages.extend(_to_openai_messages(messages))  # BUG #036 fix: tool-aware
 
+        # LLM-030: Ollama'da max_tokens bilerek gönderilmez — yerel model kendi bağlam penceresini
+        # yönetir; bazı modellerde `max_tokens` num_predict'e çevrilip yanıtı gereksiz kısaltıyor.
         kwargs = {"model": self.model, "messages": oai_messages, "temperature": 0.2}
         if oai_tools:
             kwargs["tools"] = oai_tools
@@ -2078,9 +2115,11 @@ class OllamaProvider(LLMProvider):
                     except Exception:
                         args = {}
                     tool_calls.append({"name": tc.function.name, "input": args})
-        return LLMResponse(text=text.strip(), tool_calls=tool_calls,
-                           usage=_openai_compat_usage(response),
-                           provider_used=self.NAME.lower(), model_name=self.model)
+        yanit = LLMResponse(text=text.strip(), tool_calls=tool_calls,
+                            usage=_openai_compat_usage(response),
+                            provider_used=self.NAME.lower(), model_name=self.model)
+        yanit.kesildi = kesildi_mi(getattr(response.choices[0], "finish_reason", None))   # LLM-030
+        return yanit
 
     def chat(self, system_prompt, messages, tools):
         return _call_with_retry(self._raw_chat, system_prompt, messages, tools)
@@ -3139,6 +3178,12 @@ class CoachEngine:
                         llm_step.observation = f"Tum providerlar basarisiz: {type(e).__name__}"
                         raise
                     llm_step.observation = (llm_response.text or "")[:500]
+                    if getattr(llm_response, "kesildi", False):
+                        # LLM-030 (BUG #501): sessiz kesilme YOK — izde ve log'da görünür, kullanıcı
+                        # cümle ortasında susan koçu "bozuk" değil "sınıra çarptı" diye okur.
+                        llm_step.observation = "[KESILDI: cikti token sinirina carpti] " + llm_step.observation
+                        logger.warning("LLM yaniti cikti sinirinda kesildi (provider=%s, max_tokens=%s)",
+                                       llm_response.provider_used, llm_max_tokens())
                     llm_step.provider_system = llm_response.provider_used
                     llm_step.model_name = llm_response.model_name
                     if llm_response.usage:

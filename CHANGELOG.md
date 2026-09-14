@@ -42,6 +42,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Hedef kuralları Türkçe okunur ve arayüzden eklenebilir (eskiden ham JSON, yalnız silme) (#490).
 
+- 29 tabloda birincil anahtarın yanındaki gereksiz ikinci indeks kaldırıldı (göç) (#491).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

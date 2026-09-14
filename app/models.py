@@ -139,7 +139,7 @@ class WorkspaceRole(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)  # register'da e-posta local-part'ından türetilir
     # M11 (ADR-033) auth alanları — hepsi nullable (mevcut tek-kullanıcı + OAuth uyumu)
     email = Column(String(255), unique=True, nullable=True, index=True)
@@ -223,7 +223,7 @@ class User(Base):
 class Account(Base):
     __tablename__ = "accounts"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
@@ -315,7 +315,7 @@ class Account(Base):
 class RecurringIncome(Base):
     __tablename__ = "recurring_incomes"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
@@ -333,7 +333,7 @@ class RecurringExpense(Base):
     """A3: Düzenli giderler — abonelik, fatura, kira vb. Otomatik propose_action üretir."""
     __tablename__ = "recurring_expenses"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     name = Column(String(100), nullable=False)
@@ -366,7 +366,7 @@ class Envelope(Base):
     """
     __tablename__ = "envelopes"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     category = Column(String(50), nullable=False)          # Transaction.category ile eşleşir
@@ -398,7 +398,7 @@ class Category(Base):
     """
     __tablename__ = "categories"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     slug = Column(String(50), nullable=False)              # Transaction.category ile eşleşen normalize değer
@@ -430,7 +430,7 @@ class WishlistItem(Base):
     """
     __tablename__ = "wishlist_items"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     item = Column(String(200), nullable=False)             # ne almak isteniyor
@@ -448,7 +448,7 @@ class WishlistItem(Base):
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
@@ -476,7 +476,7 @@ class Transaction(Base):
 class PersonalDebt(Base):
     __tablename__ = "personal_debts"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     counterparty = Column(String(100), nullable=False)  # Örn: "alacaklı kişi"
@@ -503,7 +503,7 @@ class PersonalDebt(Base):
 class MasterCheckpoint(Base):
     __tablename__ = "master_checkpoints"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     title = Column(String(200), nullable=False)
@@ -533,7 +533,7 @@ class MasterCheckpoint(Base):
 class CoachMemory(Base):
     __tablename__ = "coach_memories"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     role = Column(String(20), nullable=False)  # "user" | "assistant" | "tool"
     content = Column(Text, nullable=False)
@@ -554,7 +554,7 @@ class CoachMemory(Base):
 class PendingAction(Base):
     __tablename__ = "pending_actions"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     action_type = Column(String(50), nullable=False)
@@ -600,7 +600,7 @@ class ActionHistory(Base):
     """
     __tablename__ = "action_history"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     # Aksiyon tanim ve kaynak
@@ -647,7 +647,7 @@ class CoachInsight(Base):
     """
     __tablename__ = "coach_insights"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     content = Column(Text, nullable=False)              # Tek cumlelik veya kisa paragraf
@@ -700,7 +700,7 @@ class ApiCallLog(Base):
     """
     __tablename__ = "api_call_log"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     # BUG #274: bu iki sutun ISTEGI FIILEN YIYEN saglayici + CALISAN modeldir.
@@ -751,7 +751,7 @@ class NetWorthSnapshot(Base):
     """
     __tablename__ = "net_worth_snapshots"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     snapshot_date = Column(Date, nullable=False)
@@ -863,7 +863,7 @@ class DecisionJournal(Base):
 
     __tablename__ = "decision_journal"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, index=True)  # M40 ADR-036
     # index tek-sutunlu degil; idx_decision_journal_user_time composite'i kapsıyor
@@ -982,7 +982,7 @@ class GoalRule(Base):
     tarafindan degerlendirilir; eslesen kurallara gore GoalAllocation yaratilir."""
     __tablename__ = "goal_rules"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"),
                      nullable=False)  # index __table_args__'da
 
@@ -1017,7 +1017,7 @@ class Goal(Base):
     """
     __tablename__ = "goals"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
 
     goal_type = Column(String(20), nullable=False)
     # 'debt_freedom' | 'cash_target' — index __table_args__'da
@@ -1077,7 +1077,7 @@ class GoalAllocation(Base):
     """
     __tablename__ = "goal_allocations"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"),
                      nullable=False)  # index __table_args__'da
     transaction_id = Column(Integer,
@@ -1114,7 +1114,7 @@ class SchedulerRun(Base):
     """
     __tablename__ = "scheduler_runs"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     job_name = Column(String(60), nullable=False, index=True)
     started_at = Column(DateTime, nullable=False)
     finished_at = Column(DateTime, nullable=True)
@@ -1133,7 +1133,7 @@ class BetaInvite(Base):
     """
     __tablename__ = "beta_invites"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     code = Column(String(40), nullable=False, unique=True, index=True)
     email = Column(String(255), nullable=True)      # None = herhangi bir adres kullanabilir
     note = Column(String(200), nullable=True)       # operator notu ("Ali - is arkadasi")
@@ -1153,7 +1153,7 @@ class ErrorLog(Base):
     """
     __tablename__ = "error_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     fingerprint = Column(String(32), nullable=False, unique=True, index=True)
     error_type = Column(String(80), nullable=False)
     message = Column(Text, nullable=True)
@@ -1179,7 +1179,7 @@ class DemoDataMarker(Base):
     """
     __tablename__ = "demo_data_markers"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     table_name = Column(String(40), nullable=False)
     row_id = Column(Integer, nullable=False)
@@ -1199,7 +1199,7 @@ class RateLimitHit(Base):
     """
     __tablename__ = "rate_limit_hits"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     bucket_key = Column(String(160), nullable=False, index=True)  # "<bucket>:<istemci_ip>"
     hit_at = Column(DateTime, nullable=False, index=True)
 
@@ -1216,7 +1216,7 @@ class RevokedToken(Base):
     """
     __tablename__ = "revoked_tokens"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     jti = Column(String(64), unique=True, nullable=False, index=True)
     revoked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=True)  # token'ın doğal son kullanımı (temizlik için)
@@ -1238,7 +1238,7 @@ class Workspace(Base):
     """
     __tablename__ = "workspaces"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     is_personal = Column(Boolean, default=False, nullable=False)  # backfill'de yaratılan kişisel workspace
@@ -1254,7 +1254,7 @@ class WorkspaceMembership(Base):
     personal'ında hem eşinin workspace'inde olabilir (farklı rollerle)."""
     __tablename__ = "workspace_memberships"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     role = Column(SQLEnum(WorkspaceRole, values_callable=lambda x: [e.value for e in x]),
@@ -1312,7 +1312,7 @@ class AuditLog(Base):
     """
     __tablename__ = "audit_log"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="SET NULL"), index=True, nullable=True)
     entity = Column(String(40), nullable=False)      # tablo adı

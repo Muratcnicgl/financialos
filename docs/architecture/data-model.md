@@ -15,7 +15,7 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `name` | VARCHAR(100) | hayır |  |  |  |
@@ -42,13 +42,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 | `updated_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_accounts_id` (id); index `ix_accounts_user_type` (user_id, account_type); index `ix_accounts_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_accounts_user_type` (user_id, account_type); index `ix_accounts_workspace_id` (workspace_id)
 
 ## `action_history`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `action_type` | VARCHAR(50) | hayır |  |  |  |
 | `payload` | TEXT | hayır |  |  |  |
@@ -65,13 +65,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `reverted_by_action_id` | INTEGER | evet |  | action_history.id |  |
 | `applied_at` | DATETIME | hayır | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_action_history_id` (id); index `ix_action_history_user_applied` (user_id, applied_at); index `ix_action_history_user_type` (user_id, action_type)
+İndeks/kısıt: index `ix_action_history_user_applied` (user_id, applied_at); index `ix_action_history_user_type` (user_id, action_type)
 
 ## `api_call_log` — saklama 90 gün
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `provider` | VARCHAR(20) | hayır |  |  |  |
 | `model` | VARCHAR(50) | hayır |  |  |  |
@@ -86,13 +86,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `duration_ms` | INTEGER | evet |  |  |  |
 | `called_at` | DATETIME | hayır | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_api_call_log_id` (id); index `ix_api_calls_user_called` (user_id, called_at); index `ix_api_calls_user_provider_called` (user_id, provider, called_at)
+İndeks/kısıt: index `ix_api_calls_user_called` (user_id, called_at); index `ix_api_calls_user_provider_called` (user_id, provider, called_at)
 
 ## `audit_log` — saklama 365 gün, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id | index |
 | `workspace_id` | INTEGER | evet |  | workspaces.id (SET NULL) | index |
 | `entity` | VARCHAR(40) | hayır |  |  |  |
@@ -103,13 +103,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `istek_id` | VARCHAR(64) | evet |  |  |  |
 | `created_at` | DATETIME | hayır | fn:utcnow |  | index |
 
-İndeks/kısıt: index `ix_audit_log_created_at` (created_at); index `ix_audit_log_id` (id); index `ix_audit_log_user_id` (user_id); index `ix_audit_log_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_audit_log_created_at` (created_at); index `ix_audit_log_user_id` (user_id); index `ix_audit_log_workspace_id` (workspace_id)
 
 ## `beta_invites`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `code` | VARCHAR(40) | hayır |  |  | unique index |
 | `email` | VARCHAR(255) | evet |  |  |  |
 | `note` | VARCHAR(200) | evet |  |  |  |
@@ -118,13 +118,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `used_at` | DATETIME | evet |  |  |  |
 | `used_by_user_id` | INTEGER | evet |  |  |  |
 
-İndeks/kısıt: unique index `ix_beta_invites_code` (code); index `ix_beta_invites_id` (id)
+İndeks/kısıt: unique index `ix_beta_invites_code` (code)
 
 ## `categories` — workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id | index |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `slug` | VARCHAR(50) | hayır |  |  |  |
@@ -134,13 +134,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `gizli` | BOOLEAN | hayır | False |  |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_categories_id` (id); index `ix_categories_user_id` (user_id); index `ix_categories_workspace_id` (workspace_id); UniqueConstraint uq_category_user_ws_slug (user_id, workspace_id, slug)
+İndeks/kısıt: index `ix_categories_user_id` (user_id); index `ix_categories_workspace_id` (workspace_id); UniqueConstraint uq_category_user_ws_slug (user_id, workspace_id, slug)
 
 ## `coach_insights`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `content` | TEXT | hayır |  |  |  |
 | `category` | VARCHAR(50) | evet |  |  |  |
@@ -167,13 +167,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `archived_reason` | VARCHAR(50) | evet |  |  |  |
 | `sort_priority` | INTEGER | hayır | 5 |  |  |
 
-İndeks/kısıt: index `ix_coach_insights_id` (id); index `ix_insights_user_active_priority` (user_id, is_active, priority); unique index `uix_insights_user_dedup` (user_id, dedup_key); UniqueConstraint uq_insights_type_title (user_id, insight_type, title)
+İndeks/kısıt: index `ix_insights_user_active_priority` (user_id, is_active, priority); unique index `uix_insights_user_dedup` (user_id, dedup_key); UniqueConstraint uq_insights_type_title (user_id, insight_type, title)
 
 ## `coach_memories`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `role` | VARCHAR(20) | hayır |  |  |  |
 | `content` | TEXT | hayır |  |  |  |
@@ -182,13 +182,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `pending_action_ids_json` | TEXT | evet |  |  |  |
 | `timestamp` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_coach_memories_id` (id); index `ix_memories_user_timestamp` (user_id, timestamp)
+İndeks/kısıt: index `ix_memories_user_timestamp` (user_id, timestamp)
 
 ## `decision_journal` — workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `decision_text` | TEXT | hayır |  |  |  |
@@ -207,25 +207,25 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `decided_at` | DATETIME | hayır | server: now() |  |  |
 | `para_category` | VARCHAR(20) | hayır | 'project' |  |  |
 
-İndeks/kısıt: index `idx_decision_journal_pending_eval` (user_id); index `idx_decision_journal_user_time` (user_id, decided_at); index `ix_decision_journal_id` (id); index `ix_decision_journal_workspace_id` (workspace_id)
+İndeks/kısıt: index `idx_decision_journal_pending_eval` (user_id); index `idx_decision_journal_user_time` (user_id, decided_at); index `ix_decision_journal_workspace_id` (workspace_id)
 
 ## `demo_data_markers`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id | index |
 | `table_name` | VARCHAR(40) | hayır |  |  |  |
 | `row_id` | INTEGER | hayır |  |  |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_demo_data_markers_id` (id); index `ix_demo_data_markers_user_id` (user_id); index `ix_demo_marker_user_table` (user_id, table_name)
+İndeks/kısıt: index `ix_demo_data_markers_user_id` (user_id); index `ix_demo_marker_user_table` (user_id, table_name)
 
 ## `envelopes` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id | index |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `category` | VARCHAR(50) | hayır |  |  |  |
@@ -234,13 +234,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `notes` | TEXT | evet |  |  |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_envelopes_id` (id); index `ix_envelopes_user_id` (user_id); index `ix_envelopes_workspace_id` (workspace_id); UniqueConstraint uq_envelope_user_category (user_id, category)
+İndeks/kısıt: index `ix_envelopes_user_id` (user_id); index `ix_envelopes_workspace_id` (workspace_id); UniqueConstraint uq_envelope_user_category (user_id, category)
 
 ## `error_logs`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `fingerprint` | VARCHAR(32) | hayır |  |  | unique index |
 | `error_type` | VARCHAR(80) | hayır |  |  |  |
 | `message` | TEXT | evet |  |  |  |
@@ -253,7 +253,7 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `last_user_id` | INTEGER | evet |  |  |  |
 | `last_istek_id` | VARCHAR(64) | evet |  |  |  |
 
-İndeks/kısıt: unique index `ix_error_logs_fingerprint` (fingerprint); index `ix_error_logs_id` (id)
+İndeks/kısıt: unique index `ix_error_logs_fingerprint` (fingerprint)
 
 ## `feedback` — workspace kapsamlı
 
@@ -279,7 +279,7 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `goal_id` | INTEGER | hayır |  | goals.id (CASCADE) |  |
 | `transaction_id` | INTEGER | hayır |  | transactions.id (CASCADE) |  |
 | `amount` | NUMERIC(14, 2) | hayır |  |  | para |
@@ -287,13 +287,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `rule_id` | INTEGER | evet |  | goal_rules.id (SET NULL) |  |
 | `created_at` | DATETIME | hayır | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_goal_allocations_goal_id` (goal_id); index `ix_goal_allocations_id` (id); index `ix_goal_allocations_transaction_id` (transaction_id); UniqueConstraint uq_goal_tx (goal_id, transaction_id)
+İndeks/kısıt: index `ix_goal_allocations_goal_id` (goal_id); index `ix_goal_allocations_transaction_id` (transaction_id); UniqueConstraint uq_goal_tx (goal_id, transaction_id)
 
 ## `goal_rules`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `goal_id` | INTEGER | hayır |  | goals.id (CASCADE) |  |
 | `name` | VARCHAR(200) | hayır |  |  |  |
 | `priority` | INTEGER | hayır | 0 |  |  |
@@ -303,13 +303,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `is_active` | BOOLEAN | hayır | True |  |  |
 | `created_at` | DATETIME | hayır | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_goal_rules_goal_id` (goal_id); index `ix_goal_rules_id` (id)
+İndeks/kısıt: index `ix_goal_rules_goal_id` (goal_id)
 
 ## `goals` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `goal_type` | VARCHAR(20) | hayır |  |  |  |
 | `user_id` | INTEGER | evet |  | users.id | index |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
@@ -327,13 +327,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `achieved_at` | DATETIME | evet |  |  |  |
 | `plan` | JSON | evet |  |  |  |
 
-İndeks/kısıt: index `ix_goals_goal_type` (goal_type); index `ix_goals_id` (id); index `ix_goals_status` (status); index `ix_goals_user_id` (user_id); index `ix_goals_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_goals_goal_type` (goal_type); index `ix_goals_status` (status); index `ix_goals_user_id` (user_id); index `ix_goals_workspace_id` (workspace_id)
 
 ## `master_checkpoints` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `title` | VARCHAR(200) | hayır |  |  |  |
@@ -346,13 +346,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `rule_params` | TEXT | evet |  |  |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_checkpoints_user_active_priority` (user_id, is_active, priority); index `ix_master_checkpoints_id` (id); index `ix_master_checkpoints_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_checkpoints_user_active_priority` (user_id, is_active, priority); index `ix_master_checkpoints_workspace_id` (workspace_id)
 
 ## `net_worth_snapshots` — workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `snapshot_date` | DATE | hayır |  |  |  |
@@ -365,13 +365,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `receivables` | NUMERIC(19, 4) | hayır | 0.0 |  | para |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_net_worth_snapshots_id` (id); index `ix_net_worth_snapshots_workspace_id` (workspace_id); index `ix_nws_user_date` (user_id, snapshot_date); UniqueConstraint uq_nws_user_date (user_id, snapshot_date)
+İndeks/kısıt: index `ix_net_worth_snapshots_workspace_id` (workspace_id); index `ix_nws_user_date` (user_id, snapshot_date); UniqueConstraint uq_nws_user_date (user_id, snapshot_date)
 
 ## `pending_actions` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `action_type` | VARCHAR(50) | hayır |  |  |  |
@@ -385,13 +385,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `source_recurring_id` | INTEGER | evet |  |  |  |
 | `source_recurring_type` | VARCHAR(20) | evet |  |  |  |
 
-İndeks/kısıt: index `ix_pending_actions_id` (id); index `ix_pending_actions_workspace_id` (workspace_id); index `ix_pending_user_status` (user_id, status)
+İndeks/kısıt: index `ix_pending_actions_workspace_id` (workspace_id); index `ix_pending_user_status` (user_id, status)
 
 ## `personal_debts` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `counterparty` | VARCHAR(100) | hayır |  |  |  |
@@ -404,7 +404,7 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `settlement_account_id` | INTEGER | evet |  | accounts.id |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_debts_user_due` (user_id, due_date); index `ix_debts_user_paid` (user_id, is_paid); index `ix_personal_debts_id` (id); index `ix_personal_debts_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_debts_user_due` (user_id, due_date); index `ix_debts_user_paid` (user_id, is_paid); index `ix_personal_debts_workspace_id` (workspace_id)
 
 ## `price_history`
 
@@ -422,11 +422,11 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `bucket_key` | VARCHAR(160) | hayır |  |  | index |
 | `hit_at` | DATETIME | hayır |  |  | index |
 
-İndeks/kısıt: index `ix_rate_limit_hits_bucket_key` (bucket_key); index `ix_rate_limit_hits_hit_at` (hit_at); index `ix_rate_limit_hits_id` (id); index `ix_rate_limit_key_time` (bucket_key, hit_at)
+İndeks/kısıt: index `ix_rate_limit_hits_bucket_key` (bucket_key); index `ix_rate_limit_hits_hit_at` (hit_at); index `ix_rate_limit_key_time` (bucket_key, hit_at)
 
 ## `reasoning_traces` — saklama 90 gün
 
@@ -458,7 +458,7 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id | index |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `name` | VARCHAR(100) | hayır |  |  |  |
@@ -471,13 +471,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `notes` | TEXT | evet |  |  |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_recurring_expenses_account_id` (account_id); index `ix_recurring_expenses_id` (id); index `ix_recurring_expenses_user_id` (user_id); index `ix_recurring_expenses_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_recurring_expenses_account_id` (account_id); index `ix_recurring_expenses_user_id` (user_id); index `ix_recurring_expenses_workspace_id` (workspace_id)
 
 ## `recurring_incomes` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id | index |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `name` | VARCHAR(100) | hayır |  |  |  |
@@ -488,37 +488,37 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 | `last_triggered_year_month` | VARCHAR(7) | evet |  |  |  |
 
-İndeks/kısıt: index `ix_recurring_incomes_id` (id); index `ix_recurring_incomes_user_id` (user_id); index `ix_recurring_incomes_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_recurring_incomes_user_id` (user_id); index `ix_recurring_incomes_workspace_id` (workspace_id)
 
 ## `revoked_tokens` — saklama 0 gün
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `jti` | VARCHAR(64) | hayır |  |  | unique index |
 | `revoked_at` | DATETIME | hayır | fn:utcnow |  |  |
 | `expires_at` | DATETIME | evet |  |  |  |
 
-İndeks/kısıt: index `ix_revoked_tokens_id` (id); unique index `ix_revoked_tokens_jti` (jti)
+İndeks/kısıt: unique index `ix_revoked_tokens_jti` (jti)
 
 ## `scheduler_runs` — saklama 90 gün
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `job_name` | VARCHAR(60) | hayır |  |  | index |
 | `started_at` | DATETIME | hayır |  |  |  |
 | `finished_at` | DATETIME | evet |  |  |  |
 | `ok` | BOOLEAN | evet |  |  |  |
 | `detail` | VARCHAR(300) | evet |  |  |  |
 
-İndeks/kısıt: index `ix_scheduler_runs_id` (id); index `ix_scheduler_runs_job_name` (job_name)
+İndeks/kısıt: index `ix_scheduler_runs_job_name` (job_name)
 
 ## `transactions` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `account_id` | INTEGER | evet |  | accounts.id |  |
@@ -530,13 +530,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `is_card_expense` | BOOLEAN | hayır | False |  |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_transactions_account_date` (account_id, transaction_date); index `ix_transactions_id` (id); index `ix_transactions_user_category` (user_id, category); index `ix_transactions_user_date` (user_id, transaction_date); index `ix_transactions_workspace_id` (workspace_id)
+İndeks/kısıt: index `ix_transactions_account_date` (account_id, transaction_date); index `ix_transactions_user_category` (user_id, category); index `ix_transactions_user_date` (user_id, transaction_date); index `ix_transactions_workspace_id` (workspace_id)
 
 ## `users`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `name` | VARCHAR(100) | hayır |  |  |  |
 | `email` | VARCHAR(255) | evet |  |  | unique index |
 | `password_hash` | VARCHAR(255) | evet |  |  |  |
@@ -553,13 +553,13 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `onboarding_dismissed_at` | DATETIME | evet |  |  |  |
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 
-İndeks/kısıt: unique index `ix_users_email` (email); index `ix_users_id` (id)
+İndeks/kısıt: unique index `ix_users_email` (email)
 
 ## `wishlist_items` — denetlenir, workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `workspace_id` | INTEGER | evet |  | workspaces.id | index |
 | `item` | VARCHAR(200) | hayır |  |  |  |
@@ -569,29 +569,29 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `created_at` | DATETIME | evet | fn:utcnow |  |  |
 | `resolved_at` | DATETIME | evet |  |  |  |
 
-İndeks/kısıt: index `ix_wishlist_items_id` (id); index `ix_wishlist_items_workspace_id` (workspace_id); index `ix_wishlist_user_status` (user_id, status)
+İndeks/kısıt: index `ix_wishlist_items_workspace_id` (workspace_id); index `ix_wishlist_user_status` (user_id, status)
 
 ## `workspace_memberships` — workspace kapsamlı
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `workspace_id` | INTEGER | hayır |  | workspaces.id |  |
 | `user_id` | INTEGER | hayır |  | users.id |  |
 | `role` | VARCHAR(6) | hayır | <WorkspaceRole.viewer: 'viewer'> |  |  |
 | `invited_by` | INTEGER | evet |  | users.id (SET NULL) |  |
 | `joined_at` | DATETIME | hayır | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_membership_user` (user_id); index `ix_workspace_memberships_id` (id); UniqueConstraint uq_membership_workspace_user (workspace_id, user_id)
+İndeks/kısıt: index `ix_membership_user` (user_id); UniqueConstraint uq_membership_workspace_user (workspace_id, user_id)
 
 ## `workspaces`
 
 | Sütun | Tip | Boş | Varsayılan | FK | Not |
 |---|---|---|---|---|---|
-| `id` | INTEGER | hayır |  |  | PK index |
+| `id` | INTEGER | hayır |  |  | PK |
 | `owner_user_id` | INTEGER | hayır |  | users.id | index |
 | `name` | VARCHAR(100) | hayır |  |  |  |
 | `is_personal` | BOOLEAN | hayır | False |  |  |
 | `created_at` | DATETIME | hayır | fn:utcnow |  |  |
 
-İndeks/kısıt: index `ix_workspaces_id` (id); index `ix_workspaces_owner_user_id` (owner_user_id)
+İndeks/kısıt: index `ix_workspaces_owner_user_id` (owner_user_id)

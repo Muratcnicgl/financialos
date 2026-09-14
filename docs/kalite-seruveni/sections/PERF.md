@@ -65,7 +65,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [PERF-011] PK'larda redundant `index=True` — yazma maliyeti
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: PK redundant index=True ~18 tablo
+- **Durum:** ✅ KAPANDI — BUG #491 (14 Eyl 2026). Ölçüldü: 29 tabloda `primary_key=True, index=True` (madde 18 diyordu); canlı SQLite'ta 29 adet `ix_<tablo>_id` — PK'nın yanında ikinci, hiç okunmayan indeks (SQLite rowid / PostgreSQL PK btree zaten benzersiz indeks), her INSERT/DELETE'te fazladan yazma. Modelden kaldırıldı; göç `e9f0a1b2c3d4` var olan indeksleri düşürür (yoksa sessiz — eski DB'ler farklı olabilir; `downgrade` geri kurar). Üretilen veri modeli belgesi 29 satır rozet kaybetti (doğru). Kapı `tests/test_pk_indeks_kapisi.py`: metadata'da PK ile aynı sütunda ikinci indeks yok, taze head DB'de `ix_*_id` yok, göç listesi model tablolarını kapsar. Ölçülebilir hız farkı bugünkü ölçekte yok — bu bir hijyen ve yazma-maliyeti düzeltmesidir (DATA-006 ile aynı kök).
 - **Kanıt:** `app/models.py` 18 tablo
 - **Aksiyon:** Kaldır. (DATA-006)
 - **Etki:** Düşük · **Efor:** S

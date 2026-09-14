@@ -452,7 +452,6 @@ export const fundPriceApi = {
     body: { account_id: accountId, new_price: newPrice },
   }),
   freshness: () => request('/api/fund-price/freshness'),
-  tefasLink: (fundCode) => request(`/api/fund-price/tefas-link/${fundCode}`),
 };
 
 // =============================================================

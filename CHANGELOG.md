@@ -29,6 +29,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Dokuz ikon butonu ekran okuyucu için adlandı (kategori yönetimi, dilek listesi, zarf silme,
   üye çıkarma); kapının kör noktası kapandı; dört boş bileşen dosyası silindi (#484).
 
+- Yanıtlar 1 KB üstünde gzip ile sıkıştırılır (openapi 230 KB → 1/3 altı) (#485).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

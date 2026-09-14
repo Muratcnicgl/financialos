@@ -205,6 +205,15 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
+# PERF-016 (BUG #485): yanıt sıkıştırma. Ölçüldü (14 Eyl 2026): kokpit JSON'u ~40 KB, koç
+# geçmişi 50 mesajda ~60 KB, openapi.json 230 KB — hiçbiri sıkışmıyordu; Tailscale Funnel ve
+# Cloudflare Tunnel yolu uygulama katmanında sıkıştırma yapmaz, bu yüzden burada. Eşik 1 KB:
+# sağlık/ping gibi küçük yanıtlar gzip başlığı taşımaz (CPU'ya değmez). Akış yanıtı yok
+# (StreamingResponse/SSE kullanılmıyor — ölçüldü), dolayısıyla tamponlama gecikmesi de yok.
+from starlette.middleware.gzip import GZipMiddleware
+
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
 
 # ============================================================
 # ISTEK GOVDESI SINIRI (BUG #213 / P2.9)

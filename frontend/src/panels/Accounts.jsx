@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { tefasUrl } from '../lib/tefas.js';   // FE-021 (BUG #485)
 
 /**
  * Accounts paneli — 8 hesabin tam yonetimi.
@@ -614,14 +615,14 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
     }
   };
 
-  const tefasUrl = `https://www.tefas.gov.tr/FonAnaliz.aspx?FonKod=${account.fund_code}`;
+  const tefasUrlu = tefasUrl(account.fund_code);   // FE-021 (BUG #485): tek kaynak
 
   return (
     <Modal title="Fiyat güncelle" onClose={onClose}>
       <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
         {account.name} · {account.fund_code}
       </p>
-      <a href={tefasUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary !text-xs w-full mb-4">
+      <a href={tefasUrlu} target="_blank" rel="noopener noreferrer" className="btn btn-secondary !text-xs w-full mb-4">
         <ExternalLink className="w-3 h-3" /> TEFAS'ta aç
       </a>
       <form onSubmit={handleSubmit}>

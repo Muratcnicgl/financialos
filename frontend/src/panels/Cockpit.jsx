@@ -13,6 +13,7 @@ import AylikSeri from '../components/AylikSeri.jsx';
 import AyTemposu from '../components/AyTemposu.jsx';   // UX-028 (BUG #466)
 import { kalanCumlesi } from '../lib/bugunKalan.js';   // UX-004 (BUG #467)
 import { borcuKapat } from '../lib/borcKapat.js';   // UX-013 (BUG #477)
+import { tefasUrl } from '../lib/tefas.js';   // FE-021 (BUG #485)
 import { kocaSor, kartSonOdemeSorusu } from '../lib/kocaSor.js';   // UX-013 (BUG #477)
 import { useToast } from '../components/Toast.jsx';
 import SatirIciFiyat from '../components/SatirIciFiyat.jsx';   // UX-032 (BUG #470)
@@ -1344,7 +1345,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
     }
   };
 
-  const tefasUrl = `https://www.tefas.gov.tr/FonAnaliz.aspx?FonKod=${account.fund_code}`;
+  const tefasUrlu = tefasUrl(account.fund_code);   // FE-021 (BUG #485): tek kaynak
 
   return (
     <div
@@ -1359,7 +1360,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
         </p>
 
         <a
-          href={tefasUrl}
+          href={tefasUrlu}
           target="_blank"
           rel="noopener noreferrer"
           className="btn btn-secondary !text-xs w-full mb-4"

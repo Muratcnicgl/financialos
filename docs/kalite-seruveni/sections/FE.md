@@ -126,8 +126,8 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [FE-021] TEFAS URL'i iki panelde elle inşa; `fundPriceApi.tefasLink` kullanılmıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: TEFAS URL iki yerde elle, fundPriceApi.tefasLink kullanılmıyor
-- **Kanıt:** `Cockpit.jsx:627`, `Accounts.jsx:556`; `api.js:250`
+- **Durum:** ✅ KAPANDI — BUG #485 (14 Eyl 2026). `lib/tefas.js::tefasUrl` tek kaynak; iki panel oradan; `fundPriceApi.tefasLink` istemciden silindi (0 çağrı). Backend `/api/fund-price/tefas-link/{kod}` ⚪ kaldı: API sözleşmesinde donuk (KAP-01), kaldırmak sözleşme değişikliği; iki dil aynı dizeyi üretir — kapı `get_tefas_url('tcd')` ile JS yardımcısını aynı örnekte karşılaştırır (iki kopya, tek gerçek).
+- **Kanıt:** `frontend/src/lib/tefas.js`, `tests/test_sikistirma_ve_tefas_kapisi.py`
 - **Aksiyon:** Tek yardımcıya çıkar; `tefasLink`'i kullan veya sil.
 - **Etki:** Düşük · **Efor:** S
 

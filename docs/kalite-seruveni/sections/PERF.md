@@ -96,8 +96,8 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [PERF-016] gzip/br compression yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: GZipMiddleware yok
-- **Kanıt:** `app/main.py` (GZipMiddleware yok)
+- **Durum:** ✅ KAPANDI — BUG #485 (14 Eyl 2026). Ölçüldü: hiçbir yanıt gzip taşımıyordu; openapi.json 230 KB düz gidiyordu; tünel yolu (Tailscale Funnel / Cloudflare Tunnel) uygulama katmanında sıkıştırmaz. `GZipMiddleware(minimum_size=1024)`: openapi.json gzip ile 1/3'ün altına iniyor (kapı ölçer), `/api/health` gibi eşik altı yanıtlar dokunulmaz (CPU'ya değmez). Akış yanıtı yok (StreamingResponse/SSE kullanılmıyor — ölçüldü), tamponlama gecikmesi de yok. br ⚪: starlette'te yerleşik değil, ek bağımlılık ister; gzip'in üstüne kazanç kokpit ölçeğinde ölçülemez.
+- **Kanıt:** `app/main.py` (GZipMiddleware), `tests/test_sikistirma_ve_tefas_kapisi.py`
 - **Aksiyon:** `GZipMiddleware(minimum_size=1000)`; JSON payload'ları küçülür.
 - **Etki:** Düşük · **Efor:** S
 

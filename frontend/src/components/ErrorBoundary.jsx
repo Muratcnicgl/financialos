@@ -29,7 +29,6 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // eslint-disable-next-line no-console
     console.error('Panel çöktü (ErrorBoundary):', error, info?.componentStack);
     // BUG #406 (OBS-013): konsol kullanıcıda kalır; defter operatörde. Ateşle-unut.
     hataBildir({

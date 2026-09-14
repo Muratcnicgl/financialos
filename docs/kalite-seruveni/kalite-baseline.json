@@ -30,5 +30,26 @@
     "S 62 -> 60 (BUG #384, 11 Eyl 2026): `scripts/sir_taramasi.py` indeks tarama modu (`--staged`) iki yeni `git` cagrisi getirecekti (+3 S). Tavani yukseltmek yerine dosyadaki BES `subprocess.run([\"git\", ...])` noktasi tek `_git()` yardimcisina indirildi; bir noqa, bes cagri. Ayni desenin dorduncu tekrari (#310, #311) — bu kez sayi dustu.",
     "F 198 -> 190 (BUG #431 / TEST-032, 12 Eyl 2026): kök `test_*.py` duman betikleri `scripts/smoke/` altına taşınırken 5 kullanılmayan import + 3 yer-tutucusuz f-string temizlendi (ruff --fix, davranış değişmedi). Kazanım kilidi.",
     "F 190 -> 189 (BUG #442, 13 Eyl 2026): reports.py'de kullanılmayan HTTPException importu temizlendi (tek-kaynak projeksiyon değişikliğiyle birlikte). Kazanım kilidi."
-  ]
+  ],
+  "frontend": {
+    "aciklama": "Frontend lint gerileme sayacı (BUG #474 / DEVOPS-003). ESLint `error` seviyesi sıfırdır ve sıfır kalır; `warn` seviyesindeki kurallar kural başına TAVANLIDIR. Ölçen: scripts/eslint_kapisi.py; kural kümesi frontend/eslint.config.js.",
+    "olcum_tarihi": "2026-09-14",
+    "arac": {
+      "ad": "eslint",
+      "surum": "9.39.5",
+      "yapilandirma": "frontend/eslint.config.js",
+      "neden_sabit": "Tavan bir araç sürümüne aittir; frontend/package.json eslint'i ve eklentilerini tam sürümle sabitler. eslint 10 BİLEREK seçilmedi: eslint-plugin-react 7.37.5 (en son) peer olarak ^9'a kadar destekliyor."
+    },
+    "olcum_komutu": "cd frontend && node scripts/lint.cjs -f json  (uyarılar kural başına sayılır)",
+    "tavan": {
+      "react-hooks/set-state-in-effect": 27
+    },
+    "notlar": [
+      "İLK ÖLÇÜM (14 Eyl 2026, kurulum öncesi): 148 dosya, 112 hata + 11 uyarı. Hataların dökümü: 32 no-unused-vars, 27 react-hooks/set-state-in-effect, 13 react/jsx-key, 11 tanımsız 'import/first' direktifi, 8 no-undef, 8 react-hooks/refs, 4 static-components, 3 immutability, 2 rules-of-hooks, 4 tekil. Aynı commit'te hepsi sıfırlandı; yalnız set-state-in-effect 'warn' seviyesine çekilip tavanlandı.",
+      "GERÇEK DEFEKT BULUNDU: react-hooks/rules-of-hooks ×2 (PendingActions.jsx) — `useEffect` ve `useState` erken `return null` satırından SONRA çağrılıyordu; koşul değişince React 'rendered fewer hooks' ile çökerdi (bugün üst bileşen boş listede bileşeni hiç çizmediği için görünmüyordu). Hook'lar erken dönüşün üstüne alındı.",
+      "react-hooks/refs ×8: sekiz diyalog aynı satırı kopyalıyordu (`onCloseRef.current = onClose` render sırasında). Tek kaynağa çekildi: `useDialog(kutuRef, onClose)` ref'i içinde tutar ve commit sonrası günceller.",
+      "react-hooks/set-state-in-effect 27: 'veri gelince türetilmiş durumu sıfırla' deseni; her biri ayrı bir davranış kararı. Toptan yeniden yazmak yerine tavanla izlenir, dokunulan dosyada eritilir.",
+      "prettier BİLEREK yok (ruff format ile aynı gerekçe): 200+ dosyalık anlamsız diff gerçek değişikliği gizler, git blame bozulur."
+    ]
+  }
 }

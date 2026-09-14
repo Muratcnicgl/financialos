@@ -18,7 +18,6 @@ import { test, expect } from '@playwright/test';
 // (gerçek kullanıcıların DB'sine test verisi yazılıyordu). İzole koşum
 // (`scripts/e2e_izole.py`) bu değişkenle ayrı porttaki ayrı DB'yi gösterir.
 const API = process.env.E2E_API || 'http://localhost:8000';
-let debtId;
 let baslangicNakit;
 let token;
 let yetki;
@@ -47,7 +46,6 @@ test.beforeAll(async ({ request }) => {
     data: { counterparty: 'E2E Tahsilat', direction: 'receivable', amount: 1234 },
   });
   expect(r.status(), 'alacak olusturuldu').toBe(201);
-  debtId = (await r.json()).id;
 });
 
 test.afterAll(async ({ request }) => {

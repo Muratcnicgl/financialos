@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import {
   Receipt, Plus, Loader2, AlertTriangle, RefreshCw,
   Search, Trash2, Pencil, X, Filter, ArrowUp, ArrowDown,
-  Wallet, CreditCard,
+  CreditCard,
 } from 'lucide-react';
 import { transactionsApi, accountsApi, cockpitApi, formatDate, signClass, todayLocalISO, parseTRNumber } from '../api.js';
 import { asimMiktari, hizliTutar } from '../lib/bugunKalan.js';   // UX-005 (BUG #467)

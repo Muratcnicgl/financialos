@@ -12,9 +12,7 @@ vi.mock('./api.js', async () => {
   const gercek = await vi.importActual('./api.js');
   return { ...gercek, fundPriceApi: { update: vi.fn().mockResolvedValue({}) } };
 });
-// eslint-disable-next-line import/first
 import SatirIciFiyat from './components/SatirIciFiyat.jsx';
-// eslint-disable-next-line import/first
 import { fundPriceApi } from './api.js';
 
 describe('UX-032 — satır içi fiyat', () => {

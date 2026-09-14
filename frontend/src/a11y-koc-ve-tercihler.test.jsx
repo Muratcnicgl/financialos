@@ -9,8 +9,7 @@
  * metin; ilk tema kaydedilmiş tercih yoksa OS tercihinden (light → light), kaydedilmiş tercih
  * kazanır; index.css'te reduced-motion bloğu animasyon/geçişi kısar.
  */
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

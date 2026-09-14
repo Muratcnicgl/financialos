@@ -1,4 +1,4 @@
-import { AreaChart, Area, Line, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer } from 'recharts';
+import { Area, Line, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { formatDate } from '../api.js';
 import { formatPara, kisaSayi } from '../lib/money.js';
 import { KATEGORIK, SERI, EKSEN, IZGARA, IZGARA_OPAKLIK, lejantMetni } from '../lib/grafikRenkleri.js';

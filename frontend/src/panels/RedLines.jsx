@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import {
-  ShieldAlert, ShieldCheck, Shield, Plus, Pencil, Trash2, X,
-  Loader2, AlertTriangle, RefreshCw, CheckCircle, Power,
+  ShieldAlert, Plus, Pencil, Trash2, X,
+  Loader2, AlertTriangle, RefreshCw, Power,
   Flame, Target, BookOpen, Info,
 } from 'lucide-react';
 import { checkpointsApi, accountsApi, parseTRNumber } from '../api.js';  // H21: dayatılan kural formu

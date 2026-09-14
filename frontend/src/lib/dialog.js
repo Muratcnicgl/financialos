@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Modal diyalog davranışı (BUG #395/#396 · A11Y-001, APG "dialog (modal)").
@@ -10,12 +10,16 @@ import { useEffect } from 'react';
  *  - Kapanışta odak tetikleyene döner.
  *  - Escape `onClose`; Tab/Shift+Tab kutunun içinde döner.
  * `onClose` kimliği değişse de yeniden bağlanmaz: tek bağımlılık `acik` (isOpen ile kurulan
- * diyaloglar için), güncel kapatıcı her tuşta `onCloseRef` üzerinden okunur — aksi hâlde her
- * render'da odak zıplardı.
+ * diyaloglar için), güncel kapatıcı her tuşta bir ref üzerinden okunur — aksi hâlde her
+ * render'da odak zıplardı. Ref BURADA tutulur ve commit sonrası (effect) güncellenir: render
+ * sırasında ref yazmak React'in kuralına aykırıdır (react-hooks/refs) ve sekiz çağıran aynı
+ * satırı kopyalıyordu.
  */
 export const ODAKLANABILIR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function useDialog(kutuRef, onCloseRef, acik = true) {
+export function useDialog(kutuRef, onClose, acik = true) {
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
     if (!acik) return undefined;
     const tetikleyen = document.activeElement;

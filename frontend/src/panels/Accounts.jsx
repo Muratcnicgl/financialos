@@ -4,7 +4,7 @@ import {
   Plus, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle,
   ExternalLink, Clock,
 } from 'lucide-react';
-import { accountsApi, fundPriceApi, formatDate, signClass, parseTRNumber } from '../api.js';
+import { accountsApi, fundPriceApi, formatDate, parseTRNumber } from '../api.js';
 import EmptyState from '../components/EmptyState.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';

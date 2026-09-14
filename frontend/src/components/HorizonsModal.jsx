@@ -8,7 +8,7 @@ import { useState, useEffect, useId, useRef } from 'react';
 import { useDialog } from '../lib/dialog.js';
 import { TrendingUp, X, Calendar, Clock, ArrowRight, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { simulationApi, actionsApi } from '../api.js';
-import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { formatPara } from '../lib/money.js';
 import { useToast } from '../components/Toast.jsx';
 
 // ============================================================
@@ -18,7 +18,6 @@ import { useToast } from '../components/Toast.jsx';
 // BUG #256 (H4): bu dosya kendi `toLocaleString('tr-TR', …)` biçimlendiricisini kuruyor ve
 // para etiketini elle ' TL' yazıyordu — api.js'ten bağımsız DÖRDÜNCÜ uygulama. Tek kaynağa
 // bağlandı (`lib/money.js`); sayı biçimi ve etiket artık tüm arayüzle birlikte değişir.
-const fmt = (v) => formatSayi(v ?? 0);
 
 const fmtDelta = (v, frame = 'gain') => {
   if (v === undefined || v === null || v === 0) return null;
@@ -120,8 +119,20 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useDialog(kutuRef, onCloseRef, isOpen);
+  useDialog(kutuRef, onClose, isOpen);
+
+  const runSimulation = async () => {
+    setPhase('loading');
+    setError(null);
+    try {
+      const res = await simulationApi.run(actionId);
+      setResult(res);
+      setPhase('success');
+    } catch (e) {
+      setError(e.message || 'Bilinmeyen hata.');
+      setPhase('error');
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -137,18 +148,6 @@ export default function HorizonsModal({ isOpen, onClose, actionId, onApproved })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, actionId]);
 
-  const runSimulation = async () => {
-    setPhase('loading');
-    setError(null);
-    try {
-      const res = await simulationApi.run(actionId);
-      setResult(res);
-      setPhase('success');
-    } catch (e) {
-      setError(e.message || 'Bilinmeyen hata.');
-      setPhase('error');
-    }
-  };
 
   const handleApprove = async () => {
     setPhase('approving');

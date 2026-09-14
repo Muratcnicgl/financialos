@@ -20,7 +20,7 @@ export default function DetectedSubscriptions() {
       const [s, a] = await Promise.all([subscriptionsApi.list(), accountsApi.list()]);
       setSubs(s);
       setAccounts(a);
-    } catch (e) {
+    } catch {
       // sessiz — abonelik yoksa/veri azsa bölüm gizlenir
     } finally {
       setLoading(false);

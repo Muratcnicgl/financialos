@@ -95,9 +95,7 @@ vi.mock('./api.js', async () => {
   };
 });
 
-// eslint-disable-next-line import/first
 import Cockpit from './panels/Cockpit.jsx';
-// eslint-disable-next-line import/first
 import { cockpitApi, actionsApi, incomesApi, expensesApi, cashflowApi } from './api.js';
 
 async function cizdir(mod, veri = COCKPIT) {

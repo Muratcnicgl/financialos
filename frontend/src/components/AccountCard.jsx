@@ -1,6 +1,6 @@
 import {
   Wallet, CreditCard, TrendingUp, Building2, Lock,
-  ExternalLink, Clock,
+  Clock,
 } from 'lucide-react';
 import { formatDate } from '../api.js';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';

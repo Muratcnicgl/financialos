@@ -54,20 +54,21 @@ function makeFetchMock(kayit) {
   });
 }
 
+// [ad, Bileşen, props]: eleman değil bileşen tutulur; JSX dizisi key isterdi (react/jsx-key).
 const PANELLER = [
-  ['Cockpit', <Cockpit setActiveTab={() => {}} />],
-  ['Koç', <Coach />],
-  ['Hesaplar', <Accounts />],
-  ['İşlemler', <Transactions />],
-  ['Gelir & Borç', <IncomeDebt />],
-  ['Kırmızı Çizgiler', <RedLines />],
-  ['Raporlar', <Reports />],
-  ['Akış', <Cashflow />],
-  ['Borç Stratejisi', <DebtStrategy />],
-  ['Hedefler', <Goals />],
-  ['Bütçe', <Budget />],
-  ['Aile', <Workspace />],
-  ['Hesap', <Hesap />],
+  ['Cockpit', Cockpit, { setActiveTab: () => {} }],
+  ['Koç', Coach],
+  ['Hesaplar', Accounts],
+  ['İşlemler', Transactions],
+  ['Gelir & Borç', IncomeDebt],
+  ['Kırmızı Çizgiler', RedLines],
+  ['Raporlar', Reports],
+  ['Akış', Cashflow],
+  ['Borç Stratejisi', DebtStrategy],
+  ['Hedefler', Goals],
+  ['Bütçe', Budget],
+  ['Aile', Workspace],
+  ['Hesap', Hesap],
 ];
 
 // Ham JS artıkları — kullanıcı bunları ASLA görmemeli (boş veri × biçimlendirme hatası).
@@ -99,8 +100,8 @@ describe('P3.2 — boş kullanıcı: hiçbir panel çökmez, ham JS artığı s�
     vi.unstubAllGlobals();
   });
 
-  it.each(PANELLER)('%s paneli boş veriyle render olur', async (ad, eleman) => {
-    const { container } = render(<ToastProvider>{eleman}</ToastProvider>);
+  it.each(PANELLER)('%s paneli boş veriyle render olur', async (ad, Bilesen, props = {}) => {
+    const { container } = render(<ToastProvider><Bilesen {...props} /></ToastProvider>);
 
     // Yükleme efektleri otursun (her panel en az bir istek atar ya da anında içerik basar).
     await waitFor(() => {
@@ -111,8 +112,8 @@ describe('P3.2 — boş kullanıcı: hiçbir panel çökmez, ham JS artığı s�
     expect(patlama, `${ad} paneli boş veride render sırasında çöktü:\n${patlama.join('\n')}`).toEqual([]);
   });
 
-  it.each(PANELLER)('%s paneli boş veride ham JS artığı göstermez', async (ad, eleman) => {
-    const { container } = render(<ToastProvider>{eleman}</ToastProvider>);
+  it.each(PANELLER)('%s paneli boş veride ham JS artığı göstermez', async (ad, Bilesen, props = {}) => {
+    const { container } = render(<ToastProvider><Bilesen {...props} /></ToastProvider>);
     await waitFor(() => expect(container.textContent.length).toBeGreaterThan(0));
     // Efekt zincirleri (fetch → setState → ikinci fetch) tamamlansın.
     await waitFor(() => expect(istekler.length).toBeGreaterThanOrEqual(0));

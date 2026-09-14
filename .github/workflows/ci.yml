@@ -154,6 +154,31 @@ jobs:
           python -m scripts.sir_taramasi
           python -m scripts.sir_taramasi --gecmis
 
+  # BUG #474 (DEVOPS-003): frontend kalite işi. Ölçüldü (14 Eyl 2026): CI'da ne eslint ne
+  # vitest koşuyordu — 200+ vitest dosyası yalnız yerel pre-commit'e bağlıydı (hook'u kurmayan
+  # bir makineden gelen push'ta hiçbir frontend testi koşmazdı). Lint kapısı hata sıfır,
+  # uyarı tavanlı (kalite-baseline.json › frontend); vitest tam süit.
+  frontend-kalite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend lint kapısı (eslint gerileme sayacı)
+        run: python scripts/eslint_kapisi.py
+      - name: Vitest (birim + kaynak-türevli kapılar)
+        working-directory: frontend
+        run: npx vitest run
+
   e2e:
     runs-on: ubuntu-latest
     steps:

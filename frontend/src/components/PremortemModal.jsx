@@ -30,8 +30,20 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useDialog(kutuRef, onCloseRef, isOpen);
+  useDialog(kutuRef, onClose, isOpen);
+
+  const runPremortem = async () => {
+    setPhase('loading');
+    setError(null);
+    try {
+      const res = await premortemApi.run(actionId);
+      setResult(res);
+      setPhase('success');
+    } catch (e) {
+      setError(e.message || 'Bilinmeyen hata.');
+      setPhase('error');
+    }
+  };
 
   // isOpen değişince: aç → yükle, kapat → sıfırla
   useEffect(() => {
@@ -47,18 +59,6 @@ export default function PremortemModal({ isOpen, onClose, actionId, onApproved }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, actionId]);
 
-  const runPremortem = async () => {
-    setPhase('loading');
-    setError(null);
-    try {
-      const res = await premortemApi.run(actionId);
-      setResult(res);
-      setPhase('success');
-    } catch (e) {
-      setError(e.message || 'Bilinmeyen hata.');
-      setPhase('error');
-    }
-  };
 
   const handleApprove = async () => {
     setPhase('approving');

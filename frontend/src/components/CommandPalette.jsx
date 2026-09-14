@@ -49,8 +49,7 @@ export default function CommandPalette({ onClose, setActiveTab, basit = false, o
 
   // BUG #396 (A11Y-001): rol + odak/Escape/Tab döngüsü tek kaynaktan; ilk odak zaten arama kutusu.
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useDialog(kutuRef, onCloseRef);
+  useDialog(kutuRef, onClose);
   useEffect(() => { setSelectedIdx(0); }, [query]);
 
   const execute = (cmd) => {

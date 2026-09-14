@@ -103,7 +103,7 @@ test('sona kaydirinca son sekme tiklanabilir olur', async ({ page }) => {
 });
 
 test('klavyeyle gecilen sekme seritte gorunur hale gelir', async ({ page }) => {
-  const serit = await ac(page);
+  await ac(page);
 
   // Cmd/Ctrl+9 → 9. sekme (Borç Stratejisi): 390px'te ilk ekranda görünmüyor.
   await page.keyboard.press('Control+9');

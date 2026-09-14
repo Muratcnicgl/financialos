@@ -79,6 +79,20 @@ if ! "$py" -m scripts.sir_taramasi --staged; then
 fi
 
 # Frontend değişti mi?
+if echo "$staged" | grep -qE '^frontend/(src|e2e|scripts)/.*\.(js|jsx|cjs)$|^frontend/eslint\.config\.js$'; then
+  # BUG #474 (DEVOPS-003): lint kapısı — hata sıfır, uyarı tavanlı (kalite-baseline.json › frontend).
+  if [ -d frontend/node_modules/eslint ]; then
+    echo "[pre-commit] Frontend değişikliği — eslint kapısı çalışıyor…"
+    py="./venv/Scripts/python.exe"
+    [ -x "$py" ] || py="python"
+    "$py" scripts/eslint_kapisi.py || {
+      echo "[pre-commit] ❌ eslint kapısı KIRMIZI — commit engellendi."
+      exit 1
+    }
+  else
+    echo "[pre-commit] ⚠ frontend/node_modules/eslint yok — lint atlandı (npm ci gerekli)."
+  fi
+fi
 if echo "$staged" | grep -qE '^frontend/src/.*\.(js|jsx)$'; then
   if [ -d frontend/node_modules/vitest ]; then
     echo "[pre-commit] Frontend değişikliği — vitest çalışıyor…"

@@ -53,6 +53,9 @@ ki geri kalan 7 gibi olmasın:
 ## Yerel kapılar (commit engellenirse)
 - `python scripts/kalite_kapisi.py` — ruff gerileme sayacı (B/E9/F/S aile bazında TAVAN).
   Tavanı yükseltmek değil, ihtiyacı kaldırmak beklenir; düşerse `--yaz` tavanı indirir.
+- `python scripts/eslint_kapisi.py` (ya da `cd frontend && npm run lint`) — frontend lint
+  kapısı: ESLint hatası SIFIR, warn kuralları kural başına TAVAN (`kalite-baseline.json ›
+  frontend`). Her `eslint-disable` gerekçe ister (aynı satırda `-- neden` ya da üstte yorum).
 - `python -m scripts.sir_taramasi --staged` — indeksteki sır izi. Uydurma örnek için
   satıra (ya da bir üstüne) `# secret-ornek:` işareti.
 - Docs/frontend-only commit'lerde `tests/*_kapisi.py` altkümesi koşar (~2,5 dk); `.py`

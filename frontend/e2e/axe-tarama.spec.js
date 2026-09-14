@@ -11,8 +11,6 @@
  */
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 const API = process.env.E2E_API || 'http://localhost:8000';
 let token;

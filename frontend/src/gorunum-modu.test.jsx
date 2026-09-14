@@ -46,7 +46,6 @@ vi.mock('./api.js', () => ({
   },
 }));
 
-// eslint-disable-next-line import/first
 import Hesap from './panels/Hesap.jsx';
 
 beforeEach(() => localStorage.clear());

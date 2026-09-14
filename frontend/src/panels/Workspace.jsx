@@ -193,7 +193,6 @@ export default function Workspace() {
 
 /** M42 — davet kabul ekranı (router'sız, /workspaces/join?token= URL'inde gösterilir). */
 export function WorkspaceJoin({ token, onDone }) {
-  const toast = useToast();
   const [state, setState] = useState('loading');  // loading | done | error
   const [msg, setMsg] = useState('');
 

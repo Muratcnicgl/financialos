@@ -4,7 +4,7 @@
  * M43 global X-Workspace-Id + WorkspaceSwitcher ekledi ama vitest 33→33 kalmıştı.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 // --- basit presentational component'ler (smoke render) ---
 import MetricCard from './components/MetricCard.jsx';
@@ -52,7 +52,7 @@ describe('M64 — presentational component smoke render', () => {
 // =============================================================
 // request() header davranışı (Bearer + X-Workspace-Id) — M11/M43
 // =============================================================
-import { cockpitApi, setTokens, clearTokens, setActiveWorkspaceId } from './api.js';
+import { cockpitApi } from './api.js';
 
 describe('M64 — request() header davranışı', () => {
   let store, fetchMock;

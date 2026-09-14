@@ -9,7 +9,7 @@
  *   - kapanmış kayıt hangi hesaba işlendiğini satırında taşır,
  *   - silme onayı nakit etkisinin geri sarılacağını ÖNCEDEN söyler.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 import IncomeDebt from './panels/IncomeDebt.jsx';

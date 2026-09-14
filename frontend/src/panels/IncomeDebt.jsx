@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import {
   TrendingUp, TrendingDown, Plus, Pencil, Trash2,
-  Loader2, AlertTriangle, RefreshCw, CheckCircle, Clock,
-  Calendar, ArrowDownToLine, ArrowUpToLine, Filter,
-  Power, CreditCard, Receipt, Wallet, RotateCcw, Users,
+  Loader2, AlertTriangle, RefreshCw, CheckCircle, Calendar, ArrowDownToLine, ArrowUpToLine, Power, CreditCard, Receipt, Wallet, RotateCcw, Users,
 } from 'lucide-react';
 import { incomesApi, expensesApi, debtsApi, accountsApi, formatDate, todayLocalISO, currentYearMonthLocal, parseTRNumber } from '../api.js';
 import { useToast } from '../components/Toast.jsx';

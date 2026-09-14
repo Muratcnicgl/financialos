@@ -13,9 +13,7 @@ vi.mock('./api.js', async () => {
   const gercek = await vi.importActual('./api.js');
   return { ...gercek, reportsApi: { monthlySummary: vi.fn() } };
 });
-// eslint-disable-next-line import/first
 import MonthlySummary from './components/MonthlySummary.jsx';
-// eslint-disable-next-line import/first
 import { reportsApi } from './api.js';
 
 const OZET = {

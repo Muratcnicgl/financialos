@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useId, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef, useCallback } from 'react';
 import { useDialog } from '../lib/dialog.js';
 import { goalsApi } from '../api';
-import { formatTL, formatTLSuffix, formatDate, parseTRNumber } from '../api';
+import { formatDate, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import { Loader2, Target, Plus, X, RefreshCw } from 'lucide-react';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
@@ -27,7 +27,8 @@ export default function Goals() {
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
 
-  const fetchGoals = async () => {
+  // `toast` useMemo ile sabit (Toast.jsx); kimlik değişmez, effect yalnız ilk yüklemede koşar.
+  const fetchGoals = useCallback(async () => {
     try {
       setLoading(true);
       const res = await goalsApi.list();
@@ -37,9 +38,9 @@ export default function Goals() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  useEffect(() => { fetchGoals(); }, []);
+  useEffect(() => { fetchGoals(); }, [fetchGoals]);
 
   if (loading) {
     return (
@@ -199,15 +200,14 @@ function GoalDetailModal({ goal, onClose }) {
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useDialog(kutuRef, onCloseRef);
+  useDialog(kutuRef, onClose);
   const [tab, setTab] = useState('allocations');
   const [allocations, setAllocations] = useState([]);
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadDetail = async () => {
+  const loadDetail = useCallback(async () => {
     try {
       const [allocs, rls] = await Promise.all([
         goalsApi.allocations.list(goal.id),
@@ -220,9 +220,9 @@ function GoalDetailModal({ goal, onClose }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [goal.id, toast]);
 
-  useEffect(() => { loadDetail(); }, [goal.id]);
+  useEffect(() => { loadDetail(); }, [loadDetail]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -295,7 +295,7 @@ function GoalDetailModal({ goal, onClose }) {
           ) : tab === 'allocations' ? (
             <AllocationsTab allocations={allocations} goalId={goal.id} onRefresh={loadDetail} />
           ) : (
-            <RulesTab rules={rules} goalId={goal.id} onRefresh={loadDetail} />
+            <RulesTab rules={rules} onRefresh={loadDetail} />
           )}
         </div>
       </div>
@@ -344,7 +344,7 @@ function AllocationsTab({ allocations, onRefresh }) {
   );
 }
 
-function RulesTab({ rules, goalId, onRefresh }) {
+function RulesTab({ rules, onRefresh }) {
   const toast = useToast();
 
   const handleDelete = async (id) => {
@@ -400,8 +400,7 @@ function GoalCreateWizard({ onClose }) {
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useDialog(kutuRef, onCloseRef);
+  useDialog(kutuRef, onClose);
   const [step, setStep] = useState(1); // 1=tip, 2=detay
   const [goalType, setGoalType] = useState(null);
   const [form, setForm] = useState({ title: '', target_amount: '', target_date: '' });

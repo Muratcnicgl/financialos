@@ -62,5 +62,7 @@ export const NOKTA_KENAR = '#a1a1aa';
  */
 export const LEJANT_METIN_SINIFI = 'text-zinc-700 dark:text-zinc-300';
 export function lejantMetni(etiketle = (v) => v) {
+  // Bileşen değil, recharts `formatter` geri çağrısı; display-name burada anlamsız.
+  // eslint-disable-next-line react/display-name
   return (value) => createElement('span', { className: LEJANT_METIN_SINIFI }, etiketle(value));
 }

@@ -17,16 +17,13 @@ import { useDialog } from '../lib/dialog.js';
 export default function Modal({ title, children, onClose, genislik = 'md' }) {
   const baslikId = useId();
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  useDialog(kutuRef, onCloseRef);
+  useDialog(kutuRef, onClose);
 
   const maxW = genislik === 'lg' ? 'sm:max-w-lg' : 'sm:max-w-md';
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-2 sm:p-4 animate-fade-in"
-      onClick={() => onCloseRef.current?.()}
+      onClick={() => onClose?.()}
     >
       <div
         ref={kutuRef}

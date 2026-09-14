@@ -73,7 +73,7 @@ describe('kapsam', () => {
   it('sihirbaz doğrulama anahtarları backend rehberinin bildiği anahtarlar', () => {
     const kaynak = readFileSync(
       resolve(BURASI, '../../app/routers/onboarding.py'), 'utf-8');
-    const blok = kaynak.match(/tamamlar = \{([\s\S]*?)\n    \}/);
+    const blok = kaynak.match(/tamamlar = \{([\s\S]*?)\n {4}\}/);
     expect(blok, 'onboarding.py içinde `tamamlar` sözlüğü bulunamadı').toBeTruthy();
 
     const backendAnahtarlari = [...blok[1].matchAll(/"([a-z_]+)":/g)].map((m) => m[1]);

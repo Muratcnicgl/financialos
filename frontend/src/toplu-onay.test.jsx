@@ -11,9 +11,7 @@ vi.mock('./api.js', async () => {
   const gercek = await vi.importActual('./api.js');
   return { ...gercek, actionsApi: { approve: vi.fn(), reject: vi.fn(), edit: vi.fn(), pending: vi.fn(), gecmis: vi.fn() } };
 });
-// eslint-disable-next-line import/first
 import PendingActions, { TOPLU_ONAY_TIPLERI } from './components/PendingActions.jsx';
-// eslint-disable-next-line import/first
 import { actionsApi } from './api.js';
 
 const A = (id, tip) => ({ id, action_type: tip, summary: `a${id}`, payload: JSON.stringify({ amount: 1, account_id: 1 }) });

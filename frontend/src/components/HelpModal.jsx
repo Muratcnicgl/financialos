@@ -36,8 +36,7 @@ export default function HelpModal({ onClose }) {
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useDialog(kutuRef, onCloseRef);
+  useDialog(kutuRef, onClose);
 
   return (
     <div

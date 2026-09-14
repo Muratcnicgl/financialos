@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useId } from 'react';
 import { Loader2, Plus, Trash2, Wallet } from 'lucide-react';
-import { envelopesApi, formatTL, parseTRNumber } from '../api';
+import { envelopesApi, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import DetectedSubscriptions from '../components/DetectedSubscriptions.jsx';
 import Wishlist from '../components/Wishlist.jsx';

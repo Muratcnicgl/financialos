@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Plus, ShoppingBag, Check, X, Clock } from 'lucide-react';
-import { wishlistApi, formatTL, parseTRNumber } from '../api';
+import { wishlistApi, parseTRNumber } from '../api';
 import { useToast } from './Toast.jsx';
 import { formatPara } from '../lib/money.js';
 

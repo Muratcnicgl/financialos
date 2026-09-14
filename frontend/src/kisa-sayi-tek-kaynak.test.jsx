@@ -17,6 +17,7 @@ const KOK = join(__dirname);
 
 describe('DVIZ-014 — kısa sayı', () => {
   it('kisaSayi Türkçe compact gösterim verir', () => {
+    // eslint-disable-next-line no-irregular-whitespace -- Intl'in bastığı U+00A0 bilerek burada
     const d = (s) => s.replace(/ /g, ' ');   // Intl bölünmez boşluk basar
     expect(d(kisaSayi(12300))).toBe('12,3 B');
     expect(kisaSayi(950)).toBe('950');

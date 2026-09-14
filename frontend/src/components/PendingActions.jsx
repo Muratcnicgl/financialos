@@ -89,12 +89,11 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
     account_id: p?.account_id ?? '',
   });
 
-  if (!p) return null;
-
   const startEdit = () => { setEditing(true); setParentEditing(true); setEditErr(null); };
   const cancelEdit = () => { setEditing(false); setParentEditing(false); setEditErr(null); };
 
-  // E klavye kısayolundan edit tetikleme
+  // E klavye kısayolundan edit tetikleme. Erken dönüşten (`!p`) ÖNCE durur: hook sırası her
+  // render'da aynı kalmalı; payload sonradan bozulursa React "fewer hooks" ile çökerdi.
   useEffect(() => {
     if (editRequestedAt > prevEditRequestedAt.current) {
       prevEditRequestedAt.current = editRequestedAt;
@@ -104,6 +103,8 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
     // bağımlılığa girse her düzenleme durumu değişiminde yeniden tetiklenirdi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editRequestedAt]);
+
+  if (!p) return null;
 
   const handleSave = async () => {
     setSaving(true);
@@ -236,6 +237,7 @@ export default function PendingActions({ actions, onResolved, accounts }) {
   const [editRequestTimes, setEditRequestTimes] = useState({});  // E kısayolu tetikleyici
   const [premortemActionId, setPremortemActionId] = useState(null);
   const [horizonsActionId, setHorizonsActionId] = useState(null);
+  const [topluBusy, setTopluBusy] = useState(false);   // BUG #472 toplu onay; hook sırası için erken dönüşten önce
 
   // Y/N/E klavye kısayolları — ilk bekleyen aksiyona uygulanır
   const actionsRef = useRef(actions);
@@ -300,7 +302,6 @@ export default function PendingActions({ actions, onResolved, accounts }) {
   // dokunuşu hariç), yalnız düzenleme modunda olmayanlar; sırayla (sunucu atomik sahiplenme
   // BUG #413), ilk hatada durur ve hatayı satırda bırakır. Toplu RED yok: red gerekçe ister.
   const topluOnaylanabilir = actions.filter((a) => TOPLU_ONAY_TIPLERI.has(a.action_type) && !editingById[getActionId(a)]);
-  const [topluBusy, setTopluBusy] = useState(false);
   const handleTopluOnay = async () => {
     setTopluBusy(true);
     try {

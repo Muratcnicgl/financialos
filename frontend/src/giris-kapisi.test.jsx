@@ -29,9 +29,7 @@ vi.mock('./api.js', async () => {
 vi.mock('./panels/Login.jsx', () => ({ default: () => <div data-testid="giris-ekrani">giriş</div> }));
 vi.mock('./panels/Cockpit.jsx', () => ({ default: () => <div data-testid="kokpit">kokpit</div> }));
 
-// eslint-disable-next-line import/first
 import App from './App.jsx';
-// eslint-disable-next-line import/first
 import { metaApi } from './api.js';
 
 beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });

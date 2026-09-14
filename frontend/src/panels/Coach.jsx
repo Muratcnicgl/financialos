@@ -94,7 +94,6 @@ class CoachErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // eslint-disable-next-line no-console
     console.error('[Coach ErrorBoundary]', error, errorInfo);
   }
 
@@ -269,7 +268,6 @@ function CoachInner({ onActionResolved }) {
             { detail: 'Onayınız bekleniyor.' }
           );
         } catch (toastErr) {
-          // eslint-disable-next-line no-console
           console.warn('[Coach] Toast info hatasi (gormezden geliniyor):', toastErr);
         }
       }
@@ -279,7 +277,6 @@ function CoachInner({ onActionResolved }) {
       try {
         toast.error('Koç yanıt vermedi', { detail: msg });
       } catch (toastErr) {
-        // eslint-disable-next-line no-console
         console.warn('[Coach] Toast error hatasi (gormezden geliniyor):', toastErr);
       }
     } finally {
@@ -326,7 +323,6 @@ function CoachInner({ onActionResolved }) {
       try {
         toast.success('Sohbet sıfırlandı');
       } catch (toastErr) {
-        // eslint-disable-next-line no-console
         console.warn('[Coach] Toast hatasi (gormezden geliniyor):', toastErr);
       }
     } catch (e) {
@@ -335,7 +331,6 @@ function CoachInner({ onActionResolved }) {
       try {
         toast.error('Sıfırlama başarısız', { detail: msg });
       } catch (toastErr) {
-        // eslint-disable-next-line no-console
         console.warn('[Coach] Toast hatasi (gormezden geliniyor):', toastErr);
       }
     } finally {
@@ -366,7 +361,6 @@ function CoachInner({ onActionResolved }) {
         }),
       })));
     } catch (stateErr) {
-      // eslint-disable-next-line no-console
       console.error('[Coach] handleActionResolved state guncelleme hatasi:', stateErr);
     }
 
@@ -399,7 +393,6 @@ function CoachInner({ onActionResolved }) {
         });
       }
     } catch (toastErr) {
-      // eslint-disable-next-line no-console
       console.warn('[Coach] Toast cagri hatasi (gormezden geliniyor):', toastErr);
     }
 
@@ -407,7 +400,6 @@ function CoachInner({ onActionResolved }) {
     try {
       onActionResolved?.(actionId, status);
     } catch (parentErr) {
-      // eslint-disable-next-line no-console
       console.error('[Coach] Parent onActionResolved hatasi (panel acik kaliyor):', parentErr);
     }
   };

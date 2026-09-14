@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { hataBildir, raporlanirMi, sifirla, globalYakalayicilariBagla, TAVAN } from './lib/hataBildir.js';
+import { hataBildir, sifirla, globalYakalayicilariBagla, TAVAN } from './lib/hataBildir.js';
 
 vi.mock('./api.js', async () => {
   const gercek = await vi.importActual('./api.js');

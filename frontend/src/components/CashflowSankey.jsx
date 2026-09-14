@@ -12,7 +12,7 @@ const NODE_COLORS = {
   expense: SERI.negatif,
 };
 
-function CustomNode({ x, y, width, height, index, payload }) {
+function CustomNode({ x, y, width, height, payload }) {
   const color = NODE_COLORS[payload.type] || NODE_COLORS.cash;
   const isRightAligned = payload.type === 'expense';
   const textX = isRightAligned ? x - 4 : x + width + 4;

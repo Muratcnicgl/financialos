@@ -34,10 +34,8 @@ import { useGorunumModu } from '../hooks/useGorunumModu.js';
  * tamamını mı düşüyor?" şüphesi kalkar. Sayılar backend `butce_dokum`'dan (rules_engine tek
  * kaynak — ADR-001: engine hesaplar, UI gösterir); JS'te YENİDEN hesap YOK (drift riski yok).
  */
-function BudgetBreakdown({ dokum }) {
-  const [open, setOpen] = useState(false);
-  if (!dokum) return null;
-  const Row = ({ label, value, sign, muted }) => (
+function DokumSatiri({ label, value, sign, muted }) {
+  return (
     <div className="flex items-center justify-between py-0.5">
       <span className={muted ? 'text-zinc-500' : 'text-zinc-600 dark:text-zinc-300'}>
         {label}
@@ -47,6 +45,11 @@ function BudgetBreakdown({ dokum }) {
       </span>
     </div>
   );
+}
+
+function BudgetBreakdown({ dokum }) {
+  const [open, setOpen] = useState(false);
+  if (!dokum) return null;
   return (
     <div className="mt-2">
       <button
@@ -59,10 +62,10 @@ function BudgetBreakdown({ dokum }) {
       </button>
       {open && (
         <div className="mt-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/40 px-3 py-2">
-          <Row label="Nakit" value={dokum.nakit} sign="" />
-          <Row label="Beklenen gelir (bu ay kalan)" value={dokum.beklenen_gelir} sign="+" />
-          <Row label="Kart borcu (tamamı)" value={dokum.kart_borcu} sign="−" />
-          <Row label="Bu ayki kredi taksiti" value={dokum.bu_ayki_taksit} sign="−" />
+          <DokumSatiri label="Nakit" value={dokum.nakit} sign="" />
+          <DokumSatiri label="Beklenen gelir (bu ay kalan)" value={dokum.beklenen_gelir} sign="+" />
+          <DokumSatiri label="Kart borcu (tamamı)" value={dokum.kart_borcu} sign="−" />
+          <DokumSatiri label="Bu ayki kredi taksiti" value={dokum.bu_ayki_taksit} sign="−" />
           <div className="border-t border-zinc-200 dark:border-zinc-700 mt-1 pt-1 flex items-center justify-between font-semibold">
             <span className="text-zinc-700 dark:text-zinc-200">= Reel bütçe</span>
             <span className={`font-numeric ${dokum.reel_butce >= 0 ? 'text-zinc-800 dark:text-zinc-100' : 'text-negative-600 dark:text-negative-400'}`}>
@@ -1264,8 +1267,7 @@ function PriceUpdateModal({ account, onClose, onUpdated }) {
   // BUG #396 (A11Y-001): rol/başlık bağı + odak/Escape/Tab döngüsü tek kaynaktan.
   const baslikId = useId();
   const kutuRef = useRef(null);
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useDialog(kutuRef, onCloseRef);
+  useDialog(kutuRef, onClose);
   const [newPrice, setNewPrice] = useState(account.fiyat?.toString() || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);

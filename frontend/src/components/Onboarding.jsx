@@ -46,6 +46,7 @@ export default function Onboarding({ setActiveTab, onDegisti }) {
 
   const git = (sekme) => {
     if (setActiveTab) setActiveTab(sekme);
+    // eslint-disable-next-line react-hooks/immutability -- window.location tarayıcı durumu, React değişkeni değil
     else window.location.hash = sekme;   // setActiveTab geçilmediyse en azından iz bırak
   };
 

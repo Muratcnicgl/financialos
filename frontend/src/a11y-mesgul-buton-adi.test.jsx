@@ -67,7 +67,7 @@ describe('A11Y-010 — meşgul butonun adı', () => {
       let m;
       while ((m = acilis.exec(s)) !== null) {
         const ic = s.slice(m.index + m[0].length, s.indexOf('</button>', m.index));
-        expect(ic, `${f.split('src')[1]}: aria-busy var ama spinner && ile değil`).toMatch(new RegExp(`\{${m[1]} && <Loader2`));
+        expect(ic, `${f.split('src')[1]}: aria-busy var ama spinner && ile değil`).toMatch(new RegExp(`\\{${m[1]} && <Loader2`));
         sayi += 1;
       }
     }

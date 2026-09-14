@@ -16,7 +16,7 @@ yfinance==0.2.48
 requests==2.34.2          # P2: PYSEC-2026-1872/2275
 
 # === Yardımcılar ===
-python-dotenv==1.2.2      # P2: PYSEC-2026-2270
+python-dotenv==1.2.3      # P2: PYSEC-2026-2270
 python-dateutil==2.9.0
 
 groq==1.6.0

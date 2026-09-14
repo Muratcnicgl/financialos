@@ -34,6 +34,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - İlk yükleme üçte bire indi: paneller tembel yüklenir, grafik kütüphanesi ayrı parçada; altbilgi
   gerçek sürümü gösterir (#486).
 
+- Aksiyon onayı önce/sonra farkı için tam kokpiti iki kez üretmez; tek sorguluk özet (55× hızlı) (#487).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

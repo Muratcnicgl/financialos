@@ -39,7 +39,6 @@ from pydantic import BaseModel
 from app.serializers import UtcDateTime  # BUG #092: datetime UTC suffix
 from sqlalchemy.orm import Session
 
-from app.user_prefs import user_today  # BUG #197: kullanici saat dilimi
 from app.dependencies import get_db, get_current_user
 from app.models import (
     User, PendingAction, ActionStatus, ActionHistory, ActionSource,
@@ -48,7 +47,7 @@ from app.action_executor import (
     execute_pending_action, reject_pending_action, _normalize_transaction_payload,
 )
 from app.premortem import link_premortem_outcome
-from app.rules_engine import generate_cockpit, workspace_scope  # M43
+from app.rules_engine import hizli_bakiye_ozeti, workspace_scope  # M43 · PERF-002 (BUG #487)
 from app.workspace_deps import active_workspace_id, require_write  # M43, require_write
 from app.money_format import format_para as _para  # BUG #256 (H4): para etiketi tek kaynak
 
@@ -339,13 +338,13 @@ def approve_action(
     Reflection hook router'da tetiklenir — execute commit sonrası,
     reflection hatası aksiyonu etkilemez (rollback güvenliği)."""
     rate_limit(request, "actions", db)  # BUG #382 (SEC-004)
-    from datetime import date
 
-    # Oncelik: net worth snapshot al (execute oncesi) — M43: aktif workspace deltası
+    # Oncelik: net worth snapshot al (execute oncesi) — M43: aktif workspace deltası.
+    # PERF-002 (BUG #487): tam kokpit değil, iki sayı — önce/sonra farkı için yeter.
     with workspace_scope(ws_id):
-        cockpit_before = generate_cockpit(current_user.id, user_today(current_user), db)  # BUG #197
-    net_worth_before = cockpit_before.get("net_deger")
-    cash_before = cockpit_before.get("nakit_kasa")
+        ozet_once = hizli_bakiye_ozeti(current_user.id, db)
+    net_worth_before = ozet_once["net_deger"]
+    cash_before = ozet_once["nakit_kasa"]
 
     # Pending action'i bul (execute icin)
     pending = (
@@ -366,9 +365,9 @@ def approve_action(
 
     # Execute sonrasi snapshot — M43: aktif workspace deltası
     with workspace_scope(ws_id):
-        cockpit_after = generate_cockpit(current_user.id, user_today(current_user), db)  # BUG #197
-    net_worth_after = cockpit_after.get("net_deger")
-    cash_after = cockpit_after.get("nakit_kasa")
+        ozet_sonra = hizli_bakiye_ozeti(current_user.id, db)
+    net_worth_after = ozet_sonra["net_deger"]
+    cash_after = ozet_sonra["nakit_kasa"]
 
     # ActionHistory'e yaz
     history_entry = ActionHistory(

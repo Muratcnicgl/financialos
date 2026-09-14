@@ -10,7 +10,7 @@
   "olcum_komutu": "ruff check . --no-cache --output-format concise  (aileye göre sayım)",
   "tavan": {
     "E9": 0,
-    "F": 189,
+    "F": 188,
     "B": 31,
     "S": 60
   },
@@ -29,7 +29,8 @@
     "B 32 -> 31 ve F 203 -> 202 (2 Eyl 2026): CI kirmizi dondu ve iki gerileme cikti. (a) F541 x2 — yeni yazilan koc baglam blogunda placeholder'siz f-string; `f` oneki kaldirildi. (b) B023 — `siz_hitabi_onar` icindeki `_degistir` kapanisi dongu degiskenini baglamiyordu. BUGUN ZARARSIZDI (kapanis ayni iterasyonda hemen cagriliyor) ama desen bir tuzak: fonksiyon bir gun donguden cikarsa hepsi SON degeri gorur ve hata sessiz olur. Tavani yukseltmek yerine varsayilan argumanla baglandi — bir ratchet kapisina dogru cevap cogu zaman tavani yukseltmek degil, ihtiyaci ortadan kaldirmaktir.",
     "S 62 -> 60 (BUG #384, 11 Eyl 2026): `scripts/sir_taramasi.py` indeks tarama modu (`--staged`) iki yeni `git` cagrisi getirecekti (+3 S). Tavani yukseltmek yerine dosyadaki BES `subprocess.run([\"git\", ...])` noktasi tek `_git()` yardimcisina indirildi; bir noqa, bes cagri. Ayni desenin dorduncu tekrari (#310, #311) — bu kez sayi dustu.",
     "F 198 -> 190 (BUG #431 / TEST-032, 12 Eyl 2026): kök `test_*.py` duman betikleri `scripts/smoke/` altına taşınırken 5 kullanılmayan import + 3 yer-tutucusuz f-string temizlendi (ruff --fix, davranış değişmedi). Kazanım kilidi.",
-    "F 190 -> 189 (BUG #442, 13 Eyl 2026): reports.py'de kullanılmayan HTTPException importu temizlendi (tek-kaynak projeksiyon değişikliğiyle birlikte). Kazanım kilidi."
+    "F 190 -> 189 (BUG #442, 13 Eyl 2026): reports.py'de kullanılmayan HTTPException importu temizlendi (tek-kaynak projeksiyon değişikliğiyle birlikte). Kazanım kilidi.",
+    "F 189 -> 188 (BUG #487, 14 Eyl 2026): onay ucunda `generate_cockpit` çağrıları kalkınca `user_today` importu ve yerel `date` importu ölü kaldı — kapı gerilemeyi (+1) yakaladı, ölü importlar silindi, tavan indi. Kazanım kilidi."
   ],
   "frontend": {
     "aciklama": "Frontend lint gerileme sayacı (BUG #474 / DEVOPS-003). ESLint `error` seviyesi sıfırdır ve sıfır kalır; `warn` seviyesindeki kurallar kural başına TAVANLIDIR. Ölçen: scripts/eslint_kapisi.py; kural kümesi frontend/eslint.config.js.",

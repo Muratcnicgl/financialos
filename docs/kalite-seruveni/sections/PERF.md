@@ -10,8 +10,8 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [PERF-002] `approve_action` tek istekte `generate_cockpit`'i 2 kez çağırıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: approve generate_cockpit 2x
-- **Kanıt:** `app/routers/actions.py:239,264`
+- **Durum:** ✅ KAPANDI — BUG #487 (14 Eyl 2026). Ölçüldü: onay ucu tam kokpiti iki kez üretiyor (~40 sorgu, koç sinyalleri, nakit takvimi, alacak yaşlandırma…), sonuçtan yalnız `net_deger` ve `nakit_kasa` okuyordu. `rules_engine.hizli_bakiye_ozeti`: tek hesap sorgusu, aynı toplama kuralları (nakit / kart / kredi / lot×fiyat, emanet hariç) ve aynı net-değer formülü (`balance_rules.net_worth_seen`). Ölçüm (6 hesaplık bellek DB): kokpit 12,8 ms, hızlı özet 0,23 ms — **55×**; onay isteğinde iki çağrı → ~25 ms kazanç, canlı DB'de (daha çok tablo) daha fazla. Kapı `tests/test_hizli_bakiye_ozeti_kapisi.py`: beş hesap tipinde kokpitle kuruş eşitliği (kopya sürüklenirse kırılır), tek SELECT, onay ucu `generate_cockpit` çağırmaz.
+- **Kanıt:** `app/rules_engine.py::hizli_bakiye_ozeti`, `app/routers/actions.py`
 - **Aksiyon:** Before için hafif skaler hesap veya pending'ten türet; iki tam tarama yerine bir. (BE-036)
 - **Etki:** Orta · **Efor:** S
 

@@ -2561,6 +2561,33 @@ def calculate_health_score(
     return {"skor": skor, "seviye": seviye, "bilesenler": bilesenler}
 
 
+def hizli_bakiye_ozeti(user_id: int, db: Session) -> Dict[str, float]:
+    """PERF-002 (BUG #487): yalnız `nakit_kasa` ve `net_deger` — tek hesap sorgusu, yan iş yok.
+
+    `approve_action` önce/sonra farkı için tam kokpiti İKİ KEZ üretiyordu (~40 sorgu, koç
+    sinyalleri, nakit takvimi, alacak yaşlandırma…) ve sonuçtan yalnız iki sayı okuyordu.
+    Burada aynı toplama kuralları (nakit = cash bakiyeleri; kart/kredi = borç bakiyeleri;
+    yatırım = lot × fiyat, emanet hariç) ve aynı net-değer formülü (`balance_rules.net_worth_seen`)
+    kullanılır; `tests/test_hizli_bakiye_ozeti_kapisi.py` kokpitle eşitliği kilitler
+    (iki kopya, tek gerçek — kopya sürüklenirse kapı kırılır).
+    """
+    from app.balance_rules import net_worth_seen as _nws
+    nakit = kart = kredi = yatirim = ZERO
+    for acc in db.query(Account).filter(_scope(Account, user_id)).all():
+        if acc.account_type == AccountType.cash:
+            nakit += acc.balance
+        elif acc.account_type == AccountType.credit_card:
+            kart += acc.balance
+        elif acc.account_type == AccountType.loan:
+            kredi += acc.balance
+        elif acc.account_type == AccountType.investment and not acc.is_emanet:
+            yatirim += D(acc.lot_count or 0) * D(acc.current_price or 0)
+    return {
+        "nakit_kasa": float(round(nakit, 2)),
+        "net_deger": float(round(_nws(nakit, yatirim, kart, kredi), 2)),
+    }
+
+
 def generate_cockpit(user_id: int, today: date, db: Session) -> Dict:
     """
     Tüm cockpit verisini üretir — frontend ve LLM bu çıktıdan beslenir.

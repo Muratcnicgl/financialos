@@ -114,9 +114,9 @@ export default function BalanceTrend({ days, today, crunchThreshold = 0 }) {
             dot={false}
             activeDot={{ r: 4, fill: SERI.bakiye }}
           />
-          {crunchDays.map((d, i) => (
+          {crunchDays.map((d) => (
             <ReferenceDot
-              key={i}
+              key={d.date}
               x={d.date}
               y={d.balance}
               r={5}

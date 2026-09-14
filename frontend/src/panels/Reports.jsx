@@ -486,8 +486,8 @@ export default function Reports() {
                       <span className="chip chip-neutral text-[10px]">{relativeDate(dateStr)}</span>
                     </div>
                     <div className="space-y-2">
-                      {dayItems.map((item, i) => (
-                        <div key={i} className="flex items-center gap-3">
+                      {dayItems.map((item) => (
+                        <div key={`${item.label}-${item.amount}`} className="flex items-center gap-3">
                           {cfIcon(item)}
                           <p className="flex-1 text-sm text-zinc-800 dark:text-zinc-200 min-w-0 truncate">
                             {item.label}
@@ -600,13 +600,13 @@ function CashflowTimeline({ items, days, today: todayStr }) {
     <div className="relative h-12">
       <div className="absolute top-1/2 left-0 right-0 h-px bg-zinc-200 dark:bg-zinc-700" />
       <div className="absolute top-0 bottom-0 left-0 w-0.5 bg-brand-400 opacity-70" title="Bugün" />
-      {items.map((item, i) => {
+      {items.map((item) => {
         const itemMs = new Date(item.date + 'T00:00:00').getTime();
         const pct = Math.max(0.5, Math.min(99, ((itemMs - todayMs) / totalMs) * 100));
         const r = Math.min(14, Math.max(6, Math.abs(item.amount) / 600));
         return (
           <div
-            key={i}
+            key={`${item.date}-${item.label}-${item.amount}`}
             title={`${fmtXDate(item.date)}: ${item.label} — ${item.amount >= 0 ? '+' : ''}${formatPara(item.amount)}`}
             className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white dark:border-zinc-900 hover:scale-125 transition-transform cursor-default"
             style={{

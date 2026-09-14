@@ -42,14 +42,16 @@
     },
     "olcum_komutu": "cd frontend && node scripts/lint.cjs -f json  (uyarılar kural başına sayılır)",
     "tavan": {
-      "react-hooks/set-state-in-effect": 27
+      "react-hooks/set-state-in-effect": 27,
+      "react/no-array-index-key": 11
     },
     "notlar": [
       "İLK ÖLÇÜM (14 Eyl 2026, kurulum öncesi): 148 dosya, 112 hata + 11 uyarı. Hataların dökümü: 32 no-unused-vars, 27 react-hooks/set-state-in-effect, 13 react/jsx-key, 11 tanımsız 'import/first' direktifi, 8 no-undef, 8 react-hooks/refs, 4 static-components, 3 immutability, 2 rules-of-hooks, 4 tekil. Aynı commit'te hepsi sıfırlandı; yalnız set-state-in-effect 'warn' seviyesine çekilip tavanlandı.",
       "GERÇEK DEFEKT BULUNDU: react-hooks/rules-of-hooks ×2 (PendingActions.jsx) — `useEffect` ve `useState` erken `return null` satırından SONRA çağrılıyordu; koşul değişince React 'rendered fewer hooks' ile çökerdi (bugün üst bileşen boş listede bileşeni hiç çizmediği için görünmüyordu). Hook'lar erken dönüşün üstüne alındı.",
       "react-hooks/refs ×8: sekiz diyalog aynı satırı kopyalıyordu (`onCloseRef.current = onClose` render sırasında). Tek kaynağa çekildi: `useDialog(kutuRef, onClose)` ref'i içinde tutar ve commit sonrası günceller.",
       "react-hooks/set-state-in-effect 27: 'veri gelince türetilmiş durumu sıfırla' deseni; her biri ayrı bir davranış kararı. Toptan yeniden yazmak yerine tavanla izlenir, dokunulan dosyada eritilir.",
-      "prettier BİLEREK yok (ruff format ile aynı gerekçe): 200+ dosyalık anlamsız diff gerçek değişikliği gizler, git blame bozulur."
+      "prettier BİLEREK yok (ruff format ile aynı gerekçe): 200+ dosyalık anlamsız diff gerçek değişikliği gizler, git blame bozulur.",
+      "react/no-array-index-key eklendi (BUG #483 / FE-010, 14 Eyl 2026): ölçülen 23; veri listeleri (koç mesajları, kokpit hatırlatma/ödeme/alacak/uyarı, akış takvimi, bakiye trendi) kararlı anahtara geçti; kalanlar iskelet `[...Array(n)]` ve sıra değiştirmeyen sabit listeler (uyarı metinleri, olay günlüğü, pasta dilimleri). Tavan ölçülene çekildi: 11 (7 iskelet `[...Array(n)]`, 2 pasta `Cell`, uyarı metinleri, olay günlüğü)."
     ]
   }
 }

@@ -23,6 +23,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Koçta hiç bağlanmamış `onActionResolved` prop'u ve koruma bloğu silindi; panel-arası tazeleme
   yeniden bağlanmayla zaten sağlanıyor (#482).
 
+- Veri listeleri (koç mesajları, kokpit satırları, akış takvimi, raporlar) kararlı anahtar
+  kullanır; dizin anahtar kuralı tavanla izlenir (#483).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

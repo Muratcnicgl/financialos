@@ -37,6 +37,9 @@ export default [
       // türetilmiş durumu sıfırla" deseni; toptan yeniden yazmak davranış riski taşır. Tavanla
       // izlenir, dosyaya dokunuldukça eritilir.
       'react-hooks/set-state-in-effect': 'warn',
+      // Dizin anahtarı: veri listelerinde yanlış bileşene state taşır (FE-010 / BUG #483).
+      // Kalanlar iskelet `[...Array(n)]` ve sıra değiştirmeyen sabit listeler — tavanla izlenir.
+      'react/no-array-index-key': 'warn',
     },
   },
   {

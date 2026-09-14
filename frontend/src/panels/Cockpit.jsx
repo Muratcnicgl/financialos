@@ -784,8 +784,8 @@ export default function Cockpit({ setActiveTab }) {
         <div className="card p-3 flex items-start gap-2 text-sm border-warn-200 dark:border-warn-800/50">
           <AlertTriangle className="w-4 h-4 text-warn-600 dark:text-warn-500 shrink-0 mt-0.5" />
           <div className="text-zinc-600 dark:text-zinc-300 space-y-0.5">
-            {data.asgari_tuzagi.kartlar.slice(0, 2).map((k, i) => (
-              <div key={i}>
+            {data.asgari_tuzagi.kartlar.slice(0, 2).map((k) => (
+              <div key={k.ad}>
                 {k.asla_bitmez
                   ? <><span className="font-semibold">{k.ad}</span>: yalnız asgariyle <span className="font-semibold text-negative-600 dark:text-negative-400">asla kapanmaz</span> (asgari &lt; faiz)</>
                   : <><span className="font-semibold">{k.ad}</span> asgari-ödeme tuzağı: <span className="font-semibold">{k.ay} ay</span> · faiz{' '}
@@ -803,9 +803,9 @@ export default function Cockpit({ setActiveTab }) {
           ekrandan bir şey kalkıyorsa kaç tane kalktığı söylenmeli. */}
       {gorunurUyarilar.length > 0 && (
         <div className="space-y-2">
-          {cizilecekUyarilar.map((alert, i) => (
+          {cizilecekUyarilar.map((alert) => (
             <div
-              key={i}
+              key={alert.kod || alert.baslik}
               className={`card p-4 ${
                 alert.seviye === 'kritik'
                   ? 'border-negative-300 dark:border-negative-700/50 bg-negative-50/50 dark:bg-negative-950/20'
@@ -1002,7 +1002,7 @@ export default function Cockpit({ setActiveTab }) {
             </span>
           </div>
           <div className="space-y-2">
-            {data.upcoming_reminders.map((r, i) => {
+            {data.upcoming_reminders.map((r, i) => {   // i: yalnız meşgul-satır durumu için
               // UX-013 (BUG #477): satır pasif liste değil — tek tıkla eyleme dönüşür.
               // borç → Ödedim, alacak → Geldi (nakit ayağı BUG #241 ile), kart → Koça sor.
               // Düzenli gelir/gider satırı buton TAŞIMAZ: vadesi geldiği gün trigger-due
@@ -1026,7 +1026,7 @@ export default function Cockpit({ setActiveTab }) {
               const typeLabel = { income: 'Gelir', receivable: 'Tahsilat',
                 debt: 'Borç', expense: 'Gider', card_payment: 'Son ödeme' }[r.type] || r.type;
               return (
-                <div key={i}
+                <div key={`${r.type}-${r.kaynak_id ?? r.name}-${r.due_date ?? r.days_until}`}
                   className="flex items-center justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
@@ -1079,11 +1079,11 @@ export default function Cockpit({ setActiveTab }) {
                 (t, p) => t + (p.tip === 'gelir' ? Number(p.tutar) : -Number(p.tutar)), 0))}`}
           >
             <div className="space-y-2">
-              {data.upcoming_payments.map((p, i) => (
+              {data.upcoming_payments.map((p) => (
                 /* UX-036 (BUG #465): satır tıklanabilir — kalemin yaşadığı panele gider */
                 <button
                   type="button"
-                  key={i}
+                  key={`${p.tip}-${p.ad}-${p.tarih}`}
                   onClick={() => setActiveTab?.(VADE_PANELI[p.tip] || 'incomedebt')}
                   aria-label={`${p.ad}: ${VADE_PANEL_ADI[VADE_PANELI[p.tip] || 'incomedebt']} panelinde aç`}
                   className="w-full text-left flex items-center justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 rounded px-1 -mx-1"
@@ -1124,10 +1124,10 @@ export default function Cockpit({ setActiveTab }) {
               data.upcoming_receivables.reduce((t, r) => t + Number(r.tutar), 0))}`}
           >
             <div className="space-y-2">
-              {data.upcoming_receivables.map((r, i) => (
+              {data.upcoming_receivables.map((r) => (
                 <button
                   type="button"
-                  key={i}
+                  key={`${r.kim}-${r.tarih}-${r.tutar}`}
                   onClick={() => setActiveTab?.('incomedebt')}
                   aria-label={`${r.kim}: Gelir & Borç panelinde aç`}
                   className="w-full text-left flex items-start justify-between text-sm py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 rounded px-1 -mx-1"

@@ -79,8 +79,9 @@ export default function CashflowCalendar({ days }) {
       {/* Takvim grid */}
       <div className="grid grid-cols-7 gap-0.5">
         {cells.map((day, i) => {
+          // FE-010 (BUG #483): gün hücresi tarihle (`iso`), boş dolgu hücresi konumuyla anahtarlanır.
           if (!day) {
-            return <div key={i} className="aspect-square" />;
+            return <div key={`bos-${i}`} className="aspect-square" />;   // eslint-disable-line react/no-array-index-key -- sabit dolgu hücresi, sıra değiştirmez
           }
           const iso = isoStr(viewYear, viewMonth, day);
           const forecastDay = dayMap[iso];
@@ -92,7 +93,7 @@ export default function CashflowCalendar({ days }) {
 
           return (
             <button
-              key={i}
+              key={iso}
               onClick={() => {
                 if (hasForecast) setSelected(isSelected ? null : { date: iso, day: forecastDay });
               }}
@@ -136,8 +137,8 @@ export default function CashflowCalendar({ days }) {
             <p className="text-xs text-zinc-500">Bu gün için kayıt yok.</p>
           ) : (
             <div className="space-y-1">
-              {selected.day.events.map((ev, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
+              {selected.day.events.map((ev) => (
+                <div key={`${ev.label}-${ev.amount}`} className="flex items-center justify-between text-xs">
                   <span className="text-zinc-600 dark:text-zinc-400 truncate max-w-[70%]">{ev.label}</span>
                   <span className={`font-numeric font-semibold flex-shrink-0 ${ev.amount >= 0 ? 'text-positive-600 dark:text-positive-400' : 'text-negative-600 dark:text-negative-400'}`}>
                     {ev.amount > 0 ? '+' : ''}{formatPara(ev.amount)}

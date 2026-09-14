@@ -60,8 +60,8 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [FE-010] Liste render'larında array-index key (özellikle mesaj listesi)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: array-index key sürüyor (Coach.jsx:455 vb)
-- **Kanıt:** `Coach.jsx:450` (`key={i}`); `Cockpit.jsx:232,385,419,457`; `Reports.jsx:450,574`
+- **Durum:** ✅ KAPANDI — BUG #483 (14 Eyl 2026). Ölçüldü (`react/no-array-index-key`): 23 yer. Veri listeleri kararlı anahtara geçti — koç mesajları (`mesajKimligi`: geçmişten gelen kaydın id'si, taze mesaj tek seferlik kimlik; dizin, silme/eklemede bekleyen aksiyon kartını yanlış mesajın altına taşıyabilirdi), kokpit hatırlatma/ödeme/alacak/uyarı/asgari satırları (tip+kimlik+tarih / kod), akış takvimi (gün = ISO tarih, olay = etiket+tutar), bakiye trendi sıkışma noktaları (tarih), raporlar gün kalemleri ve zaman çizgisi. Kalan 11 BİLEREK dizin: 7 iskelet `[...Array(n)]`, 2 pasta `Cell` (renk dilimi, sıra sabit), uyarı metinleri, olay günlüğü, takvim dolgu hücreleri (gerekçeli `eslint-disable`) — sıra değiştirmeyen sabit listelerde dizin doğru anahtardır. Kural `warn` + tavan 11 (`kalite-baseline.json › frontend`): yeni bir veri listesinde dizin anahtar kapıyı kırar.
+- **Kanıt:** `frontend/eslint.config.js` (`react/no-array-index-key`), `Coach.jsx::mesajKimligi`, `Cockpit.jsx`, `CashflowCalendar.jsx`, `Reports.jsx`, `BalanceTrend.jsx`
 - **Aksiyon:** Kararlı id (mesajda ts+role; reminder'da `${type}-${name}-${tarih}`). Statik skeleton map'leri sorun değil.
 - **Etki:** Orta · **Efor:** S
 

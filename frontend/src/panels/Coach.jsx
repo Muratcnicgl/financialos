@@ -164,6 +164,16 @@ function parseHistoryDate(item) {
 // COACH (icerik) — ErrorBoundary ile saritlanir
 // ============================================================
 
+// FE-010 (BUG #483): mesaj listesi kararlı anahtar ister — dizin, silme/ekleme'de yanlış
+// bileşene state taşır (bekleyen aksiyon kartı yanlış mesajın altında kalabilir). Geçmişten
+// gelenler kaydın id'sini, taze mesajlar tek seferlik bir kimlik taşır.
+let _mesajSayaci = 0;
+export function mesajKimligi(sabit = null) {
+  if (sabit) return sabit;
+  _mesajSayaci += 1;
+  return `m-${Date.now().toString(36)}-${_mesajSayaci}`;
+}
+
 function CoachInner() {
   const toast = useToast();
   const [messages, setMessages] = useState([]);
@@ -203,6 +213,7 @@ function CoachInner() {
         if (!mounted) return;
         const accounts = cockpit?.accounts || [];
         const msgs = (items || []).map((h) => ({
+          kimlik: mesajKimligi(h.id != null ? `gecmis-${h.id}` : null),   // FE-010 (BUG #483)
           role: h.role === 'user' ? 'user' : 'coach',
           text: h.content,
           ts: parseHistoryDate(h),
@@ -240,7 +251,7 @@ function CoachInner() {
     const text = input.trim();
     if (!text || sending) return;
 
-    const userMsg = { role: 'user', text, ts: new Date(), actions: [] };
+    const userMsg = { kimlik: mesajKimligi(), role: 'user', text, ts: new Date(), actions: [] };   // FE-010
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';   // UX-033: gönderince küçül
@@ -250,6 +261,7 @@ function CoachInner() {
     try {
       const res = await coachApi.chat(text);
       const coachMsg = {
+        kimlik: mesajKimligi(),   // FE-010 (BUG #483)
         role: 'coach',
         // BUG #018 fix: Backend artik akilli placeholder donduruyor.
         // Yine de guvenlik icin nazik bir fallback (eski "(bos cevap)" idi).
@@ -542,9 +554,9 @@ function CoachInner() {
             </EmptyState>
         ) : (
           <>
-            {messages.map((m, i) => (
+            {messages.map((m) => (
               <Message
-                key={i}
+                key={m.kimlik}
                 message={m}
                 onActionResolved={handleActionResolved}
               />

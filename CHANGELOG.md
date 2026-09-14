@@ -7,7 +7,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 ## [Yayınlanmamış]
 
-_(boş — 0.3.0 ile kapatıldı; yeni değişiklikler buraya, sürüm çıkarken aşağıya taşınır)_
+### Operasyon
+- Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
+  kaydı `onarim=1` olarak kalır (#478).
 
 ## [0.3.0] — 2026-09-14 — "Ölçülen sistem" (kapalı beta → kalite serüveni)
 

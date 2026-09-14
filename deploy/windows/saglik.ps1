@@ -8,7 +8,8 @@
 # ÜÇ AYRI ŞEY ÖLÇÜLÜR ve karıştırılmaz:
 #   1. UYGULAMA  — 127.0.0.1:8000 cevap veriyor mu   → düşmüşse YENİDEN BAŞLATILIR
 #   2. TÜNEL     — Funnel yapılandırması duruyor mu  → düşmüşse YENİDEN KURULUR
-#   3. DIŞ YOL   — public ingress IP'sinden erişim   → yalnız RAPORLANIR
+#   3. DIŞ YOL   — public ingress IP'sinden erişim   → raporlanır; uygulama sağlam ve
+#                  adres çözülüyorken düşüyorsa funnel oturumu yenilenir (BUG #478)
 #
 # 3. madde neden otomatik onarılmıyor: dış yol Tailscale'in altyapısına bağlı ve geçici
 # ağ dalgalanmasında da düşer. Her düşüşte servisi yeniden başlatmak, çalışan bir
@@ -92,7 +93,7 @@ if (Test-Path $ts) {
     }
 } else { $sorun += "tailscale bulunamadi" }
 
-# ── 3. DIŞ YOL (yalnız raporlanır) ─────────────────────────────────────────
+# ── 3. DIŞ YOL (raporlanır; BUG #478'den beri tünel oturumunu da onarır) ──────
 # ÖNEMLİ: `--resolve` ile PUBLIC ingress IP'si zorlanır. Düz istek bu makinede
 # tailnet IP'sine (100.x) gider ve funnel'ı ATLAR — yani hiçbir şey ölçmez.
 # NEDEN DoH (DNS-over-HTTPS): Tailscale istemcisi bu makinede DNS'i ELE GECIRIYOR —
@@ -173,6 +174,31 @@ if ($ipler.Count -eq 0) {
         }
         if ($disOk) { break }
         if ($deneme -eq 1) { Start-Sleep -Seconds 5 }   # hıçkırık mı, arıza mı
+    }
+    # BUG #478 (14 Eyl 2026) — "FUNNEL ON" YAZIYORDU, DIŞ YOL BİR SAATTİR ÖLÜYDÜ.
+    # Ölçüm: 10:35'ten 11:30'a kadar altı koşum "DIS YOL erisilemiyor (son kod: 000)"
+    # yazdı; uygulama yerelde 200 veriyordu, `funnel status` "Funnel on" diyordu, DNS üç
+    # ingress IP'sini (185.40.234.x) doğru çözüyordu — ama üçü de TLS el sıkışmasında
+    # 0,12 sn'de düşüyordu. GitHub'daki dış sonda da aynı anda 000 gördü ve kesinti
+    # kaydı açtı. Yani 2. adımın sorduğu "funnel açık mı" sorusu YETERSİZ: yapılandırma
+    # açık, ingress OTURUMU ölü (ağ kopup gelince yenilenmemiş). 2. adım bunu göremez,
+    # 3. adım görür ama yalnız raporlardı.
+    # Onarım ölçüldü: `serve reset` + funnel'ı yeniden vermek 30 sn içinde üç ingress'i
+    # de 200'e döndürdü. Aynı el burada, AYNI koşullarla: uygulama yerelde sağlam
+    # (sorun tünelde), adres çözülüyor (sorun DNS'te değil), iki deneme de düştü
+    # (hıçkırık değil). Kayıt "onarım gerekti" olarak düşer (BUG #344: onarım ölçümü
+    # yemez); onarım da düşerse hata satırı olduğu gibi kalır.
+    if (-not $disOk -and $uygulamaOk -and (Test-Path $ts)) {
+        $onarimGerekti = $true
+        Yaz "UYARI" "dis yol olu, funnel oturumu yenileniyor (serve reset + funnel)"
+        & $ts serve reset 2>&1 | Out-Null
+        & $ts funnel --bg --https=443 "http://127.0.0.1:$Port" 2>&1 | Out-Null
+        Start-Sleep -Seconds 20
+        foreach ($ip in $ipler) {
+            $sonKod = & curl.exe -s -o NUL -w "%{http_code}" --max-time 20 `
+                        --resolve "${Adres}:443:${ip}" "https://$Adres/api/health" 2>$null
+            if ($sonKod -eq "200") { $disOk = $true; Yaz "ONARILDI" "dis yol geri geldi (ingress $ip)"; break }
+        }
     }
     if (-not $disOk) { $disNot = "DIS YOL erisilemiyor (public ingress, son kod: $sonKod)" }
 }

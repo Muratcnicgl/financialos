@@ -166,7 +166,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [UX-026] Bekleyen aksiyonlarda "toplu onayla/reddet" yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: toplu onay yok
+- **Durum:** ✅ KAPANDI (toplu onay) · ⛔ (toplu red) — BUG #472 (14 Eyl 2026): ≥2 DÜŞÜK RİSKLİ bekleyen varsa "Hepsini onayla (N)"; küme `TOPLU_ONAY_TIPLERI` = add_transaction, mark_debt_paid, update_fund_price, add_master_checkpoint (ACTION_TYPES'ın alt kümesi); bilinçli dışarıda: sell_investment (piyasa işlemi, MC1), update_account_balance (bakiyeyi ezer), pay_credit_card (iki hesabı oynatır). Sırayla onaylar (sunucu atomik sahiplenme BUG #413), ilk hatada durur, hata satırda kalır; düzenleme modundaki aksiyon atlanır. Toplu RED yok: red gerekçe ister, gerekçesiz toplu red karar izini (BUG #443) boşaltır. Kapı: `frontend/src/toplu-onay.test.jsx`.
 - **Kanıt:** `Cockpit.jsx:129-137`+`PendingActions.jsx`
 - **Aksiyon:** 2+ pending'de "Hepsini onayla" (düşük riskli tipler); sell_investment hariç.
 - **Etki:** Orta · **Efor:** M

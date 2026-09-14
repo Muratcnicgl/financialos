@@ -222,6 +222,12 @@ function TransactionTable({ actionId, payload, accounts, onEdited, setEditing: s
   );
 }
 
+// UX-026 (BUG #472): toplu onaya girebilen tipler (ACTION_TYPES'ın alt kümesi) — kayıt
+// niteliğinde, geri alınabilir olanlar. Bilinçli DIŞARIDA: sell_investment (piyasa işlemi,
+// MC1 emanet riski), update_account_balance (bakiyeyi ezer), pay_credit_card (iki hesabı
+// birden oynatır) — her biri tek tek okunmalı.
+export const TOPLU_ONAY_TIPLERI = new Set(['add_transaction', 'mark_debt_paid', 'update_fund_price', 'add_master_checkpoint']);
+
 export default function PendingActions({ actions, onResolved, accounts }) {
   const [busyId, setBusyId] = useState(null);
   const [errorById, setErrorById] = useState({});
@@ -290,6 +296,31 @@ export default function PendingActions({ actions, onResolved, accounts }) {
     }
   };
 
+  // UX-026 (BUG #472): toplu onay — yalnız DÜŞÜK RİSKLİ tipler (yatırım satışı ve emanet
+  // dokunuşu hariç), yalnız düzenleme modunda olmayanlar; sırayla (sunucu atomik sahiplenme
+  // BUG #413), ilk hatada durur ve hatayı satırda bırakır. Toplu RED yok: red gerekçe ister.
+  const topluOnaylanabilir = actions.filter((a) => TOPLU_ONAY_TIPLERI.has(a.action_type) && !editingById[getActionId(a)]);
+  const [topluBusy, setTopluBusy] = useState(false);
+  const handleTopluOnay = async () => {
+    setTopluBusy(true);
+    try {
+      for (const a of topluOnaylanabilir) {
+        const id = getActionId(a);
+        setBusyId(id);
+        try {
+          const res = await actionsApi.approve(id);
+          onResolved?.(id, 'approved', res);
+        } catch (e) {
+          setErrorById((prev) => ({ ...prev, [id]: e.message }));
+          break;
+        }
+      }
+    } finally {
+      setBusyId(null);
+      setTopluBusy(false);
+    }
+  };
+
   const handleReject = async (actionId) => {
     setBusyId(actionId);
     setErrorById((prev) => ({ ...prev, [actionId]: null }));
@@ -315,6 +346,15 @@ export default function PendingActions({ actions, onResolved, accounts }) {
 
   return (
     <>
+    {topluOnaylanabilir.length >= 2 && (
+      <div className="flex items-center justify-end gap-2 mb-2 text-xs" data-testid="toplu-onay">
+        <span className="text-zinc-500 dark:text-zinc-400">{topluOnaylanabilir.length} düşük riskli kayıt</span>
+        <button type="button" onClick={handleTopluOnay} disabled={topluBusy || !!busyId} aria-busy={topluBusy}
+                className="btn btn-primary !text-xs !px-3 !min-h-[36px]">
+          {topluBusy && <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />}Hepsini onayla ({topluOnaylanabilir.length})
+        </button>
+      </div>
+    )}
     <div className="space-y-2 animate-slide-up">
       {actions.map((a) => {
         const aid = getActionId(a);

@@ -102,7 +102,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Kaynak:** [vite-pwa Prompt for update](https://vite-pwa-org.netlify.app/guide/prompt-for-update.html)
 
 ### [MOB-009] theme-color meta sabit — açık temada ve standalone status bar yanlış renk
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: theme-color meta statik, useTheme güncellemez
+- **Durum:** ✅ KAPANDI — BUG #499 (14 Eyl 2026). Ölçüldü: `theme-color` sabit slate `#0f172a` (hiçbir zemine uymuyor), geçişte güncellenmiyordu. **Yan bulgu — gerçek defekt:** `theme-init.js` localStorage'da `financialos-theme` okuyordu, React (`useTheme`) `theme` yazıyordu → açık tema kullanan herkes her açılışta koyu başlayıp mount'ta açığa dönüyordu (flash; betiğin var oluş sebebi buydu). Düzeltildi: aynı anahtar, kayıt yoksa OS tercihi (A11Y-016 kuralı), meta ilk boyada betikten, geçişte App'ten (`lib/tema.js::TEMA_RENGI`, zinc-950/zinc-50 = gövde zemini). Kapı `frontend/src/mobil-kabuk.test.jsx` (betik jsdom'da gerçekten koşturulur).
 
 - **Sorun:** Standalone (ana ekrandan açılan) PWA'da status bar / tarayıcı çubuğu rengi `theme-color`'dan gelir. Sabit koyu `#0f172a`, kullanıcı açık temaya geçince (`App.jsx` `useTheme`) uyumsuz kalır — açık temada koyu şerit görünür.
 - **Kanıt:** `frontend/index.html:7` `<meta name="theme-color" content="#0f172a">` statik. `frontend/src/App.jsx:43-48` tema değişiminde yalnız `<html>.dark` class'ı güncelleniyor, meta güncellenmiyor.
@@ -119,7 +119,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Kaynak:** [WebKit — Web Push / Home Screen web apps](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/)
 
 ### [MOB-011] Header üst safe-area yok — notch/dynamic island başlığı örtüyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: safe-area-inset-top yok
+- **Durum:** ✅ KAPANDI — BUG #499 (14 Eyl 2026). `viewport-fit=cover` zaten açıktı, `env()` hiç kullanılmıyordu. `header.guvenli-alan-ust { padding-top: env(safe-area-inset-top) }` — çentiksiz cihazda 0. Kapı `mobil-kabuk.test.jsx`. ⚪ Gerçek cihaz ölçümü yok (simülatör/e2e çentik veremez); CSS sözleşmesi kilitli.
 
 - **Sorun:** `viewport-fit=cover` zaten açık, yani içerik çentik altına uzanabiliyor; ama sticky header'da `env(safe-area-inset-top)` padding yok. Standalone'da (özellikle iPhone dynamic island) başlık ve sekme çubuğu çentiğin altında kalır/kesilir.
 - **Kanıt:** `frontend/index.html:6` `viewport-fit=cover` var. `frontend/src/App.jsx:113-114` header `sticky top-0 ... px-4 py-3` — üst inset padding'i yok.
@@ -127,7 +127,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Orta · **Efor:** XS
 
 ### [MOB-012] Yatay safe-area yok — landscape'te çentik içeriği kesiyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: safe-area-inset-left/right yok
+- **Durum:** ✅ KAPANDI — BUG #499 (14 Eyl 2026). Kök kap `.guvenli-alan-yan` (`env(safe-area-inset-left/right)`) — yatayda çentik içeriği kesmez. Kapı `mobil-kabuk.test.jsx`.
 
 - **Sorun:** Yatay modda (iPhone landscape) çentik sol/sağdadır; `env(safe-area-inset-left/right)` uygulanmazsa içerik ve dokunma hedefleri çentik altında kalır.
 - **Kanıt:** `frontend/src/App.jsx:114`, `:197` — `px-4` sabit yatay padding, safe-area inset yok. Tüm paneller bu `max-w-6xl mx-auto px-4` konteynerinden geçiyor.
@@ -143,7 +143,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Yüksek (mobil temel navigasyon) · **Efor:** M
 
 ### [MOB-014] Üst sekme şeridinde aktif sekme görünüre kaydırılmıyor + scroll ipucu yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: aktif sekme scrollIntoView yok
+- **Durum:** ✅ KAPANDI — ölçümle (14 Eyl 2026, BUG #499 turu): madde bayat. `App.jsx` aktif sekmeyi şeritte görünür kılar (`scrollIntoView` yerine elle `scrollLeft` — dikey konumu oynatmaz), `e2e/sekme-seridi.spec.js` klavyeyle geçişte görünürlüğü ve solma maskesini ölçer.
 
 - **Sorun:** 10 sekme yatay scroll'da; klavye kısayoluyla (`useKeyboardShortcuts`) veya derin sekmeye geçince aktif sekme görünür alanın dışında kalabilir, kullanıcı nerede olduğunu görmez. Kaydırılabilir olduğuna dair görsel ipucu (kenar gölgesi) da yok.
 - **Kanıt:** `frontend/src/App.jsx:164` `overflow-x-auto`, `:166-179` sekme butonları — aktif sekmede `scrollIntoView` çağrısı yok.
@@ -151,7 +151,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Düşük · **Efor:** S
 
 ### [MOB-015] Üst sekme dokunma hedefleri 44px altında (FE-019'un tab tamamlayıcısı)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: sekme butonu min-h-44px yok
+- **Durum:** ✅ KAPANDI — ölçümle (14 Eyl 2026, BUG #499 turu): madde bayat. BUG #265 `.sekme` sınıfı ≥44px; `e2e/tema-mobil.spec.js` her dokunma hedefini (≥44px, iki yazılı istisna) render ederek ölçer ve yeşil.
 
 - **Sorun:** FE-019 ikon-only butonların 44px altını genel olarak işaret ediyor; buradaki spesifik ve en çok dokunulan hedef sekme butonları: `py-2.5` (~10px) + `text-sm` satır yüksekliğiyle toplam ~40px, Apple HIG/Material 44-48px eşiğinin altında. Yanlış sekmeye basma mobilde sık.
 - **Kanıt:** `frontend/src/App.jsx:170` sekme butonu `px-3 py-2.5 text-sm`. Not: `.btn` ve `.btn-icon` global class'ları `index.css:70-75` zaten `min-h-[44px]` içeriyor — ama sekme butonları bu class'ları kullanmıyor, ham utility.
@@ -159,7 +159,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Orta · **Efor:** XS
 
 ### [MOB-016] Coach textarea sabit 2 satır + yazılım klavyesi girişi örtüyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: textarea auto-grow/visualViewport yok
+- **Durum:** ✅ KAPANDI — BUG #469 (UX-033): girdi 2→6 satır otomatik büyür (`otoBuyut`, kapı `koc-girdi-buyume.test.jsx`). Klavye örtmesi ⚪: kök kap `h-dvh` — dinamik viewport yazılım klavyesini hesaba katar; `visualViewport` dinleyicisi gerçek cihaz ölçümü olmadan eklenmedi.
 
 - **Sorun:** Mobilde uzun mesaj yazarken 2 satır sabit alan yetmez (auto-grow yok); ayrıca yazılım klavyesi açılınca `sticky bottom-0` input klavyenin arkasında kalabilir çünkü layout `h-dvh`'e göre değil klavye-öncesi yüksekliğe göre.
 - **Kanıt:** `frontend/src/panels/Coach.jsx:472-481` `<textarea rows={2} ... resize-none>` — auto-grow yok. `:471` input barı `sticky bottom-0 pb-[env(safe-area-inset-bottom)]` (iyi başlangıç) ama klavye görünürlüğüne tepki vermiyor.
@@ -167,7 +167,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Orta · **Efor:** M
 
 ### [MOB-017] 100vh/dvh doğrulaması ve iOS eski Safari fallback
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: h-dvh fallback yok
+- **Durum:** ✅ KAPANDI — BUG #499 (14 Eyl 2026). Tailwind `h-dvh` yalnız `100dvh` üretir; desteklemeyen eski Safari'de yükseklik sıfırlanırdı. `@supports not (height: 100dvh) { .h-dvh { height: 100vh } }` yedeği. Kapı `mobil-kabuk.test.jsx`.
 
 - **Sorun:** Kök yükseklik `h-dvh`'e taşınmış (doğru tercih), ama `dvh` desteklemeyen eski WebView/Safari'de (iOS <15.4) layout çökebilir; ayrıca alt sabit input/nav ile birleşince "adres çubuğu gizlenince zıplama" testi yapılmamış.
 - **Kanıt:** `frontend/src/App.jsx:112` `h-dvh flex flex-col overflow-hidden`. Fallback (`min-h-screen`) veya `@supports` yok.

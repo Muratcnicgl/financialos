@@ -344,3 +344,15 @@
   border-radius: 1px;
   animation: kutlama-dus 1.8s ease-in forwards;
 }
+
+/* MOB-011/012 (BUG #499): çentik / dynamic island / yatay çentik güvenli alanı.
+   viewport-fit=cover açık (index.html) — env() değerleri ancak böyle dolar. Başlık üstten,
+   gövde yanlardan pay alır; çentiksiz cihazda env() 0'dır, hiçbir şey değişmez. */
+header.guvenli-alan-ust { padding-top: env(safe-area-inset-top, 0px); }
+.guvenli-alan-yan { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+
+/* MOB-017 (BUG #499): `h-dvh` (100dvh) eski iOS Safari'de (<15.4) tanınmaz ve yükseklik
+   sıfırlanır — kaydırılabilir gövde çöker. Desteklemeyen tarayıcı 100vh'ye düşer. */
+@supports not (height: 100dvh) {
+  .h-dvh { height: 100vh; }
+}

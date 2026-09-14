@@ -56,6 +56,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Finansal sözlük (`docs/sozluk.md`) ve doğru ilk-çalıştırma akışı (README) (#496).
 
+- Açık tema artık açılışta koyu "flash" yapmaz (başlatıcı yanlış anahtar okuyordu); durum çubuğu
+  tema rengini alır; çentik güvenli alanı ve eski Safari için 100vh yedeği (#499).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

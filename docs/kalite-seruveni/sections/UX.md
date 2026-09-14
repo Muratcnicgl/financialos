@@ -214,7 +214,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [UX-034] Mikro-kopya tonu tutarsız — teknik/karışık terimler
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: teknik mikro-kopya, sözlük/ton yok
+- **Durum:** ✅ KAPANDI — BUG #506 (14 Eyl 2026). Ölçüldü (kaynak taraması, 10 sözlük terimi × varyant sayımı): terim varyantları büyük ölçüde başlık/cümle bağlamından ("Günlük limit" başlık, "günlük limit" cümle) — kural değil; iki gerçek kusur: App.jsx rozet ipucu ASCII'ye düşmüş ("Bugunku LLM cagri kullanimi…"), kokpit "Nakit runway" İngilizce (sözlük: nakit pisti). Düzeltildi; `docs/sozluk.md › Yazım kuralları` (cümle içi küçük harf, başlıkta ilk harf, ekranda İngilizce alan adı yok). Kapı `frontend/src/mikro-kopya.test.js`: kullanıcıya görünen öznitelik/metin düğümlerinde ASCII'ye düşmüş Türkçe sözcük 0, "runway" 0 — koç üslubu ayrı kapıda (`uslup_kurallari`).
 - **Kanıt:** `Cockpit.jsx:184` ("Gölge muhasebe"), `:356` ("Sıkışma Günü")
 - **Aksiyon:** Terim sözlüğü + tek ton (net+insani); "Sıkışma günü"→"Kasa dibi günü". Alan adları korunur.
 - **Etki:** Orta · **Efor:** M

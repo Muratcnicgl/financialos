@@ -72,6 +72,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Koç motoru açılışta ısıtılır — ilk sohbet SDK yükleme bedelini (~3 sn) ödemez (#505).
 
+- Mikro-kopya: Türkçe karaktersiz ipucu ve "Nakit runway" düzeltildi ("nakit pisti"); yazım kuralları sözlükte (#506).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

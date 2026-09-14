@@ -454,7 +454,7 @@ function AppContent({ onLogout }) {
                   usagePct > 50 ? 'chip-warn' :
                   ''
                 }`}
-                title="Bugunku LLM cagri kullanimi (gunluk limitin yuzdesi)"
+                title="Bugünkü koç kullanımı (günlük limitin yüzdesi)"
               >
                 {usagePct}%
               </span>

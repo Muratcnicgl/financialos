@@ -116,3 +116,12 @@ Günlük limitten bugün harcananın çıkarılmış hali; hızlı girişte aş�
     bugun_kalan = daily_limit − bugün harcanan
 
 Kaynak: `app/rules_engine.py::generate_cockpit` (`bugun_harcanan`, `bugun_kalan`) · `frontend/src/lib/bugunKalan.js`.
+
+## Yazım kuralları (UX-034)
+- Terimler **cümle içinde küçük harf** ("reel bütçe 4.200 TL"), yalnız kart/bölüm başlığında
+  ilk harf büyük ("Reel bütçe"); tümü büyük yazılmaz.
+- Kullanıcıya görünen metin Türkçe karakterle yazılır; ASCII'ye düşmüş sözcük ("gunluk", "cagri")
+  bir yazım hatasıdır — `frontend/src/mikro-kopya.test.js` bunu ölçer.
+- İngilizce alan adları (`nakit_runway_gun`, `daily_limit`) kodda kalır, ekranda karşılığı sözlük
+  terimidir (nakit pisti, günlük limit). "runway" ekranda geçmez.
+- Koç metni aynı sözlükten konuşur (`app/uslup_kurallari.py`); jargon kararı H21/BUG #374.

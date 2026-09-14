@@ -513,7 +513,7 @@ export default function Cockpit({ setActiveTab }) {
         {!basit && data.nakit_runway_gun !== undefined && data.nakit_runway_gun !== null && (
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5 shrink-0" />
-            Nakit runway:{' '}
+            Nakit pisti:{' '}
             <span className={`font-numeric font-semibold ${data.nakit_runway_gun >= 30 ? 'text-zinc-700 dark:text-zinc-200' : 'text-negative-600 dark:text-negative-400'}`}>
               {data.nakit_runway_gun} gün
             </span>

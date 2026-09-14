@@ -129,7 +129,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [OBS-021] `reasoning_trace` her step commit — gözlem maliyeti canlı yolu yavaşlatıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: reasoning_trace her step commit
+- **Durum:** ⚪ DEFEKT DEĞİL — BUG #498 (14 Eyl 2026), ölçüldü: koç sohbeti ~8 iz adımı yazar, her adım kendi commit'iyle (adım id'si ebeveyn bağı için gerekir). SQLite WAL + `synchronous=NORMAL` altında 8 ayrı commit 4,1 ms, flush + tek commit 2,7 ms — sohbet başına **1,4 ms** fark (LLM turu 2–10 sn). Tek commit'e geçmek, başarısız sohbetin izini de yarım bırakırdı (adım adım dayanıklılık teşhis için değerli — BUG #280 zinciri). Bilinçli olarak değiştirilmedi; ölçüm büyürse (PostgreSQL'de fsync başına ~ms) yeniden bakılır.
 - **Kanıt:** `reasoning_trace.py:168-171`
 - **Aksiyon:** Batch flush (BE-023/LLM-027); observability latency eklemesin.
 - **Etki:** Düşük · **Efor:** M

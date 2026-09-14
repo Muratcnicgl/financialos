@@ -57,6 +57,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Finansal sözlük (`docs/sozluk.md`) ve doğru ilk-çalıştırma akışı (README) (#496).
 
 ### Operasyon
+- Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
+- Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit
+  sohbet başına 1,4 ms — dayanıklılık için korundu (#498).
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).
 

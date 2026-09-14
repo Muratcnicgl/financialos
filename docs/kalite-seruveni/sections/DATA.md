@@ -150,7 +150,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DATA-023] `Transaction` 3 kompozit index — `user_category` düşük getirili olabilir
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Transaction kompozit index korunuyor, EXPLAIN doğrulanmamış (models.py:328)
+- **Durum:** ⚪ DEFEKT DEĞİL — BUG #498 (14 Eyl 2026), EXPLAIN QUERY PLAN ile ölçüldü (canlı SQLite): `ix_transactions_user_category` "düşük getirili" değil — kategori yönetiminin iki sorgusu (kullanım sayısı `_kullanim_sayisi`, birleştirme UPDATE'i; `routers/categories.py`) onu COVERING indeks olarak kullanıyor. Tarih aralıklı ve kategori+tarih sorguları doğru biçimde `ix_transactions_user_date`e, hesap geçmişi `ix_transactions_account_date`e gidiyor. Üç indeks de plana giriyor; hiçbiri kaldırılmadı. Kapı `tests/test_indeks_plani_kapisi.py`: her kompozit indeks en az bir gerçek sorgunun planında — kullanılmayan indeks görünür olur.
 - **Kanıt:** `app/models.py:239-246`
 - **Aksiyon:** `EXPLAIN QUERY PLAN` ile doğrula; kullanılmıyorsa kaldır veya covering yap.
 - **Etki:** Düşük · **Efor:** S

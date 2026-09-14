@@ -16,7 +16,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [PERF-003] `ReasoningTrace` chat başına N commit — SQLite yazma kilidi
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: reasoning_trace her step commit
+- **Durum:** ⚪ DEFEKT DEĞİL — BUG #498 (14 Eyl 2026), ölçüldü: koç sohbeti ~8 iz adımı yazar, her adım kendi commit'iyle (adım id'si ebeveyn bağı için gerekir). SQLite WAL + `synchronous=NORMAL` altında 8 ayrı commit 4,1 ms, flush + tek commit 2,7 ms — sohbet başına **1,4 ms** fark (LLM turu 2–10 sn). Tek commit'e geçmek, başarısız sohbetin izini de yarım bırakırdı (adım adım dayanıklılık teşhis için değerli — BUG #280 zinciri). Bilinçli olarak değiştirilmedi; ölçüm büyürse (PostgreSQL'de fsync başına ~ms) yeniden bakılır.
 - **Kanıt:** `app/reasoning_trace.py:168-171`; chat başına 6-8 step
 - **Aksiyon:** Bellekte biriktir, sonda tek commit/flush. (BE-023)
 - **Etki:** Orta · **Efor:** M

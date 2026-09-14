@@ -222,8 +222,13 @@ try {
     # kimse okumamisti. Sunucu yiginini ilan etmek saldirgana eslesme kolayligi verir,
     # kullaniciya hicbir sey. Bu bayrak uvicorn'un protokol katmaninda basligi HIC eklememesini
     # saglar; ASGI ara katmani bunu YAPAMAZ (baslik uvicorn tarafindan sonradan eklenir).
+    # SEC-029 (BUG #497): bağlantı sınırları. Bu yolda nginx YOK (Tailscale Funnel doğrudan
+    # uvicorn'a proxy'ler); gövde sınırı uygulama katmanında (BUG #213, 1 MiB) ama eşzamanlı
+    # bağlantı ve boşta bekleyen bağlantı sınırsızdı — tek makinelik beta için 64 eşzamanlı
+    # istek (aşımı 503, çökme değil), boşta keep-alive 5 sn (varsayılan 5), backlog 128.
     $p = Start-Process -FilePath $PYW `
-        -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$Port", "--no-server-header" `
+        -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$Port", "--no-server-header", `
+                      "--limit-concurrency", "64", "--timeout-keep-alive", "5", "--backlog", "128" `
         -WorkingDirectory $KOK -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput $LOG -RedirectStandardError $HATA
 

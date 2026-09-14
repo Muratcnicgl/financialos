@@ -172,7 +172,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [SEC-029] Reverse proxy/gövde boyutu/bağlantı sınırı yok
-- **Durum:** 🔲 AÇIK — kod-doğrulaması bekliyor (M76)
+- **Durum:** ✅ KAPANDI — BUG #497 (14 Eyl 2026). Ölçüldü: madde "uvicorn doğrudan, sınır yok" diyordu; gerçekte gövde sınırı uygulama katmanında her yolda (`GovdeBoyutuMiddleware` 1 MiB → 413, BUG #213), nginx şablonlarında `client_max_body_size 1m` + `limit_req` + `proxy_read_timeout 60s`, konteynerde gunicorn `--timeout 60`. Tek eksik yol Windows servisiydi (Tailscale Funnel → doğrudan uvicorn): eşzamanlı bağlantı ve keep-alive sınırsızdı. `baslat.ps1` uvicorn'u `--limit-concurrency 64` (aşım 503, çökme değil), `--timeout-keep-alive 5`, `--backlog 128` ile açar. Kapı `tests/test_baglanti_siniri_kapisi.py` (4 test: başlatıcı bayrakları, nginx şablonları, gunicorn timeout, 2 MiB gövde → 413).
 - **Kanıt:** `uvicorn` doğrudan
 - **Aksiyon:** Nginx/Caddy `client_max_body_size`, timeout, `--limit-concurrency`. (OWASP API4)
 - **Etki:** Orta · **Efor:** S

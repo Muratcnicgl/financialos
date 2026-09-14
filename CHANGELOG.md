@@ -26,6 +26,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Veri listeleri (koç mesajları, kokpit satırları, akış takvimi, raporlar) kararlı anahtar
   kullanır; dizin anahtar kuralı tavanla izlenir (#483).
 
+- Dokuz ikon butonu ekran okuyucu için adlandı (kategori yönetimi, dilek listesi, zarf silme,
+  üye çıkarma); kapının kör noktası kapandı; dört boş bileşen dosyası silindi (#484).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

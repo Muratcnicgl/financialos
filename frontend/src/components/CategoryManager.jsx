@@ -151,7 +151,7 @@ export default function CategoryManager({ onDegisti }) {
             <div className="flex items-center gap-1 shrink-0">
               {duzenlenen?.id === k.id ? (
                 <>
-                  <button type="button" title="Kaydet"
+                  <button type="button" title="Kaydet" aria-label="Kaydet"
                           className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-positive-600"
                           onClick={async () => {
                             await guncelle(k.id, { ad: duzenlenen.ad.trim() });
@@ -159,7 +159,7 @@ export default function CategoryManager({ onDegisti }) {
                           }}>
                     <Check className="w-4 h-4" />
                   </button>
-                  <button type="button" title="Vazgeç"
+                  <button type="button" title="Vazgeç" aria-label="Vazgeç"
                           className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400"
                           onClick={() => setDuzenlenen(null)}>
                     <X className="w-4 h-4" />
@@ -175,19 +175,19 @@ export default function CategoryManager({ onDegisti }) {
                     </label>
                   )}
                   {!k.sistem && (
-                    <button type="button" title="Yeniden adlandır"
+                    <button type="button" title="Yeniden adlandır" aria-label="Yeniden adlandır"
                             className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-500"
                             onClick={() => setDuzenlenen({ id: k.id, ad: k.ad })}>
                       <Pencil className="w-4 h-4" />
                     </button>
                   )}
-                  <button type="button" title={k.gizli ? 'Göster' : 'Gizle'}
+                  <button type="button" title={k.gizli ? 'Göster' : 'Gizle'} aria-label={k.gizli ? 'Göster' : 'Gizle'}
                           className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-500"
                           onClick={() => guncelle(k.id, { gizli: !k.gizli })}>
                     {k.gizli ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                   {!k.sistem && (
-                    <button type="button" title="Sil"
+                    <button type="button" title="Sil" aria-label="Sil"
                             className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-negative-500"
                             onClick={() => sil(k)}>
                       <Trash2 className="w-4 h-4" />

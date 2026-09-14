@@ -150,7 +150,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [FE-025] Boş/ölü bileşen dosyaları repoda (0 bayt)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Header/Loading/QuickEntry/TabBar 0 bayt
+- **Durum:** ✅ KAPANDI — BUG #484 (14 Eyl 2026). Ölçüldü: dört dosya ilk commit'ten beri 0 bayt, hiçbir yerden import edilmiyor (grep 0 atıf). Silindi. Kapı `tests/test_bos_dosya_kapisi.py`: frontend/src, app, scripts, tests altında 0 baytlık kaynak dosyası yok (mutasyon: boş dosya → kırmızı).
 - **Kanıt:** `components/Header.jsx`, `Loading.jsx`, `QuickEntry.jsx`, `TabBar.jsx` (0 satır); gerçek QuickEntry `Transactions.jsx:365-427`
 - **Aksiyon:** Sil veya FE-004/023 kapsamında doldur.
 - **Etki:** Düşük · **Efor:** S
@@ -174,7 +174,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [FE-029] İkon butonlar `title` kullanıyor, `aria-label` yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ikon butonlar title var aria-label yok
+- **Durum:** ✅ KAPANDI — BUG #484 (14 Eyl 2026). A11Y-003 (11 Eyl) 28 butonu adlandırmıştı; bugünkü ölçüm KAPININ KÖR NOKTASINI buldu: `a11y-ikon-buton-etiketi.test.jsx` açılış etiketini `/<button\b[^>]*?>/` ile okuyordu ve `onClick={() => …}` içindeki `=>` işaretinde duruyordu — etiket yarım, `title=` görünmez, gövde "metinli" sanılıyor. Beş CategoryManager (kaydet/vazgeç/yeniden adlandır/göster-gizle/sil) ve iki Wishlist (aldım/vazgeçtim) ikon-only butonu böyle geçmişti; Budget zarf silme ve Workspace üye çıkarma butonlarının hiç adı yoktu. Kapı süslü-parantez farkındalıklı `acilisEtiketleri` ile okur (kendini sınayan test), dokuz buton adlandı (kişiye/kaleme özgü: "X: üyelikten çıkar", "kira: sil"). Kapsam bilerek `title=` taşıyanlarda kaldı: gövdesi `{ifade}` olan metinli butonlar ikon-only sanılır (genişletilince 40 yanlış pozitif ölçüldü).
 - **Kanıt:** `IncomeDebt.jsx:467,470,473`; `Accounts.jsx:226,229,640`; `App.jsx:153-159`
 - **Aksiyon:** `aria-label` ekle; modal kapatmaya `aria-label="Kapat"`.
 - **Etki:** Düşük · **Efor:** S
@@ -186,7 +186,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [FE-031] Modal açıkken body scroll kilitlenmiyor + focus dönmüyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Modal body scroll-lock + focus-restore yok
+- **Durum:** ✅ KAPANDI — odak iadesi BUG #395/#396 ile (`useDialog`: kapanışta odak tetikleyene döner, `modal-erisilebilirlik.test.jsx`); 14 Eyl ölçümü maddeyi bayat buldu (BUG #484 turu). Scroll kilidi ⚪ FE-004 ile aynı karar: mobil ölçümde arka plan kaydırması sorun üretmedi; gerekirse `body` sınıfıyla tek yerden.
 - **Kanıt:** Tüm Modal wrapper'ları (örn. `Transactions.jsx:711-730`)
 - **Aksiyon:** Ortak Modal'a overflow hidden + focus-restore effect (FE-004 ile).
 - **Etki:** Düşük · **Efor:** S

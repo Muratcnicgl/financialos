@@ -103,11 +103,11 @@ export default function Wishlist() {
                   </span>
                 )}
               </div>
-              <button type="button" onClick={() => resolve(w.id, 'bought')} title="Aldım"
+              <button type="button" onClick={() => resolve(w.id, 'bought')} title="Aldım" aria-label={`${w.item}: aldım`}
                 className="p-1 rounded text-positive-600 dark:text-positive-400 hover:bg-positive-50 dark:hover:bg-positive-900/30">
                 <Check className="w-4 h-4" />
               </button>
-              <button type="button" onClick={() => resolve(w.id, 'dismissed')} title="Vazgeçtim"
+              <button type="button" onClick={() => resolve(w.id, 'dismissed')} title="Vazgeçtim" aria-label={`${w.item}: vazgeçtim`}
                 className="p-1 rounded text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700">
                 <X className="w-4 h-4" />
               </button>

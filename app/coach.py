@@ -2477,6 +2477,12 @@ def _trim_history_to_size(messages: List[Dict]) -> List[Dict]:
             break
         removed = messages.pop(0)
         total_chars -= len(removed.get("content", ""))
+        # LLM-017 (BUG #504): tool_call → tool_result çifti BİRLİKTE düşer. Eskiden asistanın
+        # tool_calls taşıyan mesajı gidince arkasındaki `tool` yanıtı yetim kalıyordu; OpenAI
+        # uyumlu sağlayıcılar yetim tool mesajını 400 ile reddeder (istek hiç gitmez).
+        while messages and (messages[0].get("role") == "tool" or messages[0].get("tool_call_id")):
+            yetim = messages.pop(0)
+            total_chars -= len(yetim.get("content", ""))
 
     if len(messages) < original_count:
         logger.info(

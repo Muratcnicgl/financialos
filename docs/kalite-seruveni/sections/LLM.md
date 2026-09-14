@@ -195,13 +195,13 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-017] History trim token değil karakter tabanlı
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: history trim karakter tabanli
+- **Durum:** ✅ KAPANDI (çift kesimi) / ⚪ token sayımı — BUG #504 (14 Eyl 2026). Gerçek defekt: geçmiş kırpımı en eski mesajı tek tek atıyordu; asistanın `tool_calls` mesajı gidince arkasındaki `tool` yanıtı yetim kalıyor, OpenAI-uyumlu sağlayıcılar yetim tool mesajını 400 ile reddediyordu (istek hiç gitmez). Kırpım artık çifti birlikte düşürür (kapı: kırpılmış geçmiş asla `tool` ile başlamaz). Token sayımı ⚪: karakter bütçeleri (1.500/6.000) belgeli bir vekildir; sağlayıcı başına tokenizer yok, Anthropic `count_tokens` API çağrısıdır (gecikme + maliyet) — tek muhafazakâr tahminci (LLM-018) aynı birimi verir, bütçe aşılmaz.
 - **Kanıt:** `coach.py:1276-1311,1294-1295`
 - **Aksiyon:** Anthropic'te `count_tokens`; diğerlerinde muhafazakâr tahmin; tool_call/tool_result çiftlerini birlikte kes.
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-018] format_insights_for_prompt cl100k_base tokenizer kullanıyor (yanlış)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: format_insights cl100k primer
+- **Durum:** ✅ KAPANDI — BUG #504 (14 Eyl 2026). Ölçüldü: `tiktoken` kurulu bile değildi — ImportError dalı (`len // 4`) hep aktifti; cl100k yalnız OpenAI için doğru (Gemini/Llama/Claude farklı tokenizer), Türkçe'de %15 eksik sayardı. `app/token_tahmini.py::token_tahmini` tek kaynak: muhafazakâr `ceil(len/3,5)` — bütçe kesin sayı değil üst sınır ister; insights formatı bunu kullanır, `import tiktoken` kalmadı. Kapı `tests/test_token_tahmini_kapisi.py`.
 - **Kanıt:** `coach_insights.py:2160-2169`
 - **Aksiyon:** char/3.5 heuristiği (mevcut ImportError fallback'i default yap) veya aktif provider count_tokens; cl100k bağımlılığını kaldır.
 - **Etki:** Düşük · **Efor:** S

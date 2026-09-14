@@ -67,6 +67,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Koç selam/teşekkür turunda araç çağırmaz — gerçek olmayan "içgörü" yazılmaz, şema tokenı gitmez (#503).
 
+- Koç geçmişi kırpılırken araç çağrısı/yanıtı çifti birlikte düşer (yetim yanıt sağlayıcıda 400 üretiyordu);
+  token tahmini tek ve muhafazakâr (#504).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

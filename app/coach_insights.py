@@ -2267,16 +2267,10 @@ def format_insights_for_prompt(
     if not insights:
         return ""
 
-    # Token sayimi - tiktoken cl100k_base (Mem0/OpenAI standardi)
-    try:
-        import tiktoken
-        enc = tiktoken.get_encoding("cl100k_base")
-        def count_tokens(s: str) -> int:
-            return len(enc.encode(s))
-    except ImportError:
-        # Fallback: yaklasik 4 karakter = 1 token (TR icin ~%15 underestimate)
-        def count_tokens(s: str) -> int:
-            return max(1, len(s) // 4)
+    # LLM-018 (BUG #504): tek tahminci. Eski `tiktoken cl100k_base` dalı (a) kurulu değildi —
+    # ImportError yolu hep aktifti, (b) yalnız OpenAI için doğruydu (Gemini/Llama/Claude farklı
+    # tokenizer), (c) Türkçe için %15 eksik sayıyordu. `token_tahmini` muhafazakâr (3,5 kr/token).
+    from app.token_tahmini import token_tahmini as count_tokens
 
     header = (
         "## UZUN VADELI HAFIZA\n"

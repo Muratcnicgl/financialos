@@ -96,7 +96,7 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [FE-016] Coach'ta tüm mesajlar her render'da yeniden markdown parse (memo yok)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Coach Message memo değil, markdown useMemo değil
+- **Durum:** ✅ KAPANDI — BUG #488 (14 Eyl 2026). Ölçüldü (kapı, 5 koç mesajı): girdi kutusuna 5 tuş basışı → 15 fazladan markdown çizimi (18/3); `Message` memo değildi, `handleActionResolved` her çizimde yeni kimlik alıyordu (memo tek başına işe yaramazdı). Yapılan: `Message = memo(...)`, `handleActionResolved` `useCallback([toast])`, `preprocessMarkdown` `useMemo([text])`. Sonra: 5 tuş → 0 fazladan çizim. Sanallaştırma ⚪ (FE-034): geçmiş 50 mesajla sınırlı; memo sonrası ölçülebilir maliyet yok, react-window erken optimizasyon olurdu. Kapı `frontend/src/koc-mesaj-memo.test.jsx` (react-markdown çizim sayacı).
 - **Kanıt:** `Coach.jsx:448-454,544-548,15-26`
 - **Aksiyon:** `Message`'ı `React.memo`; `preprocessMarkdown`'ı `useMemo`; satır bileşenlerini memo.
 - **Etki:** Orta · **Efor:** S
@@ -204,7 +204,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [FE-034] Coach mesaj listesi memoize/virtualize değil
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Coach mesaj listesi memoize/virtualize değil
+- **Durum:** ✅ KAPANDI (memo) / ⚪ sanallaştırma bilerek yok — BUG #488 (14 Eyl 2026). Ölçüldü (kapı, 5 koç mesajı): girdi kutusuna 5 tuş basışı → 15 fazladan markdown çizimi (18/3); `Message` memo değildi, `handleActionResolved` her çizimde yeni kimlik alıyordu (memo tek başına işe yaramazdı). Yapılan: `Message = memo(...)`, `handleActionResolved` `useCallback([toast])`, `preprocessMarkdown` `useMemo([text])`. Sonra: 5 tuş → 0 fazladan çizim. Sanallaştırma ⚪ (FE-034): geçmiş 50 mesajla sınırlı; memo sonrası ölçülebilir maliyet yok, react-window erken optimizasyon olurdu. Kapı `frontend/src/koc-mesaj-memo.test.jsx` (react-markdown çizim sayacı).
 - **Kanıt:** `Coach.jsx:446-457,160`
 - **Aksiyon:** Önce FE-016 memo; gerçekten büyürse react-window. Erken optimize etme.
 - **Etki:** Düşük · **Efor:** M

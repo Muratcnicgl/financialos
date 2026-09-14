@@ -36,6 +36,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Aksiyon onayı önce/sonra farkı için tam kokpiti iki kez üretmez; tek sorguluk özet (55× hızlı) (#487).
 
+- Koç mesaj kartları yazarken yeniden ayrıştırılmaz (memo) (#488).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

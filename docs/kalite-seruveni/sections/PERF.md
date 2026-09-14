@@ -53,7 +53,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [PERF-009] Coach mesajları her render'da yeniden markdown parse
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Coach useMemo/memo yok
+- **Durum:** ✅ KAPANDI — BUG #488 (14 Eyl 2026). Ölçüldü (kapı, 5 koç mesajı): girdi kutusuna 5 tuş basışı → 15 fazladan markdown çizimi (18/3); `Message` memo değildi, `handleActionResolved` her çizimde yeni kimlik alıyordu (memo tek başına işe yaramazdı). Yapılan: `Message = memo(...)`, `handleActionResolved` `useCallback([toast])`, `preprocessMarkdown` `useMemo([text])`. Sonra: 5 tuş → 0 fazladan çizim. Sanallaştırma ⚪ (FE-034): geçmiş 50 mesajla sınırlı; memo sonrası ölçülebilir maliyet yok, react-window erken optimizasyon olurdu. Kapı `frontend/src/koc-mesaj-memo.test.jsx` (react-markdown çizim sayacı).
 - **Kanıt:** `Coach.jsx:448-454,544-548`
 - **Aksiyon:** `React.memo`+`useMemo`. (FE-016)
 - **Etki:** Orta · **Efor:** S

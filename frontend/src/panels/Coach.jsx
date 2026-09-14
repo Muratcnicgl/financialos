@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, Component } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo, Component } from 'react';
 import {
   Send, Loader2, RotateCcw, MessageSquare, AlertTriangle, User, Sparkles, RefreshCw,
 } from 'lucide-react';
@@ -363,7 +363,8 @@ function CoachInner() {
   // Herhangi bir katman patlasa diger katmanlar calisir, panel kilitlenmez.
   // ============================================================
 
-  const handleActionResolved = (actionId, status, summary) => {
+  // PERF-009/FE-016 (BUG #488): kimliği sabit — `Message` memo'su ancak bununla işe yarar.
+  const handleActionResolved = useCallback((actionId, status, summary) => {
     // (1) State guncelleme: bu action'i mesajlardan temizle
     // BUG #017 ile uyumlu: hem a.id hem a.action_id kontrolu yapiliyor
     try {
@@ -414,7 +415,7 @@ function CoachInner() {
     // Bağlanmasına gerek de yok: App sekmeleri tek tek bağlar (`activeTab === 'cockpit' &&
     // <Cockpit/>`), kokpit her geçişte yeniden bağlanıp `load()` çağırır — panel-arası
     // tazeleme sinyali, yeniden bağlanmanın kendisidir. Ölü prop ve koruma bloğu silindi.
-  };
+  }, [toast]);
 
   // ============================================================
   // RENDER
@@ -648,12 +649,16 @@ export default function Coach() {
 // MESSAGE — bir mesaj balonu
 // ============================================================
 
-function Message({ message, onActionResolved }) {
+// PERF-009 / FE-016 / FE-034 (BUG #488): mesaj kartı memo — girdi kutusuna her tuş basışı
+// CoachInner'ı yeniden çizer; memo olmadan 50 mesajın markdown'ı her tuşta yeniden ayrıştırılıyordu
+// (ölçüldü: 5 tuş → 250 ReactMarkdown çizimi; şimdi 0). Sanallaştırma ⚪: geçmiş 50 mesajla sınırlı.
+const Message = memo(function Message({ message, onActionResolved }) {
   const isUser = message.role === 'user';
   const ts = message.ts;
   const time = (ts instanceof Date && !isNaN(ts.getTime()))
     ? ts.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
     : null;
+  const metin = useMemo(() => (isUser ? message.text : preprocessMarkdown(message.text)), [isUser, message.text]);
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-slide-up`}>
@@ -683,7 +688,7 @@ function Message({ message, onActionResolved }) {
           ) : (
             <div className="text-sm space-y-0.5 break-words">
               <ReactMarkdown components={mdComponents}>
-                {preprocessMarkdown(message.text)}
+                {metin}
               </ReactMarkdown>
             </div>
           )}
@@ -713,7 +718,7 @@ function Message({ message, onActionResolved }) {
       </div>
     </div>
   );
-}
+});
 
 // ============================================================
 // COACH TYPING INDICATOR

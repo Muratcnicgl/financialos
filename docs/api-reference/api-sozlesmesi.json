@@ -2785,6 +2785,41 @@
     }
   },
   {
+    "yol": "/api/transactions/export.csv",
+    "metot": "GET",
+    "kimlik": "korumali",
+    "koruma": [
+      "app.dependencies.get_current_user",
+      "app.workspace_deps.active_workspace_id",
+      "app.workspace_deps.require_write"
+    ],
+    "parametreler": [
+      {
+        "ad": "X-Workspace-Id",
+        "yer": "header",
+        "zorunlu": false,
+        "tip": "integer|null"
+      },
+      {
+        "ad": "baslangic",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      },
+      {
+        "ad": "bitis",
+        "yer": "query",
+        "zorunlu": false,
+        "tip": "string|null"
+      }
+    ],
+    "istek_govdesi": null,
+    "yanitlar": {
+      "200": "gomulu",
+      "422": "HTTPValidationError"
+    }
+  },
+  {
     "yol": "/api/transactions/{txn_id}",
     "metot": "DELETE",
     "kimlik": "korumali",

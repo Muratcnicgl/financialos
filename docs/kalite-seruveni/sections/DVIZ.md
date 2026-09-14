@@ -141,7 +141,7 @@ Etki: orta · Efor: S
 ---
 
 ### [DVIZ-011] CSV / PDF export yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: CSV export yok
+- **Durum:** ✅ KAPANDI (CSV) / ⚪ PDF bilerek yok — BUG #495 (14 Eyl 2026). Ölçüldü: hiçbir uç CSV üretmiyordu; KVKK JSON dökümü tablo değil. `GET /api/transactions/export.csv?baslangic&bitis` (kimlik + workspace kapsamı): UTF-8 BOM, `;` ayırıcı ve ondalık VİRGÜL (tr-TR Excel varsayılanı — virgül ayırıcı Türkçe Excel'de tek sütuna yığılır), ISO tarih, en yeni önce, `Content-Disposition` dosya adı aralığı taşır. Güvenlik: `=`/`+`/`-`/`@` ile başlayan hücre `'` ile etkisizleştirilir (CSV/formül enjeksiyonu), `;` ve Türkçe karakter tırnaklı sağlam; başka kullanıcının satırı dökümde yok. Arayüz: İşlemler panelinde "CSV" butonu (yetkili fetch + blob; düz `<a href>` Authorization taşımaz — BUG #216; `lib/dosyaIndir.js`). PDF ⚪: tarayıcı yazdırma (Ctrl+P) rapor sayfasını PDF'e çevirir, sunucuda PDF üretmek yeni bağımlılık ve bakım ister — ihtiyaç ölçülmeden eklenmez. Sözleşme donduruldu (ek uç, KAP-01). Kapı `tests/test_csv_disa_aktarim_kapisi.py` (3 test).
 
 Sorun: Ne işlem listesi ne rapor dışa aktarılabiliyor; hiçbir endpoint CSV/PDF üretmiyor. Kullanıcı verisini yedeklemek, muhasebeciye vermek veya harici analiz için çıkaramıyor.
 

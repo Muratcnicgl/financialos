@@ -291,6 +291,22 @@ export const accountsApi = {
 // =============================================================
 
 export const transactionsApi = {
+  // DVIZ-011 (BUG #495): CSV indir — düz <a href> Authorization taşımaz (BUG #216), yetkili fetch + blob.
+  exportCsv: async ({ baslangic, bitis } = {}) => {
+    const usp = new URLSearchParams();
+    if (baslangic) usp.set('baslangic', baslangic);
+    if (bitis) usp.set('bitis', bitis);
+    const qs = usp.toString();
+    const headers = { Accept: 'text/csv' };
+    const tok = getAccessToken();
+    if (tok) headers.Authorization = `Bearer ${tok}`;
+    const ws = getActiveWorkspaceId();
+    if (ws) headers['X-Workspace-Id'] = String(ws);
+    const res = await fetch(`/api/transactions/export.csv${qs ? `?${qs}` : ''}`, { headers });
+    if (!res.ok) throw new ApiError(res.status, 'CSV indirilemedi', null);
+    const ad = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || 'islemler.csv';
+    return { blob: await res.blob(), ad };
+  },
   list:   (params) => request('/api/transactions', { params }),
   create: (data) => request('/api/transactions', { method: 'POST', body: data }),
   // Hizli giris kisayolu

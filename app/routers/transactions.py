@@ -15,6 +15,7 @@ import re
 from datetime import date
 from typing import Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -264,6 +265,64 @@ def list_transactions(
         .all()
     )
     return [_txn_to_dict(t) for t in txns]
+
+
+# DVIZ-011 (BUG #495): CSV dışa aktarım. Ölçüldü (14 Eyl 2026): hiçbir uç CSV üretmiyordu;
+# kullanıcı işlemlerini muhasebeciye/tabloya çıkaramıyordu (KVKK JSON dökümü var ama tablo değil).
+# Biçim: UTF-8 BOM (Excel Türkçe karakteri doğru açar), `;` ayırıcı ve ondalık VİRGÜL —
+# tr-TR Excel'in varsayılanı; virgül ayırıcı Türkçe Excel'de tek sütuna yığılırdı (ölçülü karar).
+# Tarih ISO (sıralanabilir). Metin alanları csv modülüyle kaçışlı: formül enjeksiyonu için
+# `=+-@` ile başlayan hücre tırnaklanıp önüne `'` konur (CSV injection).
+CSV_BASLIKLAR = ("tarih", "tur", "tutar", "kategori", "aciklama", "hesap_id", "kart_harcamasi")
+_FORMUL_BASLANGICI = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_hucre(deger) -> str:
+    if deger is None:
+        return ""
+    metin = str(deger)
+    return "'" + metin if metin.startswith(_FORMUL_BASLANGICI) else metin
+
+
+def islemleri_csv_yap(txns) -> str:
+    import csv
+    import io
+    tampon = io.StringIO()
+    w = csv.writer(tampon, delimiter=";", lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
+    w.writerow(CSV_BASLIKLAR)
+    for t in txns:
+        d = _txn_to_dict(t)
+        tutar = f"{D(d['amount']):.2f}".replace(".", ",")
+        w.writerow([
+            d["transaction_date"] or "", d["transaction_type"], tutar,
+            _csv_hucre(d["category"]), _csv_hucre(d["description"]),
+            d["account_id"] if d["account_id"] is not None else "",
+            "evet" if d["is_card_expense"] else "hayir",
+        ])
+    return "\ufeff" + tampon.getvalue()
+
+
+@router.get("/export.csv")
+def export_transactions_csv(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ws_id: Optional[int] = Depends(active_workspace_id),
+    baslangic: Optional[date] = Query(None, description="YYYY-MM-DD, dahil"),
+    bitis: Optional[date] = Query(None, description="YYYY-MM-DD, dahil"),
+):
+    """İşlemleri CSV olarak indir (tarih aralığı isteğe bağlı; en yeni önce)."""
+    q = db.query(Transaction).filter(scope_filter(Transaction, user.id, ws_id))
+    if baslangic:
+        q = q.filter(Transaction.transaction_date >= baslangic)
+    if bitis:
+        q = q.filter(Transaction.transaction_date <= bitis)
+    txns = q.order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).all()
+    ad = "islemler" + (f"-{baslangic}" if baslangic else "") + (f"-{bitis}" if bitis else "") + ".csv"
+    return Response(
+        content=islemleri_csv_yap(txns).encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{ad}"'},
+    )
 
 
 @router.post("", status_code=201)

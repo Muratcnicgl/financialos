@@ -52,6 +52,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - SQLite yedeği artık uygulamanın kendi zamanlayıcısından (03:15) alınır ve çalışma kaydı bırakır;
   Dependabot bağımlılık güncellemeleri (#494).
 
+- İşlemler CSV olarak indirilebilir (Türkçe Excel uyumlu; tarih aralığı) (#495).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

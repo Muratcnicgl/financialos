@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import {
-  Receipt, Plus, Loader2, AlertTriangle, RefreshCw,
+  Receipt, Plus, Loader2, AlertTriangle, RefreshCw, Download,
   Search, Trash2, Pencil, X, Filter, ArrowUp, ArrowDown,
   CreditCard,
 } from 'lucide-react';
@@ -12,6 +12,7 @@ import EmptyState from '../components/EmptyState.jsx';
 import Modal from '../components/Modal.jsx';
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 import { useKaliciDurum } from '../lib/kaliciDurum.js';   // UX-037 (BUG #462)
+import { dosyaIndir } from '../lib/dosyaIndir.js';   // DVIZ-011 (BUG #495)
 import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
 
 /**
@@ -82,6 +83,20 @@ export default function Transactions() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // DVIZ-011 (BUG #495): yetkili fetch + blob (düz <a href> Authorization taşımaz)
+  const [csvIniyor, setCsvIniyor] = useState(false);
+  const csvIndir = async () => {
+    setCsvIniyor(true);
+    try {
+      const { blob, ad } = await transactionsApi.exportCsv();
+      dosyaIndir(blob, ad);
+    } catch (e) {
+      setError(`CSV indirilemedi: ${e.message}`);   // panelin hata bandı (toast yok)
+    } finally {
+      setCsvIniyor(false);
+    }
+  };
 
   const handleRefresh = () => { setRefreshing(true); load(); };
 
@@ -222,6 +237,12 @@ export default function Transactions() {
           <button type="button" onClick={handleRefresh} disabled={refreshing} className="btn btn-secondary !text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Yenile</span>
+          </button>
+          {/* DVIZ-011 (BUG #495): CSV dışa aktarım — muhasebeci/tablo için */}
+          <button type="button" onClick={csvIndir} disabled={csvIniyor} aria-busy={csvIniyor} className="btn btn-secondary !text-xs" aria-label="İşlemleri CSV olarak indir">
+            {csvIniyor && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+            {!csvIniyor && <Download className="w-3.5 h-3.5" aria-hidden="true" />}
+            <span className="hidden sm:inline">CSV</span>
           </button>
           <button type="button" onClick={() => setEditing('new')} className="btn btn-primary !text-xs">
             <Plus className="w-3.5 h-3.5" />

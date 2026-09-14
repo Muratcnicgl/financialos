@@ -2,7 +2,9 @@
  * FinancialOS API client — backend 35 endpoint sarmalayicisi.
  *
  * Mimari: Tum istekler vite proxy uzerinden /api -> http://localhost:8000.
- * Bu yuzden BASE_URL gerekmiyor, fetch('/api/cockpit') yeterli.
+ * Web'de BASE bos: Vite proxy'si (/api -> :8000) ve ayni-origin uretim yeterli.
+ * MOB-025 (BUG #502): `API_BASE` (VITE_API_BASE) ile mutlak host verilebilir — RN/ayri host
+ * icin tek nokta; her fetch `apiUrl()` uzerinden gecer, ciplak '/api' string'i kalmadi.
  *
  * Hata yonetimi: ApiError sinifi firlatilir, panel tarafinda yakalanir.
  * Sayisal/tarih donusumu: backend Turkce alan adlari (nakit_kasa vb.)
@@ -12,6 +14,19 @@
 // =============================================================
 // HATA SINIFI
 // =============================================================
+
+// MOB-025 (BUG #502): API kok adresi — TEK KAYNAK. Web'de '' (goreli /api, proxy/ayni origin);
+// RN ya da ayri statik host icin `VITE_API_BASE=https://host` (sondaki / kirpilir).
+export const API_BASE = (import.meta.env?.VITE_API_BASE || '').replace(/\/+$/, '');
+
+export function apiUrlIle(base, path) {
+  const kok = (base || '').replace(/\/+$/, '');
+  return kok ? `${kok}${path.startsWith('/') ? path : `/${path}`}` : path;
+}
+
+export function apiUrl(path) {
+  return apiUrlIle(API_BASE, path);
+}
 
 export class ApiError extends Error {
   // BUG #280 (B3): istekId — sunucunun urettigi korelasyon kimligi. Zincirin kullaniciya
@@ -65,7 +80,7 @@ async function _tryRefresh() {
   if (!_refreshing) {
     _refreshing = (async () => {
       try {
-        const r = await fetch('/api/auth/refresh', {
+        const r = await fetch(apiUrl('/api/auth/refresh'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ refresh_token: rt }),
@@ -157,7 +172,7 @@ export async function request(path, { method = 'GET', body, params, headers: ext
 
   let res;
   try {
-    res = await fetch(url, init);
+    res = await fetch(apiUrl(url), init);
   } catch (e) {
     if (denetleyici.signal.aborted) {
       const sebep = denetleyici.signal.reason;
@@ -302,7 +317,7 @@ export const transactionsApi = {
     if (tok) headers.Authorization = `Bearer ${tok}`;
     const ws = getActiveWorkspaceId();
     if (ws) headers['X-Workspace-Id'] = String(ws);
-    const res = await fetch(`/api/transactions/export.csv${qs ? `?${qs}` : ''}`, { headers });
+    const res = await fetch(apiUrl(`/api/transactions/export.csv${qs ? `?${qs}` : ''}`), { headers });
     if (!res.ok) throw new ApiError(res.status, 'CSV indirilemedi', null);
     const ad = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || 'islemler.csv';
     return { blob: await res.blob(), ad };
@@ -730,7 +745,7 @@ export async function consumeOAuthRedirect() {
     const code = params.get('code');
     try { window.history.replaceState({}, '', '/'); } catch { /* */ }  // kodu URL'den hemen sil
     try {
-      const res = await fetch('/api/auth/oauth/exchange', {
+      const res = await fetch(apiUrl('/api/auth/oauth/exchange'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),

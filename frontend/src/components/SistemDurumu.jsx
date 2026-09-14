@@ -13,6 +13,7 @@
  * - `/api/ready` 503 dönebilir; bu bir HATA DEĞİL, ölçülen sonucun kendisidir.
  */
 import { useEffect, useState } from 'react';
+import { apiUrl } from '../api.js';   // MOB-025 (BUG #502)
 import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react';
 
 const DURUMLAR = {
@@ -30,7 +31,7 @@ async function durumOku() {
     // kullanilirsa 503 bir istisnaya donusur ve kullanici yine "bir seyler ters gitti" gorur —
     // yani bilesenin var olma sebebi ortadan kalkar. Kural `tests/test_frontend_api_kapisi.py`
     // ile zorlanir; muafiyet dosyaya degil, YAZILI GEREKCEYE baglidir.
-    const r = await fetch('/api/ready', { headers: { Accept: 'application/json' } });
+    const r = await fetch(apiUrl('/api/ready'), { headers: { Accept: 'application/json' } });   // MOB-025 (BUG #502)
     // 503 = hazır değil (DB/şema). Gövde yine JSON'dur; ayrıntı KULLANICIYA gösterilmez.
     if (r.status === 200) return { durum: 'saglikli', api: true, veritabani: true };
     if (r.status === 503) return { durum: 'sorunlu', api: true, veritabani: false };

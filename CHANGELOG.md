@@ -63,6 +63,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Koç çıktı tavanı ayarlanabilir (`LLM_MAX_TOKENS`); sınırda kesilen yanıt izde ve log'da görünür (#501).
 
+- API kök adresi tek noktadan ayarlanabilir (`VITE_API_BASE`) — istemci ayrı host'a taşınabilir (#502).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

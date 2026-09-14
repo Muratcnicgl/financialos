@@ -233,7 +233,7 @@ Not: Coach paneli mobile-roadmap yazıldığı sırada `h-[calc(100vh-180px)]` s
 - **Etki:** Orta · **Efor:** M
 
 ### [MOB-025] api.js RN'e taşınmaya hazır değil — sabit relative /api, yapılandırılabilir base URL yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: import.meta.env BASE soyutlaması yok
+- **Durum:** ✅ KAPANDI — BUG #502 (14 Eyl 2026). Ölçüldü: beş yerde çıplak `fetch('/api/…')` (api.js ×4 — request, refresh, OAuth exchange, CSV; SistemDurumu ×1). `API_BASE` (`import.meta.env.VITE_API_BASE`, sondaki `/` kırpılır) + `apiUrl()`/`apiUrlIle()` tek kaynak; web'de boş (Vite proxy ve aynı-origin üretim değişmez), RN/ayrı statik host için mutlak adres. Kapı `frontend/src/api-kok-adresi.test.js`: boş BASE yolu aynen bırakır, BASE'li kurulum, üründe `apiUrl` dışında çıplak `/api` fetch yok, `request()` `apiUrl`den geçer. ⚪ RN'e taşıma (fetch yerine platform istemcisi, token deposu) Aşama-2'nin işi.
 
 - **Sorun:** mobile-roadmap Aşama 2'de backend aynı kalıp yalnız API client RN'e taşınacak. Ama client Vite proxy'sine (`/api` relative) bağımlı; RN'de proxy yok, mutlak `https://host/api` gerekir. Şu haliyle client doğrudan yeniden kullanılamaz.
 - **Kanıt:** `frontend/src/api.js:4-5` yorum: "BASE_URL gerekmiyor, fetch('/api/cockpit') yeterli"; `:34` `let url = path` — mutlak base yok, `import.meta.env`/config yok. (Olumlu: tüm çağrılar tek `request()`'ten geçiyor, `:33` — merkezileştirme RN'e taşımayı kolaylaştırır.)

@@ -17,6 +17,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Başarı anları: borç kilometre taşı (%10/25/50/75) kokpitte pankart + tek seferlik kısa konfeti,
   hedef tamamlanınca bir kez kutlama; hareket azaltma tercihine saygılı (#480).
 
+- Boş "Kırmızı Çizgiler" üç tipik başlangıç şablonu sunar (nakit tabanı, tek harcama tavanı,
+  dokunulmaz hesap); tutarı kullanıcı yazar (#481).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

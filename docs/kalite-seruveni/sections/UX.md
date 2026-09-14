@@ -238,8 +238,8 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [UX-038] Boş sistem için örnek/şablon önerisi yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: örnek/şablon önerisi yok
-- **Kanıt:** `Accounts.jsx:159-167`, `RedLines.jsx:245-249`
+- **Durum:** ✅ KAPANDI — BUG #481 (14 Eyl 2026). Ölçüldü: **kategori seti** tarafı zaten çözümlüydü (ADR-046 / BUG #264: `category_rules.kategorileri_tohumla` varsayılan seti defterle birlikte kurar) — madde bayattı. **Kırmızı Çizgiler** boş durumu yalnız "İlk kuralı ekle" diyordu; kullanıcı boş bir formla baş başaydı. Yapılan: `lib/kuralSablonlari.js` — üç tipik başlangıç (Nakit tabanı → `min_cash_floor`, Tek harcama tavanı → `max_single_expense`, Dokunulmaz hesap → `account_untouchable`; hesabı olmayana üçüncüsü gösterilmez). Şablon YAPI verir, sayı vermez: form başlık/açıklama/kural tipi dolu, TUTAR BOŞ açılır, kullanıcı kendi rakamını yazar (BUG #340 dersi: ürün varsaymaz). Her şablon `app/user_rules.py`nin kod seviyesinde dayattığı bir kurala bağlı — serbest metin şablonu yok (koçun "dikkate alması" ile dayatma aynı şey değil, H21). Kural varken liste görünmez. ⚪ Hesaplar için şablon yazılmadı: hesap = gerçek banka kaydı, örnek hesap sahte bakiye demektir; demo veri yolu (H20) o ihtiyacı zaten karşılıyor. Kapı `frontend/src/kural-sablonlari.test.jsx` (3 test: uygunluk + tip bağı, boş/dolu görünürlük, form ön-dolum + tutarsız kaydetme reddi + POST gövdesi).
+- **Kanıt:** `lib/kuralSablonlari.js`, `RedLines.jsx` (boş durum + `CheckpointFormModal.sablon`)
 - **Aksiyon:** "Tipik başlangıç" şablonları (örnek kırmızı çizgiler, kategori seti); kullanıcı düzenler.
 - **Etki:** Düşük · **Efor:** M
 

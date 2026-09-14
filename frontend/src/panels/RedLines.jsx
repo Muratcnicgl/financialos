@@ -8,6 +8,7 @@ import { checkpointsApi, accountsApi, parseTRNumber } from '../api.js';  // H21:
 import Modal from '../components/Modal.jsx';
 import { paraEtiketi } from '../lib/money.js';
 import { useKaliciDurum } from '../lib/kaliciDurum.js';   // UX-037 (BUG #462)
+import { uygunSablonlar } from '../lib/kuralSablonlari.js';   // UX-038 (BUG #481)
 
 /**
  * RedLines paneli — Master Checkpoint yonetimi.
@@ -66,6 +67,7 @@ export default function RedLines() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [editing, setEditing] = useState(null);  // null | 'new' | mc obj
+  const [sablon, setSablon] = useState(null);      // UX-038 (BUG #481): 'new' için ön-dolu yapı
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const [filterType, setFilterType] = useKaliciDurum('kirmizi-tip', 'all');   // UX-037 (BUG #462)
@@ -274,9 +276,28 @@ export default function RedLines() {
               : 'Filtreleri değiştirip tekrar dene.'}
           </p>
           {checkpoints.length === 0 && (
-            <button type="button" onClick={() => setEditing('new')} className="btn btn-primary !text-xs">
+            <button type="button" onClick={() => { setSablon(null); setEditing('new'); }} className="btn btn-primary !text-xs">
               <Plus className="w-3.5 h-3.5" /> İlk kuralı ekle
             </button>
+          )}
+          {checkpoints.length === 0 && (
+            /* UX-038 (BUG #481): tipik başlangıç — yapı hazır, sayıyı kullanıcı yazar */
+            <div className="mt-5 text-left max-w-md mx-auto" data-testid="kural-sablonlari">
+              <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-2">Tipik başlangıç</p>
+              <div className="space-y-2">
+                {uygunSablonlar(accounts).map((s) => (
+                  <button
+                    key={s.anahtar}
+                    type="button"
+                    onClick={() => { setSablon(s.sablon); setEditing('new'); }}
+                    className="w-full text-left rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 min-h-[44px]"
+                  >
+                    <span className="block text-sm font-medium">{s.baslik}</span>
+                    <span className="block text-xs text-zinc-500 dark:text-zinc-400">{s.ozet}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       ) : (
@@ -297,8 +318,9 @@ export default function RedLines() {
       {editing && (
         <CheckpointFormModal
           checkpoint={editing === 'new' ? null : editing}
+          sablon={editing === 'new' ? sablon : null}
           accounts={accounts}
-          onClose={() => setEditing(null)}
+          onClose={() => { setEditing(null); setSablon(null); }}
           onSave={handleSave}
         />
       )}
@@ -392,19 +414,21 @@ function CheckpointCard({ checkpoint, onEdit, onDelete, onToggleActive }) {
 // CHECKPOINT FORM MODAL
 // ============================================================
 
-function CheckpointFormModal({ checkpoint, accounts, onClose, onSave }) {
+function CheckpointFormModal({ checkpoint, sablon, accounts, onClose, onSave }) {
   const alanId = useId();   // A11Y-008 (BUG #448): label↔girdi bağı
   const isNew = !checkpoint;
-  const [title, setTitle] = useState(checkpoint?.title || '');
-  const [description, setDescription] = useState(checkpoint?.description || '');
-  const [type, setType] = useState(checkpoint?.checkpoint_type || 'rule');
-  const [priority, setPriority] = useState(checkpoint?.priority?.toString() || '2');
+  // UX-038 (BUG #481): yeni kayıtta şablon yalnız BAŞLANGIÇ değeridir — tutar boş, kullanıcı yazar.
+  const ilk = checkpoint || sablon || null;
+  const [title, setTitle] = useState(ilk?.title || '');
+  const [description, setDescription] = useState(ilk?.description || '');
+  const [type, setType] = useState(ilk?.checkpoint_type || 'rule');
+  const [priority, setPriority] = useState(ilk?.priority?.toString() || '2');
   const [isActive, setIsActive] = useState(checkpoint?.is_active !== false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   // H21 / BUG #192: DAYATILAN kural. Serbest metin kurallar koça bağlam olarak gider;
   // buradan bir tip seçilirse kural KOD SEVİYESİNDE uygulanır (işlem bloklanır).
-  const [ruleType, setRuleType] = useState(checkpoint?.rule_type || '');
+  const [ruleType, setRuleType] = useState(ilk?.rule_type || '');
   const [ruleAmount, setRuleAmount] = useState(
     checkpoint?.rule_params?.amount != null ? String(checkpoint.rule_params.amount) : ''
   );

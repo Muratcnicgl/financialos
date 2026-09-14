@@ -51,6 +51,8 @@ ki geri kalan 7 gibi olmasın:
   liste yerine tarama; muafiyet varsa gerekçesiyle ve testin içinde (sessiz muafiyet yok).
 
 ## Yerel kapılar (commit engellenirse)
+- `python -m scripts.gorev kapilar` — aşağıdakilerin hepsi tek komutla (komutların tek
+  kaynağı `scripts/gorev.py`; `python -m scripts.gorev` listeler, `make <görev>` vekildir).
 - `python scripts/kalite_kapisi.py` — ruff gerileme sayacı (B/E9/F/S aile bazında TAVAN).
   Tavanı yükseltmek değil, ihtiyacı kaldırmak beklenir; düşerse `--yaz` tavanı indirir.
 - `python scripts/eslint_kapisi.py` (ya da `cd frontend && npm run lint`) — frontend lint

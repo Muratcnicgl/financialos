@@ -1,5 +1,24 @@
 # Geliştirme Komutları
 
+## Görev koşucusu (tek kaynak)
+
+Komutların tek kaynağı `scripts/gorev.py`dir (DEVOPS-014); aşağıdaki bölümler AYRINTI ve
+gerekçe içindir. Her yerde aynı çalışır (Windows/Linux/CI), ek araç istemez:
+
+```powershell
+python -m scripts.gorev              # görev listesi
+python -m scripts.gorev kur          # pip + npm ci + commit kancası
+python -m scripts.gorev test         # backend tam süit
+python -m scripts.gorev test-hizli   # yalnız tests/*_kapisi.py (pre-commit ile aynı seçim)
+python -m scripts.gorev test-arayuz  # vitest
+python -m scripts.gorev kapilar      # commit öncesi tüm kapılar (ruff/eslint sayaçları, belge, ölü kod, sır)
+python -m scripts.gorev <görev> --kuru   # komutu koşturmadan göster
+```
+
+`make test` de çalışır: `Makefile` tek satırlık bir vekildir, komut bilgisi taşımaz.
+Yeni bir komut önce `gorev.py`ye girer; `tests/test_gorev_kapisi.py` her görevin hedefinin
+var olduğunu ve `kapilar` görevinin scripts/ altındaki HER `*_kapisi.py`yi kapsadığını ölçer.
+
 ## Backend
 
 Python venv kökte, çalışma dizini repo kökü:

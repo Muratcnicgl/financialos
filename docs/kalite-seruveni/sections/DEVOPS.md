@@ -82,8 +82,8 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [DEVOPS-014] Task runner / Makefile yok — komutlar dokümanda dağınık
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Makefile/justfile yok
-- **Kanıt:** `docs/dev-commands.md` (elle komutlar)
+- **Durum:** ✅ KAPANDI — BUG #475 (14 Eyl 2026). Ölçüldü: Makefile/justfile/tasks yok; aynı komut dört yerde farklı yazılıyordu (dev-commands, contributing, pre-commit, ci.yml — testler üç ayrı biçimde). Karar: Makefile ⛔ tek başına (Windows'ta `make` yok), tasks.ps1 ⛔ (CI Linux), ikisi birden ⛔ (iki kaynak = sürüklenme). Tek kaynak `scripts/gorev.py` — Python zaten şart, her yerde aynı: `python -m scripts.gorev <görev>` (kur, goc, calistir, arayuz, derle, test, test-hizli, test-arayuz, e2e, lint, kapilar, yedek, durum, koc-eval), `--kuru` komutu gösterir. `Makefile` tek satırlık vekil (`.DEFAULT` → gorev.py), komut bilgisi taşımaz. Kapı testi `tests/test_gorev_kapisi.py`: her hedef var, `kapilar` scripts/ altındaki HER `*_kapisi.py`yi kapsar (yeni kapı eklenip unutulursa kırmızı), `test-hizli` pre-commit ile aynı seçim, Makefile'a komut sızmaz, belgeler anar; mutasyon 3/3.
+- **Kanıt:** `scripts/gorev.py`, `Makefile`, `docs/dev-commands.md › Görev koşucusu`
 - **Aksiyon:** `Makefile`/`justfile` (setup, run, test, lint, backup); Windows için `tasks.ps1` veya `just`.
 - **Etki:** Düşük · **Efor:** S
 

@@ -59,6 +59,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Açık tema artık açılışta koyu "flash" yapmaz (başlatıcı yanlış anahtar okuyordu); durum çubuğu
   tema rengini alır; çentik güvenli alanı ve eski Safari için 100vh yedeği (#499).
 
+- Koç: sağlayıcı "şu kadar bekle" derse (≤5 sn) aynı sağlayıcıda beklenir, hemen yedeğe düşülmez (#500).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

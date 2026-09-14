@@ -289,7 +289,7 @@ Harcamanı kaydettim."`
 - **Etki:** Orta · **Efor:** M
 
 ### [LLM-027] Trace her step'te commit — N+1 DB yazımı
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: TraceRecorder her step commit
+- **Durum:** ⚪ DEFEKT DEĞİL — BUG #498 ile (BE-023/OBS-021/PERF-003 aynı kök): adım başına commit WAL altında sohbet başına 1,4 ms; adım adım dayanıklılık teşhis için korundu.
 - **Kanıt:** `reasoning_trace.py:168-171`; `coach.py:1568-1611`
 - **Aksiyon:** Step'leri biriktir, sonda tek commit; finally'de garantile.
 - **Etki:** Düşük · **Efor:** M · **Not:** BE-023 ile aynı.
@@ -319,7 +319,7 @@ Harcamanı kaydettim."`
 - **Etki:** Düşük · **Efor:** S · **Not:** SEC-004 ile örtüşür.
 
 ### [LLM-032] Fallback'te 429 retry-after header'ı okunmuyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: 429 retry-after okunmuyor
+- **Durum:** ✅ KAPANDI — BUG #500 (14 Eyl 2026). Ölçüldü: kota/hız hatasında zincir hemen sonraki sağlayıcıya düşüyordu; sağlayıcının söylediği süre (`Retry-After` başlığı, "try again in 1.2s", "retry after 750ms") hiç okunmuyordu. `provider_errors.retry_after_saniye`: önce yapı (yanıt başlığı), sonra metin (s/ms); HTTP-tarih biçimi yorumlanmaz. `_call_with_retry`: süre ≤ tavan (`LLM_RETRY_AFTER_TAVAN_SN`, varsayılan 5 sn) ise aynı sağlayıcıda BİR kez bekler (daha iyi model, aynı maliyet defteri), uzun ya da bilinmiyorsa eskisi gibi hemen fallback. Kapı `tests/test_retry_after_kapisi.py` (4 test: başlık/metin/ms/tarih, kısa süre → ikinci çağrı + gerçek uyku değeri, uzun/bilinmeyen → tek çağrı, env tavanı).
 - **Kanıt:** `coach.py:463-471,1157-1166`
 - **Aksiyon:** retry-after oku; kısaysa (<5sn) primary'de bekle, uzunsa fallback; konfigüre edilebilir.
 - **Etki:** Düşük · **Efor:** M

@@ -10,7 +10,7 @@
   "olcum_komutu": "ruff check . --no-cache --output-format concise  (aileye göre sayım)",
   "tavan": {
     "E9": 0,
-    "F": 188,
+    "F": 187,
     "B": 30,
     "S": 60
   },
@@ -31,7 +31,8 @@
     "F 198 -> 190 (BUG #431 / TEST-032, 12 Eyl 2026): kök `test_*.py` duman betikleri `scripts/smoke/` altına taşınırken 5 kullanılmayan import + 3 yer-tutucusuz f-string temizlendi (ruff --fix, davranış değişmedi). Kazanım kilidi.",
     "F 190 -> 189 (BUG #442, 13 Eyl 2026): reports.py'de kullanılmayan HTTPException importu temizlendi (tek-kaynak projeksiyon değişikliğiyle birlikte). Kazanım kilidi.",
     "F 189 -> 188 (BUG #487, 14 Eyl 2026): onay ucunda `generate_cockpit` çağrıları kalkınca `user_today` importu ve yerel `date` importu ölü kaldı — kapı gerilemeyi (+1) yakaladı, ölü importlar silindi, tavan indi. Kazanım kilidi.",
-    "B 31 -> 30 (BUG #494, 14 Eyl 2026): scripts/backup.py çekirdeği app/yedek.py'ye taşınınca eski bare `raise SystemExit` (B904) `from e` ile yazıldı. Kazanım kilidi."
+    "B 31 -> 30 (BUG #494, 14 Eyl 2026): scripts/backup.py çekirdeği app/yedek.py'ye taşınınca eski bare `raise SystemExit` (B904) `from e` ile yazıldı. Kazanım kilidi.",
+    "F 188 -> 187 (BUG #500, 14 Eyl 2026): kullanılmayan bir import daha temizlendi (kazanım kilidi). B 30'da kaldı: yeni testteki iki B023 (döngü değişkeni kapanışı) tavanı yükseltmek yerine varsayılan argümanla bağlandı — 2 Eyl dersinin aynısı."
   ],
   "frontend": {
     "aciklama": "Frontend lint gerileme sayacı (BUG #474 / DEVOPS-003). ESLint `error` seviyesi sıfırdır ve sıfır kalır; `warn` seviyesindeki kurallar kural başına TAVANLIDIR. Ölçen: scripts/eslint_kapisi.py; kural kümesi frontend/eslint.config.js.",

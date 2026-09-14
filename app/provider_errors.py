@@ -194,3 +194,44 @@ def is_request_too_large(exc: Exception) -> bool:
 METIN_DESENLERI: Tuple[re.Pattern, ...] = (
     _COK_BUYUK_DESENI, _KOTA_DESENI, _GECICI_DESENI,
 )
+
+
+# ── LLM-032 (BUG #500): 429'un "ne kadar bekle" bilgisi ───────────────────────────────
+# Ölçüldü (14 Eyl 2026): kota/hız hatasında zincir HEMEN sonraki sağlayıcıya düşüyordu; oysa
+# sağlayıcı çoğu zaman saniyeyi söyler (`Retry-After` başlığı ya da "try again in 1.2s").
+# Kısa bekleme (≤ tavan) aynı sağlayıcıda kalmak demektir: daha iyi model, aynı kimlik, aynı
+# maliyet defteri; uzun bekleme ise fallback'e düşmenin doğru olduğu yerdir.
+import os as _os
+
+_RETRY_AFTER_METIN = re.compile(r"(?:retry[ -]after|try again in|retry in)\s*:?\s*(\d+(?:\.\d+)?)\s*(ms|s|sec|seconds?)?", re.I)
+
+
+def retry_after_tavani_sn() -> float:
+    """Bu süreye kadar aynı sağlayıcıda beklenir; üstü fallback. Varsayılan 5 sn."""
+    try:
+        return max(0.0, float(_os.getenv("LLM_RETRY_AFTER_TAVAN_SN", "5")))
+    except ValueError:
+        return 5.0
+
+
+def retry_after_saniye(exc: Exception) -> Optional[float]:
+    """İstisnadan bekleme süresi (sn): önce yapı (yanıt başlığı), sonra metin. Yoksa None."""
+    for tasiyici in (getattr(exc, "response", None), exc):
+        basliklar = getattr(tasiyici, "headers", None)
+        if basliklar is None:
+            continue
+        try:
+            ham = basliklar.get("retry-after") or basliklar.get("Retry-After")
+        except AttributeError:
+            ham = None
+        if ham:
+            try:
+                return max(0.0, float(str(ham).strip()))
+            except ValueError:
+                pass   # HTTP tarih biçimi: yorumlanmaz, metne düşülür
+    m = _RETRY_AFTER_METIN.search(str(exc))
+    if not m:
+        return None
+    deger = float(m.group(1))
+    birim = (m.group(2) or "s").lower()
+    return deger / 1000.0 if birim == "ms" else deger

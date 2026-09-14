@@ -744,6 +744,8 @@ def _to_anthropic_messages(messages: List[Dict]) -> List[Dict]:
 from app.provider_errors import (  # noqa: E402
     bekleme_suresi as _bekleme_suresi,
     is_quota_exceeded as _is_quota_exceeded,
+    retry_after_saniye as _retry_after_saniye,
+    retry_after_tavani_sn as _retry_after_tavani_sn,
     is_request_too_large as _is_request_too_large,
     is_retryable_error as _is_retryable_error,
     siniflandir as _hata_siniflandir,
@@ -771,6 +773,13 @@ def _call_with_retry(fn, *args, max_attempts: int = 3, base_delay: float = 1.0, 
         except Exception as e:
             last_exc = e
             if _is_quota_exceeded(e):
+                # LLM-032 (BUG #500): sağlayıcı "şu kadar bekle" dediyse ve süre kısaysa aynı
+                # sağlayıcıda BİR kez bekle; uzunsa/bilinmiyorsa eskisi gibi hemen fallback.
+                bekle = _retry_after_saniye(e)
+                if bekle is not None and bekle <= _retry_after_tavani_sn() and attempt < max_attempts:
+                    logger.warning(f"Kota/hiz siniri, saglayici {bekle:.1f}sn bekle dedi — ayni saglayicida tekrar")
+                    time.sleep(bekle)
+                    continue
                 logger.warning(f"Quota/rate limit hatasi, retry yapilmiyor: {e}")
                 raise
             if isinstance(e, ProviderEmptyResponseError):

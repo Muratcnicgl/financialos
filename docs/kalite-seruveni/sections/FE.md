@@ -162,7 +162,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [FE-027] Goals: kural kriteri kullanıcıya ham `JSON.stringify` ile gösteriliyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Goals kural kriteri ham JSON.stringify, create formu yok
+- **Durum:** ✅ KAPANDI — BUG #490 (14 Eyl 2026). Ölçüldü: kural satırı ham `JSON.stringify(criteria)` gösteriyordu; sekmede yalnız SİLME vardı — kural hiçbir arayüzden yaratılamıyordu (yalnız API), kullanıcı hiç dolduramayacağı bir listeye bakıyordu. Yapılan: `lib/kuralKriteri.js` (`kriterMetni`: altı kriter anahtarı Türkçe — "gelir işlemleri, tutar ≥ 5.000 TL, açıklamada \"maaş\"", bilinmeyen anahtar ham kalır; `ayirmaMetni`; `kriterOlustur`: boş alan girmez), RulesTab'a ekleme formu (ad, işlem türü, tutar en az, açıklamada geçen; ayırma yüzde/sabit/tamamı; A11Y-008 etiket bağı, `role=alert` hata, meşgul spinner). Gövde backend `GoalRuleCreate` şemasıyla uyumlu; kritersiz kayıt istemcide reddedilir (sunucu 422 zaten). ⚪ hesap/hesap-tipi kriterleri formda yok: RulesTab hesap listesi taşımıyor, üç kriter tipik kullanımı kapsar; formatter hepsini okur. Kapı `frontend/src/hedef-kurali.test.jsx` (3 test: formatter, kriter üretimi, form → POST gövdesi + kritersiz ret).
 - **Kanıt:** `Goals.jsx:358`; `288-373` (yalnız delete, create yok)
 - **Aksiyon:** Okunabilir Türkçe formatter; allocation/rule ekleme formu tamamla veya "salt-görüntüleme" işaretle.
 - **Etki:** Orta · **Efor:** M

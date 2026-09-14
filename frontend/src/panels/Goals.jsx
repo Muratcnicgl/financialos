@@ -7,6 +7,7 @@ import { Loader2, Target, Plus, X, RefreshCw } from 'lucide-react';
 import { planEtiketi } from '../lib/borcPlani.js';   // UX-024 (BUG #479)
 import { hedefKutlamasi, kutlandi, kutlandiMi } from '../lib/kutlama.js';   // UX-035 (BUG #480)
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
+import { kriterMetni, ayirmaMetni, kriterOlustur } from '../lib/kuralKriteri.js';   // FE-027 (BUG #490)
 
 function getGoalIcon(goalType) {
   return goalType === 'debt_freedom' ? '💰' : '🎯';
@@ -309,7 +310,7 @@ function GoalDetailModal({ goal, onClose }) {
           ) : tab === 'allocations' ? (
             <AllocationsTab allocations={allocations} goalId={goal.id} onRefresh={loadDetail} />
           ) : (
-            <RulesTab rules={rules} onRefresh={loadDetail} />
+            <RulesTab rules={rules} goalId={goal.id} onRefresh={loadDetail} />
           )}
         </div>
       </div>
@@ -358,8 +359,42 @@ function AllocationsTab({ allocations, onRefresh }) {
   );
 }
 
-function RulesTab({ rules, onRefresh }) {
+export function RulesTab({ rules, goalId, onRefresh }) {
   const toast = useToast();
+  const alanId = useId();
+  // FE-027 (BUG #490): kural EKLEME formu — eskiden yalnız silme vardı; kullanıcı hiç dolduramadığı
+  // bir listeye bakıyordu (kural yalnız API'den yazılabiliyordu). Kriter yapısı `lib/kuralKriteri.js`.
+  const [acik, setAcik] = useState(false);
+  const [form, setForm] = useState({ name: '', txType: 'income', amountMin: '', descriptionContains: '', allocationType: 'percent', allocationValue: '10' });
+  const [hata, setHata] = useState(null);
+  const [kaydediliyor, setKaydediliyor] = useState(false);
+  const alan = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleEkle = async (e) => {
+    e.preventDefault();
+    setHata(null);
+    const criteria = kriterOlustur(form, parseTRNumber);
+    if (!form.name.trim()) { setHata('Kurala bir ad ver.'); return; }
+    if (!criteria) { setHata('En az bir kriter seç (işlem türü, tutar ya da açıklama).'); return; }
+    const govde = { name: form.name.trim(), criteria, allocation_type: form.allocationType, is_active: true };
+    if (form.allocationType !== 'full') {
+      const v = parseTRNumber(form.allocationValue);
+      if (!(v > 0) || (form.allocationType === 'percent' && v > 100)) { setHata('Ayırma değeri geçersiz.'); return; }
+      govde.allocation_value = v;
+    }
+    setKaydediliyor(true);
+    try {
+      await goalsApi.rules.create(goalId, govde);
+      toast.success('Kural eklendi', { detail: `${kriterMetni(criteria)} → ${ayirmaMetni(govde)}` });
+      setAcik(false);
+      setForm({ name: '', txType: 'income', amountMin: '', descriptionContains: '', allocationType: 'percent', allocationValue: '10' });
+      onRefresh();
+    } catch (err) {
+      setHata(err.message);
+    } finally {
+      setKaydediliyor(false);
+    }
+  };
 
   const handleDelete = async (id) => {
     try {
@@ -371,27 +406,79 @@ function RulesTab({ rules, onRefresh }) {
     }
   };
 
-  const allocationLabel = (r) => {
-    if (r.allocation_type === 'percent') return `%${r.allocation_value}`;
-    if (r.allocation_type === 'fixed') return formatPara(r.allocation_value);
-    return 'Tamamı';
-  };
-
   return (
     <div className="space-y-3">
+      {!acik ? (
+        <button type="button" onClick={() => setAcik(true)} className="btn btn-secondary !text-xs flex items-center gap-1">
+          <Plus className="w-3.5 h-3.5" /> Kural ekle
+        </button>
+      ) : (
+        <form onSubmit={handleEkle} className="rounded border border-zinc-200 dark:border-zinc-700 p-3 space-y-2 text-sm" data-testid="kural-formu">
+          <div>
+            <label htmlFor={`${alanId}-ad`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Kural adı</label>
+            <input id={`${alanId}-ad`} className="input" value={form.name} onChange={alan('name')} placeholder="örn. Maaşın %10'u" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label htmlFor={`${alanId}-tur`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">İşlem türü</label>
+              <select id={`${alanId}-tur`} className="input" value={form.txType} onChange={alan('txType')}>
+                <option value="income">Gelir</option>
+                <option value="expense">Gider</option>
+                <option value="">Fark etmez</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor={`${alanId}-min`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Tutar en az ({paraEtiketi()})</label>
+              <input id={`${alanId}-min`} className="input" inputMode="decimal" value={form.amountMin} onChange={alan('amountMin')} placeholder="isteğe bağlı" />
+            </div>
+            <div>
+              <label htmlFor={`${alanId}-acik`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Açıklamada geçen</label>
+              <input id={`${alanId}-acik`} className="input" value={form.descriptionContains} onChange={alan('descriptionContains')} placeholder="örn. maaş" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor={`${alanId}-ayirma`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">Ayırma</label>
+              <select id={`${alanId}-ayirma`} className="input" value={form.allocationType} onChange={alan('allocationType')}>
+                <option value="percent">Yüzde</option>
+                <option value="fixed">Sabit tutar</option>
+                <option value="full">Tamamı</option>
+              </select>
+            </div>
+            {form.allocationType !== 'full' && (
+              <div>
+                <label htmlFor={`${alanId}-deger`} className="block text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+                  {form.allocationType === 'percent' ? 'Yüzde (1-100)' : `Tutar (${paraEtiketi()})`}
+                </label>
+                <input id={`${alanId}-deger`} className="input" inputMode="decimal" value={form.allocationValue} onChange={alan('allocationValue')} />
+              </div>
+            )}
+          </div>
+          {hata && <p role="alert" className="text-xs text-negative-600 dark:text-negative-400">{hata}</p>}
+          <div className="flex gap-2">
+            <button type="submit" className="btn btn-primary !text-xs" disabled={kaydediliyor} aria-busy={kaydediliyor}>
+              {kaydediliyor && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+              Kaydet
+            </button>
+            <button type="button" className="btn btn-secondary !text-xs" onClick={() => { setAcik(false); setHata(null); }}>Vazgeç</button>
+          </div>
+        </form>
+      )}
       {rules.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-6">Henüz kural yok.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-6">Henüz kural yok — eşleşen işlemler bu hedefe otomatik ayrılsın istiyorsan bir kural ekle.</p>
       ) : (
         rules.map((r) => (
           <div key={r.id} className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded flex items-start justify-between gap-2">
             <div className="text-sm">
               <p className="text-zinc-800 dark:text-zinc-200 font-medium">{r.name}</p>
               <p className="text-zinc-500 text-xs mt-0.5">
-                {JSON.stringify(r.criteria)} → {allocationLabel(r)}
+                {kriterMetni(r.criteria)} → {ayirmaMetni(r)}
                 {!r.is_active && <span className="ml-2 text-zinc-600">(kapalı)</span>}
               </p>
             </div>
             <button
+              type="button"
+              aria-label={`${r.name}: kuralı sil`}
               onClick={() => handleDelete(r.id)}
               className="text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] inline-flex items-center justify-center -my-2"
             >

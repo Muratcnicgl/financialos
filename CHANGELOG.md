@@ -44,6 +44,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - 29 tabloda birincil anahtarın yanındaki gereksiz ikinci indeks kaldırıldı (göç) (#491).
 
+- Hız sınırlı uçlar `X-RateLimit-*` başlıkları döner; 429 `Retry-After` taşır (#492).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

@@ -35,7 +35,7 @@
 - **Etki:** Yüksek · **Efor:** M · **Not:** İki baseline migration kafa karıştırıcı — dokümante et.
 
 ### [DATA-006] PK kolonlarında `index=True` — redundant index (dual-index anti-pattern)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ~18 tabloda id PK index=True redundant index (models.py:132+)
+- **Durum:** ✅ KAPANDI — BUG #491 ile (PERF-011 aynı kök): 29 tabloda `primary_key=True, index=True` kaldırıldı, göç `e9f0a1b2c3d4` canlıdaki `ix_<tablo>_id` indekslerini düşürür; kapı `tests/test_pk_indeks_kapisi.py`.
 - **Kanıt:** `app/models.py` 18 tabloda `id=Column(Integer, primary_key=True, index=True)`
 - **Aksiyon:** PK'lardan `index=True` kaldır (SQLAlchemy zaten indeksler).
 - **Etki:** Düşük · **Efor:** S

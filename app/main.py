@@ -237,6 +237,23 @@ from app.security_headers import GuvenlikBasliklariMiddleware as _GuvenlikBaslik
 
 app.add_middleware(_GuvenlikBasliklari)
 
+# API-017 (BUG #492): hız sınırı bilgisi standart başlıkla. Ölçüldü (14 Eyl 2026): 429 yalnız
+# gövde metniyle dönüyordu; istemci ne kadar bekleyeceğini bilmiyordu, koç kullanım bilgisi
+# gövdede özel alandaydı. `rate_limit` bilgiyi `request.state`e bırakır; burada yanıta yazılır.
+from starlette.middleware.base import BaseHTTPMiddleware as _BaseHTTP
+from app.rate_limit import basliklari_ekle as _hiz_basliklari
+
+
+class _RateLimitBasliklari(_BaseHTTP):
+    async def dispatch(self, request, call_next):
+        yanit = await call_next(request)
+        _hiz_basliklari(request, yanit)
+        return yanit
+
+
+app.add_middleware(_RateLimitBasliklari)
+
+
 # ============================================================
 # KORELASYON KIMLIGI (B3 / BUG #280) — kapali beta teshis zinciri
 # ============================================================
@@ -277,6 +294,8 @@ class _KorelasyonMiddleware(_BaseHTTP):
 
 
 app.add_middleware(_KorelasyonMiddleware)
+
+
 
 
 # ============================================================

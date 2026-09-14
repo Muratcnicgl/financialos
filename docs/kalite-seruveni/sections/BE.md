@@ -233,7 +233,7 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [BE-036] `approve_action` tek istekte cockpit'i 2 kez hesaplıyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: approve generate_cockpit 2 kez çağırıyor (actions.py:245,271)
+- **Durum:** ✅ KAPANDI — BUG #487 ile (PERF-002 aynı kök): onay ucu `hizli_bakiye_ozeti` ile iki sayıyı tek sorguda alır (55×); kapı kokpitle kuruş eşitliğini kilitler.
 - **Kanıt:** `app/routers/actions.py:239,264`
 - **Aksiyon:** Hafif skaler hesap veya before'u pending'ten türet. Önce profille.
 - **Etki:** Düşük · **Efor:** S

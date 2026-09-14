@@ -85,20 +85,22 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _limit_memory(key: str, max_r: int, window: int) -> bool:
-    """True = limit aşıldı. (Process-yerel; dev/test ve DB'siz çağrılar için.)"""
+def _limit_memory(key: str, max_r: int, window: int) -> int:
+    """Penceredeki istek sayısı (bu istek dahil). `> max_r` = aşıldı.
+    (Process-yerel; dev/test ve DB'siz çağrılar için.) API-017 (BUG #492): bool yerine sayı —
+    kalan hak başlıkta söylenir."""
     now = time.monotonic()
     q = _RATE[key]
     while q and now - q[0] > window:
         q.popleft()
     if len(q) >= max_r:
-        return True
+        return max_r + 1
     q.append(now)
-    return False
+    return len(q)
 
 
-def _limit_db(db, key: str, max_r: int, window: int) -> bool:
-    """True = limit aşıldı. Sayaç DB'de → tüm worker'lar aynı pencereyi görür.
+def _limit_db(db, key: str, max_r: int, window: int) -> int:
+    """Penceredeki istek sayısı (bu istek dahil); `> max_r` = aşıldı. Sayaç DB'de → tüm worker'lar aynı pencereyi görür.
 
     Önce yaz-sonra-say: eşzamanlı iki worker'da sayım güvenli tarafa (fazla saymaya)
     kayar; hiçbir durumda limitin altında kalmaz.
@@ -119,23 +121,46 @@ def _limit_db(db, key: str, max_r: int, window: int) -> bool:
         # Limiter uygulamayı ASLA düşürmemeli — DB sorununda bellek yoluna düş.
         db.rollback()
         return _limit_memory(key, max_r, window)
-    return sayi > max_r
+    return sayi
 
 
 def rate_limit(request: Request, bucket: str, db=None) -> None:
     """Bucket + istemci IP'si başına sliding window. Aşımda 429.
 
     `db` verilirse sayaç paylaşılan (çok-worker güvenli) DB'de tutulur.
+
+    API-017 (BUG #492): sonuç `request.state.rate_limit`e yazılır; main.py'deki başlık
+    middleware'i her yanıta `X-RateLimit-Limit/Remaining/Reset` ekler, 429'da `Retry-After`
+    (saniye) da döner — istemci pencereyi bilir, körlemesine yeniden denemez.
     """
     max_r, window = limit_for(bucket)
     key = f"{bucket}:{client_ip(request)}"
-    asildi = _limit_db(db, key, max_r, window) if db is not None else \
-        _limit_memory(key, max_r, window)
-    if asildi:
+    sayi = _limit_db(db, key, max_r, window) if db is not None else         _limit_memory(key, max_r, window)
+    kalan = max(0, max_r - sayi)
+    durum = getattr(request, "state", None)   # testlerdeki sahte istek nesnesi state taşımayabilir
+    if durum is not None:
+        durum.rate_limit = {"limit": max_r, "kalan": kalan, "pencere": window}
+    if sayi > max_r:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Çok fazla deneme. Lütfen bir süre sonra tekrar deneyin.",
+            headers={
+                "Retry-After": str(window),
+                "X-RateLimit-Limit": str(max_r),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(window),
+            },
         )
+
+
+def basliklari_ekle(request: Request, yanit) -> None:
+    """Middleware yardımcısı: `rate_limit` çağrılmış bir istekte standart başlıkları ekler."""
+    bilgi = getattr(request.state, "rate_limit", None)
+    if not bilgi:
+        return
+    yanit.headers["X-RateLimit-Limit"] = str(bilgi["limit"])
+    yanit.headers["X-RateLimit-Remaining"] = str(bilgi["kalan"])
+    yanit.headers["X-RateLimit-Reset"] = str(bilgi["pencere"])
 
 
 def reset(db=None) -> None:

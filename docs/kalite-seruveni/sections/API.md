@@ -115,7 +115,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [API-017] Rate-limit/quota bilgisi standart header ile dönmüyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: X-RateLimit-*/Retry-After header yok
+- **Durum:** ✅ KAPANDI — BUG #492 (14 Eyl 2026). Ölçüldü: 14 sınırlı uçta 429 yalnız gövde metniyle dönüyordu; `Retry-After` yok, kalan hak görünmüyordu. Yapılan: `rate_limit` sayacı bool yerine sayı döner ve bilgiyi `request.state`e bırakır; `_RateLimitBasliklari` middleware'i (korelasyonun içinde — korelasyon en dışta kalır, kapı ölçer) her sınırlı yanıta `X-RateLimit-Limit/Remaining/Reset` ekler; 429 `Retry-After` (pencere saniyesi) + `X-RateLimit-Remaining: 0` taşır. Sınırsız uç (sağlık) başlık taşımaz (yanlış vaat yok). ⚪ Koç LLM kotası (`/api/coach/usage`) gövdede kaldı: o bir gün/ay kotasıdır, IP-pencere sınırı değil; standart başlığa sıkıştırmak iki farklı kavramı karıştırırdı. Kapı `tests/test_hiz_siniri_basliklari_kapisi.py` (3 test).
 - **Sorun/Fırsat:** Coach usage bilgisi gövdede özel alanla; standart `X-RateLimit-*`/`Retry-After` yok, istemci genel davranış kuramaz.
 - **Kanıt:** `app/routers/coach.py:153-178` (usage gövdede)
 - **Aksiyon:** Rate-limit (SEC-004) eklenince `X-RateLimit-Remaining`/`Retry-After` header'ları.

@@ -337,7 +337,7 @@ Harcamanı kaydettim."`
 - **Etki:** Orta · **Efor:** S
 
 ### [LLM-035] save_insight soru modunda hep aktif — istenmeyen yazım
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: save_insight soru modunda aktif
+- **Durum:** ✅ KAPANDI — BUG #503 (14 Eyl 2026). Ölçüldü: maddenin üç eyleminden ikisi zaten kapalıydı (BUG #268: içeriksiz kayıt reddedilir, boş `dedup_key` içerikten türetilir, şema tek kaynak); kalan: `save_insight` selamlaşma turunda da aktifti — canlı tabloda "Kart ile ödeme tavsiyesi isteği" gibi gerçek olmayan içgörüler ve her selamda ~600 token araç şeması. `intent_rules.selamlasma_mi`: ≤4 sözcük ve sözlükten (selam/teşekkür/veda; Türkçe karakter ve noktalama duyarsız); chat akışı selamda `active_tools=[]` verir, gerekçeyi ize yazar. Yanlış pozitif kayıp kayıt demek — finansal içerikli/uzun mesaj asla selam sayılmaz (kapı 8 karşı örnek). Kapı `tests/test_selamlasma_kapisi.py` (20 test).
 - **Kanıt:** `coach.py:1584,1630-1649`
 - **Aksiyon:** dedup_key boşsa yazma; selamlaşmada save_insight'ı kapat; içeriği şema ile doğrula.
 - **Etki:** Düşük · **Efor:** S

@@ -65,6 +65,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - API kök adresi tek noktadan ayarlanabilir (`VITE_API_BASE`) — istemci ayrı host'a taşınabilir (#502).
 
+- Koç selam/teşekkür turunda araç çağırmaz — gerçek olmayan "içgörü" yazılmaz, şema tokenı gitmez (#503).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

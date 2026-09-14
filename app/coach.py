@@ -196,6 +196,7 @@ from app.uslup_kurallari import (  # BUG #277: koçun yazılı üslup sözleşme
     siz_hitabi_onar,               # K2: 2. çoğul → 2. tekil (deterministik, sıfır maliyet)
 )
 from app.intent_rules import (  # noqa: E402  (modül üstündeki import bloğuyla aynı seviye)
+    selamlasma_mi as _selamlasma_mi,   # LLM-035 (BUG #503)
     gelecek_niyet_mi as is_future_or_intent,
     gerceklesmis_eylem_var_mi as has_realized_action,
     niyet_cikar,
@@ -3107,10 +3108,17 @@ class CoachEngine:
             _niyet = niyet_cikar(user_message)
             is_q = _niyet.soru
             offer_propose = _niyet.propose_sunulsun
-            active_tools = (
-                [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA] if offer_propose
-                else [SAVE_INSIGHT_SCHEMA]
-            )
+            # LLM-035 (BUG #503): selam/teşekkür/veda turunda araç YOK — kaydedilecek gerçek
+            # yok, öneri yok; şema tokenı da gitmez.
+            _selam = _selamlasma_mi(user_message)
+            if _selam:
+                offer_propose = False
+                active_tools = []
+            else:
+                active_tools = (
+                    [PROPOSE_ACTION_SCHEMA, SAVE_INSIGHT_SCHEMA] if offer_propose
+                    else [SAVE_INSIGHT_SCHEMA]
+                )
 
             # PROMPT BÜTÇESİ: aracın MEKANİĞİ, araç verilmeyen turda gönderilmez.
             # Prompt yukarıda (STEP A) tam hâliyle kurulur — sınıflandırma öncesi bağlam
@@ -3127,7 +3135,7 @@ class CoachEngine:
                 s.observation = (
                     f"is_question={is_q}, gerceklesmis={_niyet.gerceklesmis}, "
                     f"gelecek={_niyet.gelecek}, offer_propose={offer_propose} "
-                    f"({_niyet.gerekce}), tool_count={len(active_tools)}"
+                    f"({'selamlasma: aracsiz tur' if _selam else _niyet.gerekce}), tool_count={len(active_tools)}"
                 )
                 tool_names = [t.get("name", "?") for t in active_tools]
                 s.inference = f"active_tools: {tool_names}"

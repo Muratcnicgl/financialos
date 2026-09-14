@@ -135,6 +135,32 @@ def _soru_mu(katlanmis: str) -> bool:
     return any(d.search(katlanmis) for d in _SORU_DESENLERI)
 
 
+# LLM-035 (BUG #503): selamlaşma / teşekkür / veda — araçsız tur.
+# Ölçüldü (14 Eyl 2026): `save_insight` her turda aktifti; canlıda "Kart ile ödeme tavsiyesi
+# isteği" gibi gerçek olmayan içgörüler yazılmıştı ve her selamda araç şeması (~600 token) gidiyordu.
+# Kural KISA (≤ 4 sözcük) ve sözlükten: uzun bir mesajda "merhaba, dün 500 harcadım" selam değildir.
+_SELAM_SOZLUGU = frozenset({
+    "merhaba", "selam", "selamlar", "slm", "mrb", "hey", "hi", "hello",
+    "gunaydin", "iyi gunler", "iyi aksamlar", "iyi geceler", "hosca kal", "hoscakal", "gorusuruz", "bay bay",
+    "tesekkurler", "tesekkur ederim", "sagol", "sag ol", "cok tesekkurler", "eyvallah", "tamam", "tamamdir", "ok", "okey",
+    "nasilsin", "naber", "ne haber", "iyiyim", "kolay gelsin", "rica ederim",
+})
+
+
+def selamlasma_mi(mesaj: str) -> bool:
+    """Mesaj yalnız selam/teşekkür/veda mı? Kısa ve sözlükten; noktalama ve emoji sayılmaz."""
+    k = normalize(mesaj)
+    k = re.sub(r"[^a-z0-9 ]+", " ", k)
+    k = re.sub(r"\s+", " ", k).strip()
+    if not k or len(k.split()) > 4:
+        return False
+    if k in _SELAM_SOZLUGU:
+        return True
+    parcalar = [p for p in re.split(r"\s+", k) if p]
+    return all(p in _SELAM_SOZLUGU for p in parcalar) or (
+        len(parcalar) == 2 and " ".join(parcalar) in _SELAM_SOZLUGU)
+
+
 def niyet_cikar(mesaj: str) -> MesajNiyeti:
     """Mesajın niyetini tek geçişte çıkarır (sözleşme: modül docstring'i)."""
     k = normalize(mesaj)

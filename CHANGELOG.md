@@ -49,6 +49,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Operatör uçları: veritabanı sağlığı (`/api/ops/db` — boyut, WAL, tablo satırları, kilit sayacı)
   ve zamanlanmış işlerin süreleri (#493).
 
+- SQLite yedeği artık uygulamanın kendi zamanlayıcısından (03:15) alınır ve çalışma kaydı bırakır;
+  Dependabot bağımlılık güncellemeleri (#494).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

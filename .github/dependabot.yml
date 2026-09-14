@@ -1,0 +1,24 @@
+# DEVOPS-017 (BUG #494): bağımlılık güncellemeleri otomatik PR ile gelir; CI (pytest + vitest +
+# kapılar) her PR'da koşar. ruff ve eslint sürümleri BİLEREK kilitli (kalite-baseline.json): o
+# iki paketin PR'ı ratchet kapısını kırar ve `--yaz` ile yeniden ölçüm ister — sürpriz değil, tasarım.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      kucuk-surumler:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

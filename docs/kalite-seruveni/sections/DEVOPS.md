@@ -58,7 +58,7 @@
 - **Etki:** Düşük · **Efor:** M
 
 ### [DEVOPS-010] Backup otomasyonu manuel kuruluma bağlı
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: backup scheduler'a bağlı değil, schtasks manuel
+- **Durum:** ✅ KAPANDI — BUG #494 (14 Eyl 2026). Ölçüldü: SQLite yedeği yalnız Windows Görev Zamanlayıcı'ndan (`gorevleri_kur.ps1`, 03:15) ya da elle koşuyordu — görevi kurmayan makinede hiç yedek alınmıyor, bunu ölçen yoktu. Çekirdek `app/yedek.py`e taşındı (`sqlite_yedekle`: çevrimiçi yedek + integrity_check + saklama; hata YÜKSELİR, yarım kopya kalmaz); `app/scheduler.py` SQLite'ta `sqlite_backup` işini 03:15'te koşturur (fiyat 02:45 ve gece batch 03:00'dan sonra), izleme sarmalayıcısıyla çalışma kaydı bırakır — yedek ölürse `/api/ops/scheduler › sorunlu_isler` ve canlı kapı görür. CLI (`python -m scripts.backup`) aynı çekirdeği çağırır (uygulama `scripts/`e bağımlı değil — BE-033 kapısı). PostgreSQL'de iş listede yok; oradaki yedek `pg_backup` dış işi (BUG #240). Windows görevi yedek olarak kalır (iki bağımsız yol). ⚪ Off-site kopya RESIL-012'nin konusu. Kapı `tests/test_yedek_isi_kapisi.py` (4 test).
 - **Kanıt:** `docs/dev-commands.md` (schtasks tek-seferlik kurulum); `scripts/backup.py`
 - **Aksiyon:** Backup'ı uygulama scheduler'ına (apscheduler zaten var) bağla — kurulumdan bağımsız; off-site kopya (RESIL-012).
 - **Etki:** Orta · **Efor:** S
@@ -94,13 +94,13 @@
 - **Etki:** Düşük · **Efor:** S
 
 ### [DEVOPS-016] Frontend build çıktısı/deploy pipeline yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: CI e2e npm run dev, build+artifact yok
+- **Durum:** ✅ KAPANDI — ölçümle (14 Eyl 2026, BUG #494 turu): madde "build+artifact yok" diyordu; kullanılan dağıtım yolu `deploy/windows/guncelle.ps1` (BUG #353: kaynak damgası bayatsa `npm run build`, damga doğrulamalı) ve `frontend/dist`i sunan yol canlıda doğrulanıyor (`/api/meta` build damgası). CI'da build artifact'ı ⚪: statik dosyalar bu kurulumda konteynere değil Windows servisine dağıtılıyor; Docker imajı yalnız backend (Dockerfile). Ayrı statik host gerekirse o zaman açılır.
 - **Kanıt:** `frontend/` (`npm run build` var, dağıtım yok)
 - **Aksiyon:** CI'da build + artifact; backend `StaticFiles` ile serve veya ayrı statik host.
 - **Etki:** Düşük · **Efor:** M
 
 ### [DEVOPS-017] Bağımlılık güncelleme otomasyonu yok (Dependabot/Renovate)
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Dependabot/Renovate yok
+- **Durum:** ✅ KAPANDI — BUG #494 turu (14 Eyl 2026): `.github/dependabot.yml` — pip (haftalık, pazartesi), npm (`/frontend`, haftalık, minor+patch gruplu), github-actions (aylık). Güvenlik güncellemeleri Dependabot'un varsayılan güvenlik PR'larıyla; CI (pytest + vitest + kapılar) her PR'da koşar, ratchet'ler sürüm değişikliğini yakalar (ruff/eslint sürüm kilidi bilinçli: o iki paket için PR kapıyı kıracak ve `--yaz` ile yeniden ölçüm isteyecek — sürpriz değil, tasarım).
 - **Kanıt:** repo (dependabot config yok)
 - **Aksiyon:** Dependabot/Renovate (haftalık PR); güvenlik güncellemeleri otomatik.
 - **Etki:** Düşük · **Efor:** S

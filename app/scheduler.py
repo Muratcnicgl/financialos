@@ -34,6 +34,7 @@ calisma kaydedilir ve planli-ama-hic-calismamis is uctan gorunur.
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 from contextlib import contextmanager
@@ -45,7 +46,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
+from app.database import IS_SQLITE, SessionLocal
 from app.error_tracking import temizle  # BUG #258: kalıcı çalışma kaydı maskeli yazılır
 from sqlalchemy import delete
 from app.models import ApiCallLog, AuditLog, RevokedToken, SchedulerRun, User, ReasoningTrace, Workspace
@@ -296,6 +297,20 @@ async def nightly_batch_job() -> str:
     return ozet
 
 
+@_izlenen_is("sqlite_backup")
+async def sqlite_backup_job() -> str:
+    """DEVOPS-010 (BUG #494): SQLite yedeği UYGULAMANIN İÇİNDEN — 03:15, gece işlerinden sonra.
+
+    Eskiden yalnız Windows Görev Zamanlayıcı'dan (`gorevleri_kur.ps1`) koşuyordu: görevi
+    kurmayan makinede hiç yedek alınmıyordu ve bunu ölçen yoktu. Artık `PLANLI_ISLER`de
+    (SQLite'ta) — çalışma kaydı bırakır, ölürse `sorunlu_isler`e düşer, dış görev yedektir.
+    PostgreSQL'de bu iş listede yoktur; oradaki yedek `pg_backup` dış işidir.
+    """
+    from app.yedek import sqlite_db_yolu, sqlite_yedekle, varsayilan_yedek_dizini
+    hedef, silinen = await asyncio.to_thread(sqlite_yedekle, sqlite_db_yolu(), varsayilan_yedek_dizini(), 30)
+    return f"yedek: {hedef.name} ({hedef.stat().st_size // 1024} KB), silinen eski: {silinen}"
+
+
 @_izlenen_is("k2_batch")
 async def k2_batch_job() -> str:
     """APScheduler cron job - gece 03:30, K2 LLM consolidation."""
@@ -464,6 +479,8 @@ PLANLI_ISLER: tuple[PlanliIs, ...] = (
     PlanliIs("fetch_investment_prices", fetch_investment_prices_job,
              {"hour": 2, "minute": 45}, 24),
     PlanliIs("nightly_batch", nightly_batch_job, {"hour": 3, "minute": 0}, 24),
+    # DEVOPS-010 (BUG #494): yedek fiyat (02:45) ve gece batch'inden (03:00) SONRA — yalnız SQLite.
+    *((PlanliIs("sqlite_backup", sqlite_backup_job, {"hour": 3, "minute": 15}, 24),) if IS_SQLITE else ()),
     PlanliIs("k2_batch", k2_batch_job, {"hour": 3, "minute": 30}, 24),
     PlanliIs("nightly_trace_cleanup", nightly_trace_cleanup_job, {"hour": 4, "minute": 0}, 24),
     PlanliIs("weekly_smoke_test", weekly_smoke_test_job,

@@ -144,7 +144,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [FE-024] fetch'te timeout/AbortController yok — asılı istekler iptal edilmiyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: request() AbortController/timeout yok (api.js:90)
+- **Durum:** ✅ KAPANDI — BUG #489 (14 Eyl 2026). Ölçüldü: `request()` fetch'e signal vermiyordu; cevap gelmeyen istek paneli sonsuz "yükleniyor"da bırakıyordu (tünel takılmasında görüldü). Her istek `AbortController` taşır: varsayılan 30 sn (`ISTEK_ZAMAN_ASIMI_MS`; kokpit ~40 sorgu bile 1 sn altı), koç sohbeti 180 sn (`KOC_ZAMAN_ASIMI_MS`; sağlayıcı zinciri sağlayıcı başına 60 sn — BUG #263). Zaman aşımı → `ApiError(0, "İstek zaman aşımına uğradı (30 sn)…")`, dış `signal` iptali → "İstek iptal edildi."; hızlı cevapta zamanlayıcı temizlenir. ⚪ useEffect cleanup'ta abort panellere yayılmadı: paneller sekme geçişinde bağlantıdan kopar ve React 18 bağlı olmayan bileşene setState'i sessizce yok sayar — ölçülebilir bir kusur yok, `request(..., {signal})` yolu hazır. Kapı `frontend/src/istek-zaman-asimi.test.js` (4 test: 30 sn, dış iptal, hızlı yol + zamanlayıcı temizliği, koç 180 sn).
 - **Kanıt:** `api.js:33-89` (58-64)
 - **Aksiyon:** `request`'e signal+AbortController+timeout; useEffect cleanup'ta abort.
 - **Etki:** Orta · **Efor:** M

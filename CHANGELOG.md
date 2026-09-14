@@ -38,6 +38,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Koç mesaj kartları yazarken yeniden ayrıştırılmaz (memo) (#488).
 
+- Takılan istekler 30 sn'de (koç 180 sn) açık hatayla düşer; sonsuz "yükleniyor" yok (#489).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

@@ -99,7 +99,16 @@ function _emitAuthExpired() {
 // CORE FETCH
 // =============================================================
 
-async function request(path, { method = 'GET', body, params, headers: extraHeaders, _retry = false } = {}) {
+// FE-024 (BUG #489): her istek bir zaman aşımı taşır. Ölçüldü (14 Eyl 2026): `fetch` sınırsızdı —
+// tünel/ağ takılınca panel sonsuza dek "yükleniyor"da kalıyor, kullanıcı yeniden deneyemiyordu.
+// Varsayılan 30 sn (kokpit ~40 sorgu bile 1 sn altı; 30 sn = kesinlikle takılmış istek). Koç
+// sohbeti sağlayıcı zincirini dolaşabilir (sağlayıcı başına 60 sn, BUG #263) → 180 sn.
+// Dış `signal` (bileşen ayrılınca abort) zaman aşımıyla birleştirilir.
+export const ISTEK_ZAMAN_ASIMI_MS = 30_000;
+export const KOC_ZAMAN_ASIMI_MS = 180_000;
+
+export async function request(path, { method = 'GET', body, params, headers: extraHeaders, _retry = false,
+                                      timeoutMs = ISTEK_ZAMAN_ASIMI_MS, signal } = {}) {
   let url = path;
 
   // Query string ekle
@@ -136,12 +145,32 @@ async function request(path, { method = 'GET', body, params, headers: extraHeade
     init.body = JSON.stringify(body);
   }
 
+  // FE-024 (BUG #489): zaman aşımı + dış iptal → tek AbortController
+  const denetleyici = new AbortController();
+  const zamanlayici = setTimeout(() => denetleyici.abort('zaman-asimi'), timeoutMs);
+  const disIptal = () => denetleyici.abort('iptal');
+  if (signal) {
+    if (signal.aborted) disIptal();
+    else signal.addEventListener('abort', disIptal, { once: true });
+  }
+  init.signal = denetleyici.signal;
+
   let res;
   try {
     res = await fetch(url, init);
   } catch (e) {
+    if (denetleyici.signal.aborted) {
+      const sebep = denetleyici.signal.reason;
+      if (sebep === 'zaman-asimi') {
+        throw new ApiError(0, `İstek zaman aşımına uğradı (${Math.round(timeoutMs / 1000)} sn) — sunucu cevap vermedi.`, null);
+      }
+      throw new ApiError(0, 'İstek iptal edildi.', null);
+    }
     // Network hatasi (backend kapali, internet yok vb.)
     throw new ApiError(0, `Baglanti hatasi: ${e.message}`, null);
+  } finally {
+    clearTimeout(zamanlayici);
+    if (signal) signal.removeEventListener('abort', disIptal);
   }
 
   // 204 No Content
@@ -388,6 +417,7 @@ export const coachApi = {
   chat:    (message, includeCockpit = true) => request('/api/coach/chat', {
     method: 'POST',
     body: { message, include_cockpit: includeCockpit },
+    timeoutMs: KOC_ZAMAN_ASIMI_MS,   // FE-024 (BUG #489): sağlayıcı zinciri 30 sn'yi aşabilir
   }),
   history: (limit = 50) => request('/api/coach/history', { params: { limit } }),
   reset:   () => request('/api/coach/reset', { method: 'POST' }),

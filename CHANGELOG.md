@@ -74,6 +74,8 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Mikro-kopya: Türkçe karaktersiz ipucu ve "Nakit runway" düzeltildi ("nakit pisti"); yazım kuralları sözlükte (#506).
 
+- Log gizliliği kapıyla kilitlendi: ham kullanıcı mesajı log'a girmez, maske her handler'da (#507).
+
 ### Operasyon
 - Windows servisi uvicorn'u eşzamanlı bağlantı / keep-alive / backlog sınırlarıyla açar (#497).
 - Ölçümle karara bağlanan maddeler: kompozit indeksler plana giriyor; iz adımı başına commit

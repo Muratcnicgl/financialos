@@ -70,7 +70,7 @@
 - **Etki:** Orta · **Efor:** S
 
 ### [OBS-011] Ham kullanıcı mesajı log'da — PII gözlemi ile gizlilik çatışması
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: ham mesaj redaksiyon yok
+- **Durum:** ✅ KAPANDI — ölçümle (14 Eyl 2026, BUG #507 turu): madde bayattı. BUG #180 (ham finansal metin loglanmaz; koç kodunda `user_message` yalnız `len(...)` olarak log'a girer) ve BUG #244 (`LogMaskeleyici` her handler'a yapısal bağlı: kart/IBAN/anahtar desenleri log satırında maskelenir) zaten vardı. İzdeki gözlem (`ReasoningTrace.observation`) log değil kullanıcının kendi verisi (DB, kullanıcıya bağlı, saklama kuralı BUG #383). Kapı `tests/test_ham_mesaj_log_kapisi.py`: koç loglarında ham mesaj yok (kaynak), maske filtresi her handler'a bağlı ve kart numarasını maskeler.
 - **Kanıt:** `app/coach.py:1695,1757`
 - **Aksiyon:** Redaksiyon filtresi (uzunluk/hash logla); observability PII sızdırmadan. (SEC-008)
 - **Etki:** Orta · **Efor:** S

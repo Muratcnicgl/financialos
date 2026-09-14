@@ -1007,6 +1007,7 @@ export default function Cockpit({ setActiveTab }) {
                 : r.type === 'receivable' ? { etiket: 'Geldi', tip: 'borc' }
                 : r.type === 'card_payment' ? { etiket: 'Koça sor', tip: 'koc' }
                 : null;
+              const vadeIsliyor = vadeMesgul === i;
               const dayLabel = r.days_until === 0 ? 'Bugün'
                 : r.days_until === 1 ? 'Yarın'
                 : `${r.days_until} gün sonra`;
@@ -1041,11 +1042,12 @@ export default function Cockpit({ setActiveTab }) {
                     <button
                       type="button"
                       className="btn btn-secondary text-xs px-2 py-1 min-h-[36px] flex-shrink-0"
-                      disabled={vadeMesgul === i}
-                      aria-busy={vadeMesgul === i}
+                      disabled={vadeIsliyor}
+                      aria-busy={vadeIsliyor}
                       aria-label={`${r.name}: ${eylem.etiket}`}
                       onClick={() => vadeEylemi(r, i, eylem)}
                     >
+                      {vadeIsliyor && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
                       {eylem.etiket}
                     </button>
                   )}

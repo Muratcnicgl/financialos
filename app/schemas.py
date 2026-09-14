@@ -293,8 +293,18 @@ class CockpitSnapshot(BaseModel):
 # H2G5 GOAL ENGINE (ADR-024)
 # ============================================================
 
+class GoalPlan(BaseModel):
+    """UX-024 (BUG #479): benimsenen borç planı — strateji + aylık ekstra ödeme."""
+    strateji: Literal["snowball", "avalanche"]
+    aylik_ekstra: Decimal = Field(Decimal("0"), ge=0, le=Decimal("1e6"), allow_inf_nan=False)
+
+    def kayit(self) -> dict:
+        return {"strateji": self.strateji, "aylik_ekstra": float(self.aylik_ekstra)}
+
+
 class GoalCreate(BaseModel):
     goal_type: Literal["debt_freedom", "cash_target"]
+    plan: Optional[GoalPlan] = None   # yalnız debt_freedom (router 422 ile korur)
     title: str = Field(..., min_length=1, max_length=200)
     # BUG #176 (P2): ust sinir + sonluluk yoktu — 1E+308 / Infinity ilerleme ve
     # projeksiyon hesabini bozuyordu (SEC-032'nin Goal'da atlanmis hali).
@@ -310,6 +320,7 @@ class GoalUpdate(BaseModel):
     # goal_engine.refresh_goal'da (gerçek katkı >= target ise) olur; kullanıcı PATCH ile
     # hiç katkı yapmadan "sanal başarı" işaretleyemez ("Rules Engine karar verir" ilkesi).
     status: Optional[Literal["active", "paused", "abandoned"]] = None
+    plan: Optional[GoalPlan] = None   # UX-024 (BUG #479)
 
 
 class GoalRead(BaseModel):
@@ -330,6 +341,7 @@ class GoalRead(BaseModel):
     created_at: UtcDateTime  # BUG #136 (P1-1)
     updated_at: UtcDateTime  # BUG #136 (P1-1)
     achieved_at: Optional[UtcDateTime]  # BUG #136 (P1-1)
+    plan: Optional[dict] = None   # UX-024 (BUG #479)
 
     @computed_field  # type: ignore[misc]
     @property

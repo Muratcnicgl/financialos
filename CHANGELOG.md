@@ -11,6 +11,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 - Kokpitteki yaklaşan vade satırı tek tıkla eyleme dönüşür: borç → "Ödedim", alacak →
   "Geldi" (nakit ayağıyla), kart son ödemesi → "Koça sor" (hazır soruyla) (#477).
 
+- Borç Stratejisi'nde "Bu planı benimse": seçilen strateji + aylık ekstra, Borç Ödeme hedefine
+  bağlanır; hedefin tahmini bitişi artık benimsenen planla hesaplanır (eskiden hep Kartopu/0) (#479).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

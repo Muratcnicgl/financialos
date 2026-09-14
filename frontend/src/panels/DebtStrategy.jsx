@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { RefreshCw, Loader2, TrendingDown, Mountain, CreditCard, Info, Combine, ShoppingCart, AlertTriangle } from 'lucide-react';
-import { debtStrategyApi, cockpitApi, parseTRNumber } from '../api.js';
+import { debtStrategyApi, cockpitApi, goalsApi, parseTRNumber } from '../api.js';
+import { planBenimse, planEtiketi } from '../lib/borcPlani.js';   // UX-024 (BUG #479)
 import { sliderTavani, referansYuzde } from '../lib/sliderTavani.js';   // UX-025 (BUG #463)
 import { useToast } from '../components/Toast.jsx';
 import { formatPara, paraEtiketi } from '../lib/money.js';
@@ -21,7 +22,7 @@ const fmtDate = (iso) => {
   }
 };
 
-function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById }) {
+function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById, benimsenmis, onBenimse, mesgul }) {
   if (!strategy) {
     return (
       <div className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/40 p-5">
@@ -84,6 +85,20 @@ function StrategyCard({ title, subtitle, icon: Icon, accent, strategy, debtsById
           <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{fmtDate(strategy.payoff_date)}</div>
         </div>
       </div>
+
+      {/* UX-024 (BUG #479): analiz taahhüde dönüşür — plan, debt_freedom hedefine bağlanır */}
+      {onBenimse && (
+        <button
+          type="button"
+          className={`btn ${benimsenmis ? 'btn-secondary' : 'btn-primary'} text-sm min-h-[44px]`}
+          disabled={mesgul || benimsenmis}
+          aria-busy={mesgul}
+          onClick={onBenimse}
+        >
+          {mesgul && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+          {benimsenmis ? 'Benimsenen plan ✓' : 'Bu planı benimse'}
+        </button>
+      )}
     </div>
   );
 }
@@ -251,6 +266,9 @@ export default function DebtStrategy() {
   const toast = useToast();
   const [extraMonthly, setExtraMonthly] = useState(0);
   const [reelButce, setReelButce] = useState(null);   // UX-025 (BUG #463): kaydırıcı tavanı bütçeden
+  // UX-024 (BUG #479): aktif debt_freedom hedefi (varsa plan ona yazılır, yoksa yaratılır)
+  const [borcHedefi, setBorcHedefi] = useState(null);
+  const [benimseMesgul, setBenimseMesgul] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -276,6 +294,35 @@ export default function DebtStrategy() {
 
   // Neden susturuldu: ilk yükleme bir kez; `fetchData` her render'da yeni kimlik alır.
   useEffect(() => { fetchData(0); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // UX-024 (BUG #479): mevcut borç hedefi — yan çağrı, ana akışı devirmez.
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => goalsApi.list({ statusFilter: 'active', goalType: 'debt_freedom' }))
+      .then((liste) => setBorcHedefi((liste || [])[0] || null))
+      .catch(() => {});
+  }, []);
+
+  const handleBenimse = async (strateji) => {
+    setBenimseMesgul(true);
+    try {
+      const hedef = await planBenimse({
+        goalsApi, mevcut: borcHedefi, strateji, aylikEkstra: extraMonthly,
+        strateji_sonucu: data?.[strateji], debts: data?.debts || [],
+      });
+      setBorcHedefi(hedef);
+      toast.success(`Plan benimsendi: ${planEtiketi(hedef.plan)}`, {
+        detail: 'Hedefler panelinde "Borç Ödeme" hedefi bu planı izler.',
+      });
+    } catch (e) {
+      toast.error(`Plan benimsenemedi: ${e.message}`);
+    } finally {
+      setBenimseMesgul(false);
+    }
+  };
+  const benimsenmisMi = (strateji) =>
+    !!borcHedefi?.plan && borcHedefi.plan.strateji === strateji
+    && Number(borcHedefi.plan.aylik_ekstra || 0) === Number(extraMonthly || 0);
   useEffect(() => {
     let iptal = false;
     cockpitApi.get().then((c) => { if (!iptal) setReelButce(c?.reel_butce ?? null); }).catch(() => {});
@@ -416,6 +463,9 @@ export default function DebtStrategy() {
           accent="warn"
           strategy={data.snowball}
           debtsById={debtsById}
+          benimsenmis={benimsenmisMi('snowball')}
+          onBenimse={() => handleBenimse('snowball')}
+          mesgul={benimseMesgul}
         />
         <StrategyCard
           title="Avalanche (Çığ)"
@@ -424,6 +474,9 @@ export default function DebtStrategy() {
           accent="positive"
           strategy={data.avalanche}
           debtsById={debtsById}
+          benimsenmis={benimsenmisMi('avalanche')}
+          onBenimse={() => handleBenimse('avalanche')}
+          mesgul={benimseMesgul}
         />
       </div>
 

@@ -1051,6 +1051,9 @@ class Goal(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
     achieved_at = Column(DateTime, nullable=True)
+    # UX-024 (BUG #479): benimsenen borç planı {"strateji": snowball|avalanche, "aylik_ekstra": float}.
+    # Yalnız debt_freedom; projeksiyon (goal_engine) bu planı kullanır — plan yoksa snowball/0.
+    plan = Column(JSON, nullable=True)
 
     allocations = relationship("GoalAllocation", back_populates="goal",
                                cascade="all, delete-orphan")

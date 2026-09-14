@@ -109,20 +109,36 @@ def _compute_debt_freedom(goal: models.Goal, db: Session) -> dict:
     }
 
 
+def plan_secimi(goal: models.Goal) -> tuple[str, float]:
+    """UX-024 (BUG #479): hedefe bağlı plan (strateji, aylık ekstra); plan yoksa snowball/0.
+
+    Eskiden projeksiyon HER ZAMAN Snowball + ekstra 0 ile hesaplanıyordu: kullanıcı Borç
+    Stratejisi'nde Avalanche + 1.500 TL planlasa bile hedef kartı başka bir tarih gösteriyordu.
+    """
+    plan = goal.plan if isinstance(goal.plan, dict) else {}
+    strateji = plan.get("strateji") if plan.get("strateji") in ("snowball", "avalanche") else "snowball"
+    try:
+        ekstra = max(float(plan.get("aylik_ekstra", 0) or 0), 0.0)
+    except (TypeError, ValueError):
+        ekstra = 0.0
+    return strateji, ekstra
+
+
 def _project_debt_freedom(goal: models.Goal, db: Session) -> Optional[date]:
-    """debt_strategy.compare_strategies Snowball sonucundan tahmini bitiş tarihi."""
+    """debt_strategy.compare_strategies sonucundan tahmini bitiş tarihi — benimsenen planla."""
     if not goal.user_id:
         return None
     try:
         from app.debt_strategy import compare_strategies
-        result = compare_strategies(db=db, user_id=goal.user_id, extra_monthly=0.0)
-        snowball = result.get("snowball")
+        strateji, ekstra = plan_secimi(goal)
+        result = compare_strategies(db=db, user_id=goal.user_id, extra_monthly=ekstra)
+        secilen = result.get(strateji)
         # BUG #066 fix (GE-001): compare_strategies DICT döner (_result_to_dict, key
         # 'months_to_freedom'); attribute erişimi (snowball.months_to_freedom) AttributeError
         # atıp bare-except tarafından yutuluyordu → projected_completion_date HER ZAMAN None idi.
-        if snowball and snowball["months_to_freedom"] < 600:
+        if secilen and secilen["months_to_freedom"] < 600:
             return (user_today_by_id(db, goal.user_id)  # BUG #237 (D17)
-                    + timedelta(days=int(snowball["months_to_freedom"] * 30)))
+                    + timedelta(days=int(secilen["months_to_freedom"] * 30)))
     except Exception:
         # BE-010: sessiz yutma → loglama. Tam bu except #066'da bir AttributeError'ı
         # gizleyip projected_completion_date'i sessizce None yapıyordu; log olsaydı erken yakalanırdı.

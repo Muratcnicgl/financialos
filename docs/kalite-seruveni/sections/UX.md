@@ -154,8 +154,8 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-024] Kart borcunu kapatma için yapılandırılmış "plan" akışı yok
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: DebtStrategy→Goal kurma akışı yok
-- **Kanıt:** `DebtStrategy.jsx` (analiz var, taahhüt yok)
+- **Durum:** ✅ KAPANDI — BUG #479 (14 Eyl 2026). Ölçüldü: panel iki planı karşılaştırıyor, hiçbirini hedefe bağlamıyordu; üstelik debt_freedom hedefinin tahmini bitişi HER ZAMAN Snowball + ekstra 0 ile hesaplanıyordu (`goal_engine._project_debt_freedom`) — kullanıcı Çığ + 1.500 TL planlasa bile hedef kartı başka bir tarih gösteriyordu. Yapılan: `goals.plan` JSON sütunu (`{strateji, aylik_ekstra}`; göç `c9d8e7f6a5b4`), `GoalCreate/GoalUpdate.plan` (yalnız debt_freedom, aksi 422; strateji Literal, ekstra 0–1e6), `GoalRead.plan`; projeksiyon benimsenen planı okur (`plan_secimi`, bozuk kayıtta snowball/0). Arayüz: iki strateji kartında **"Bu planı benimse"** — aktif borç hedefi yoksa yaratır (tutar = bugünkü toplam borç, tarih = planın bitişi, plan = strateji + kaydırıcıdaki ekstra), varsa plan ONA yazılır (ikinci hedef üretilmez); benimsenen kart "✓"; köprü tek kaynak `lib/borcPlani.js`; Hedefler kartında plan rozeti ("Çığ + 1.500 TL/ay"). ⚪ Aylık allocation kuralı yazılmadı: debt_freedom ilerlemesi bakiyeden hesaplanır (baseline − mevcut borç), kural kayıt üretmezdi. Kapılar: `tests/test_borc_plani_kapisi.py` (6 test; mutasyon 2/2 — projeksiyon planı okumazsa ve 422 guard kalkarsa kırmızı), `frontend/src/borc-plani.test.jsx` (4 RTL testi: yaratma gövdesi, mevcut hedefe yazma, hata yolu, etiket).
+- **Kanıt:** `app/goal_engine.py::plan_secimi`, `app/routers/goals.py`, `DebtStrategy.jsx`, `lib/borcPlani.js`
 - **Aksiyon:** "Bu planı benimse" → seçilen stratejiyi Goal (debt_freedom) olarak kur + aylık allocation kuralı. (allocation altyapısı var)
 - **Etki:** Yüksek · **Efor:** M
 

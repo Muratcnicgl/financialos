@@ -325,6 +325,7 @@ Bu belge `app/models.py` metadata'sından ÜRETİLİR (DOCS-012 / BUG #473). Kon
 | `created_at` | DATETIME | hayır | fn:utcnow |  |  |
 | `updated_at` | DATETIME | hayır | fn:utcnow |  |  |
 | `achieved_at` | DATETIME | evet |  |  |  |
+| `plan` | JSON | evet |  |  |  |
 
 İndeks/kısıt: index `ix_goals_goal_type` (goal_type); index `ix_goals_id` (id); index `ix_goals_status` (status); index `ix_goals_user_id` (user_id); index `ix_goals_workspace_id` (workspace_id)
 

@@ -4,6 +4,7 @@ import { goalsApi } from '../api';
 import { formatDate, parseTRNumber } from '../api';
 import { useToast } from '../components/Toast.jsx';
 import { Loader2, Target, Plus, X, RefreshCw } from 'lucide-react';
+import { planEtiketi } from '../lib/borcPlani.js';   // UX-024 (BUG #479)
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 
 function getGoalIcon(goalType) {
@@ -144,6 +145,7 @@ function GoalCard({ goal, onSelect }) {
             <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{goal.title}</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               {goal.goal_type === 'debt_freedom' ? 'Borç Ödeme' : 'Tasarruf'}
+              {goal.plan && <span className="ml-1 chip chip-neutral text-[10px]">{planEtiketi(goal.plan)}</span>}
             </p>
           </div>
         </div>

@@ -62,6 +62,8 @@ def create_goal(
     debt_freedom: baseline_amount mevcut toplam kredi+kart bakiyesinden snapshot alınır.
     cash_target: baseline_amount NULL kalır, allocation toplamı izlenir.
     """
+    if payload.plan is not None and payload.goal_type != "debt_freedom":
+        raise HTTPException(status_code=422, detail="plan yalnız debt_freedom hedefine bağlanır")
     goal = models.Goal(
         user_id=current_user.id,
         workspace_id=ws_id,
@@ -70,6 +72,7 @@ def create_goal(
         target_amount=payload.target_amount,
         target_date=payload.target_date,
         status="active",
+        plan=payload.plan.kayit() if payload.plan else None,   # UX-024 (BUG #479)
     )
 
     if payload.goal_type == "debt_freedom":
@@ -141,6 +144,10 @@ def update_goal(
         raise HTTPException(status_code=404, detail="Goal not found")
 
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if field == "plan":   # UX-024 (BUG #479): pydantic modeli değil, kayıt sözlüğü saklanır
+            if value is not None and goal.goal_type != "debt_freedom":
+                raise HTTPException(status_code=422, detail="plan yalnız debt_freedom hedefine bağlanır")
+            value = payload.plan.kayit() if payload.plan else None
         setattr(goal, field, value)
 
     db.commit()

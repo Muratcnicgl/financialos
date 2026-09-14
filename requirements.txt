@@ -7,7 +7,7 @@ python-multipart==0.0.32  # P2: PYSEC-2026-3039/3040
 
 # === LLM ===
 anthropic==1.0.0
-google-genai==2.8.0
+google-genai==2.23.0
 
 # === Fiyat Verisi ===
 tefas-crawler==0.5.0

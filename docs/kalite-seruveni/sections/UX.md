@@ -82,8 +82,8 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [UX-013] Yaklaşan vadeler pasif liste — tek-tık aksiyona dönüşmüyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: Cockpit vade listeleri pasif, Geldi/Ödedim butonu yok
-- **Kanıt:** `Cockpit.jsx:366-406`
+- **Durum:** ✅ KAPANDI — BUG #477 (14 Eyl 2026). Ölçüldü: "Yaklaşan vadeler" satırları ad/tutar/gün taşıyor, kayıt kimliği taşımıyordu — arayüz hangi kaydı kapatacağını bilemezdi. Yapılan: her hatırlatma `kaynak_id` taşır (düzenli kayıt / kişisel borç / kart hesabı; ek alan, sözleşme kalem şemasını dondurmuyor); kokpit satırı borç → **Ödedim**, alacak → **Geldi** (PUT `/debts/{id}` is_paid, nakit ayağı BUG #241; sonuç toast'ı hangi hesaba yansıdığını söyler, hesap yoksa uyarır; kokpit tazelenir), kart son ödemesi → **Koça sor** (hazır soru `sessionStorage`'a bırakılır, sekme koça geçer, Coach girdiyi hazır alır ve anahtarı siler — soru GÖNDERİLMEZ, kullanıcı okur/düzenler). Kapatma gövdesi tek kaynak `lib/borcKapat.js` (Gelir & Borç paneli de oradan; kopya silindi). ⚪ Düzenli gelir/gider satırı buton TAŞIMAZ: vadesi geldiği gün `trigger-due` zaten öneri üretir ve "Onay bekleyen" listesine düşer (A2/A3); erken kaydetmek düzenli kaydın ay damgasını bozardı. Kimliksiz kalem (eski sunucu) eylem taşımaz. Kapılar: `tests/test_vade_eylemi_kapisi.py` (5 tipin kimliği doğru kayda ait; eylem haritası kaynaktan), `frontend/src/vade-eylemi.test.jsx` (6 RTL testi: buton seti, PUT kimliği, tazeleme, hata yolu, koça geçiş + tek-seferlik alım).
+- **Kanıt:** `app/rules_engine.py::_collect_upcoming_reminders`, `Cockpit.jsx` (vade satırı), `lib/borcKapat.js`, `lib/kocaSor.js`
 - **Aksiyon:** Her vadeye buton (gelir→"Geldi", borç→"Ödedim", kart→"Koça sor"); PendingAction üretebilir.
 - **Etki:** Orta · **Efor:** M
 

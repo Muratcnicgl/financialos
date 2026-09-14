@@ -5,6 +5,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { coachApi, cockpitApi, userApi } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
+import { hazirSoruyuAl } from '../lib/kocaSor.js';   // UX-013 (BUG #477)
 import Modal from '../components/Modal.jsx';
 
 // UX-014 / BUG #354: sıfırlamada SİLİNENLER — `reset_history`nin üç tablosuyla birebir;
@@ -166,7 +167,8 @@ function parseHistoryDate(item) {
 function CoachInner({ onActionResolved }) {
   const toast = useToast();
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  // UX-013 (BUG #477): başka panelden "Koça sor" ile gelindiyse girdi hazır gelir (gönderilmez).
+  const [input, setInput] = useState(() => hazirSoruyuAl());
   const [sending, setSending] = useState(false);
   const [sifirlamaOnay, setSifirlamaOnay] = useState(false);   // UX-014 (BUG #461)
   const [usage, setUsage] = useState(null);

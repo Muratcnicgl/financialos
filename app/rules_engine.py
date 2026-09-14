@@ -735,6 +735,8 @@ def _collect_upcoming_reminders(
     - PersonalDebt receivable: due_date 0-7 gün, is_paid=False (BUG #119: borçludan tahsil et)
     - Kredi kartı SON ÖDEME: payment_day 0-7 gün + kart borcu > 0 (BUG #096)
     Sıralama: card_risk önce, sonra days_until.
+    UX-013 (BUG #477): her kalem `kaynak_id` taşır (düzenli kayıt / kişisel borç / kart hesabı
+    kimliği) — kokpit satırı "Ödedim / Geldi / Koça sor" ile doğrudan eyleme dönüşür.
     """
     REMINDER_DAYS = 7
     year_month = f"{today.year}-{today.month:02d}"
@@ -754,6 +756,7 @@ def _collect_upcoming_reminders(
         if 0 <= days_until <= REMINDER_DAYS:
             reminders.append({
                 "type": "income",
+                "kaynak_id": inc.id,            # UX-013 (BUG #477): satırdan eyleme
                 "name": inc.name,
                 "amount": inc.amount,
                 "days_until": days_until,
@@ -778,6 +781,7 @@ def _collect_upcoming_reminders(
                 card_risk = (acc.balance + exp.amount) > acc.credit_limit
             reminders.append({
                 "type": "expense",
+                "kaynak_id": exp.id,
                 "name": exp.name,
                 "amount": exp.amount,
                 "days_until": days_until,
@@ -797,6 +801,7 @@ def _collect_upcoming_reminders(
         if 0 <= days_until <= REMINDER_DAYS:
             reminders.append({
                 "type": "debt",
+                "kaynak_id": debt.id,
                 "name": f"{debt.counterparty} borcu",
                 "amount": debt.amount,
                 "days_until": days_until,
@@ -819,6 +824,7 @@ def _collect_upcoming_reminders(
         if 0 <= days_until <= REMINDER_DAYS:
             reminders.append({
                 "type": "receivable",
+                "kaynak_id": debt.id,
                 "name": f"{debt.counterparty} alacağı",
                 "amount": debt.amount,
                 "days_until": days_until,
@@ -839,6 +845,7 @@ def _collect_upcoming_reminders(
         if 0 <= days_until <= REMINDER_DAYS:
             reminders.append({
                 "type": "card_payment",
+                "kaynak_id": acc.id,
                 "name": f"{acc.name} son ödeme",
                 "amount": son["tutar"],          # ekstreden kalan (bilinmiyorsa güncel borç)
                 "days_until": days_until,

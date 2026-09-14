@@ -96,6 +96,7 @@ vi.mock('./api.js', async () => {
 });
 
 import Cockpit from './panels/Cockpit.jsx';
+import { ToastProvider } from './components/Toast.jsx';   // UX-013 (BUG #477): kokpit toast kullanır
 import { cockpitApi, actionsApi, incomesApi, expensesApi, cashflowApi } from './api.js';
 
 async function cizdir(mod, veri = COCKPIT) {
@@ -107,7 +108,7 @@ async function cizdir(mod, veri = COCKPIT) {
   cashflowApi.getForecast.mockResolvedValue({
     summary: { lowest_balance: 500, lowest_date: '2026-09-20', net_flow: 1200, crunch_count: 0 },
   });
-  const r = render(<Cockpit setActiveTab={vi.fn()} />);
+  const r = render(<ToastProvider><Cockpit setActiveTab={vi.fn()} /></ToastProvider>);
   // Yükleme iskeleti kalkana kadar bekle — "yok" iddiaları ancak veri gelince anlamlı.
   await screen.findByText('Bugünkü manzara');
   return r;
@@ -301,7 +302,7 @@ describe('UX-036 — vade satırları panele gider (BUG #465)', () => {
     incomesApi.triggerDue.mockResolvedValue({ triggered: [], atlanan: [] });
     expensesApi.triggerDue.mockResolvedValue({ triggered: [], atlanan: [] });
     cashflowApi.getForecast.mockResolvedValue({ summary: { lowest_balance: 500, lowest_date: '2026-09-20', net_flow: 1, crunch_count: 0 } });
-    render(<Cockpit setActiveTab={git} />);
+    render(<ToastProvider><Cockpit setActiveTab={git} /></ToastProvider>);
     await screen.findByText('Bugünkü manzara');
     // takvimler katlı gelir (planlama bilgisi) — önce aç
     fireEvent.click(screen.getByRole('button', { name: /Yaklaşan ödemeler/ }));

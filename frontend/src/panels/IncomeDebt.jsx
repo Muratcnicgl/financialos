@@ -9,6 +9,7 @@ import Modal from '../components/Modal.jsx';
 import EmptyState from '../components/EmptyState.jsx';   // UX-017 (BUG #464)
 import { formatPara, formatSayi, paraEtiketi } from '../lib/money.js';
 import { useKaliciDurum } from '../lib/kaliciDurum.js';   // UX-037 (BUG #462)
+import { borcuKapat } from '../lib/borcKapat.js';   // UX-013 (BUG #477): kokpitle tek kaynak
 import { useCategories } from '../lib/categories.js';  // BUG #264 (ADR-046)
 
 const CURRENT_YEAR_MONTH = currentYearMonthLocal(); // "2026-05" — LOCAL (gece vardiyası TZ güvenliği)
@@ -172,26 +173,11 @@ export default function IncomeDebt() {
     } catch (e) { toast.error(`Kayıt yapılamadı: ${e.message}`); throw e; }   // BUG #449
   };
 
-  // BUG #241: "Ödendi" artık nakde de yansıyor. Kullanıcı bakiyesinin NEDEN değiştiğini
-  // görmeli — hangi hesaba, ne kadar. Nakit hesap yoksa (ayak uygulanmadıysa) sessiz kalma,
-  // uyar: kayıt kapandı ama bakiye değişmedi.
+  // BUG #241: "Ödendi" nakde de yansır; gövde `lib/borcKapat.js`te (kokpit vade satırıyla
+  // aynı kaynak — UX-013). Burada yalnız liste tazelenir.
   const handleMarkPaid = async (debt) => {
-    try {
-      const guncel = await debtsApi.update(debt.id, { is_paid: true, paid_date: todayLocalISO() });
-      const tahsilat = debt.direction === 'receivable';
-      const hesap = accounts.find(a => a.id === guncel?.settlement_account_id);
-      if (hesap) {
-        toast.success(
-          `${tahsilat ? 'Tahsilat' : 'Ödeme'} işlendi: ${tahsilat ? '+' : '−'}${formatPara(debt.amount)}`,
-          { detail: `${hesap.name} bakiyesine yansıdı` },
-        );
-      } else {
-        toast.warning('Kayıt ödendi olarak işaretlendi ama nakit bakiyesi değişmedi', {
-          detail: 'Nakit hesap bulunamadı — Hesaplar sekmesinden bir nakit hesap ekle.',
-        });
-      }
-      handleRefresh();
-    } catch (e) { toast.error(`Ödendi işaretlenemedi: ${e.message}`); }
+    const guncel = await borcuKapat(debt, accounts, toast);
+    if (guncel) handleRefresh();
   };
 
   // BUG #241: yanlış işaretlenen kapanış geri alınabilir olmalı — backend nakit ayağını

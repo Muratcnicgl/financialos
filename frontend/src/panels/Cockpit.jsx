@@ -12,6 +12,9 @@ import MonthlySummary from '../components/MonthlySummary.jsx';
 import AylikSeri from '../components/AylikSeri.jsx';
 import AyTemposu from '../components/AyTemposu.jsx';   // UX-028 (BUG #466)
 import { kalanCumlesi } from '../lib/bugunKalan.js';   // UX-004 (BUG #467)
+import { borcuKapat } from '../lib/borcKapat.js';   // UX-013 (BUG #477)
+import { kocaSor, kartSonOdemeSorusu } from '../lib/kocaSor.js';   // UX-013 (BUG #477)
+import { useToast } from '../components/Toast.jsx';
 import SatirIciFiyat from '../components/SatirIciFiyat.jsx';   // UX-032 (BUG #470)
 import KararGecmisi from '../components/KararGecmisi.jsx';   // UX-027 (BUG #471)
 import AccountCard from '../components/AccountCard.jsx';
@@ -156,6 +159,7 @@ export default function Cockpit({ setActiveTab }) {
   // yalnız sunucu log'una düşüyordu; kullanıcı kirasının önerilmediğini ay sonunda,
   // bakiyesi tutmayınca fark ederdi.
   const [atlananlar, setAtlananlar] = useState([]);
+  const toast = useToast();   // UX-013 (BUG #477)
 
   const load = useCallback(async () => {
     try {
@@ -198,6 +202,26 @@ export default function Cockpit({ setActiveTab }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // UX-013 (BUG #477): vade satırı eylemi. Borç/alacak → kapat + kokpiti tazele
+  // (bakiye ve liste birlikte değişir); kart → koça hazır soruyla geç.
+  const [vadeMesgul, setVadeMesgul] = useState(null);
+  const vadeEylemi = async (r, i, eylem) => {
+    if (eylem.tip === 'koc') {
+      kocaSor(setActiveTab, kartSonOdemeSorusu(r, formatPara(r.amount)));
+      return;
+    }
+    setVadeMesgul(i);
+    try {
+      const guncel = await borcuKapat(
+        { id: r.kaynak_id, amount: r.amount, direction: r.type === 'receivable' ? 'receivable' : 'payable' },
+        data?.accounts, toast,
+      );
+      if (guncel) await load();
+    } finally {
+      setVadeMesgul(null);
+    }
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -973,6 +997,16 @@ export default function Cockpit({ setActiveTab }) {
           </div>
           <div className="space-y-2">
             {data.upcoming_reminders.map((r, i) => {
+              // UX-013 (BUG #477): satır pasif liste değil — tek tıkla eyleme dönüşür.
+              // borç → Ödedim, alacak → Geldi (nakit ayağı BUG #241 ile), kart → Koça sor.
+              // Düzenli gelir/gider satırı buton TAŞIMAZ: vadesi geldiği gün trigger-due
+              // zaten öneri üretir ve "Onay bekleyen" listesine düşer (A2/A3); erken
+              // kaydetmek düzenli kaydın ay damgasını bozardı — bilinçli boş.
+              const eylem = r.kaynak_id == null ? null
+                : r.type === 'debt' ? { etiket: 'Ödedim', tip: 'borc' }
+                : r.type === 'receivable' ? { etiket: 'Geldi', tip: 'borc' }
+                : r.type === 'card_payment' ? { etiket: 'Koça sor', tip: 'koc' }
+                : null;
               const dayLabel = r.days_until === 0 ? 'Bugün'
                 : r.days_until === 1 ? 'Yarın'
                 : `${r.days_until} gün sonra`;
@@ -1003,6 +1037,18 @@ export default function Cockpit({ setActiveTab }) {
                   <span className={`font-numeric font-semibold flex-shrink-0 ${colorClass}`}>
                     {sign}{formatPara(r.amount)}
                   </span>
+                  {eylem && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-xs px-2 py-1 min-h-[36px] flex-shrink-0"
+                      disabled={vadeMesgul === i}
+                      aria-busy={vadeMesgul === i}
+                      aria-label={`${r.name}: ${eylem.etiket}`}
+                      onClick={() => vadeEylemi(r, i, eylem)}
+                    >
+                      {eylem.etiket}
+                    </button>
+                  )}
                 </div>
               );
             })}

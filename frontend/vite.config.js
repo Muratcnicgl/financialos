@@ -84,6 +84,19 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,  // M35 (FE-032/PERF-020): prod build'de kaynak sızıntısı önlenir
+    // PERF-005/006 (BUG #486): satıcı parçaları ayrı — recharts yalnız grafik panellerinde,
+    // react/lucide her yerde ama nadir değişir (uzun önbellek). Panel parçaları App'teki lazy().
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/recharts/') || id.includes('/d3-') || id.includes('/victory-vendor/')) return 'recharts';
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'react';
+          if (id.includes('/lucide-react/')) return 'lucide';
+          return undefined;
+        },
+      },
+    },
   },
   // M64: component testleri için jsdom + testing-library (regresyon ağı)
   test: {

@@ -29,13 +29,13 @@
 - **Etki:** Orta · **Efor:** M
 
 ### [PERF-005] Kod-splitting yok — 10 panel + recharts tek bundle
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: React.lazy/manualChunks yok
+- **Durum:** ✅ KAPANDI — BUG #486 (14 Eyl 2026). Ölçüldü (`npm run build`): ÖNCE tek parça **1.113 kB** JS (13 panel + recharts ilk boyaya biniyordu). SONRA ilk yük ≈ index 183 + react 133 + lucide 27 kB (**−68 %**); recharts 443 kB ayrı parçada ve `modulepreload` listesinde YOK — kokpitteki tek tüketici (`AylikSeri`) tembel. Kokpit statik (ilk ekran), diğer 11 panel `lazy()` + `Suspense` ("Panel yükleniyor…", `role=status`); vite `manualChunks`: recharts/d3, react/react-dom/scheduler, lucide. PWA precache parçaları otomatik alır (workbox glob). Yan bulgu: altbilgi **"v0.1.0"** sabitti (sürüm 0.3.0'dayken) → `/api/meta`'dan sürüm + build damgası. Kapı `frontend/src/kod-bolme.test.jsx` (kaynak: 11 lazy panel, Suspense sarmalı, manualChunks, kokpit recharts tembel, altbilgi sabit değil); usage-loop e2e izole koşumda 2/2.
 - **Kanıt:** `App.jsx:11-20`; `vite.config.js:21-24` (manualChunks yok)
 - **Aksiyon:** `React.lazy`+`Suspense`; recharts/lucide vendor chunk. İlk paint hızlanır. (FE-009)
 - **Etki:** Orta · **Efor:** M
 
 ### [PERF-006] recharts ağır ve sadece 2 panelde — ilk yüklemeye biniyor
-- **Durum:** 🔲 AÇIK — M85 R3 doğrulama: recharts lazy yok
+- **Durum:** ✅ KAPANDI — BUG #486 (14 Eyl 2026). Ölçüldü (`npm run build`): ÖNCE tek parça **1.113 kB** JS (13 panel + recharts ilk boyaya biniyordu). SONRA ilk yük ≈ index 183 + react 133 + lucide 27 kB (**−68 %**); recharts 443 kB ayrı parçada ve `modulepreload` listesinde YOK — kokpitteki tek tüketici (`AylikSeri`) tembel. Kokpit statik (ilk ekran), diğer 11 panel `lazy()` + `Suspense` ("Panel yükleniyor…", `role=status`); vite `manualChunks`: recharts/d3, react/react-dom/scheduler, lucide. PWA precache parçaları otomatik alır (workbox glob). Yan bulgu: altbilgi **"v0.1.0"** sabitti (sürüm 0.3.0'dayken) → `/api/meta`'dan sürüm + build damgası. Kapı `frontend/src/kod-bolme.test.jsx` (kaynak: 11 lazy panel, Suspense sarmalı, manualChunks, kokpit recharts tembel, altbilgi sabit değil); usage-loop e2e izole koşumda 2/2. (PERF-005 ile birlikte.)
 - **Kanıt:** `Reports.jsx:7-10`, `Cashflow.jsx` (recharts); tüm kullanıcıya iniyor
 - **Aksiyon:** Reports/Cashflow lazy; recharts dynamic import.
 - **Etki:** Orta · **Efor:** S

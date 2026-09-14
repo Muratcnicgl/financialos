@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   Sun, Moon, WifiOff, AlertTriangle, LogOut,
 } from 'lucide-react';
@@ -12,17 +12,30 @@ import CommandPalette from './components/CommandPalette.jsx';
 import HelpModal from './components/HelpModal.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Cockpit from './panels/Cockpit.jsx';
-import Coach from './panels/Coach.jsx';
-import Accounts from './panels/Accounts.jsx';
-import Transactions from './panels/Transactions.jsx';
-import IncomeDebt from './panels/IncomeDebt.jsx';
-import RedLines from './panels/RedLines.jsx';
-import Reports from './panels/Reports.jsx';
-import Cashflow from './panels/Cashflow.jsx';
-import DebtStrategy from './panels/DebtStrategy.jsx';
-import Goals from './panels/Goals.jsx';
-import Budget from './panels/Budget.jsx';
-import Hesap from './panels/Hesap.jsx';  // P4.4 (BUG #215/#216): KVKK haklari arayuzde
+// PERF-005/006 + FE-009 (BUG #486): kokpit dışındaki paneller TEMBEL yüklenir. Ölçüldü
+// (14 Eyl 2026): tek parça 1.113 kB JS — 13 panel + recharts ilk boyaya biniyordu; kullanıcı
+// oturumun %90'ında kokpit ve koçta kalıyor. Kokpit ilk ekran olduğu için statik; recharts
+// yalnız rapor/akış/borç panellerinde ve vite `manualChunks` ile ayrı parçada (vite.config.js).
+const Coach = lazy(() => import('./panels/Coach.jsx'));
+const Accounts = lazy(() => import('./panels/Accounts.jsx'));
+const Transactions = lazy(() => import('./panels/Transactions.jsx'));
+const IncomeDebt = lazy(() => import('./panels/IncomeDebt.jsx'));
+const RedLines = lazy(() => import('./panels/RedLines.jsx'));
+const Reports = lazy(() => import('./panels/Reports.jsx'));
+const Cashflow = lazy(() => import('./panels/Cashflow.jsx'));
+const DebtStrategy = lazy(() => import('./panels/DebtStrategy.jsx'));
+const Goals = lazy(() => import('./panels/Goals.jsx'));
+const Budget = lazy(() => import('./panels/Budget.jsx'));
+const Hesap = lazy(() => import('./panels/Hesap.jsx'));  // P4.4 (BUG #215/#216): KVKK haklari arayuzde
+
+/** Tembel panel yüklenirken: iskelet değil kısa metin — parça küçük, gecikme ~100 ms. */
+function PanelYukleniyor() {
+  return (
+    <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-400" role="status">
+      Panel yükleniyor…
+    </div>
+  );
+}
 import FeedbackWidget from './components/FeedbackWidget.jsx';  // FEAT-033
 // Öğretici sistem: içerik `lib/ogretici.js`'te tek kaynak, bu üç bileşen yalnız çizer.
 import Ipucu from './components/Ipucu.jsx';
@@ -265,6 +278,15 @@ function AppContent({ onLogout }) {
   const [theme, toggleTheme] = useTheme();
   const [activeTab, setActiveTab] = useState('cockpit');
   const { status, usagePct } = useBackendHealth();
+  // BUG #486: altbilgi "v0.1.0" sabitti (sürüm 0.3.0'dayken) — damga /api/meta'dan okunur.
+  const [surumMetni, setSurumMetni] = useState('');
+  useEffect(() => {
+    let canli = true;
+    Promise.resolve().then(() => metaApi.get()).then((m) => {
+      if (canli && m?.surum) setSurumMetni(` · v${m.surum}${m.build ? ` (${String(m.build).slice(0, 7)})` : ''}`);
+    }).catch(() => {});
+    return () => { canli = false; };
+  }, []);
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [showSihirbaz, setShowSihirbaz] = useState(false);
@@ -535,6 +557,7 @@ function AppContent({ onLogout }) {
           <Ipucu sekme={activeTab} />
 
           <ErrorBoundary resetKey={activeTab}>
+            <Suspense fallback={<PanelYukleniyor />}>
             {activeTab === 'cockpit' && <Cockpit setActiveTab={setActiveTab} />}
             {activeTab === 'coach' && <Coach />}
             {activeTab === 'accounts' && <Accounts />}
@@ -548,12 +571,13 @@ function AppContent({ onLogout }) {
             {activeTab === 'budget' && <Budget />}
             {activeTab === 'workspace' && <Workspace />}
             {activeTab === 'hesap' && <Hesap />}
+            </Suspense>
           </ErrorBoundary>
         </div>
       </main>
 
       <footer className="flex-shrink-0 max-w-6xl mx-auto px-4 py-3 text-center text-xs text-zinc-500">
-        FinancialOS · v0.1.0
+        FinancialOS{surumMetni}
         {' · '}
         {/* Görünüm modunun ikinci kapısı. Asıl anahtar Hesap panelinde; buradaki satır
             onun VAR OLDUĞUNU söyler — kimsenin bilmediği bir ayar, olmayan ayardır. */}

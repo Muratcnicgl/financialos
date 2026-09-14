@@ -31,6 +31,9 @@ Biçim: [Semantic Versioning](https://semver.org/lang/tr/) · Tarihler: YYYY-AA-
 
 - Yanıtlar 1 KB üstünde gzip ile sıkıştırılır (openapi 230 KB → 1/3 altı) (#485).
 
+- İlk yükleme üçte bire indi: paneller tembel yüklenir, grafik kütüphanesi ayrı parçada; altbilgi
+  gerçek sürümü gösterir (#486).
+
 ### Operasyon
 - Sağlık görevi, uygulama sağlamken dış yol ölüyse funnel oturumunu kendisi yeniler; kesinti
   kaydı `onarim=1` olarak kalır (#478).

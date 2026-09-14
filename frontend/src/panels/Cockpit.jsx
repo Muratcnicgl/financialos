@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useId, useRef } from 'react';
+import { useState, useEffect, useCallback, useId, useRef, lazy, Suspense } from 'react';
 import { useDialog } from '../lib/dialog.js';
 import {
   Wallet, CreditCard, Building2, TrendingUp, Lock,
@@ -9,7 +9,9 @@ import {
 import { cockpitApi, fundPriceApi, actionsApi, incomesApi, expensesApi, cashflowApi, reportsApi, formatPercent, formatDate, signClass, parseTRNumber } from '../api.js';
 import MetricCard from '../components/MetricCard.jsx';
 import MonthlySummary from '../components/MonthlySummary.jsx';
-import AylikSeri from '../components/AylikSeri.jsx';
+// PERF-006 (BUG #486): kokpitteki tek recharts tüketicisi tembel — 443 kB'lık grafik parçası ilk
+// boyaya binmez, kart çizildikten sonra gelir (ölçüldü: modulepreload listesinden çıktı).
+const AylikSeri = lazy(() => import('../components/AylikSeri.jsx'));
 import AyTemposu from '../components/AyTemposu.jsx';   // UX-028 (BUG #466)
 import { kalanCumlesi } from '../lib/bugunKalan.js';   // UX-004 (BUG #467)
 import { borcuKapat } from '../lib/borcKapat.js';   // UX-013 (BUG #477)
@@ -675,7 +677,11 @@ export default function Cockpit({ setActiveTab }) {
       {/* A3: Aylık özet — kurucu "durum raporu" */}
       {!basit && <MonthlySummary />}
       {/* BUG #428 (DVIZ-004/FEAT-023): ay-be-ay seri — özetin zaman içindeki hali; sade görünümde yok */}
-      {!basit && <AylikSeri months={6} />}
+      {!basit && (
+        <Suspense fallback={<div className="card p-4 text-sm text-zinc-500" role="status">Aylık seri yükleniyor…</div>}>
+          <AylikSeri months={6} />
+        </Suspense>
+      )}
 
       {/* SİNYALLER — üç tek-satırlık bilgi, ÜÇ AYRI KUTU değil.
           Ölçülen sorun: abonelik yükü, borçsuzluk tarihi ve faiz sızıntısı; her biri
